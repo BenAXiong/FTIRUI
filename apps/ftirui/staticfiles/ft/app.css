@@ -1,0 +1,125 @@
+.container { max-width: 1300px; }
+.tab-pane { padding-top: 1rem; }
+table.preview-table { font-variant-numeric: tabular-nums; }
+.toolbar .btn { white-space: nowrap; }
+/* .display_panel { 
+    min-height: 360px; 
+    border:1px solid var(--bs-border-color); 
+    background:var(--bs-body-bg); 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; }
+.display_panel img { max-width:100%; height:auto; } */
+.small-help { font-size: .825rem; color:#6c757d; }
+
+/* one place to style the panel size/feel */
+.plot-panel{
+  width: 100%;
+  min-height: 360px;                 /* match your old display_panel */
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+}
+/* make image fit without shrinking the panel */
+.plot-panel img{
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Drop zone base look */
+#drop_zone { 
+    content:"";
+    position: relative; 
+    min-height: 360px; 
+    cursor: pointer; 
+    background: var(--bs-body-bg); 
+    border: 2px solid transparent; }
+#drop_zone.dragover { 
+    border: 2px dashed var(--bs-primary); 
+    box-shadow: 0 0 0 .25rem color-mix(in oklab, var(--bs-primary) 15%, transparent);}
+
+@property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+
+/* Animated “idle” rainbow ring (only when no files yet) */
+#drop_zone.idle::before {
+    content: "";
+    position: absolute;
+    inset: -2px;                       /* match the element’s box */
+    padding: 2px;                      /* border thickness */
+    border-radius: inherit;            /* follow .rounded exactly */
+    background: conic-gradient(
+        from var(--angle),
+        #ff0040, #ff8a00, #ffe600, #33d17a, #00a2ff, #7a5cff, #ff00c8, #ff0040
+);
+animation: spin 6s linear infinite;
+/* show as a ring using masks */
+-webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+-webkit-mask-composite: xor;
+mask-composite: exclude;
+
+pointer-events: none;              /* don’t block clicks/drags */
+opacity: .85;
+z-index: 1;                        /* above bg, below text */
+}
+
+@keyframes spin { to { --angle: 360deg; } }
+
+/* Pause the rainbow when user is dragging files over (keeps dashed UX) */
+#drop_zone.dragover::before { display: none; }
+
+/* Stop animation once files are present */
+#drop_zone.has-files::before { display: none; }
+
+#drop_zone.dragover {
+border: 2px dashed #0d6efd;     /* use border, not outline */
+box-shadow: 0 0 0 .25rem rgba(13,110,253,.1);
+}
+
+pre, code, .pre-like {
+background: var(--bs-tertiary-bg);
+color: var(--bs-body-color);
+border: 1px solid var(--bs-border-color);
+}
+
+
+/* Floating table preview */
+.preview-popup{
+  position: absolute;
+  top: .75rem; right: .75rem;
+  min-width: 420px;
+  max-width: min(640px, 90%);
+  max-height: 70vh;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+  overflow: hidden;                /* header sticky + body scroll */
+  z-index: 10;
+}
+.preview-popup-header{
+  display:flex; align-items:center; gap:.5rem;
+  justify-content: space-between;
+  padding: .5rem .75rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
+  position: sticky; top: 0;
+}
+.preview-popup-body{
+  padding: .5rem;
+  max-height: calc(70vh - 38px);
+  overflow: auto;
+}
+
+/* optional: ghost backdrop so it pops */
+.preview-backdrop{
+  position:absolute; inset:0;
+  background: rgba(0,0,0,.06);
+  border-radius: .5rem;
+  z-index: 9;
+}
+
+.input-group.input-group-sm .input-group-text{ white-space:nowrap; min-width:72px; }

@@ -122,4 +122,17 @@ border: 1px solid var(--bs-border-color);
   z-index: 9;
 }
 
-.input-group.input-group-sm .input-group-text{ white-space:nowrap; min-width:72px; }
+/* .input-group.input-group-sm .input-group-text{
+  min-width:auto;
+  padding-inline: .5rem;
+} */
+
+/* Let each input-group fill its column neatly */
+.input-group.input-group-sm { width: 100%; }
+.input-group.input-group-sm .form-control { min-width: 0; }   /* avoid overflow */
+
+#btn_more_opts .when-shown { display: none; }
+#btn_more_opts.collapsed .when-collapsed { display: inline; }
+#btn_more_opts.collapsed .when-shown { display: none; }
+#btn_more_opts:not(.collapsed) .when-collapsed { display: none; }
+#btn_more_opts:not(.collapsed) .when-shown { display: inline; }

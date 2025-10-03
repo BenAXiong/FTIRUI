@@ -1,0 +1,5 @@
+build/
+apps/ftirui/build/
+apps/ftirui/dist/
+*.pkg
+*.exe

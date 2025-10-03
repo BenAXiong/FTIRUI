@@ -1,3 +1,5 @@
+// let lastPlotData = null;
+
 // pick saved theme or fallback to system
 const saved = localStorage.getItem('theme');
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -5,23 +7,22 @@ const start = saved || (systemDark ? 'dark' : 'light');
 document.documentElement.setAttribute('data-bs-theme', start);
 
 const setTheme = (t) => {
-document.documentElement.setAttribute('data-bs-theme', t);
-localStorage.setItem('theme', t);
-// optional: swap   icon
-const icon = document.querySelector('#themeToggle .theme-icon');
-if (icon) icon.textContent = t === 'dark' ? '☀️' : '🌙';
+    document.documentElement.setAttribute('data-bs-theme', t);
+    localStorage.setItem('theme', t);
+    const icon = document.querySelector('#themeToggle .theme-icon');
+    if (icon) icon.textContent = t === 'dark' ? '☀️' : '🌙';
 };
 
 document.getElementById('themeToggle')?.addEventListener('click', () => {
-const cur = document.documentElement.getAttribute('data-bs-theme') || 'light';
-setTheme(cur === 'dark' ? 'light' : 'dark');
+    const cur = document.documentElement.getAttribute('data-bs-theme') || 'light';
+    setTheme(cur === 'dark' ? 'light' : 'dark');
 });
 
 // sync icon on load
 (function initIcon(){
-const cur = document.documentElement.getAttribute('data-bs-theme') || 'light';
-const icon = document.querySelector('#themeToggle .theme-icon');
-if (icon) icon.textContent = cur === 'dark' ? '☀️' : '🌙';
+    const cur = document.documentElement.getAttribute('data-bs-theme') || 'light';
+    const icon = document.querySelector('#themeToggle .theme-icon');
+    if (icon) icon.textContent = cur === 'dark' ? '☀️' : '🌙';
 })();
 
 // CSRF
@@ -35,165 +36,239 @@ function show(id, yes){ el(id).style.display = yes ? '' : 'none'; }
 
 // ---- Convert: Preview table ----
 el('btn_toggle_preview').addEventListener('click', ()=> {
-const wrap = el('preview_area');
-wrap.style.display = (wrap.style.display === 'none') ? '' : 'none';
+    const wrap = el('preview_area');
+    wrap.style.display = (wrap.style.display === 'none') ? '' : 'none';
 });
 
-async function doPreview(){
-const files = el('conv_files').files;
-if (!files.length){
-    setHTML('preview_area','<div class="text-danger">Choose a file.</div>');
-    return; }
-const fd = new FormData();
-fd.append('file', files[0]);
-fd.append('decimal_comma', el('decimal_comma').checked);
-fd.append('delimiter', el('delimiter').value);
-fd.append('skiprows', el('skiprows').value);
-fd.append('sheet', el('sheet').value);
+// async function doPreview(){
+//     const files = el('conv_files').files;
+//     if (!files.length){
+//         setHTML('preview_area','<div class="text-danger">Choose a file.</div>');
+//         return; }
+//     const fd = new FormData();
+//     fd.append('file', files[0]);
+//     fd.append('decimal_comma', el('decimal_comma').checked);
+//     fd.append('delimiter', el('delimiter').value);
+//     fd.append('skiprows', el('skiprows').value);
+//     fd.append('sheet', el('sheet').value);
 
-const resp = await fetch('/preview/', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
-const data = await resp.json();
-if (!resp.ok){
-    setHTML('preview_area', `<div class="text-danger">${data.error||'Preview failed'}</div>`);
-    return; }
+//     const resp = await fetch('/preview/', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
+//     const data = await resp.json();
+//     if (!resp.ok){
+//         setHTML('preview_area', `<div class="text-danger">${data.error||'Preview failed'}</div>`);
+//         return; }
 
-// render
-const headings = data.headings||[];
-const rows = data.rows||[];
-let html = '<table class="table table-sm table-striped preview-table"><thead><tr>';
-for (const h of headings) html += `<th>${h}</th>`;
-html += '</tr></thead><tbody>';
-for (const r of rows) html += '<tr>' + r.map(v=>`<td>${v??''}</td>`).join('') + '</tr>';
-html += '</tbody></table>';
-setHTML('preview_area', html);
-lastPlotMode = 'preview'; // so axis changes replot preview
-};
+//     // render
+//     const headings = data.headings||[];
+//     const rows = data.rows||[];
+//     let html = '<table class="table table-sm table-striped preview-table"><thead><tr>';
+//     for (const h of headings) html += `<th>${h}</th>`;
+//     html += '</tr></thead><tbody>';
+//     for (const r of rows) html += '<tr>' + r.map(v=>`<td>${v??''}</td>`).join('') + '</tr>';
+//     html += '</tbody></table>';
+//     setHTML('preview_area', html);
+//     lastPlotMode = 'preview'; // so axis changes replot preview
+// };
 
-// ---- Convert: Plot Preview ----
-function resetPlotPlaceholder(){
-  const img = el('plot_img');
-  const ph  = el('plot_placeholder');
-  if(img){ img.classList.add('d-none'); img.removeAttribute('src'); img.alt = 'FTIR plot'; }
-  if(ph){ ph.style.display = ''; }
+// ---- Plot: Preview ----
+// function resetPlotPlaceholder(){
+//   const img = el('plot_img');
+//   const ph  = el('plot_placeholder');
+//   if(img){ img.classList.add('d-none'); img.removeAttribute('src'); img.alt = 'FTIR plot'; }
+//   if(ph){ ph.style.display = ''; }
+// }
+
+// function showPlot(srcUrl){
+//   const img = el('plot_img');
+//   const ph  = el('plot_placeholder');
+//   if (!img || !ph) return;
+//   img.onload = () => {};
+//   img.onerror = () => resetPlotPlaceholder();
+//   img.src = srcUrl;
+//   img.classList.remove('d-none');
+//   ph.style.display = 'none';
+// }
+
+// async function doPlotPreview(){
+//   const files = el('conv_files').files;
+//   if (!files.length){ resetPlotPlaceholder(); return; }
+
+//   const fd = new FormData();
+//   fd.append('file', files[0]);
+//   fd.append('x_col', el('x_col').value);
+//   fd.append('y_col', el('y_col').value);
+//   fd.append('delimiter', el('delimiter')?.value || '');
+//   fd.append('decimal_comma', el('decimal_comma')?.checked || false);
+//   fd.append('skiprows', el('skiprows')?.value || '0');
+//   fd.append('sheet', el('sheet')?.value || '');
+//   fd.append('invert', el('invert')?.checked || false);
+//   fd.append('xmin', el('xmin')?.value || 'auto');
+//   fd.append('xmax', el('xmax')?.value || 'auto');
+
+//   const resp = await fetch('/plot_preview', { method:'POST', headers:{'X-CSRFToken': csrftoken}, body: fd });
+//   if(!resp.ok){
+//     let msg = 'Plot failed';
+//     try{ const d = await resp.json(); if(d.error) msg = d.error; }catch{}
+//     resetPlotPlaceholder();
+//     el('plot_img').alt = msg;
+//     return;
+//   }
+//   const blob = await resp.blob();
+//   showPlot(URL.createObjectURL(blob));
+//   lastPlotMode = 'preview';
+// }
+
+
+// Auto-plot on Plot tab when a file is chosen
+// el('conv_files').addEventListener('change', async () => {
+//     await doPlotPreview();
+// });
+
+// el('conv_files').addEventListener('change', async () => {
+//     await doPreview();
+// });
+
+// Auto-plot on Live tab when Feather files are chosen
+el('live_file').addEventListener('change', async () => {
+    await doLivePlot();
+});
+
+// ---- Plotly render helpers ----
+function renderPlotly(data){
+  const config = {
+    displaylogo: false,
+    responsive: true,
+    modeBarButtonsToAdd: ['toImage'],
+    toImageButtonOptions: {
+      format:'png', filename:'ftir_plot',
+      height:600, width:1200, scale:2
+    },
+  };
+  Plotly.newPlot('plotly_plot', data.traces, data.layout, config);
 }
 
-function showPlot(srcUrl){
-  const img = el('plot_img');
-  const ph  = el('plot_placeholder');
-  if (!img || !ph) return;
-  img.onload = () => {};
-  img.onerror = () => resetPlotPlaceholder();
-  img.src = srcUrl;
-  img.classList.remove('d-none');
-  ph.style.display = 'none';
+function addMarkerAt(xVal, yVal){
+  // add a small scatter point as a marker
+  const trace = {name: `Marker ${++markerCount}`, x:[xVal], y:[yVal], mode:'markers', type:'scatter'};
+  Plotly.addTraces('plotly_plot', [trace]);
 }
 
-async function doPlotPreview(){
-  const files = el('conv_files').files;
-  if (!files.length){ resetPlotPlaceholder(); return; }
-
+// ---- Table preview (new JSON: columns + rows[dict]) ----
+async function fetchPreview(file){
   const fd = new FormData();
-  fd.append('file', files[0]);
-  fd.append('x_col', el('x_col').value);
-  fd.append('y_col', el('y_col').value);
+  fd.append('file', file);
   fd.append('delimiter', el('delimiter')?.value || '');
   fd.append('decimal_comma', el('decimal_comma')?.checked || false);
   fd.append('skiprows', el('skiprows')?.value || '0');
   fd.append('sheet', el('sheet')?.value || '');
-  fd.append('invert', el('invert')?.checked || false);
-  fd.append('xmin', el('xmin')?.value || 'auto');
-  fd.append('xmax', el('xmax')?.value || 'auto');
 
-  const resp = await fetch('/plot_preview', { method:'POST', headers:{'X-CSRFToken': csrftoken}, body: fd });
-  if(!resp.ok){
-    let msg = 'Plot failed';
-    try{ const d = await resp.json(); if(d.error) msg = d.error; }catch{}
-    resetPlotPlaceholder();
-    el('plot_img').alt = msg;
-    return;
+  const resp = await fetch('/preview/', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
+  const data = await resp.json().catch(()=>({}));
+  if(!resp.ok){ setHTML('preview_area', `<div class="text-danger">${data.error||'Preview failed'}</div>`); return; }
+
+  const cols = data.columns || [];
+  const rows = data.rows || [];
+  let html = '<table class="table table-sm table-striped preview-table"><thead><tr>';
+  for (const c of cols) html += `<th>${c}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const r of rows){
+    html += '<tr>';
+    for (const c of cols){ html += `<td>${r[c] ?? ''}</td>`; }
+    html += '</tr>';
   }
-  const blob = await resp.blob();
-  showPlot(URL.createObjectURL(blob));
-  lastPlotMode = 'preview';
+  html += '</tbody></table>';
+  setHTML('preview_area', html);
+}
+
+// ---- /data -> Plotly JSON ----
+async function fetchPlotData(file){
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('x_col', el('x_col')?.value || '0');
+  fd.append('y_col', el('y_col')?.value || '1');
+  fd.append('delimiter', el('delimiter')?.value || '');
+  fd.append('decimal_comma', el('decimal_comma')?.checked || false);
+  fd.append('skiprows', el('skiprows')?.value || '0');
+  fd.append('sheet', el('sheet')?.value || '');
+  fd.append('invert', el('invert')?.checked || true); // FT-IR default
+
+  const resp = await fetch('/data/', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
+  const data = await resp.json().catch(()=>({}));
+  if(!resp.ok){ setHTML('plot_placeholder', data.error || 'Plot failed'); return; }
+  renderPlotly(data);
 }
 
 
-// Auto-plot on Convert tab when a file is chosen
-el('conv_files').addEventListener('change', async () => {
-await doPlotPreview();
-});
 
-el('conv_files').addEventListener('change', async () => {
-await doPreview();
-});
 
-// Auto-plot on Live tab when Feather files are chosen
-el('live_file').addEventListener('change', async () => {
-await doLivePlot();
-});      
 
-// ---- Convert: Convert -> immediate downloads ----
-el('btn_convert').addEventListener('click', async () => {
-const files = el('conv_files').files;
-const status = el('convert_status');
-if (!files.length){ setHTML('convert_status','<div class="text-danger">Choose file(s) to convert.</div>'); return; }
 
-const fd = new FormData();
-for (const f of files) fd.append('files', f);
-fd.append('x_col', el('x_col').value);
-fd.append('y_col', el('y_col').value);
-fd.append('absorbance', el('absorbance').checked);
-fd.append('assume_percent', el('assume_percent').checked);
-fd.append('delimiter', el('delimiter').value);
-fd.append('decimal_comma', el('decimal_comma').checked);
-fd.append('no_header', el('no_header').checked);
-fd.append('skiprows', el('skiprows').value);
-fd.append('sheet', el('sheet').value);
-fd.append('header_row', el('header_row').value);
 
-const resp = await fetch('/plot/', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
-const data = await resp.json();
-if (!resp.ok){ setHTML('convert_status', `<div class="text-danger">${data.error||'Conversion failed'}</div>`); return; }
 
-// Trigger immediate downloads (no link list)
-const outs = data.outputs||[];
-if (!outs.length){ setHTML('convert_status','<div class="text-danger">No outputs.</div>'); return; }
-for (const o of outs){
-    const a = document.createElement('a');
-    a.href = o.url; a.download = o.name;
-    document.body.appendChild(a); a.click(); a.remove();
-}
-setHTML('convert_status', `<div class="alert alert-success py-2 mb-0">Downloaded ${outs.length} file(s).</div>`);
+
+
+// ---- Plot: Convert -> immediate downloads ----
+el('btn_convert_feather').addEventListener('click', async () => {
+    const files = el('conv_files').files;
+    const status = el('convert_status');
+    if (!files.length){ setHTML('convert_status','<div class="text-danger">Choose file(s) to convert.</div>'); return; }
+
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f);
+    fd.append('x_col', el('x_col').value);
+    fd.append('y_col', el('y_col').value);
+    fd.append('absorbance', el('absorbance').checked);
+    fd.append('assume_percent', el('assume_percent').checked);
+    fd.append('delimiter', el('delimiter').value);
+    fd.append('decimal_comma', el('decimal_comma').checked);
+    fd.append('no_header', el('no_header').checked);
+    fd.append('skiprows', el('skiprows').value);
+    fd.append('sheet', el('sheet').value);
+    fd.append('header_row', el('header_row').value);
+
+    const resp = await fetch('/plot/', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
+    const data = await resp.json();
+    if (!resp.ok){ setHTML('convert_status', `<div class="text-danger">${data.error||'Conversion failed'}</div>`); return; }
+
+    // Trigger immediate downloads (no link list)
+    const outs = data.outputs||[];
+    if (!outs.length){ setHTML('convert_status','<div class="text-danger">No outputs.</div>'); return; }
+    for (const o of outs){
+        const a = document.createElement('a');
+        a.href = o.url; a.download = o.name;
+        document.body.appendChild(a); a.click(); a.remove();
+    }
+    setHTML('convert_status', `<div class="alert alert-success py-2 mb-0">Downloaded ${outs.length} file(s).</div>`);
 });
 
 // ---- Live: multi-file overlay plot ----
 async function doLivePlot(){
-const files = el('live_file').files;
-const img = el('plot_img_live');
-if (!files.length){ img.alt='Choose Feather file(s)'; img.removeAttribute('src'); return; }
+    const files = el('live_file').files;
+    const img = el('plot_img_live');
+    if (!files.length){ img.alt='Choose Feather file(s)'; img.removeAttribute('src'); return; }
 
-const fd = new FormData();
-for (const f of files) fd.append('file', f);  // multiple
-fd.append('invert', el('invert_live').checked);
-fd.append('xmin', el('xmin_live').value || 'auto');
-fd.append('xmax', el('xmax_live').value || 'auto');
+    const fd = new FormData();
+    for (const f of files) fd.append('file', f);  // multiple
+    fd.append('invert', el('invert_live').checked);
+    fd.append('xmin', el('xmin_live').value || 'auto');
+    fd.append('xmax', el('xmax_live').value || 'auto');
 
-const resp = await fetch('/plot', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
-if (!resp.ok){ const d = await resp.json().catch(()=>({})); img.alt = d.error||'Plot failed'; img.removeAttribute('src'); return; }
-const blob = await resp.blob(); img.src = URL.createObjectURL(blob);
-lastPlotMode = 'live';
+    const resp = await fetch('/plot', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
+    if (!resp.ok){ const d = await resp.json().catch(()=>({})); img.alt = d.error||'Plot failed'; img.removeAttribute('src'); return; }
+    const blob = await resp.blob(); img.src = URL.createObjectURL(blob);
+    lastPlotMode = 'live';
 }
 el('btn_plot').addEventListener('click', doLivePlot);
 
 // ---- Auto replot on invert/x-range changes ----
 let lastPlotMode = null; // 'preview' | 'live'
 function scheduleReplot(scope){
-if (scope === 'preview' && lastPlotMode === 'preview') doPlotPreview();
-if (scope === 'preview' && lastPlotMode === 'preview') doPreview();
-if (scope === 'live' && lastPlotMode === 'live') doLivePlot();
+    if (scope === 'preview' && lastPlotMode === 'preview') doPlotPreview();
+    if (scope === 'preview' && lastPlotMode === 'preview') doPreview();
+    if (scope === 'live' && lastPlotMode === 'live') doLivePlot();
 }
 
-// Convert panel controls
+// Plot panel controls
 el('invert').addEventListener('change', ()=>scheduleReplot('preview'));
 el('xmin').addEventListener('input', ()=>scheduleReplot('preview'));
 el('xmax').addEventListener('input', ()=>scheduleReplot('preview'));
@@ -206,47 +281,114 @@ el('xmin_live').addEventListener('input', ()=>scheduleReplot('live'));
 el('xmax_live').addEventListener('input', ()=>scheduleReplot('live'));
 
 // helper: build a FileList for input
-function filesToFileList(files) {
-const dt = new DataTransfer();
-[...files].forEach(f => dt.items.add(f));
-return dt.files;
-}
 
-const dz  = document.getElementById('drop_zone');
-const inp = document.getElementById('conv_files');
+// const dz  = document.getElementById('drop_zone');
+// const inp = document.getElementById('conv_files');
+
+// ---- Drag & drop / click to select ----
+const dz  = el('drop_zone');
+const inp = el('conv_files');
+
+function filesToFileList(files){ 
+    const dt=new DataTransfer(); 
+    [...files].forEach(f=>dt.items.add(f)); 
+    return dt.files; 
+}
 
 // Safety guard
-if (dz && inp) {
-dz.addEventListener('click', () => inp.click());
+// if (dz && inp) {
+//     dz.addEventListener('click', () => inp.click());
 
-['dragenter','dragover'].forEach(ev =>
-    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); })
-);
-['dragleave','drop'].forEach(ev =>
-    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); })
-);
+//     ['dragenter','dragover'].forEach(ev =>
+//         dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); })
+//     );
+//     ['dragleave','drop'].forEach(ev =>
+//         dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); })
+//     );
 
-dz.addEventListener('drop', e => {
-    const files = e.dataTransfer?.files;
-    if (!files || !files.length) return;
+//     dz.addEventListener('drop', e => {
+//         const files = e.dataTransfer?.files;
+//         if (!files || !files.length) return;
+//         inp.files = filesToFileList(files);
+//         inp.dispatchEvent(new Event('change'));   // <- kick your preview/plot
+//         dz.classList.remove('idle');              // disable “idle glow”
+//         dz.classList.add('has-files');
+//     });
+
+//     inp.addEventListener('change', () => {
+//     if (inp.files && inp.files.length > 0) {
+//         dz.classList.remove('idle');
+//         dz.classList.add('has-files');
+//     }
+//     });
+
+//     // Optional: protect the page
+//     ['dragover','drop'].forEach(ev =>
+//         document.body.addEventListener(ev, e => e.preventDefault())
+//     );
+// }
+
+
+
+
+
+if (dz && inp){
+  dz.addEventListener('click', (e) => {
+    if (!dz.classList.contains('has-files')) inp.click();
+});
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', async (e) => {
+    const files = e.dataTransfer?.files; if(!files || !files.length) return;
     inp.files = filesToFileList(files);
-    inp.dispatchEvent(new Event('change'));   // <- kick your preview/plot
-    dz.classList.remove('idle');              // disable “idle glow”
-    dz.classList.add('has-files');
-});
-
-inp.addEventListener('change', () => {
-  if (inp.files && inp.files.length > 0) {
-    dz.classList.remove('idle');
-    dz.classList.add('has-files');
-  }
-});
-
-// Optional: protect the page
-['dragover','drop'].forEach(ev =>
-    document.body.addEventListener(ev, e => e.preventDefault())
-);
+    await handleNewFile();
+  });
+  inp.addEventListener('change', handleNewFile);
 }
+
+async function handleNewFile(){
+  const placeholder = el('plot_placeholder');
+  if (inp.files?.length){
+    dz.classList.remove('idle'); dz.classList.add('has-files');
+    placeholder?.remove();
+    // 1) Plotly JSON + render
+    await fetchPlotData(inp.files[0]);
+    // 2) Table preview
+    await fetchPreview(inp.files[0]);
+  }
+}
+
+// ---- Axis controls: re-request /data with invert or ranges if you prefer server logic,
+// but here we’ll do client-side relayout for snappy UX ----
+function relayoutFromInputs(){
+  const xmin = el('xmin')?.value || '';
+  const xmax = el('xmax')?.value || '';
+  const invert = el('invert')?.checked;
+
+  const update = {
+    'xaxis.autorange': invert ? 'reversed' : true
+  };
+  if (xmin || xmax){
+    // let Plotly parse numeric; empty means auto
+    if (xmin) update['xaxis.range[0]'] = parseFloat(xmin);
+    if (xmax) update['xaxis.range[1]'] = parseFloat(xmax);
+  } else {
+    update['xaxis.range'] = null; // auto
+  }
+  Plotly.relayout('plotly_plot', update);
+}
+
+el('invert')?.addEventListener('change', relayoutFromInputs);
+el('xmin')?.addEventListener('input', relayoutFromInputs);
+el('xmax')?.addEventListener('input', relayoutFromInputs);
+el('btn_reset_x')?.addEventListener('click', () => { el('xmin').value=''; el('xmax').value=''; relayoutFromInputs(); });
+
+// ---- Click to drop a marker ----
+el('plotly_plot')?.addEventListener('plotly_click', (ev) => {
+  if (!ev || !ev.points || !ev.points.length) return;
+  const p = ev.points[0];
+  addMarkerAt(p.x, p.y);
+});
 
 /* Raw data popup */
 const btnOpen = document.getElementById('btn_preview_popup');
@@ -292,4 +434,3 @@ function escClose(e){ if (e.key === 'Escape') closePreviewPopup(); }
 
 btnOpen?.addEventListener('click', openPreviewPopup);
 btnClose?.addEventListener('click', closePreviewPopup);
-

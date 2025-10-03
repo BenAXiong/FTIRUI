@@ -8,10 +8,12 @@ from django.conf import settings
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.utils.decorators import method_decorator
 
 import pandas as pd 
 import numpy as np
+import json
 
 # Matplotlib headless backend
 import matplotlib
@@ -162,79 +164,79 @@ def convert(request):
     links = [f"{settings.MEDIA_URL}converted/{p.name}" for p in outputs]
     return JsonResponse({"outputs": [{"name": p.name, "url": url} for p, url in zip(outputs, links)]})
 
-@require_http_methods(["POST"])
-def plot_preview(request):
-    """
-    Plot from a raw CSV/XLSX upload using the same options as preview/convert.
-    Accepts: file, x_col, y_col, delimiter, decimal_comma, skiprows, sheet,
-             invert (bool), xmin, xmax (floats or empty)
-    Returns: PNG image bytes
-    """
-    f = request.FILES.get("file")
-    if not f:
-        return JsonResponse({"error": "No file uploaded"}, status=400)
+# @require_http_methods(["POST"])
+# def plot_preview(request):
+#     """
+#     Plot from a raw CSV/XLSX upload using the same options as preview/convert.
+#     Accepts: file, x_col, y_col, delimiter, decimal_comma, skiprows, sheet,
+#              invert (bool), xmin, xmax (floats or empty)
+#     Returns: PNG image bytes
+#     """
+#     f = request.FILES.get("file")
+#     if not f:
+#         return JsonResponse({"error": "No file uploaded"}, status=400)
 
-    import io
-    name = (f.name or "").lower()
-    x_col = int(request.POST.get("x_col") or 0)
-    y_col = int(request.POST.get("y_col") or 1)
-    delimiter = request.POST.get("delimiter") or None
-    decimal_comma = request.POST.get("decimal_comma") == "true"
-    skiprows = int(request.POST.get("skiprows") or 0)
-    sheet = request.POST.get("sheet") or None
-    invert = request.POST.get("invert") == "true"
-    xmin = request.POST.get("xmin")
-    xmax = request.POST.get("xmax")
-    xmin = float(xmin) if (xmin not in (None, "", "auto")) else None
-    xmax = float(xmax) if (xmax not in (None, "", "auto")) else None
-    decimal = "," if decimal_comma else "."
+#     import io
+#     name = (f.name or "").lower()
+#     x_col = int(request.POST.get("x_col") or 0)
+#     y_col = int(request.POST.get("y_col") or 1)
+#     delimiter = request.POST.get("delimiter") or None
+#     decimal_comma = request.POST.get("decimal_comma") == "true"
+#     skiprows = int(request.POST.get("skiprows") or 0)
+#     sheet = request.POST.get("sheet") or None
+#     invert = request.POST.get("invert") == "true"
+#     xmin = request.POST.get("xmin")
+#     xmax = request.POST.get("xmax")
+#     xmin = float(xmin) if (xmin not in (None, "", "auto")) else None
+#     xmax = float(xmax) if (xmax not in (None, "", "auto")) else None
+#     decimal = "," if decimal_comma else "."
 
-    # Read into df as in preview:
-    try:
-        if name.endswith((".xlsx", ".xls")):
-            df = pd.read_excel(
-                f, header=None, skiprows=skiprows, decimal=decimal,
-                sheet_name=(sheet if sheet not in (None, "") else 0),
-                engine="openpyxl" if name.endswith(".xlsx") else None,
-            )
-        else:
-            raw = f.read()
-            text = raw.decode("utf-8", errors="ignore")
-            fh = io.StringIO(text)
-            read_kwargs = dict(header=None, skiprows=skiprows, decimal=decimal, engine="python")
-            if delimiter:
-                read_kwargs["sep"] = delimiter
-            df = pd.read_csv(fh, **read_kwargs)
-    except Exception as e:
-        return JsonResponse({"error": f"Preview plot read failed: {e}"}, status=400)
+#     # Read into df as in preview:
+#     try:
+#         if name.endswith((".xlsx", ".xls")):
+#             df = pd.read_excel(
+#                 f, header=None, skiprows=skiprows, decimal=decimal,
+#                 sheet_name=(sheet if sheet not in (None, "") else 0),
+#                 engine="openpyxl" if name.endswith(".xlsx") else None,
+#             )
+#         else:
+#             raw = f.read()
+#             text = raw.decode("utf-8", errors="ignore")
+#             fh = io.StringIO(text)
+#             read_kwargs = dict(header=None, skiprows=skiprows, decimal=decimal, engine="python")
+#             if delimiter:
+#                 read_kwargs["sep"] = delimiter
+#             df = pd.read_csv(fh, **read_kwargs)
+#     except Exception as e:
+#         return JsonResponse({"error": f"Preview plot read failed: {e}"}, status=400)
 
-    if x_col >= df.shape[1] or y_col >= df.shape[1]:
-        return JsonResponse({"error": "x_col or y_col out of range for this file"}, status=400)
+#     if x_col >= df.shape[1] or y_col >= df.shape[1]:
+#         return JsonResponse({"error": "x_col or y_col out of range for this file"}, status=400)
 
-    x = pd.to_numeric(df.iloc[:, x_col], errors="coerce").to_numpy(dtype=np.float32)
-    y = pd.to_numeric(df.iloc[:, y_col], errors="coerce").to_numpy(dtype=np.float32)
-    m = ~(np.isnan(x) | np.isnan(y))
-    x, y = x[m], y[m]
+#     x = pd.to_numeric(df.iloc[:, x_col], errors="coerce").to_numpy(dtype=np.float32)
+#     y = pd.to_numeric(df.iloc[:, y_col], errors="coerce").to_numpy(dtype=np.float32)
+#     m = ~(np.isnan(x) | np.isnan(y))
+#     x, y = x[m], y[m]
 
-    y = _to_fractional_T(y)
+#     y = _to_fractional_T(y)
 
-    fig, ax = plt.subplots(figsize=(7, 3))
-    ax.plot(x, y, linewidth=1.0)
-    ax.set_xlabel("Wavenumber (cm⁻¹)")
-    ax.set_ylabel("Y")
+#     fig, ax = plt.subplots(figsize=(7, 3))
+#     ax.plot(x, y, linewidth=1.0)
+#     ax.set_xlabel("Wavenumber (cm⁻¹)")
+#     ax.set_ylabel("Y")
 
-    if invert:
-        ax.invert_xaxis()
-    if xmin is not None or xmax is not None:
-        ax.set_xlim(left=xmin, right=xmax)
+#     if invert:
+#         ax.invert_xaxis()
+#     if xmin is not None or xmax is not None:
+#         ax.set_xlim(left=xmin, right=xmax)
 
-    ax.grid(alpha=0.3)
-    fig.tight_layout()
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=120)
-    plt.close(fig)
-    buf.seek(0)
-    return HttpResponse(buf.getvalue(), content_type="image/png")
+#     ax.grid(alpha=0.3)
+#     fig.tight_layout()
+#     buf = io.BytesIO()
+#     fig.savefig(buf, format="png", dpi=120)
+#     plt.close(fig)
+#     buf.seek(0)
+#     return HttpResponse(buf.getvalue(), content_type="image/png")
 
 
 @require_http_methods(["POST"])
@@ -339,3 +341,195 @@ def logs(request):
 
     tail = lines[-n:]
     return JsonResponse({"files": files, "file": fname, "lines": tail})
+
+def _read_tabular_upload(f, *, delimiter=None, decimal_comma=False, skiprows=0, sheet=None):
+    """Read CSV/XLSX/TXT robustly into a headerless DataFrame."""
+    name = (getattr(f, "name", "") or "").lower()
+    decimal = "," if decimal_comma else "."
+    if name.endswith((".xlsx", ".xls")):
+        return pd.read_excel(
+            f, header=None, skiprows=int(skiprows or 0), decimal=decimal,
+            sheet_name=(sheet if sheet not in (None, "") else 0),
+            engine="openpyxl" if name.endswith(".xlsx") else None,
+        )
+    # CSV/TSV/TXT: read as text
+    raw = f.read()
+    text = raw.decode("utf-8", errors="ignore")
+    fh = io.StringIO(text)
+    kw = dict(header=None, skiprows=int(skiprows or 0), decimal=decimal, engine="python")
+    if delimiter: kw["sep"] = delimiter
+    return pd.read_csv(fh, **kw)
+
+def _coerce_xy(df, x_col=0, y_col=1):
+    """Pick numeric x/y columns with NaNs removed."""
+    x = pd.to_numeric(df.iloc[:, int(x_col or 0)], errors="coerce").to_numpy(dtype=np.float32)
+    y = pd.to_numeric(df.iloc[:, int(y_col or 1)], errors="coerce").to_numpy(dtype=np.float32)
+    m = ~(np.isnan(x) | np.isnan(y))
+    return x[m], y[m]
+
+# --- REPLACE old preview() with this JSON-contract version ---
+@require_http_methods(["POST"])
+def preview_json(request):
+    """
+    Returns a small table preview with a flat, front-end-friendly shape:
+    {
+      "columns": ["col0","col1",...],
+      "rows": [{"col0": v, "col1": v2, ...}, ...]
+    }
+    """
+    f = request.FILES.get("file")
+    if not f:
+        return JsonResponse({"error": "No file uploaded"}, status=400)
+
+    try:
+        df = _read_tabular_upload(
+            f,
+            delimiter=request.POST.get("delimiter") or None,
+            decimal_comma=(request.POST.get("decimal_comma") == "true"),
+            skiprows=request.POST.get("skiprows") or 0,
+            sheet=request.POST.get("sheet") or None,
+        )
+    except Exception as e:
+        return JsonResponse({"error": f"Preview failed: {e}"}, status=400)
+
+    head = df.iloc[:30, :].copy()
+    cols = [f"col{i}" for i in range(head.shape[1])]
+    head.columns = cols
+    # map rows to list[dict]
+    rows = []
+    for _, r in head.iterrows():
+        rows.append({c: (None if pd.isna(v) else v) for c, v in r.items()})
+
+    return JsonResponse({"columns": cols, "rows": rows})
+
+# --- NEW: /data JSON for Plotly ---
+@require_http_methods(["POST"])
+def data_json(request):
+    """
+    Accept an uploaded data file (CSV/XLSX/TXT), parse, and return minimal Plotly JSON:
+    {
+      "traces": [{"name":"Spectrum","x":[...],"y":[...],"mode":"lines"}],
+      "layout": { ... }
+    }
+    Options (POST form fields): x_col, y_col, delimiter, decimal_comma, skiprows, sheet, invert, title
+    """
+    f = request.FILES.get("file")
+    if not f:
+        return JsonResponse({"error": "No file uploaded"}, status=400)
+
+    try:
+        df = _read_tabular_upload(
+            f,
+            delimiter=request.POST.get("delimiter") or None,
+            decimal_comma=(request.POST.get("decimal_comma") == "true"),
+            skiprows=request.POST.get("skiprows") or 0,
+            sheet=request.POST.get("sheet") or None,
+        )
+    except Exception as e:
+        return JsonResponse({"error": f"Read failed: {e}"}, status=400)
+
+    try:
+        x, y = _coerce_xy(df, request.POST.get("x_col") or 0, request.POST.get("y_col") or 1)
+        y = _to_fractional_T(y)
+    except Exception as e:
+        return JsonResponse({"error": f"Column selection failed: {e}"}, status=400)
+
+    invert = (request.POST.get("invert") == "true")
+    title  = request.POST.get("title") or "FT-IR"
+    traces = [{
+        "name": "Spectrum",
+        "x": x.tolist(),
+        "y": y.tolist(),
+        "mode": "lines",
+        "type": "scatter",
+    }]
+
+    layout = {
+        "title": {"text": title},
+        "xaxis": {
+            "title": {"text": "Wavenumber (cm⁻¹)"},
+            "showspikes": True,
+            "spikemode": "across",
+            "spikesnap": "cursor",
+            "autorange": "reversed" if invert else True,
+        },
+        "yaxis": {
+            "title": {"text": "Transmittance"},
+            "showspikes": True,
+            "spikemode": "across",
+            "spikesnap": "cursor",
+        },
+        "margin": {"l": 48, "r": 24, "t": 48, "b": 48},
+        "hovermode": "x",
+    }
+
+    return JsonResponse({"traces": traces, "layout": layout})
+
+# --- NEW: optional server-side PNG export (/export/png) ---
+@require_http_methods(["POST"])
+def export_png(request):
+    """
+    Server “paper-ready” export.
+    Accept either:
+      - JSON body: {"x":[...],"y":[...],"invert":true,"title":"...","width":1200,"height":600,"dpi":200}
+      - or an uploaded file + the same form options as /data.
+    Returns PNG bytes.
+    """
+    x = y = None
+    invert = False
+    title = "FT-IR"
+    width = int(request.POST.get("width") or 1200)
+    height = int(request.POST.get("height") or 600)
+    dpi = int(request.POST.get("dpi") or 200)
+
+    # Try JSON body first
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            body = json.loads(request.body.decode("utf-8"))
+            x = np.asarray(body.get("x") or [], dtype=np.float32)
+            y = np.asarray(body.get("y") or [], dtype=np.float32)
+            invert = bool(body.get("invert", False))
+            title = body.get("title") or title
+            width = int(body.get("width") or width)
+            height = int(body.get("height") or height)
+            dpi = int(body.get("dpi") or dpi)
+        except Exception:
+            return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    # Fallback: read from uploaded file
+    if x is None or y is None or x.size == 0 or y.size == 0:
+        f = request.FILES.get("file")
+        if not f:
+            return JsonResponse({"error": "Provide JSON x/y or upload a file"}, status=400)
+        try:
+            df = _read_tabular_upload(
+                f,
+                delimiter=request.POST.get("delimiter") or None,
+                decimal_comma=(request.POST.get("decimal_comma") == "true"),
+                skiprows=request.POST.get("skiprows") or 0,
+                sheet=request.POST.get("sheet") or None,
+            )
+            x, y = _coerce_xy(df, request.POST.get("x_col") or 0, request.POST.get("y_col") or 1)
+            y = _to_fractional_T(y)
+            invert = (request.POST.get("invert") == "true")
+            title = request.POST.get("title") or title
+        except Exception as e:
+            return JsonResponse({"error": f"Read failed: {e}"}, status=400)
+
+    # Render Matplotlib “publication style” PNG
+    fig_w = width / dpi
+    fig_h = height / dpi
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+    ax.plot(x, y, linewidth=1.2)
+    ax.set_title(title)
+    ax.set_xlabel("Wavenumber (cm⁻¹)")
+    ax.set_ylabel("Transmittance")
+    if invert:
+        ax.invert_xaxis()
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi)
+    plt.close(fig)
+    buf.seek(0)
+    return HttpResponse(buf.getvalue(), content_type="image/png")

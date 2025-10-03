@@ -14,10 +14,13 @@ import sys, os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-REPO_ROOT = BASE_DIR.parent  # points to mlirui/
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))  # so 'import core' finds mlirui/core
+BASE_DIR = Path(__file__).resolve().parent.parent
+APPS_DIR = BASE_DIR.parent
+REPO_ROOT = APPS_DIR.parent  # points to mlirui/
+
+repo_str = str(REPO_ROOT)
+if repo_str not in sys.path:
+    sys.path.insert(0, repo_str)  # so 'import core' finds mlirui/core
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -30,9 +33,10 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-not-secret")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
-DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
 # ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 ALLOWED_HOSTS = ["*"]  # Simple for demos; you can lock down later
 
 # 2) Static files (WhiteNoise)
@@ -61,6 +65,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'ftirui.urls'
+WSGI_APPLICATION = 'ftirui.wsgi.application'
 
 TEMPLATES = [
     {
@@ -69,15 +74,13 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.request',
+                'django.template.context_processors.request',   
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
         },
     },
 ]
-
-WSGI_APPLICATION = 'ftirui.wsgi.application'
 
 
 # Database
@@ -125,13 +128,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"   # output for collectstatic (prod)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Media (user outputs)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# MEDIA_URL = '/media/'
+# MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
