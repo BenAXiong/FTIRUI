@@ -247,11 +247,33 @@
             </div>
 
             <div class="card mb-2">
-              <div class="card-body py-2">  
-                <div id="b_chips" class="chips-row"></div>
+              <div class="card-body py-2 d-flex justify-content-between align-items-center">  
+                <div id="b_chips" class="chips-row flex-grow-1"></div>
+                <button class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="offcanvas" data-bs-target="#b_drawer">
+                  Manage traces
+                </button>
+              </div>
+
+                <!-- <div class="d-flex justify-content-end mb-2">
+
+                </div> -->
+            </div>
+
+            <!-- Drawer (Bootstrap offcanvas) -->
+            <div class="offcanvas offcanvas-start" 
+                 tabindex="-1" 
+                 id="b_drawer" 
+                 aria-labelledby="b_drawer_label"
+                 data-bs-scroll="true"
+                 data-bs-backdrop="false">
+              <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="b_drawer_label">Manage traces</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+              </div>
+              <div class="offcanvas-body p-2">
+                <div id="b_drawer_list" class="vstack gap-2"></div>
               </div>
             </div>
-            
             <div class="card">
               <div id="b_plot_el" style="height:520px;"></div>
             </div>

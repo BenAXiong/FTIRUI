@@ -37,9 +37,11 @@ export function initUI_IntB(instance) {
     // optionally: inp.value = '';
   });
 
-  // Chips
+  // Chips and drawer
   renderChips(instance);
   bindChipsEvents(instance);
+  renderDrawer(instance);
+  bindDrawerEvents(instance);
 }
 
 async function handleFiles(instance, filesLike) {
@@ -56,7 +58,8 @@ async function handleFiles(instance, filesLike) {
   render(instance);
   renderChips(instance);
   bindChipsEvents(instance);
-
+  renderChips(instance);
+  renderDrawer(instance);
 }
 
 async function createTraceFromFile(instance, file, colorIndex) {
@@ -194,4 +197,120 @@ function toHexColor(c) {
     return `#${r}${g}${b}`;
   }
   return '#888888';
+}
+
+
+/* Trace drawer */
+
+function drawerListEl() {
+  return document.getElementById('b_drawer_list');
+}
+
+function renderDrawer(instance) {
+  const root = drawerListEl();
+  if (!root) return;
+
+  const { state } = instance;
+  const frag = document.createDocumentFragment();
+
+  state.order.forEach((id, idx) => {
+    const t = state.traces[id];
+    if (!t) return;
+
+    const row = document.createElement('div');
+    row.className = 'trace-row';
+    row.dataset.id = id;
+
+    row.innerHTML = `
+      <input class="vis" type="checkbox" ${t.visible ? 'checked' : ''} title="Show/Hide">
+      <div class="name"><input class="rename" type="text" value="${escapeHtml(t.name)}" title="Rename"></div>
+      <input class="color form-control form-control-sm" type="color" value="${toHexColor(t.color)}" title="Color">
+      <select class="dash form-select form-select-sm" title="Dash">
+        ${['solid','dot','dash','longdash','dashdot','longdashdot']
+          .map(d => `<option value="${d}" ${t.dash===d?'selected':''}>${d}</option>`).join('')}
+      </select>
+      <input class="opacity form-range" type="range" min="0.1" max="1" step="0.05" value="${t.opacity ?? 1}">
+      <button class="icon-btn up" title="Move up">▲</button>
+      <button class="icon-btn down" title="Move down">▼</button>
+      <button class="icon-btn remove ms-1" title="Remove">&times;</button>
+    `;
+    frag.appendChild(row);
+  });
+
+  root.replaceChildren(frag);
+}
+
+function escapeHtml(s='') {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Drawer events (delegation)
+
+function bindDrawerEvents(instance) {
+  const root = drawerListEl();
+  if (!root || root._bound) return;
+  root._bound = true;
+
+  root.addEventListener('input', (e) => {
+    const row = e.target.closest('.trace-row'); if (!row) return;
+    const id = row.dataset.id;
+    const t = instance.state.traces[id]; if (!t) return;
+
+    if (e.target.classList.contains('rename')) {
+      t.name = e.target.value || t.name;
+      render(instance);
+      renderChips(instance);
+      // keep drawer as-is (name reflects on next open or live if you want)
+    }
+
+    if (e.target.classList.contains('color')) {
+      t.color = e.target.value;
+      render(instance);
+      renderChips(instance);
+    }
+
+    if (e.target.classList.contains('dash')) {
+      t.dash = e.target.value;
+      render(instance);
+    }
+
+    if (e.target.classList.contains('opacity')) {
+      t.opacity = Number(e.target.value);
+      render(instance);
+    }
+  });
+
+  root.addEventListener('click', (e) => {
+    const row = e.target.closest('.trace-row'); if (!row) return;
+    const id = row.dataset.id;
+    const t = instance.state.traces[id]; if (!t) return;
+
+    if (e.target.classList.contains('vis')) {
+      t.visible = e.target.checked;
+      render(instance);
+      renderChips(instance);
+      return;
+    }
+
+    if (e.target.classList.contains('remove')) {
+      delete instance.state.traces[id];
+      instance.state.order = instance.state.order.filter(x => x !== id);
+      render(instance);
+      renderDrawer(instance);
+      renderChips(instance);
+      return;
+    }
+
+    if (e.target.classList.contains('up') || e.target.classList.contains('down')) {
+      const arr = instance.state.order;
+      const i = arr.indexOf(id);
+      const j = e.target.classList.contains('up') ? i-1 : i+1;
+      if (j < 0 || j >= arr.length) return;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      render(instance);
+      renderDrawer(instance);
+      renderChips(instance);
+      return;
+    }
+  });
 }
