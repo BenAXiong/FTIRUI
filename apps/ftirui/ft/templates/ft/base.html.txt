@@ -28,7 +28,9 @@
         </h1>
 
         <ul class="nav nav-tabs flex-wrap" id="tabs" role="tablist">
-          <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#plot" type="button">Plot</button></li>
+          <!-- <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#plot" type="button">Plot</button></li> -->
+          <li class="nav-item"><button class="nav-link active" id="tab-plotA" data-bs-toggle="tab" data-bs-target="#pane-plotA" type="button" role="tab">A</button></li>
+          <li class="nav-item"><button class="nav-link" id="tab-plotB" data-bs-toggle="tab" data-bs-target="#pane-plotB" type="button" role="tab">B</button></li>
           <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#live" type="button">Live</button></li>
           <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes" type="button">Notes</button></li>
           <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#logs" type="button">Logs</button></li>
@@ -43,7 +45,8 @@
       <div class="mb-3">
         <div class="tab-content">
           <!-- Plot -->
-          <div id="plot" class="tab-pane fade show active" role="tabpanel">
+          <!--UI option A -->
+          <div id="pane-plotA" class="tab-pane fade show active" role="tabpanel">
             <div class="row g-3 mt-2">
               
               <div class="col-12 col-lg-8">
@@ -113,23 +116,36 @@
 
                   <div class="card-body py-2 position-relative">
                     <!-- Core row -->
-                    <div id="data_toolbar" class="d-flex flex-wrap gap-2 align-items-center">
-                      <div class="input-group input-group-sm w-auto">
-                        <span class="input-group-text">X col</span>
-                        <input id="x_col" class="form-control form-control-sm text-end" type="number" value="0" min="0" style="width:4rem;">
-                      </div>
-                      <div class="input-group input-group-sm w-auto">
-                        <span class="input-group-text">Y col</span>
-                        <input id="y_col" class="form-control form-control-sm text-end" 
-                              type="number" value="1" min="0" style="width:4rem;">
+                    <div id="data_toolbar" class="row g-2 align-items-center">
+                      <div class="col-12 col-md-4">
+                        <div class="input-group input-group-sm w-100">
+                          <span class="input-group-text">X col</span>
+                          <input id="x_col" class="form-control form-control-sm text-end" type="number" value="0" min="0">
+                        </div>
                       </div>
 
-                      <button class="btn btn-sm btn-outline-secondary ms-auto" type="button"
-                              data-bs-toggle="collapse" data-bs-target="#more_opts"
-                              aria-expanded="false" aria-controls="more_opts">
-                        More options
-                      </button>
+                      <div class="col-12 col-md-4">
+                        <div class="input-group input-group-sm w-100">
+                          <span class="input-group-text">Y col</span>
+                          <input id="y_col" class="form-control form-control-sm text-end" type="number" value="1" min="0">
+                        </div>
+                      </div>
+
+                      <div class="col-12 col-md-4">
+                        <button
+                          id="btn_more_opts"
+                          class="btn btn-sm btn-outline-secondary w-100 collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#more_opts"
+                          aria-expanded="false"
+                          aria-controls="more_opts">
+                          <span class="when-collapsed">More options</span>
+                          <span class="when-shown">Less options</span>
+                        </button>
+                      </div>
                     </div>
+
 
                     <!-- Collapsible extras -->
                     <div id="more_opts" class="collapse mt-2">
@@ -195,8 +211,6 @@
                     <button id="btn_preview_popup" class="btn btn-sm btn-outline-secondary" type="button" title="Show raw data">
                       🔎
                     </button>
-                    <!-- keep hidden file input here so click/drag works everywhere -->
-                    <!-- <input id="conv_files" class="d-none" type="file" accept=".csv,.xlsx,.xls,.txt,.tsv,.dat" multiple> -->
                   </div>
 
                   <!-- floating popup (hidden by default) -->
@@ -216,6 +230,23 @@
                 </div>
               </div>
               
+            </div>
+          </div>
+
+          <!-- Option B content (minimal M1 markup) -->
+          <div class="tab-pane fade" id="pane-plotB" role="tabpanel">
+            <div class="card mb-2">
+              <div class="card-body py-2 d-flex gap-2 align-items-center">
+                <button id="b_btn_add" class="btn btn-sm btn-outline-primary">Add files</button>
+                <input id="b_file_input" type="file" multiple hidden>
+                <div id="b_dropzone" class="border rounded p-3 text-muted flex-fill" style="cursor:pointer;">
+                  Drop files here or click “Add files”
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div id="b_plot_el" style="height:520px;"></div>
             </div>
           </div>
 

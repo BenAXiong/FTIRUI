@@ -74,11 +74,6 @@ z-index: 1;                        /* above bg, below text */
 /* Stop animation once files are present */
 #drop_zone.has-files::before { display: none; }
 
-#drop_zone.dragover {
-border: 2px dashed #0d6efd;     /* use border, not outline */
-box-shadow: 0 0 0 .25rem rgba(13,110,253,.1);
-}
-
 pre, code, .pre-like {
 background: var(--bs-tertiary-bg);
 color: var(--bs-body-color);
@@ -136,3 +131,47 @@ border: 1px solid var(--bs-border-color);
 #btn_more_opts.collapsed .when-shown { display: none; }
 #btn_more_opts:not(.collapsed) .when-collapsed { display: none; }
 #btn_more_opts:not(.collapsed) .when-shown { display: inline; }
+
+
+
+/* Chips bar */
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .5rem;
+  align-items: center;
+  min-height: 28px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .2rem .5rem;
+  border: 1px solid var(--bs-border-color, #ddd);
+  border-radius: 999px;
+  background: var(--bs-body-bg, #fff);
+  box-shadow: 0 0 0 0 rgba(0,0,0,0);
+  transition: box-shadow .15s ease;
+  max-width: 240px;
+}
+
+.chip:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+
+.chip .color-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid #999; background: var(--c, #888);
+  cursor: pointer; flex: 0 0 auto;
+}
+.chip input[type="checkbox"] { margin: 0; flex: 0 0 auto; }
+
+.chip .name {
+  min-width: 40px; flex: 1 1 auto; min-height: 1.2em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.chip .remove {
+  border: 0; background: transparent; line-height: 1;
+  font-size: 16px; color: #888; padding: 0 .1rem; cursor: pointer;
+}
+.chip .remove:hover { color: #c33; }
