@@ -1,4 +1,8 @@
-// let lastPlotData = null;
+import { createState }   from './js/core/state.js';
+import { initUI_IntB } from './js/ui/interfaceB.js';
+
+// Option A likely already initializes somewhere else.
+// If not, you can do a similar instance for A later.
 
 // pick saved theme or fallback to system
 const saved = localStorage.getItem('theme');
@@ -40,93 +44,6 @@ el('btn_toggle_preview').addEventListener('click', ()=> {
     wrap.style.display = (wrap.style.display === 'none') ? '' : 'none';
 });
 
-// async function doPreview(){
-//     const files = el('conv_files').files;
-//     if (!files.length){
-//         setHTML('preview_area','<div class="text-danger">Choose a file.</div>');
-//         return; }
-//     const fd = new FormData();
-//     fd.append('file', files[0]);
-//     fd.append('decimal_comma', el('decimal_comma').checked);
-//     fd.append('delimiter', el('delimiter').value);
-//     fd.append('skiprows', el('skiprows').value);
-//     fd.append('sheet', el('sheet').value);
-
-//     const resp = await fetch('/preview/', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
-//     const data = await resp.json();
-//     if (!resp.ok){
-//         setHTML('preview_area', `<div class="text-danger">${data.error||'Preview failed'}</div>`);
-//         return; }
-
-//     // render
-//     const headings = data.headings||[];
-//     const rows = data.rows||[];
-//     let html = '<table class="table table-sm table-striped preview-table"><thead><tr>';
-//     for (const h of headings) html += `<th>${h}</th>`;
-//     html += '</tr></thead><tbody>';
-//     for (const r of rows) html += '<tr>' + r.map(v=>`<td>${v??''}</td>`).join('') + '</tr>';
-//     html += '</tbody></table>';
-//     setHTML('preview_area', html);
-//     lastPlotMode = 'preview'; // so axis changes replot preview
-// };
-
-// ---- Plot: Preview ----
-// function resetPlotPlaceholder(){
-//   const img = el('plot_img');
-//   const ph  = el('plot_placeholder');
-//   if(img){ img.classList.add('d-none'); img.removeAttribute('src'); img.alt = 'FTIR plot'; }
-//   if(ph){ ph.style.display = ''; }
-// }
-
-// function showPlot(srcUrl){
-//   const img = el('plot_img');
-//   const ph  = el('plot_placeholder');
-//   if (!img || !ph) return;
-//   img.onload = () => {};
-//   img.onerror = () => resetPlotPlaceholder();
-//   img.src = srcUrl;
-//   img.classList.remove('d-none');
-//   ph.style.display = 'none';
-// }
-
-// async function doPlotPreview(){
-//   const files = el('conv_files').files;
-//   if (!files.length){ resetPlotPlaceholder(); return; }
-
-//   const fd = new FormData();
-//   fd.append('file', files[0]);
-//   fd.append('x_col', el('x_col').value);
-//   fd.append('y_col', el('y_col').value);
-//   fd.append('delimiter', el('delimiter')?.value || '');
-//   fd.append('decimal_comma', el('decimal_comma')?.checked || false);
-//   fd.append('skiprows', el('skiprows')?.value || '0');
-//   fd.append('sheet', el('sheet')?.value || '');
-//   fd.append('invert', el('invert')?.checked || false);
-//   fd.append('xmin', el('xmin')?.value || 'auto');
-//   fd.append('xmax', el('xmax')?.value || 'auto');
-
-//   const resp = await fetch('/plot_preview', { method:'POST', headers:{'X-CSRFToken': csrftoken}, body: fd });
-//   if(!resp.ok){
-//     let msg = 'Plot failed';
-//     try{ const d = await resp.json(); if(d.error) msg = d.error; }catch{}
-//     resetPlotPlaceholder();
-//     el('plot_img').alt = msg;
-//     return;
-//   }
-//   const blob = await resp.blob();
-//   showPlot(URL.createObjectURL(blob));
-//   lastPlotMode = 'preview';
-// }
-
-
-// Auto-plot on Plot tab when a file is chosen
-// el('conv_files').addEventListener('change', async () => {
-//     await doPlotPreview();
-// });
-
-// el('conv_files').addEventListener('change', async () => {
-//     await doPreview();
-// });
 
 // Auto-plot on Live tab when Feather files are chosen
 el('live_file').addEventListener('change', async () => {
@@ -282,9 +199,6 @@ el('xmax_live').addEventListener('input', ()=>scheduleReplot('live'));
 
 // helper: build a FileList for input
 
-// const dz  = document.getElementById('drop_zone');
-// const inp = document.getElementById('conv_files');
-
 // ---- Drag & drop / click to select ----
 const dz  = el('drop_zone');
 const inp = el('conv_files');
@@ -294,41 +208,6 @@ function filesToFileList(files){
     [...files].forEach(f=>dt.items.add(f)); 
     return dt.files; 
 }
-
-// Safety guard
-// if (dz && inp) {
-//     dz.addEventListener('click', () => inp.click());
-
-//     ['dragenter','dragover'].forEach(ev =>
-//         dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); })
-//     );
-//     ['dragleave','drop'].forEach(ev =>
-//         dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); })
-//     );
-
-//     dz.addEventListener('drop', e => {
-//         const files = e.dataTransfer?.files;
-//         if (!files || !files.length) return;
-//         inp.files = filesToFileList(files);
-//         inp.dispatchEvent(new Event('change'));   // <- kick your preview/plot
-//         dz.classList.remove('idle');              // disable “idle glow”
-//         dz.classList.add('has-files');
-//     });
-
-//     inp.addEventListener('change', () => {
-//     if (inp.files && inp.files.length > 0) {
-//         dz.classList.remove('idle');
-//         dz.classList.add('has-files');
-//     }
-//     });
-
-//     // Optional: protect the page
-//     ['dragover','drop'].forEach(ev =>
-//         document.body.addEventListener(ev, e => e.preventDefault())
-//     );
-// }
-
-
 
 
 
@@ -434,3 +313,32 @@ function escClose(e){ if (e.key === 'Escape') closePreviewPopup(); }
 
 btnOpen?.addEventListener('click', openPreviewPopup);
 btnClose?.addEventListener('click', closePreviewPopup);
+
+
+
+
+// Tabs M1
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Lazy init Option B when its tab is first shown
+  const plotBTab = document.getElementById('tab-plotB');
+  let initializedB = false;
+
+  plotBTab?.addEventListener('shown.bs.tab', () => {
+    if (initializedB) return;
+
+    const instanceB = {
+      dom: {
+        plot: document.getElementById('b_plot_el'),
+        dz:   document.getElementById('b_dropzone'),
+        inp:  document.getElementById('b_file_input'),
+        add:  document.getElementById('b_btn_add')
+      },
+      state: createState(),   // fresh, independent state for Plot B
+    };
+
+    initUI_IntB(instanceB);   // sets up DnD + multi-file ingest + render
+    initializedB = true;
+  });
+});
+

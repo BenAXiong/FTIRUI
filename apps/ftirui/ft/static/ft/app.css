@@ -74,11 +74,6 @@ z-index: 1;                        /* above bg, below text */
 /* Stop animation once files are present */
 #drop_zone.has-files::before { display: none; }
 
-#drop_zone.dragover {
-border: 2px dashed #0d6efd;     /* use border, not outline */
-box-shadow: 0 0 0 .25rem rgba(13,110,253,.1);
-}
-
 pre, code, .pre-like {
 background: var(--bs-tertiary-bg);
 color: var(--bs-body-color);
@@ -136,3 +131,76 @@ border: 1px solid var(--bs-border-color);
 #btn_more_opts.collapsed .when-shown { display: none; }
 #btn_more_opts:not(.collapsed) .when-collapsed { display: none; }
 #btn_more_opts:not(.collapsed) .when-shown { display: inline; }
+
+
+
+/* Chips bar */
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .5rem;
+  align-items: center;
+  min-height: 28px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .2rem .5rem;
+  border: 1px solid var(--bs-border-color, #ddd);
+  border-radius: 999px;
+  background: var(--bs-body-bg, #fff);
+  box-shadow: 0 0 0 0 rgba(0,0,0,0);
+  transition: box-shadow .15s ease;
+  max-width: 240px;
+}
+
+.chip:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+
+.chip .color-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid #999; background: var(--c, #888);
+  cursor: pointer; flex: 0 0 auto;
+}
+.chip input[type="checkbox"] { margin: 0; flex: 0 0 auto; }
+
+.chip .name {
+  min-width: 40px; flex: 1 1 auto; min-height: 1.2em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.chip .remove {
+  border: 0; background: transparent; line-height: 1;
+  font-size: 16px; color: #888; padding: 0 .1rem; cursor: pointer;
+}
+.chip .remove:hover { color: #c33; }
+
+
+/* Traces*/
+
+.trace-row {
+  display: grid;
+  grid-template-columns: 20px 1fr 70px 90px 80px 24px 24px;
+  align-items: center;
+  gap: .4rem;
+  padding: .35rem .5rem;
+  border: 1px solid var(--bs-border-color, #ddd);
+  border-radius: .5rem;
+}
+.trace-row .drag-handle { cursor: ns-resize; color:#999; text-align:center; }
+.trace-row .name { min-width:0; }
+.trace-row .name input {
+  width: 100%; border: 1px solid #ccc; border-radius: .35rem; padding: .15rem .35rem;
+}
+.trace-row .color { width: 100%; height: 1.65rem; padding:0; }
+.trace-row .opacity { width: 100%; }
+.trace-row .dash { width: 100%; }
+.trace-row .icon-btn {
+  border: 0; background: transparent; color:#666; font-size: 16px; line-height: 1; padding:0;
+}
+.trace-row .icon-btn:hover { color:#000; }
+
+@media (min-width: 992px){
+  #b_drawer.offcanvas { width: 360px; }
+}
