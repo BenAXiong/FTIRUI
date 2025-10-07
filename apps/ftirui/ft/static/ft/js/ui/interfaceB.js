@@ -66,8 +66,26 @@ async function createTraceFromFile(instance, file, colorIndex) {
   const { x, y } = await parseFileToXY(file);
   const { px, py } = downsamplePreview(x, y);
   const sum = await checksumFile(file);
-  const id = newId();
 
+  const assumeAbsorbance = false; // (later: wire a small checkbox if you need it)
+  
+    let yCanon;
+    if (assumeAbsorbance) {
+    // T = 10^(-A)  (matches server _absorbance_to_transmittance)
+    yCanon = y.map(v => Math.pow(10, -Number(v)));
+    } else {
+    // Heuristic like server _normalize_transmittance:
+    // If max(y) is between ~1.5 and 120, treat as % and divide by 100; else assume already fraction.
+    let yMax = -Infinity;
+    for (let i = 0; i < y.length; i++) {
+        const v = Number(y[i]);
+        if (v > yMax) yMax = v;
+    }
+    const looksPercent = (yMax > 1.5 && yMax <= 120.0);
+    yCanon = looksPercent ? y.map(v => Number(v) / 100.0) : y.map(v => Number(v));
+    }
+  
+  const id = newId();
   const meta = {
     id,
     name: file.name,
@@ -79,7 +97,7 @@ async function createTraceFromFile(instance, file, colorIndex) {
     dash: 'solid',
     preview: { x: px, y: py },
     checksum: sum,
-    data: { x, y }
+    data: { x: x.map(Number), y: yCanon }
   };
 
   instance.state.traces[id] = meta;
