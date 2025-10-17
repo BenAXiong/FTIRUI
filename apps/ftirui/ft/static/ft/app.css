@@ -91,6 +91,87 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   object-fit: contain;
 }
 
+.workspace-canvas-wrapper{
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+}
+.workspace-canvas{
+  position: relative;
+  min-height: 420px;
+  background: var(--bs-body-bg);
+  border: 1px dashed var(--bs-border-color);
+  border-radius: .75rem;
+  overflow: hidden;
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+.workspace-canvas.is-active{
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--bs-primary) 55%, transparent);
+  box-shadow: 0 0 0 .25rem color-mix(in oklab, var(--bs-primary) 20%, transparent);
+}
+.workspace-empty{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--bs-secondary-color);
+  font-size: .9rem;
+  padding: 1.5rem;
+  pointer-events: none;
+}
+.workspace-canvas.has-panels .workspace-empty{
+  display: none;
+}
+.workspace-panel{
+  position: absolute;
+  width: 420px;
+  min-width: 280px;
+  min-height: 220px;
+  background: var(--bs-body-bg);
+  border: 1px solid color-mix(in oklab, var(--bs-primary) 35%, transparent);
+  border-radius: .75rem;
+  box-shadow: 0 16px 30px rgba(15,23,42,.12);
+  overflow: hidden;
+  touch-action: none;
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+.workspace-panel.is-active{
+  box-shadow: 0 24px 40px rgba(13,110,253,.22);
+  border-color: color-mix(in oklab, var(--bs-primary) 65%, transparent);
+}
+.workspace-panel-header{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .85rem;
+  background: color-mix(in oklab, var(--bs-primary) 12%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--bs-primary) 20%, transparent);
+}
+.workspace-panel-title{
+  font-weight: 600;
+  font-size: .9rem;
+  flex-grow: 1;
+}
+.workspace-panel-body{
+  position: relative;
+  height: calc(100% - 44px);
+  padding: .5rem;
+}
+.workspace-panel-body > div{
+  width: 100% !important;
+  height: 100% !important;
+}
+.workspace-panel-actions .btn{
+  padding: .25rem;
+  line-height: 1;
+}
+.workspace-toolbar .btn[disabled]{
+  opacity: .55;
+}
+
 #drop_zone {
     content:"";
     position: relative;

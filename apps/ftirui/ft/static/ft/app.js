@@ -1,5 +1,6 @@
 import { createState }   from './js/core/state.js';
 import { initUI_IntB } from './js/ui/interfaceB.js';
+import { initWorkspaceCanvas } from './js/ui/interface/workspaceCanvas.js';
 import { getCsrfToken } from './js/lib/csrf.js';
 
 // Option A likely already initializes somewhere else.
@@ -542,6 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     initUI_IntB(instanceB);   // sets up DnD + multi-file ingest + render
+    initWorkspaceCanvas(instanceB);
     initializedB = true;
   });
 });

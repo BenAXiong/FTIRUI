@@ -384,6 +384,42 @@
                   </div>
                 </div>
 
+                <div class="card mt-3">
+                  <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">Workspace canvas (prototype)</span>
+                    <div class="ms-auto btn-group btn-group-sm" role="group" aria-label="Canvas actions">
+                      <button id="b_canvas_add_plot" class="btn btn-primary" type="button">
+                        <i class="bi bi-plus-lg me-1"></i>Add plot
+                      </button>
+                      <button id="b_canvas_reset_layout" class="btn btn-outline-secondary" type="button">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout
+                      </button>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="workspace-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+                      <div class="text-muted small flex-grow-1">
+                        Drag panels anywhere inside the canvas. Resize using the handles. Layout auto-saves locally.
+                      </div>
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Upcoming panel types">
+                        <button id="b_canvas_add_markdown" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">
+                          Markdown
+                        </button>
+                        <button id="b_canvas_add_sheet" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">
+                          Spreadsheet
+                        </button>
+                      </div>
+                    </div>
+                    <div class="workspace-canvas-wrapper">
+                      <div id="b_canvas_root" class="workspace-canvas" role="region" aria-live="polite">
+                        <div id="b_canvas_empty" class="workspace-empty">
+                          Use the toolbar to add panels to the canvas.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
 
               </div>
             </div>
@@ -846,6 +882,7 @@
 
     <script src="{% static 'ft/bootstrap.bundle.min.js' %}"></script>
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <script type="module" src="{% static 'ft/app.js' %}"></script>
   </body>
 </html>
