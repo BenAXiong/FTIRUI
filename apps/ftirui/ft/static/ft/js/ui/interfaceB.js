@@ -1,334 +1,284 @@
-import { newId, nextColor }     from '../core/state.js';
-import { render }               from '../core/plot.js';
-import { parseFileToXY,
-         downsamplePreview,
-         checksumFile }         from '../core/parse.js';
+import { newId, nextColor } from '../core/state.js';
+import { render } from '../core/plot.js';
+import { uploadTraceFile } from '../services/uploads.js';
+import {
+  ensureHistoryStacks,
+  recordHistory,
+  updateHistoryButtons,
+  bindHistoryControls
+} from './interface/history.js';
+import { bindSessionUI, signalAutosaveActivity } from './interface/sessions.js';
+import {
+  normalizeGlobalInputState,
+  isInputAuto,
+  uploadInputUnits,
+  applyResolvedInputMode,
+  syncInputControls
+} from './interface/inputMode.js';
+import { bindDropzone } from './interface/dropzone.js';
+import { bindPanel, restorePanelCollapsed, updatePanelEmptyState } from './interface/panel.js';
+import { renderFolderTree, bindFolderTree } from './interface/folderTree.js';
+import { bindGlobalControls } from './interface/controls.js';
+import { preloadDemoFiles, hideDemoButton, syncDemoButton } from './interface/demos.js';
+import { getDisplayConfig } from './config/display.js';
+import { normalizeTraceMeta } from './utils/traceMeta.js';
+import { ensureFolderStructure, resolveFolderId, addTraceToFolder } from './interface/state.js';
 
-export function initUI_IntB(instance) {
-  const { dz, inp, add } = instance.dom;
-
-  // Open picker only while idle; once files loaded, rely on button
-  dz.addEventListener('click', () => {
-    if (!dz.classList.contains('has-files')) inp.click();
-  });
-
-  // Drag styles
-  ['dragenter','dragover'].forEach(ev =>
-    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); })
-  );
-  ['dragleave','drop'].forEach(ev =>
-    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); })
-  );
-
-  // Drop → multi-file ingest
-  dz.addEventListener('drop', async (e) => {
-    const files = e.dataTransfer?.files;
-    if (!files?.length) return;
-    dz.classList.add('has-files');
-    await handleFiles(instance, files);
-  });
-
-  // Button → file input
-  add.addEventListener('click', () => inp.click());
-  inp.addEventListener('change', async () => {
-    if (!inp.files?.length) return;
-    dz.classList.add('has-files');
-    await handleFiles(instance, inp.files);
-    // optionally: inp.value = '';
-  });
-
-  // Chips and drawer
-  renderChips(instance);
-  bindChipsEvents(instance);
-  renderDrawer(instance);
-  bindDrawerEvents(instance);
+function refreshFolderTree(instance) {
+  const hasTraces = renderFolderTree(instance);
+  updatePanelEmptyState(instance);
+  return hasTraces;
 }
 
-async function handleFiles(instance, filesLike) {
-  const files = Array.from(filesLike || []);
+function updateWorkspaceCard(instance, updates = {}) {
+  if (!instance) return;
+  instance.workspaceState = { ...(instance.workspaceState || {}), ...updates };
+  const state = instance.workspaceState;
+  const ws = instance.dom.workspace || {};
+  if (!ws.card) return;
+
+  const status = state.status || null;
+  const hasAuth = !!(status && status.authenticated);
+  const blocked =
+    typeof state.sessionAuthBlocked === 'boolean' ? state.sessionAuthBlocked : !hasAuth;
+  const cloudCountRaw =
+    typeof state.cloudCount === 'number'
+      ? state.cloudCount
+      : typeof status?.session_count === 'number'
+        ? status.session_count
+        : null;
+  const cloudCount = Number.isFinite(cloudCountRaw) ? cloudCountRaw : 0;
+
+  if (ws.badge) {
+    ws.badge.textContent = hasAuth ? 'Signed in' : 'Guest';
+    ws.badge.className = hasAuth ? 'badge text-bg-success' : 'badge text-bg-secondary';
+  }
+  if (ws.name) {
+    ws.name.textContent = hasAuth ? status.username || 'Account' : 'Guest';
+  }
+  if (ws.desc) {
+    if (hasAuth) {
+      const parts = [`Cloud sessions: ${cloudCount}`];
+      if (status.email) parts.push(status.email);
+      ws.desc.textContent = parts.join(' • ');
+    } else {
+      ws.desc.textContent = 'Sign in to sync sessions across devices.';
+    }
+  }
+  if (ws.count) {
+    ws.count.textContent = hasAuth ? cloudCount : '—';
+  }
+  if (ws.openCloud) {
+    ws.openCloud.disabled = blocked;
+    ws.openCloud.classList.toggle('btn-outline-secondary', !blocked);
+    ws.openCloud.classList.toggle('btn-outline-primary', blocked);
+    ws.openCloud.setAttribute('title', blocked ? 'Sign in to manage cloud sessions' : 'Open cloud sessions');
+  }
+  if (ws.card) {
+    ws.card.classList.toggle('requires-auth', blocked);
+  }
+}
+
+export function initUI_IntB(instance) {
+  instance.dom = instance.dom || {};
+  const dom = instance.dom;
+
+  dom.plot = document.getElementById('b_plot_el');
+  dom.dz = document.getElementById('b_dropzone');
+  dom.inp = document.getElementById('b_file_input');
+  dom.demoBtn = document.getElementById('b_demo_btn');
+  dom.browseBtn = document.getElementById('b_browse_btn');
+  dom.unitAuto = document.getElementById('b_units_auto');
+  dom.unitAbs = document.getElementById('b_units_abs');
+  dom.unitTr = document.getElementById('b_units_tr');
+  dom.unitAutoLabel = document.querySelector('label[for="b_units_auto"]');
+  dom.unitAbsLabel = document.querySelector('label[for="b_units_abs"]');
+  dom.unitTrLabel = document.querySelector('label[for="b_units_tr"]');
+
+  dom.panel = {
+    root: document.getElementById('b_panel'),
+    toggle: document.getElementById('b_panel_toggle'),
+    dropzone: document.getElementById('b_panel_dropzone'),
+    empty: document.querySelector('#b_panel_dropzone .panel-empty'),
+    tree: document.getElementById('b_folder_tree'),
+    newFolder: document.getElementById('b_new_folder'),
+    undo: document.getElementById('b_history_undo'),
+    redo: document.getElementById('b_history_redo'),
+    search: document.getElementById('b_panel_search'),
+    searchInput: document.getElementById('b_panel_search_input'),
+    sort: document.getElementById('b_panel_sort')
+  };
+
+  dom.workspace = {
+    card: document.getElementById('workspace_summary'),
+    badge: document.getElementById('workspace_status_badge'),
+    name: document.getElementById('workspace_user_name'),
+    desc: document.getElementById('workspace_user_desc'),
+    count: document.getElementById('workspace_session_count'),
+    openCloud: document.getElementById('workspace_btn_open_cloud'),
+    saveLocal: document.getElementById('workspace_btn_save_local')
+  };
+
+  dom.workspace?.openCloud?.addEventListener('click', () => {
+    if (dom.workspace.openCloud.disabled) return;
+    document.getElementById('b_load')?.click();
+  });
+  dom.workspace?.saveLocal?.addEventListener('click', () => {
+    document.getElementById('b_session_export')?.click();
+  });
+
+  instance.demoFilesCache = Array.isArray(instance.demoFilesCache) ? instance.demoFilesCache : null;
+
+  normalizeGlobalInputState(instance.state);
+  ensureFolderStructure(instance.state);
+  ensureHistoryStacks(instance.state);
+  restorePanelCollapsed(dom.panel);
+
+  bindPanel(instance, {
+    renderTree: () => refreshFolderTree(instance),
+    onFiles: (files) => handleFiles(instance, files),
+    recordHistory: () => recordHistory(instance),
+    updateHistoryButtons: () => updateHistoryButtons(instance)
+  });
+
+  bindDropzone(instance, {
+    onFiles: (files) => handleFiles(instance, files)
+  });
+
+  bindFolderTree(instance, {
+    renderTree: () => refreshFolderTree(instance),
+    renderPlot: () => render(instance),
+    recordHistory: () => recordHistory(instance),
+    updateHistoryButtons: () => updateHistoryButtons(instance),
+    syncDemoButton: () => syncDemoButton(instance),
+    handleFiles: (files, options) => handleFiles(instance, files, options)
+  });
+
+  bindGlobalControls(instance, {
+    renderPlot: () => render(instance),
+    applyDisplayUnits: () => applyDisplayUnits(instance)
+  });
+
+  bindHistoryControls(instance, {
+    renderFolderTree: (inst) => refreshFolderTree(inst),
+    renderPlot: (inst) => render(inst),
+    syncDemoButton: (inst) => syncDemoButton(inst),
+    ensureFolderStructure
+  });
+
+  bindSessionUI(instance, {
+    ensureFolderStructure,
+    normalizeGlobalInputState,
+    getDisplayConfig,
+    renderFolderTree: (inst) => refreshFolderTree(inst),
+    syncInputControls,
+    applyDisplayUnits: (inst) => applyDisplayUnits(inst),
+    renderPlot: (inst) => render(inst),
+    updateHistoryButtons: (inst) => updateHistoryButtons(inst),
+    syncDemoButton: (inst) => syncDemoButton(inst),
+    updateWorkspaceSummary: (payload) => updateWorkspaceCard(instance, payload)
+  });
+
+  refreshFolderTree(instance);
+  updateHistoryButtons(instance);
+  syncDemoButton(instance);
+
+  preloadDemoFiles(instance, { limit: 12 }).catch(() => {});
+
+  updateWorkspaceCard(instance, { sessionAuthBlocked: true });
+  document.addEventListener('ftir:user-status', (evt) => {
+    updateWorkspaceCard(instance, { status: evt.detail?.data || null });
+  });
+  if (typeof window.refreshUserStatus === 'function') {
+    window.refreshUserStatus().then((data) => {
+      if (data) updateWorkspaceCard(instance, { status: data });
+    });
+  }
+}
+async function handleFiles(instance, filesLike, { folderId } = {}) {
+  const files = Array.from(filesLike || []).filter(Boolean);
   if (!files.length) return;
+
+  recordHistory(instance);
+  hideDemoButton(instance);
+
+  ensureFolderStructure(instance.state);
+  const targetFolder = resolveFolderId(instance.state, folderId);
 
   const startIdx = instance.state.order.length;
   let colorIdx = startIdx;
 
-  for (const f of files) {
-    await createTraceFromFile(instance, f, colorIdx++);
+  for (const file of files) {
+    try {
+      await createTraceFromFile(instance, file, colorIdx++, { folderId: targetFolder });
+    } catch (err) {
+      console.warn('Failed to import', file?.name || file, err);
+    }
   }
 
+  applyDisplayUnits(instance);
+  refreshFolderTree(instance);
   render(instance);
-  renderChips(instance);
-  bindChipsEvents(instance);
-  renderChips(instance);
-  renderDrawer(instance);
+  updateHistoryButtons(instance);
+  syncDemoButton(instance);
 }
 
-async function createTraceFromFile(instance, file, colorIndex) {
-  const { x, y } = await parseFileToXY(file);
-  const { px, py } = downsamplePreview(x, y);
-  const sum = await checksumFile(file);
+async function createTraceFromFile(instance, file, colorIndex, { folderId } = {}) {
+  ensureFolderStructure(instance.state);
 
-  const assumeAbsorbance = false; // (later: wire a small checkbox if you need it)
-  
-    let yCanon;
-    if (assumeAbsorbance) {
-    // T = 10^(-A)  (matches server _absorbance_to_transmittance)
-    yCanon = y.map(v => Math.pow(10, -Number(v)));
-    } else {
-    // Heuristic like server _normalize_transmittance:
-    // If max(y) is between ~1.5 and 120, treat as % and divide by 100; else assume already fraction.
-    let yMax = -Infinity;
-    for (let i = 0; i < y.length; i++) {
-        const v = Number(y[i]);
-        if (v > yMax) yMax = v;
-    }
-    const looksPercent = (yMax > 1.5 && yMax <= 120.0);
-    yCanon = looksPercent ? y.map(v => Number(v) / 100.0) : y.map(v => Number(v));
-    }
-  
-  const id = newId();
-  const meta = {
-    id,
-    name: file.name,
-    filename: file.name,
-    size: file.size,
-    color: nextColor(colorIndex),
-    visible: true,
-    opacity: 1.0,
-    dash: 'solid',
-    preview: { x: px, y: py },
-    checksum: sum,
-    data: { x: x.map(Number), y: yCanon }
-  };
-
-  instance.state.traces[id] = meta;
-  instance.state.order.push(id);
-}
-
-
-/* Chips */
-
-function chipsContainer(instance) {
-  return document.getElementById('b_chips');
-}
-
-function renderChips(instance) {
-  const list = chipsContainer(instance);
-  if (!list) return;
-
-  const { state } = instance;
-  const frag = document.createDocumentFragment();
-
-  state.order.forEach((id) => {
-    const t = state.traces[id];
-    if (!t) return;
-
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.dataset.id = id;
-
-    chip.innerHTML = `
-      <span class="color-dot" title="Change color" style="--c:${t.color}"></span>
-      <input class="vis" type="checkbox" ${t.visible ? 'checked' : ''} title="Show/Hide (Alt+click = solo)">
-      <span class="name" title="${t.name}">${t.name}</span>
-      <button class="remove" title="Remove">&times;</button>
-    `;
-    frag.appendChild(chip);
-  });
-
-  list.replaceChildren(frag);
-}
-
-/* Chip interactions */
-
-function bindChipsEvents(instance) {
-  const list = chipsContainer(instance);
-  if (!list || list._bound) return;
-  list._bound = true;
-
-  list.addEventListener('click', async (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    const id = chip.dataset.id;
-    const { state } = instance;
-    const meta = state.traces[id];
-    if (!meta) return;
-
-    // Remove
-    if (e.target.classList.contains('remove')) {
-      delete state.traces[id];
-      state.order = state.order.filter(x => x !== id);
-      render(instance);
-      renderChips(instance);
-      return;
-    }
-
-    // Color change
-    if (e.target.classList.contains('color-dot')) {
-      // create a hidden color input on the fly
-      const picker = document.createElement('input');
-      picker.type = 'color';
-      picker.value = toHexColor(meta.color);
-      picker.style.position = 'fixed';
-      picker.style.left = '-9999px';
-      document.body.appendChild(picker);
-      picker.addEventListener('input', () => {
-        meta.color = picker.value;
-        e.target.style.setProperty('--c', meta.color);
-        render(instance);
-      });
-      picker.addEventListener('change', () => picker.remove());
-      picker.click();
-      return;
-    }
-
-    // Visibility toggle (with Alt = solo)
-    if (e.target.classList.contains('vis')) {
-      const alt = e.altKey;
-      if (alt) {
-        // Solo: make this visible, hide others
-        Object.values(state.traces).forEach(tr => tr.visible = (tr.id === id));
-      } else {
-        meta.visible = e.target.checked;
-      }
-      render(instance);
-      renderChips(instance);
-      return;
-    }
-  });
-}
-
-// helper: normalize anything to #RRGGBB
-function toHexColor(c) {
-  // Already hex?
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)) return c;
-  // crude named-color to hex (uses canvas)
-  const ctx = toHexColor._ctx || (toHexColor._ctx = document.createElement('canvas').getContext('2d'));
-  ctx.fillStyle = '#000'; ctx.fillStyle = c;  // browser converts
-  const computed = ctx.fillStyle;            // rgba(...) or #rrggbb
-  if (computed.startsWith('#')) return computed;
-  // rgba(r,g,b,a) → hex
-  const m = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (m) {
-    const r = (+m[1]).toString(16).padStart(2,'0');
-    const g = (+m[2]).toString(16).padStart(2,'0');
-    const b = (+m[3]).toString(16).padStart(2,'0');
-    return `#${r}${g}${b}`;
+  const uploadMode = uploadInputUnits(instance.state);
+  const payload = await uploadTraceFile(file, uploadMode);
+  const { x, y, name, meta, ingest_mode: ingestModeRaw } = payload;
+  const resolvedMode = ingestModeRaw === 'abs' ? 'abs' : 'tr';
+  if (isInputAuto(instance.state)) {
+    applyResolvedInputMode(instance.state, resolvedMode);
   }
-  return '#888888';
+  syncInputControls(instance);
+  const metaInfo = normalizeTraceMeta(meta);
+  const xValues = Array.isArray(x) ? x.map(Number) : [];
+  const baseY = Array.isArray(y) ? y.map(Number) : [];
+
+  const traceId = newId();
+  const folder = resolveFolderId(instance.state, folderId);
+  const traceColor = nextColor(colorIndex);
+
+    instance.state.traces[traceId] = {
+      id: traceId,
+      folderId: folder,
+      name: name || file.name,
+      filename: file.name,
+      size: file.size,
+      color: traceColor,
+      visible: true,
+      opacity: 1,
+      dash: 'solid',
+      ingestMode: resolvedMode,
+      data: { x: xValues, y: baseY.slice() },
+      source: { y: baseY },
+      meta: metaInfo
+    };
+  instance.state.order.push(traceId);
+  addTraceToFolder(instance.state, traceId, folder);
+  signalAutosaveActivity(instance);
 }
 
-
-/* Trace drawer */
-
-function drawerListEl() {
-  return document.getElementById('b_drawer_list');
-}
-
-function renderDrawer(instance) {
-  const root = drawerListEl();
-  if (!root) return;
-
+function applyDisplayUnits(instance) {
+  if (!instance || !instance.state) return;
   const { state } = instance;
-  const frag = document.createDocumentFragment();
-
-  state.order.forEach((id, idx) => {
-    const t = state.traces[id];
-    if (!t) return;
-
-    const row = document.createElement('div');
-    row.className = 'trace-row';
-    row.dataset.id = id;
-
-    row.innerHTML = `
-      <input class="vis" type="checkbox" ${t.visible ? 'checked' : ''} title="Show/Hide">
-      <div class="name"><input class="rename" type="text" value="${escapeHtml(t.name)}" title="Rename"></div>
-      <input class="color form-control form-control-sm" type="color" value="${toHexColor(t.color)}" title="Color">
-      <select class="dash form-select form-select-sm" title="Dash">
-        ${['solid','dot','dash','longdash','dashdot','longdashdot']
-          .map(d => `<option value="${d}" ${t.dash===d?'selected':''}>${d}</option>`).join('')}
-      </select>
-      <input class="opacity form-range" type="range" min="0.1" max="1" step="0.05" value="${t.opacity ?? 1}">
-      <button class="icon-btn up" title="Move up">▲</button>
-      <button class="icon-btn down" title="Move down">▼</button>
-      <button class="icon-btn remove ms-1" title="Remove">&times;</button>
-    `;
-    frag.appendChild(row);
-  });
-
-  root.replaceChildren(frag);
-}
-
-function escapeHtml(s='') {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-// Drawer events (delegation)
-
-function bindDrawerEvents(instance) {
-  const root = drawerListEl();
-  if (!root || root._bound) return;
-  root._bound = true;
-
-  root.addEventListener('input', (e) => {
-    const row = e.target.closest('.trace-row'); if (!row) return;
-    const id = row.dataset.id;
-    const t = instance.state.traces[id]; if (!t) return;
-
-    if (e.target.classList.contains('rename')) {
-      t.name = e.target.value || t.name;
-      render(instance);
-      renderChips(instance);
-      // keep drawer as-is (name reflects on next open or live if you want)
+  const desired = state.global.units || state.global.inputMode || 'tr';
+  const config = getDisplayConfig(desired);
+  state.global.units = config.key;
+  Object.values(state.traces || {}).forEach((trace) => {
+    if (!trace) return;
+    if (!trace.source || !Array.isArray(trace.source.y)) {
+      const fallback = Array.isArray(trace.data?.y) ? trace.data.y.slice() : [];
+      trace.source = { ...(trace.source || {}), y: fallback };
     }
-
-    if (e.target.classList.contains('color')) {
-      t.color = e.target.value;
-      render(instance);
-      renderChips(instance);
-    }
-
-    if (e.target.classList.contains('dash')) {
-      t.dash = e.target.value;
-      render(instance);
-    }
-
-    if (e.target.classList.contains('opacity')) {
-      t.opacity = Number(e.target.value);
-      render(instance);
-    }
-  });
-
-  root.addEventListener('click', (e) => {
-    const row = e.target.closest('.trace-row'); if (!row) return;
-    const id = row.dataset.id;
-    const t = instance.state.traces[id]; if (!t) return;
-
-    if (e.target.classList.contains('vis')) {
-      t.visible = e.target.checked;
-      render(instance);
-      renderChips(instance);
-      return;
-    }
-
-    if (e.target.classList.contains('remove')) {
-      delete instance.state.traces[id];
-      instance.state.order = instance.state.order.filter(x => x !== id);
-      render(instance);
-      renderDrawer(instance);
-      renderChips(instance);
-      return;
-    }
-
-    if (e.target.classList.contains('up') || e.target.classList.contains('down')) {
-      const arr = instance.state.order;
-      const i = arr.indexOf(id);
-      const j = e.target.classList.contains('up') ? i-1 : i+1;
-      if (j < 0 || j >= arr.length) return;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-      render(instance);
-      renderDrawer(instance);
-      renderChips(instance);
-      return;
+    const base = Array.isArray(trace.source?.y) ? trace.source.y : [];
+    trace.data.y = config.apply(base);
+    if (trace.meta && typeof trace.meta === 'object') {
+      trace.meta.DISPLAY_UNITS = config.metaValue;
     }
   });
 }
+
