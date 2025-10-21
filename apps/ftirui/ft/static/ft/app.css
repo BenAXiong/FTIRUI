@@ -77,6 +77,182 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 }
 .small-help { font-size: .825rem; color:#6c757d; }
 
+.app-frame{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+.app-frame-main{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+.app-tabs-container{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+.app-tabs-container .tab-content{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+#pane-plotC.workspace-pane{
+  flex:1 1 auto;
+  min-height: var(--workspace-pane-height, 0);
+  height: var(--workspace-pane-height, auto);
+  max-height: var(--workspace-pane-height, none);
+  overflow:hidden;
+}
+#pane-plotC.show.workspace-pane,
+#pane-plotC.active.workspace-pane{
+  display:flex;
+  flex-direction:column;
+}
+#pane-plotC .plot-b-wrapper{
+  position:relative;
+  display:flex;
+  flex:1 1 auto;
+  min-height: var(--workspace-pane-height, 520px);
+  height: var(--workspace-pane-height, auto);
+  max-height: var(--workspace-pane-height, none);
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow:hidden;
+}
+#pane-plotC .plot-b-panel{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+}
+#pane-plotC .plot-b-panel .panel-body{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+}
+#pane-plotC .plot-b-main{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+  min-height:0;
+  min-width:0;
+  width:100%;
+  overflow:hidden;
+}
+#pane-plotC .plot-b-main .card{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  min-width:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+}
+#pane-plotC .plot-b-main .card-body{
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  flex:1 1 auto;
+  overflow:hidden;
+}
+#pane-plotC .workspace-canvas-wrapper{
+  position:relative;
+  display:flex;
+  flex:1 1 auto;
+  align-items:stretch;
+  justify-content:flex-start;
+  width:100%;
+  height:100%;
+  min-height:0;
+  min-width:0;
+  --c-browser-width: min(320px, 26vw);
+  --c-browser-handle: 24px;
+  overflow:hidden;
+}
+#pane-plotC .workspace-canvas-wrapper.browser-pinned,
+#pane-plotC .workspace-canvas-wrapper.browser-pinned.browser-collapsed,
+#pane-plotC .workspace-canvas-wrapper.browser-floating{
+  padding-left: 0;
+}
+#pane-plotC .workspace-canvas{
+  min-height:0;
+  height:100%;
+  overflow:hidden;
+}
+#pane-plotC .workspace-browser{
+  position:fixed;
+  top: var(--workspace-browser-top, 6rem);
+  left: var(--workspace-browser-left, 1.5rem);
+  width: var(--c-browser-width);
+  max-width: 360px;
+  display:flex;
+  flex-direction:column;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: .75rem;
+  box-shadow: 0 18px 40px rgba(15,23,42,.25);
+  transition: transform .25s ease, opacity .25s ease, box-shadow .25s ease;
+  z-index: 6;
+  pointer-events:auto;
+  transform: translateX(0);
+  opacity:1;
+}
+#pane-plotC .workspace-browser.is-floating,
+#pane-plotC .workspace-browser.collapsed{
+  pointer-events:none;
+  opacity:0;
+  transform: translateX(calc(-100% - var(--workspace-browser-left, 0px)));
+  box-shadow: 0 12px 30px rgba(15,23,42,.12);
+}
+#pane-plotC .workspace-browser.collapsed.peeking,
+#pane-plotC .workspace-browser.collapsed.is-active,
+#pane-plotC .workspace-browser.collapsed:hover,
+#pane-plotC .workspace-browser.collapsed:focus-within,
+#pane-plotC .workspace-browser.is-floating.peeking,
+#pane-plotC .workspace-browser.is-floating.is-active,
+#pane-plotC .workspace-browser.is-floating:hover,
+#pane-plotC .workspace-browser.is-floating:focus-within{
+  opacity:1;
+  pointer-events:auto;
+  transform: translateX(0);
+  box-shadow: 0 18px 40px rgba(15,23,42,.25);
+}
+#pane-plotC .workspace-browser.is-active{
+  box-shadow: 0 22px 48px rgba(13,110,253,.22);
+}
+
+.workspace-browser-hotspot{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.workspace-browser-hotspot.is-active{
+  pointer-events:auto;
+  cursor:pointer;
+}
+.workspace-browser-hotspot.is-active::after{
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  right:0;
+  width: var(--c-browser-handle, 24px);
+  border-radius:0 .75rem .75rem 0;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  box-shadow: 0 12px 30px rgba(15,23,42,.18);
+}
 .plot-panel{
   width: 100%;
   min-height: 360px;
@@ -94,20 +270,25 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .workspace-canvas-wrapper{
   position: relative;
   width: 100%;
-  min-height: 420px;
+  min-height: var(--workspace-pane-height, 420px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 .workspace-canvas{
   position: relative;
-  min-height: 420px;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: var(--workspace-pane-height, 420px);
+  height: 100%;
   background: var(--bs-body-bg);
-  border: 1px dashed var(--bs-border-color);
-  border-radius: .75rem;
+  border: none;
+  border-radius: inherit;
   overflow: hidden;
-  transition: box-shadow .2s ease, border-color .2s ease;
+  transition: box-shadow .2s ease;
 }
 .workspace-canvas.is-active{
-  border-style: solid;
-  border-color: color-mix(in oklab, var(--bs-primary) 55%, transparent);
   box-shadow: 0 0 0 .25rem color-mix(in oklab, var(--bs-primary) 20%, transparent);
 }
 .workspace-empty{
@@ -130,9 +311,13 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   width: 420px;
   min-width: 280px;
   min-height: 220px;
+  display:flex;
+  flex-direction:column;
   background: var(--bs-body-bg);
   border: 1px solid color-mix(in oklab, var(--bs-primary) 35%, transparent);
   border-radius: .75rem;
+  border-top-left-radius: .375rem;
+  border-top-right-radius: .375rem;
   box-shadow: 0 16px 30px rgba(15,23,42,.12);
   overflow: hidden;
   touch-action: none;
@@ -145,24 +330,36 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .workspace-panel-header{
   display: flex;
   align-items: center;
-  gap: .5rem;
-  padding: .5rem .85rem;
+  gap: .4rem;
+  padding: .35rem .65rem;
+  min-height: 2.25rem;
   background: color-mix(in oklab, var(--bs-primary) 12%, transparent);
   border-bottom: 1px solid color-mix(in oklab, var(--bs-primary) 20%, transparent);
+  border-top-left-radius: .375rem;
+  border-top-right-radius: .375rem;
 }
 .workspace-panel-title{
   font-weight: 600;
-  font-size: .9rem;
+  font-size: .85rem;
   flex-grow: 1;
 }
 .workspace-panel-body{
   position: relative;
-  height: calc(100% - 44px);
-  padding: .5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  display:flex;
 }
 .workspace-panel-body > div{
+  flex: 1 1 auto;
   width: 100% !important;
   height: 100% !important;
+}
+.workspace-panel-plot{
+  width: 100%;
+  height: 100%;
+  border-radius: 0 0 .75rem .75rem;
+  overflow: hidden;
 }
 .workspace-panel-actions .btn{
   padding: .25rem;
@@ -451,6 +648,39 @@ pre, code, .pre-like {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.folder-header.graph-header{
+  cursor: grab;
+}
+
+.folder-header.graph-header:active{
+  cursor: grabbing;
+}
+
+.graph-node.graph-hidden .folder-header,
+.graph-node.graph-hidden .folder-name{
+  opacity: .6;
+}
+
+#pane-plotC .graph-node{
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+#pane-plotC .graph-node.is-active{
+  border-color: color-mix(in oklab, var(--bs-primary) 40%, var(--bs-border-color));
+  box-shadow: 0 0 0 .14rem color-mix(in oklab, var(--bs-primary) 18%, transparent);
+  background: color-mix(in oklab, var(--bs-primary) 8%, var(--bs-tertiary-bg));
+}
+#pane-plotC .graph-node.is-active:hover{
+  border-color: color-mix(in oklab, var(--bs-primary) 55%, var(--bs-border-color));
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--bs-primary) 26%, transparent);
+}
+#pane-plotC .section-node.has-active-graph{
+  border-color: color-mix(in oklab, var(--bs-primary) 25%, var(--bs-border-color));
+  background: color-mix(in oklab, var(--bs-primary) 4%, var(--bs-tertiary-bg));
+}
+#pane-plotC .section-node.has-active-graph > .section-header .folder-name{
+  color: var(--bs-body-color);
 }
 
 .folder-children{
@@ -968,4 +1198,9 @@ pre, code, .pre-like {
   .project-preview{
     min-height: 180px;
   }
+}
+#pane-plotC .panel-pin.is-active{
+  border-color: color-mix(in oklab, var(--bs-primary) 55%, transparent);
+  color: var(--bs-primary);
+  background: color-mix(in oklab, var(--bs-primary) 12%, transparent);
 }

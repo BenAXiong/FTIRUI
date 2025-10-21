@@ -1,251 +1,1770 @@
-import { buildData, buildLayout } from '../../core/plot/index.js';
+import { fetchDemoFiles } from '../../services/demos.js';
+import { uploadTraceFile } from '../../services/uploads.js';
+import { createChipPanels } from './chipPanels.js';
+import { applyLineChip } from '../utils/styling_linechip.js';
+import { toHexColor } from '../utils/styling.js';
+import { escapeHtml } from '../utils/dom.js';
 
 const STORAGE_KEY = 'ftir.workspace.canvas.v1';
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
+const COLOR_PALETTE = [
+  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+  '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+  '#bcbd22', '#17becf'
+];
+const HISTORY_LIMIT = 25;
+const PANEL_COLLAPSE_KEY = 'ftir.workspace.panelCollapsed.v1';
+const PANEL_PIN_KEY = 'ftir.workspace.panelPinned.v1';
+const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 
-export function initWorkspaceCanvas(instance) {
-  const canvas = document.getElementById('b_canvas_root');
-  const addPlotBtn = document.getElementById('b_canvas_add_plot');
-  const resetBtn = document.getElementById('b_canvas_reset_layout');
+const DEFAULT_SECTION_ID = 'section_all';
+const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
+const GRAPH_DRAG_MIME = 'application/x-ftir-workspace-graph';
+
+let panelCounter = 0;
+let colorCursor = 0;
+let sectionCounter = 0;
+
+const sections = new Map();
+let sectionOrder = [];
+let chipPanelsInstance = null;
+let dragState = null;
+let currentDropTarget = null;
+let pendingRenameSectionId = null;
+let zIndexCursor = 0;
+let activePanelId = null;
+
+const setDropTarget = (element) => {
+  if (currentDropTarget === element) return;
+  if (currentDropTarget) {
+    currentDropTarget.classList.remove('is-drop-target');
+  }
+  currentDropTarget = element || null;
+  if (currentDropTarget) {
+    currentDropTarget.classList.add('is-drop-target');
+  }
+};
+
+const pickColor = () => {
+  const color = COLOR_PALETTE[colorCursor % COLOR_PALETTE.length];
+  colorCursor += 1;
+  return color;
+};
+
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
+const deepClone = (value) => JSON.parse(JSON.stringify(value));
+
+const randomPanelId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `canvas_${crypto.randomUUID()}`;
+  }
+  return `canvas_${Math.random().toString(36).slice(2, 9)}`;
+};
+
+const decodeName = (value) => {
+  if (typeof value !== 'string' || !value.includes('%')) return value;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const ensureTraceId = (trace) => {
+  if (!trace) return null;
+  if (!trace._canvasId) {
+    trace._canvasId = randomPanelId();
+  }
+  return trace._canvasId;
+};
+
+const ensureDefaultSection = () => {
+  if (!sections.has(DEFAULT_SECTION_ID)) {
+    sections.set(DEFAULT_SECTION_ID, {
+      id: DEFAULT_SECTION_ID,
+      name: 'Group 1',
+      collapsed: false,
+      locked: true,
+      parentId: null,
+      children: [],
+      visible: true
+    });
+  } else {
+    const base = sections.get(DEFAULT_SECTION_ID);
+    if (base) {
+      base.name = base.name && base.name !== 'All' ? base.name : 'Group 1';
+      base.parentId = null;
+      base.children = Array.isArray(base.children) ? base.children : [];
+      base.visible = base.visible !== false;
+    }
+  }
+  if (!sectionOrder.includes(DEFAULT_SECTION_ID)) {
+    sectionOrder.unshift(DEFAULT_SECTION_ID);
+  }
+};
+
+const createSection = (name, { parentId = null } = {}) => {
+  ensureDefaultSection();
+  sectionCounter += 1;
+  const id = `section_${Math.random().toString(36).slice(2, 8)}${sectionCounter}`;
+  const parent = parentId ? sections.get(parentId) : null;
+  const isSubgroup = !!parent;
+  if (isSubgroup && parent && !Array.isArray(parent.children)) {
+    parent.children = [];
+  }
+  const defaultName = name?.trim()
+    || (isSubgroup
+      ? `Subgroup ${(parent?.children?.length || 0) + 1}`
+      : `Group ${sectionOrder.length + 1}`);
+  const section = {
+    id,
+    name: defaultName,
+    collapsed: false,
+    locked: false,
+    parentId: parentId && sections.has(parentId) ? parentId : null,
+    children: [],
+    visible: true
+  };
+  sections.set(id, section);
+  if (section.parentId) {
+    const host = sections.get(section.parentId);
+    if (host) {
+      if (!Array.isArray(host.children)) host.children = [];
+      host.children.push(id);
+    }
+  } else {
+    sectionOrder.push(id);
+  }
+  return section;
+};
+
+const deleteSection = (sectionId) => {
+  if (!sectionId || sectionId === DEFAULT_SECTION_ID) return;
+  const section = sections.get(sectionId);
+  if (!section) return;
+  const children = Array.isArray(section.children) ? section.children.slice() : [];
+  children.forEach((childId) => deleteSection(childId));
+  if (section.parentId) {
+    const parent = sections.get(section.parentId);
+    if (parent && Array.isArray(parent.children)) {
+      parent.children = parent.children.filter((id) => id !== sectionId);
+    }
+  } else {
+    sectionOrder = sectionOrder.filter((id) => id !== sectionId);
+  }
+  sections.delete(sectionId);
+};
+
+const renameSection = (sectionId, name) => {
+  const section = sections.get(sectionId);
+  if (!section) return;
+  const trimmed = name?.trim();
+  if (!trimmed) return;
+  section.name = trimmed;
+};
+
+const setSectionCollapsed = (sectionId, collapsed) => {
+  const section = sections.get(sectionId);
+  if (!section) return;
+  section.collapsed = !!collapsed;
+};
+
+const serializeSections = () => ({
+  counter: sectionCounter,
+  order: sectionOrder.slice(),
+  items: Array.from(sections.values()).map((section) => ({
+    id: section.id,
+    name: section.name,
+    collapsed: !!section.collapsed,
+    locked: !!section.locked,
+    parentId: section.parentId || null,
+    children: Array.isArray(section.children) ? section.children.slice() : [],
+    visible: section.visible !== false
+  }))
+});
+
+const restoreSections = (snapshot) => {
+  sections.clear();
+  sectionOrder = [];
+  sectionCounter = Math.max(0, Number(snapshot?.counter) || 0);
+  const items = Array.isArray(snapshot?.items) ? snapshot.items : [];
+  items.forEach((item) => {
+    sections.set(item.id, {
+      id: item.id,
+      name: item.name || 'Group',
+      collapsed: !!item.collapsed,
+      locked: !!item.locked,
+      parentId: item.parentId || null,
+      children: Array.isArray(item.children) ? item.children.slice() : [],
+      visible: item.visible !== false
+    });
+  });
+  sectionOrder = Array.isArray(snapshot?.order)
+    ? snapshot.order.slice().filter((id) => sections.has(id))
+    : Array.from(sections.values())
+        .filter((section) => !section.parentId)
+        .map((section) => section.id);
+  sections.forEach((section) => {
+    if (section.parentId && !sections.has(section.parentId)) {
+      section.parentId = null;
+      section.children = Array.isArray(section.children) ? section.children.slice() : [];
+      if (!sectionOrder.includes(section.id)) sectionOrder.push(section.id);
+    }
+    if (Array.isArray(section.children)) {
+      section.children = section.children.filter((childId) => sections.has(childId));
+    } else {
+      section.children = [];
+    }
+  });
+  ensureDefaultSection();
+};
+
+export function initWorkspaceCanvas() {
+  const canvas = document.getElementById('c_canvas_root');
+  const addPlotBtn = document.getElementById('c_canvas_add_plot');
+  const resetBtn = document.getElementById('c_canvas_reset_layout');
+  const browseBtn = document.getElementById('c_canvas_browse_btn');
+  const demoBtn = document.getElementById('c_canvas_demo_btn');
+  const fileInput = document.getElementById('c_canvas_file_input');
+  const emptyOverlay = document.getElementById('c_canvas_empty');
+  const canvasWrapper = canvas?.closest('.workspace-canvas-wrapper');
+
   if (!canvas || canvas.dataset.initialized === '1') return;
   canvas.dataset.initialized = '1';
 
   const panels = new Map();
-  const interact = typeof window !== 'undefined' ? window.interact : null;
+  const history = [];
+  const future = [];
+  let searchTerm = '';
+  let pendingGraphFileTarget = null;
 
-  const resizeAll = () => {
-    panels.forEach(({ plotEl }) => {
-      if (plotEl && typeof Plotly?.Plots?.resize === 'function') {
-        Plotly.Plots.resize(plotEl);
+  const interact = typeof window !== 'undefined' ? window.interact : null;
+  ensureDefaultSection();
+  if (!chipPanelsInstance && typeof document !== 'undefined') {
+    chipPanelsInstance = createChipPanels(document.body);
+  }
+
+  const panelDom = {
+    root: document.getElementById('c_panel'),
+    pin: document.getElementById('c_panel_pin'),
+    toggle: document.getElementById('c_panel_toggle'),
+    dropzone: document.getElementById('c_panel_dropzone'),
+    empty: document.querySelector('#c_panel_dropzone .panel-empty'),
+    newSection: document.getElementById('c_new_section'),
+    searchBtn: document.getElementById('c_panel_search'),
+    searchInput: document.getElementById('c_panel_search_input'),
+    tree: document.getElementById('c_folder_tree'),
+    undo: document.getElementById('c_history_undo'),
+    redo: document.getElementById('c_history_redo')
+  };
+
+  const browserHotspot = (() => {
+    if (typeof document === 'undefined') return null;
+    let el = document.getElementById('c_browser_hotspot');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'c_browser_hotspot';
+      el.className = 'workspace-browser-hotspot';
+      document.body.appendChild(el);
+    }
+    el.style.width = el.style.width || '0px';
+    el.style.height = el.style.height || '0px';
+    return el;
+  })();
+
+  const workspacePane = document.getElementById('pane-plotC');
+  const appFrame = document.querySelector('.app-frame-main');
+  const appFooter = document.querySelector('.app-footer');
+  let layoutFrame = null;
+
+  const syncWorkspaceViewport = () => {
+    if (!workspacePane || !workspacePane.classList.contains('show')) return;
+
+    const paneRect = workspacePane.getBoundingClientRect();
+    const frameStyles = appFrame ? window.getComputedStyle(appFrame) : null;
+    const rawPaddingBottom = frameStyles ? parseFloat(frameStyles.paddingBottom || '0') : 0;
+    const paddingBottom = Number.isFinite(rawPaddingBottom) ? Math.max(rawPaddingBottom, 0) : 0;
+    const footerRect = appFooter?.getBoundingClientRect();
+    const rawFooterHeight = footerRect?.height ?? 0;
+    const footerHeight = Number.isFinite(rawFooterHeight) ? Math.max(rawFooterHeight, 0) : 0;
+    const safetyGap = 16;
+
+    let availableHeight = window.innerHeight - paneRect.top - footerHeight - paddingBottom - safetyGap;
+    if (!Number.isFinite(availableHeight) || availableHeight <= 0) {
+      availableHeight = window.innerHeight - Math.max(paneRect.top, safetyGap) - safetyGap;
+    }
+
+    const paneHeight = Math.max(availableHeight, 520);
+    workspacePane.style.setProperty('--workspace-pane-height', `${Math.floor(paneHeight)}px`);
+
+    const wrapperRect = canvasWrapper?.getBoundingClientRect();
+    const frameRect = appFrame?.getBoundingClientRect();
+    const viewportLeft = wrapperRect?.left ?? frameRect?.left ?? paneRect.left ?? 0;
+    const viewportTop = wrapperRect?.top ?? paneRect.top ?? 0;
+    const left = Math.max(0, Math.round(viewportLeft));
+    const top = Math.max(16, Math.round(viewportTop));
+
+    if (panelDom.root) {
+      panelDom.root.style.setProperty('--workspace-browser-left', `${left}px`);
+      panelDom.root.style.setProperty('--workspace-browser-top', `${top}px`);
+    }
+
+    if (browserHotspot) {
+      const showHotspot = (!panelPinned || panelDom.root?.classList.contains('collapsed')) && left > 0;
+      if (showHotspot) {
+        browserHotspot.style.top = `${top}px`;
+        browserHotspot.style.height = `${paneHeight}px`;
+        browserHotspot.style.width = `${left}px`;
+      } else {
+        browserHotspot.style.width = '0px';
+        browserHotspot.style.height = '0px';
       }
+      browserHotspot.classList.toggle('is-active', showHotspot);
+    }
+  };
+
+  const requestLayoutSync = () => {
+    if (layoutFrame) return;
+    layoutFrame = window.requestAnimationFrame(() => {
+      layoutFrame = null;
+      syncWorkspaceViewport();
     });
   };
 
-  const scheduleResize = (entry) => {
-    if (!entry) return;
-    if (entry.resizeFrame) return;
-    entry.resizeFrame = requestAnimationFrame(() => {
-      entry.resizeFrame = null;
-      if (entry.plotEl && typeof Plotly?.Plots?.resize === 'function') {
-        Plotly.Plots.resize(entry.plotEl);
+  const chipContext = { lastRowId: null };
+  let panelPinned = false;
+
+  const isPanelCollapsed = () => !!panelDom.root?.classList.contains('collapsed');
+
+  const handlePanelHoverEnter = () => {
+    if (!panelDom.root) return;
+    if (!panelPinned) {
+      panelDom.root.classList.add('peeking');
+      panelDom.root.classList.add('is-active');
+    } else if (isPanelCollapsed()) {
+      panelDom.root.classList.add('peeking');
+    }
+  };
+
+  const handlePanelHoverLeave = () => {
+    if (!panelDom.root) return;
+    if (!panelPinned) {
+      panelDom.root.classList.remove('peeking');
+      panelDom.root.classList.remove('is-active');
+    } else if (isPanelCollapsed()) {
+      panelDom.root.classList.remove('peeking');
+    }
+  };
+
+  const handlePanelMouseLeave = () => {
+    if (browserHotspot?.matches(':hover')) return;
+    handlePanelHoverLeave();
+  };
+
+  const handleHotspotLeave = () => {
+    window.requestAnimationFrame(() => {
+      if (panelDom.root?.matches(':hover')) return;
+      handlePanelHoverLeave();
+    });
+  };
+
+  const updateCanvasOffset = () => {
+    if (!canvasWrapper) return;
+    const collapsed = panelDom.root?.classList.contains('collapsed');
+    canvasWrapper.classList.toggle('browser-pinned', panelPinned);
+    canvasWrapper.classList.toggle('browser-floating', !panelPinned);
+    canvasWrapper.classList.toggle('browser-collapsed', !!collapsed);
+    requestLayoutSync();
+  };
+
+  const collectSectionAncestors = (sectionId) => {
+    const result = [];
+    let current = sectionId;
+    const guard = new Set();
+    while (current && sections.has(current) && !guard.has(current)) {
+      result.push(current);
+      guard.add(current);
+      const next = sections.get(current)?.parentId || null;
+      current = next;
+    }
+    return result;
+  };
+
+  const markActiveSections = (sectionId) => {
+    if (!panelDom.tree) return;
+    const activeIds = new Set(sectionId ? collectSectionAncestors(sectionId) : []);
+    panelDom.tree.querySelectorAll('.section-node').forEach((node) => {
+      const id = node.dataset.sectionId;
+      node.classList.toggle('has-active-graph', activeIds.has(id));
+    });
+  };
+
+  const applyActivePanelState = ({ scrollBrowser = false } = {}) => {
+    if (!panelDom.tree) return;
+    panelDom.tree.querySelectorAll('.graph-node.is-active').forEach((node) => {
+      node.classList.remove('is-active');
+    });
+    panelDom.tree.querySelectorAll('.section-node.has-active-graph').forEach((node) => {
+      node.classList.remove('has-active-graph');
+    });
+    if (!activePanelId) {
+      markActiveSections(null);
+      return;
+    }
+    const node = panelDom.tree.querySelector(`.graph-node[data-panel-id="${activePanelId}"]`);
+    if (!node) {
+      markActiveSections(null);
+      return;
+    }
+    node.classList.add('is-active');
+    if (scrollBrowser) {
+      try {
+        node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } catch {
+        /* ignore scroll errors */
+      }
+    }
+    const sectionId = node.dataset.sectionId;
+    if (sectionId) {
+      markActiveSections(sectionId);
+    }
+  };
+
+  const setActivePanel = (panelId, options = {}) => {
+    activePanelId = panelId || null;
+    applyActivePanelState(options);
+  };
+
+  const updatePanelToggleUI = (expanded) => {
+    if (!panelDom.toggle) return;
+    const title = expanded ? 'Collapse browser' : 'Expand browser';
+    panelDom.toggle.setAttribute('aria-expanded', String(expanded));
+    panelDom.toggle.title = title;
+    const icon = panelDom.toggle.querySelector('i');
+    if (icon) {
+      icon.classList.toggle('bi-chevron-double-left', expanded);
+      icon.classList.toggle('bi-chevron-double-right', !expanded);
+    } else {
+      panelDom.toggle.innerHTML = expanded
+        ? '<i class="bi bi-chevron-double-left"></i>'
+        : '<i class="bi bi-chevron-double-right"></i>';
+    }
+  };
+
+  const setPanelCollapsed = (collapsed, { persist = true, silent = false } = {}) => {
+    if (!panelDom.root) return;
+    panelDom.root.classList.toggle('collapsed', collapsed);
+    if (!collapsed) {
+      panelDom.root.classList.remove('peeking');
+    }
+    updatePanelToggleUI(!collapsed);
+    if (persist && typeof sessionStorage !== 'undefined') {
+      try {
+        if (collapsed) {
+          sessionStorage.setItem(PANEL_COLLAPSE_KEY, '1');
+        } else {
+          sessionStorage.removeItem(PANEL_COLLAPSE_KEY);
+        }
+      } catch {
+        /* ignore storage failures */
+      }
+    }
+    if (!silent) {
+      updateCanvasOffset();
+    }
+    requestLayoutSync();
+  };
+
+  const updatePanelPinUI = () => {
+    if (panelDom.pin) {
+      panelDom.pin.classList.toggle('is-active', panelPinned);
+      panelDom.pin.setAttribute('aria-pressed', String(panelPinned));
+      panelDom.pin.setAttribute('title', panelPinned ? 'Unpin browser' : 'Pin browser');
+      panelDom.pin.innerHTML = panelPinned
+        ? '<i class="bi bi-pin-angle-fill"></i>'
+        : '<i class="bi bi-pin-angle"></i>';
+    }
+    if (panelDom.root) {
+      panelDom.root.classList.toggle('is-floating', !panelPinned);
+      panelDom.root.classList.toggle('is-pinned', panelPinned);
+      if (panelPinned) {
+        panelDom.root.classList.remove('is-active');
+      }
+    }
+    requestLayoutSync();
+  };
+
+  const setPanelPinned = (value, { persist = true } = {}) => {
+    const next = !!value;
+    if (panelPinned === next) {
+      updatePanelPinUI();
+      updateCanvasOffset();
+      return;
+    }
+    panelPinned = next;
+    if (!panelPinned) {
+      panelDom.root?.classList.add('peeking');
+      setPanelCollapsed(false, { persist: false, silent: true });
+      if (typeof sessionStorage !== 'undefined') {
+        try {
+          sessionStorage.removeItem(PANEL_COLLAPSE_KEY);
+        } catch {
+          /* ignore storage failures */
+        }
+      }
+    } else {
+      panelDom.root?.classList.remove('peeking');
+    }
+    updatePanelPinUI();
+    updateCanvasOffset();
+    updatePanelToggleUI(!panelDom.root?.classList.contains('collapsed'));
+    if (persist && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(PANEL_PIN_KEY, panelPinned ? '1' : '0');
+      } catch {
+        /* ignore storage failures */
+      }
+    }
+  };
+
+  const restorePanelCollapsed = () => {
+    let collapsed = false;
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        collapsed = sessionStorage.getItem(PANEL_COLLAPSE_KEY) === '1';
+      } catch {
+        collapsed = false;
+      }
+    }
+    setPanelCollapsed(collapsed, { persist: false });
+  };
+
+  const restorePanelPinned = () => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(PANEL_PIN_KEY);
+        if (stored !== null) {
+          panelPinned = stored === '1';
+        }
+      } catch {
+        panelPinned = false;
+      }
+    }
+    setPanelPinned(panelPinned, { persist: false });
+  };
+
+  restorePanelPinned();
+  restorePanelCollapsed();
+
+  const findTraceByRowId = (rowId) => {
+    if (!rowId || typeof rowId !== 'string') return null;
+    const [panelId, traceKey] = rowId.split(':');
+    if (!panelId || !traceKey) return null;
+    const entry = panels.get(panelId);
+    if (!entry) return null;
+    const traces = ensureArray(entry.state.figure?.data);
+    const traceIndex = traces.findIndex((trace) => ensureTraceId(trace) === traceKey);
+    if (traceIndex === -1) return null;
+    return { entry, trace: traces[traceIndex], traceIndex };
+  };
+
+  const rerenderTracePanel = (rowId) => {
+    const handle = findTraceByRowId(rowId);
+    if (!handle) return;
+    normalizePanelTraces(handle.entry);
+    renderPlot(handle.entry);
+    updateTraceChip(
+      panelDom.tree?.querySelector(`.folder-trace[data-id="${rowId}"]`),
+      handle.trace
+    );
+    persist();
+  };
+
+  const ensureChipPanelsMount = () => {
+    if (!chipPanelsInstance || !panelDom.tree || panelDom.tree.dataset.chipPanelsMounted === '1') return;
+    chipPanelsInstance.mount({
+      tree: panelDom.tree,
+      getTraceById: (rowId) => {
+        chipContext.lastRowId = rowId;
+        const handle = findTraceByRowId(rowId);
+        if (!handle?.trace) return null;
+        syncTraceAppearance(handle.trace);
+        return handle.trace;
+      },
+      repaintChip: (rowEl) => {
+        const rowId = rowEl?.dataset.id;
+        const handle = findTraceByRowId(rowId);
+        if (!handle || !rowEl) return;
+        updateTraceChip(rowEl, handle.trace);
+      },
+      renderPlot: () => {
+        rerenderTracePanel(chipContext.lastRowId);
+      },
+      openRawData: (rowId) => {
+        const handle = findTraceByRowId(rowId);
+        if (!handle) return;
+        console.info('Trace info', {
+          id: rowId,
+          name: handle.trace.name,
+          meta: handle.trace.meta
+        });
       }
     });
+    panelDom.tree.dataset.chipPanelsMounted = '1';
+  };
+
+  const updateHistoryButtons = () => {
+    if (panelDom.undo) panelDom.undo.disabled = history.length === 0;
+    if (panelDom.redo) panelDom.redo.disabled = future.length === 0;
+  };
+
+  const updatePanelEmpty = () => {
+    if (!panelDom.empty) return;
+    if (panelDom.empty.dataset.mode === 'search-empty') {
+      panelDom.empty.style.display = '';
+      return;
+    }
+    panelDom.empty.style.display = panels.size ? 'none' : '';
   };
 
   const updateCanvasState = () => {
     canvas.classList.toggle('has-panels', panels.size > 0);
+    updatePanelEmpty();
+    if (emptyOverlay) {
+      emptyOverlay.style.display = panels.size ? 'none' : '';
+    }
   };
+
+  const clampPosition = (entry) => {
+    const canvasWidth = canvas.clientWidth || MIN_WIDTH;
+    const canvasHeight = canvas.clientHeight || MIN_HEIGHT;
+
+    entry.state.width = Math.max(MIN_WIDTH, Math.min(entry.state.width, canvasWidth));
+    entry.state.height = Math.max(MIN_HEIGHT, Math.min(entry.state.height, canvasHeight));
+
+    const maxX = Math.max(0, canvasWidth - entry.state.width);
+    const maxY = Math.max(0, canvasHeight - entry.state.height);
+
+    entry.state.x = Math.max(0, Math.min(entry.state.x, maxX));
+    entry.state.y = Math.max(0, Math.min(entry.state.y, maxY));
+  };
+
+  const applyPanelGeometry = (entry) => {
+    clampPosition(entry);
+    entry.el.style.width = `${entry.state.width}px`;
+    entry.el.style.height = `${entry.state.height}px`;
+    entry.el.style.transform = `translate(${entry.state.x}px, ${entry.state.y}px)`;
+  };
+
+  const applyPanelZIndex = (entry) => {
+    if (!entry?.el) return;
+    const value = Number(entry.state?.zIndex);
+    entry.el.style.zIndex = String(Number.isFinite(value) && value > 0 ? value : 1);
+  };
+
+  const defaultLayout = (payload = {}) => {
+    const yLabel = payload.meta?.DISPLAY_UNITS
+      || payload.meta?.Y_UNITS
+      || 'Intensity';
+    const xLabel = payload.meta?.X_UNITS || 'Wavenumber';
+
+    return {
+      hovermode: 'x',
+      margin: { l: 50, r: 15, t: 30, b: 40 },
+      xaxis: { title: { text: xLabel } },
+      yaxis: { title: { text: yLabel } },
+      legend: { orientation: 'h' }
+    };
+  };
+
+  const snapshotState = () => ({
+    counter: panelCounter,
+    colorCursor,
+    sections: serializeSections(),
+    panels: Array.from(panels.values()).map(({ state }) => deepClone(state))
+  });
 
   const persist = () => {
     const payload = {
       version: 1,
-      panels: Array.from(panels.values()).map(({ state }) => ({
-        id: state.id,
-        type: state.type,
-        x: state.x,
-        y: state.y,
-        width: state.width,
-        height: state.height,
-        figure: state.figure
-      }))
+      counter: panelCounter,
+      colorCursor,
+      sections: serializeSections(),
+      panels: Array.from(panels.values()).map(({ state }) => deepClone(state))
     };
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (err) {
       console.warn('Failed to persist workspace layout', err);
     }
-    updateCanvasState();
   };
 
-  const clearStorage = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (err) {
-      console.warn('Failed to clear workspace layout', err);
-    }
-  };
-
-  const loadSavedPanels = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed?.panels)) {
-        return parsed.panels;
+  const bringPanelToFront = (entry, { persistChange = true, scrollBrowser = false } = {}) => {
+    if (!entry?.el) return;
+    if (entry.state?.zIndex !== zIndexCursor) {
+      zIndexCursor += 1;
+      entry.state.zIndex = zIndexCursor;
+      applyPanelZIndex(entry);
+      if (persistChange) {
+        persist();
       }
-    } catch (err) {
-      console.warn('Failed to load workspace layout', err);
     }
-    return [];
+    setActivePanel(entry.state.id, { scrollBrowser });
   };
 
-  const generatePanelId = () => 'canvas_' + Math.random().toString(36).slice(2, 9);
+  const focusPanelById = (panelId, { scrollBrowser = true } = {}) => {
+    if (!panelId) return;
+    const entry = panels.get(panelId);
+    if (!entry) return;
+    bringPanelToFront(entry, { scrollBrowser });
+  };
 
-  const cloneFigure = (figure) => {
-    if (!figure) return figure;
-    try {
-      return JSON.parse(JSON.stringify(figure));
-    } catch (err) {
-      console.warn('Failed to clone figure', err);
-      return figure;
+  const pushHistory = () => {
+    history.push(snapshotState());
+    if (history.length > HISTORY_LIMIT) {
+      history.shift();
+    }
+    future.length = 0;
+    updateHistoryButtons();
+  };
+
+  const clearPanels = () => {
+    panels.forEach(({ el }) => el.remove());
+    panels.clear();
+    zIndexCursor = 0;
+    setActivePanel(null);
+  };
+
+    const restoreSnapshot = (snapshot, { skipHistory = false } = {}) => {
+      clearPanels();
+      panelCounter = snapshot?.counter || 0;
+      colorCursor = snapshot?.colorCursor || 0;
+      restoreSections(snapshot?.sections);
+
+      const panelStates = ensureArray(snapshot?.panels).slice();
+      zIndexCursor = panelStates.reduce((acc, state) => {
+        const value = Number(state?.zIndex);
+        return Number.isFinite(value) ? Math.max(acc, value) : acc;
+      }, 0);
+
+      panelStates
+        .sort((a, b) => (a.index || 0) - (b.index || 0))
+        .forEach((state) => {
+        registerPanel(state, { skipHistory: true, skipPersist: true, preserveIndex: true });
+      });
+
+    updateCanvasState();
+    renderGraphBrowser();
+    persist();
+
+    if (!skipHistory) {
+      updateHistoryButtons();
     }
   };
 
-  const buildSampleFigure = () => {
-    const points = Array.from({ length: 120 }, (_, idx) => idx / 10);
-    return {
-      data: [
-        {
-          type: 'scatter',
-          mode: 'lines',
-          name: 'sin(x)',
-          x: points,
-          y: points.map((v) => Math.sin(v)),
-          line: { color: '#0d6efd', width: 2 }
-        },
-        {
-          type: 'scatter',
-          mode: 'lines',
-          name: 'cos(x)',
-          x: points,
-          y: points.map((v) => Math.cos(v)),
-          line: { color: '#6610f2', width: 2 }
-        }
-      ],
-      layout: {
-        hovermode: 'x',
-        margin: { l: 50, r: 15, t: 30, b: 40 },
-        xaxis: { title: { text: 'x' } },
-        yaxis: { title: { text: 'Amplitude' } },
-        legend: { orientation: 'h' }
+  const undo = () => {
+    if (!history.length) return;
+    future.push(snapshotState());
+    const snapshot = history.pop();
+    restoreSnapshot(snapshot, { skipHistory: true });
+    updateHistoryButtons();
+  };
+
+  const redo = () => {
+    if (!future.length) return;
+    history.push(snapshotState());
+    const snapshot = future.pop();
+    restoreSnapshot(snapshot, { skipHistory: true });
+    updateHistoryButtons();
+  };
+
+  const resolveIndex = (incomingIndex, preserve) => {
+    if (preserve && Number.isFinite(incomingIndex)) {
+      panelCounter = Math.max(panelCounter, incomingIndex);
+      return incomingIndex;
+    }
+    panelCounter += 1;
+    return panelCounter;
+  };
+
+  const renderPlot = (entry) => {
+    if (typeof Plotly === 'undefined') return;
+    const fig = entry.state.figure;
+    Plotly.react(
+      entry.plotEl,
+      ensureArray(fig?.data),
+      fig?.layout || defaultLayout(),
+      { displaylogo: false, responsive: true }
+    );
+  };
+
+  const updateTraceChip = (rowEl, trace) => {
+    const chip = rowEl.querySelector('.line-chip');
+    if (!chip) return;
+  applyLineChip(chip, {
+    color: toHexColor(trace.line?.color || '#1f77b4'),
+    width: trace.line?.width || 2,
+    opacity: trace.opacity ?? 1,
+    dash: trace.line?.dash || 'solid'
+  });
+};
+
+  const syncTraceAppearance = (trace) => {
+    if (!trace) return;
+    trace.line = trace.line || {};
+    const resolvedColor = toHexColor(
+      trace.color
+      || trace.line.color
+      || FALLBACK_COLOR
+    );
+    trace.color = resolvedColor;
+    trace.line.color = resolvedColor;
+
+    const resolvedWidth = Number.isFinite(trace.width)
+      ? trace.width
+      : Number.isFinite(trace.line.width) ? trace.line.width : 2;
+    trace.width = resolvedWidth;
+    trace.line.width = resolvedWidth;
+
+    const resolvedDash = typeof trace.dash === 'string'
+      ? trace.dash
+      : (typeof trace.line.dash === 'string' ? trace.line.dash : 'solid');
+    trace.dash = resolvedDash;
+    trace.line.dash = resolvedDash;
+
+    const resolvedOpacity = Number.isFinite(trace.opacity) ? trace.opacity : 1;
+    trace.opacity = resolvedOpacity;
+  };
+
+    const normalizePanelTraces = (entry) => {
+    const traces = ensureArray(entry?.state?.figure?.data);
+    traces.forEach((trace) => {
+      if (!trace) return;
+      syncTraceAppearance(trace);
+      if (typeof trace.name === 'string') trace.name = decodeName(trace.name);
+      if (typeof trace.filename === 'string') trace.filename = decodeName(trace.filename);
+      if (trace.meta) {
+        if (typeof trace.meta.name === 'string') trace.meta.name = decodeName(trace.meta.name);
+        if (typeof trace.meta.filename === 'string') trace.meta.filename = decodeName(trace.meta.filename);
+      }
+      ensureTraceId(trace);
+      trace.opacity = Number.isFinite(trace.opacity) ? trace.opacity : 1;
+      trace.visible = trace.visible !== false;
+      trace.line = trace.line || {};
+      trace.line.color = toHexColor(trace.line.color || FALLBACK_COLOR);
+      trace.line.width = Number.isFinite(trace.line.width) ? trace.line.width : 2;
+      trace.line.dash = trace.line.dash || 'solid';
+      trace.color = trace.line.color;
+      trace.width = trace.line.width;
+      trace.dash = trace.line.dash;
+    });
+  };
+
+  const isSectionVisible = (sectionId) => {
+    let current = sections.get(sectionId);
+    while (current) {
+      if (current.visible === false) return false;
+      current = current.parentId ? sections.get(current.parentId) : null;
+    }
+    return true;
+  };
+
+  const refreshPanelVisibility = () => {
+    panels.forEach((entry) => {
+      const sectionVisible = isSectionVisible(entry.state.sectionId);
+      const graphVisible = entry.state.hidden !== true;
+      const shouldShow = sectionVisible && graphVisible;
+      entry.state.groupHidden = !sectionVisible;
+      if (entry.el) {
+        entry.el.style.display = shouldShow ? '' : 'none';
+        entry.el.classList.toggle('is-hidden-by-group', !sectionVisible);
+        entry.el.classList.toggle('is-hidden-by-graph', !graphVisible);
+      }
+      if (shouldShow && entry.plotEl && typeof Plotly?.Plots?.resize === 'function') {
+        Plotly.Plots.resize(entry.plotEl);
+      }
+    });
+  };
+
+  const queueSectionRename = (sectionId) => {
+    pendingRenameSectionId = sectionId;
+  };
+
+  const startSectionRename = (sectionId, nameEl, { selectAll = false } = {}) => {
+    const section = sections.get(sectionId);
+    const isDefaultSection = sectionId === DEFAULT_SECTION_ID;
+    if (!section || (section.locked && !isDefaultSection) || !nameEl) return;
+    if (nameEl.dataset.editing === '1') return;
+    nameEl.dataset.editing = '1';
+    const original = section.name || '';
+    const finish = (commit, value) => {
+      nameEl.dataset.editing = '0';
+      nameEl.contentEditable = 'false';
+      nameEl.classList.remove('is-editing');
+      nameEl.removeEventListener('blur', onBlur);
+      nameEl.removeEventListener('keydown', onKey);
+      if (!commit) {
+        nameEl.textContent = original;
+        return;
+      }
+      const nextValueRaw = value ?? nameEl.textContent;
+      const nextValue = ((nextValueRaw ?? '')).trim();
+      if (!nextValue || nextValue === original) {
+        nameEl.textContent = original;
+        return;
+      }
+      pushHistory();
+      renameSection(sectionId, nextValue);
+      persist();
+      renderGraphBrowser();
+      updateHistoryButtons();
+    };
+    const onBlur = () => finish(true);
+    const onKey = (evt) => {
+      if (evt.key === 'Enter') {
+        evt.preventDefault();
+        finish(true);
+      } else if (evt.key === 'Escape') {
+        evt.preventDefault();
+        finish(false, original);
       }
     };
-  };
-
-  const figureFromInstance = () => {
-    if (instance?.state?.order?.length) {
-      const data = buildData(instance.state);
-      const layout = buildLayout(instance.state);
-      return { figure: { data, layout }, fallback: false };
+    nameEl.contentEditable = 'true';
+    nameEl.spellcheck = false;
+    nameEl.classList.add('is-editing');
+    nameEl.addEventListener('blur', onBlur);
+    nameEl.addEventListener('keydown', onKey);
+    nameEl.focus();
+    if (selectAll && typeof window !== 'undefined') {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(nameEl);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } catch {}
     }
-    return { figure: buildSampleFigure(), fallback: true };
   };
 
-  const applyPosition = (entry) => {
-    entry.el.style.transform = `translate(${entry.state.x}px, ${entry.state.y}px)`;
-  };
-
-  const applySize = (entry) => {
-    entry.el.style.width = `${entry.state.width}px`;
-    entry.el.style.height = `${entry.state.height}px`;
-  };
-
-  const removePanel = (id) => {
-    const entry = panels.get(id);
-    if (!entry) return;
-    panels.delete(id);
-    entry.el.remove();
+  const toggleSectionVisibility = (sectionId) => {
+    const section = sections.get(sectionId);
+    if (!section) return;
+    pushHistory();
+    section.visible = section.visible === false ? true : false;
     persist();
-    if (typeof window?.showAppToast === 'function') {
-      window.showAppToast({ message: 'Panel removed from canvas.', variant: 'info', delay: 2400 });
+    refreshPanelVisibility();
+    renderGraphBrowser();
+    updateHistoryButtons();
+  };
+
+  const toggleGraphVisibility = (panelId) => {
+    const entry = panels.get(panelId);
+    if (!entry) return;
+    pushHistory();
+    entry.state.hidden = entry.state.hidden !== true;
+    persist();
+    refreshPanelVisibility();
+    renderGraphBrowser();
+    updateHistoryButtons();
+  };
+
+  const addGraphToSection = (sectionId) => {
+    if (!sections.has(sectionId)) return;
+    const entry = ingestPayloadAsPanel({
+      name: `Sample ${panelCounter + 1}`
+    }, { sectionId });
+    if (entry) {
+      showToast(`Graph ${entry.state.index} added to group.`, 'success');
     }
   };
 
-  const configureInteractivity = (entry) => {
-    if (!interact) return;
-    interact(entry.el)
-      .draggable({
-        inertia: true,
-        modifiers: [
-          interact.modifiers.restrictRect({
-            restriction: canvas,
-            endOnly: true
-          })
-        ],
-        listeners: {
-          start: () => {
-            entry.el.classList.add('is-active');
-            canvas.classList.add('is-active');
-          },
-          move: (event) => {
-            entry.state.x += event.dx;
-            entry.state.y += event.dy;
-            applyPosition(entry);
-          },
-          end: () => {
-            entry.el.classList.remove('is-active');
-            canvas.classList.remove('is-active');
-            persist();
-          }
-        }
-      })
-      .resizable({
-        edges: { left: true, right: true, bottom: true, top: true },
-        inertia: true,
-        modifiers: [
-          interact.modifiers.restrictEdges({
-            outer: canvas,
-            endOnly: true
-          }),
-          interact.modifiers.restrictSize({
-            min: { width: MIN_WIDTH, height: MIN_HEIGHT }
-          })
-        ],
-        listeners: {
-          start: () => {
-            entry.el.classList.add('is-active');
-            canvas.classList.add('is-active');
-          },
-          move: (event) => {
-            entry.state.width = Math.max(MIN_WIDTH, event.rect.width);
-            entry.state.height = Math.max(MIN_HEIGHT, event.rect.height);
-            entry.state.x += event.deltaRect.left;
-            entry.state.y += event.deltaRect.top;
-            applySize(entry);
-            applyPosition(entry);
-            scheduleResize(entry);
-          },
-          end: () => {
-            entry.el.classList.remove('is-active');
-            canvas.classList.remove('is-active');
-            persist();
-          }
+  const renderGraphBrowser = () => {
+    const tree = panelDom.tree;
+    if (!tree) return;
+    tree.innerHTML = '';
+    ensureDefaultSection();
+
+    const term = searchTerm.trim().toLowerCase();
+    const sortedEntries = Array.from(panels.values())
+      .sort((a, b) => (a.state.index || 0) - (b.state.index || 0));
+
+    if (!sortedEntries.length) {
+      if (panelDom.empty) {
+        panelDom.empty.dataset.mode = 'search-empty';
+        panelDom.empty.style.display = '';
+        panelDom.empty.textContent = term
+          ? 'No graphs match your search.'
+          : 'Drop files or use the toolbar to add graphs.';
+      }
+      ensureChipPanelsMount();
+      refreshPanelVisibility();
+      return;
+    }
+
+    const panelsBySection = new Map();
+    sections.forEach((section, id) => {
+      panelsBySection.set(id, []);
+    });
+
+    sortedEntries.forEach((entry) => {
+      let sectionId = sections.has(entry.state.sectionId) ? entry.state.sectionId : DEFAULT_SECTION_ID;
+      if (!sections.has(sectionId)) sectionId = DEFAULT_SECTION_ID;
+      entry.state.sectionId = sectionId;
+      if (!panelsBySection.has(sectionId)) panelsBySection.set(sectionId, []);
+      panelsBySection.get(sectionId).push(entry);
+    });
+
+    let renderedSomething = false;
+
+    const makeTraceRows = (entry) => {
+      const traces = ensureArray(entry.state.figure?.data);
+      const label = `Graph ${entry.state.index}`;
+      const graphMatches = !term || label.toLowerCase().includes(term);
+      const rows = traces.map((trace, idx) => {
+        const name = trace?.name || `Trace ${idx + 1}`;
+        const matchesTrace = !term || name.toLowerCase().includes(term);
+        return { trace, idx, name, matchesTrace };
+      });
+      const visibleRows = term ? rows.filter((row) => row.matchesTrace || graphMatches) : rows;
+      return { rows: visibleRows, graphMatches, hasVisible: visibleRows.length > 0 };
+    };
+
+    const buildTraceRow = (entry, rowInfo) => {
+      const trace = rowInfo.trace;
+      const row = document.createElement('div');
+      row.className = 'folder-trace';
+      row.dataset.panelId = entry.state.id;
+      row.dataset.traceIndex = String(rowInfo.idx);
+      const traceId = ensureTraceId(trace);
+      row.dataset.id = `${entry.state.id}:${traceId}`;
+      if (term && !rowInfo.matchesTrace) {
+        row.classList.add('is-muted');
+      }
+
+      const safeName = escapeHtml(rowInfo.name || `Trace ${rowInfo.idx + 1}`);
+      row.innerHTML = `
+        <span class="drag-handle bi bi-grip-vertical" title="Drag trace"></span>
+        <input class="form-check-input vis" type="checkbox" ${trace.visible !== false ? 'checked' : ''} title="Toggle visibility">
+        <button class="line-chip" type="button" aria-label="Edit line style"></button>
+        <button class="color-dot" type="button" style="--c:${toHexColor(trace.line?.color || '#1f77b4')}" title="Pick colour" hidden></button>
+        <input class="color form-control form-control-color form-control-sm" type="color" value="${toHexColor(trace.line?.color || '#1f77b4')}" title="Colour picker" hidden>
+        <input class="form-control form-control-sm rename" type="text" value="${safeName}" title="Double-click to rename" readonly>
+        <button class="trace-info-icon" type="button" title="Trace info"><i class="bi bi-info-circle"></i></button>
+        <select class="dash form-select form-select-sm" title="Line style" hidden>
+          <option value="solid" ${trace.line?.dash === 'solid' ? 'selected' : ''}>Solid</option>
+          <option value="dot" ${trace.line?.dash === 'dot' ? 'selected' : ''}>Dots</option>
+          <option value="dash" ${trace.line?.dash === 'dash' ? 'selected' : ''}>Dash</option>
+          <option value="longdash" ${trace.line?.dash === 'longdash' ? 'selected' : ''}>Long dash</option>
+          <option value="dashdot" ${trace.line?.dash === 'dashdot' ? 'selected' : ''}>Dash + dot</option>
+          <option value="longdashdot" ${trace.line?.dash === 'longdashdot' ? 'selected' : ''}>Long dash + dot</option>
+        </select>
+        <input class="opacity form-range" type="range" min="0.1" max="1" step="0.05" value="${trace.opacity ?? 1}" title="Opacity" hidden>
+        <button class="trace-remove" type="button" title="Remove trace"><i class="bi bi-x-circle"></i></button>
+      `;
+
+      row.draggable = false;
+      let dragFromHandle = false;
+      const setDragFromHandle = (enabled) => {
+        dragFromHandle = !!enabled;
+        row.draggable = dragFromHandle;
+      };
+      const dragHandle = row.querySelector('.drag-handle');
+      if (dragHandle) {
+        dragHandle.addEventListener('pointerdown', (evt) => {
+          if (typeof evt.button === 'number' && evt.button !== 0) return;
+          setDragFromHandle(true);
+        });
+        dragHandle.addEventListener('pointerup', () => setDragFromHandle(false));
+        dragHandle.addEventListener('pointercancel', () => setDragFromHandle(false));
+      }
+
+      updateTraceChip(row, trace);
+
+      const visToggle = row.querySelector('.vis');
+      visToggle?.addEventListener('change', () => {
+        trace.visible = visToggle.checked;
+        renderPlot(entry);
+        persist();
+      });
+
+      const renameInput = row.querySelector('.rename');
+      renameInput?.addEventListener('dblclick', (evt) => {
+        renameInput.readOnly = false;
+        renameInput.focus();
+        renameInput.select();
+        evt.stopPropagation();
+      });
+      renameInput?.addEventListener('blur', () => {
+        renameInput.readOnly = true;
+        const value = renameInput.value.trim();
+        trace.name = value || trace.name || `Trace ${rowInfo.idx + 1}`;
+        renderPlot(entry);
+        renderGraphBrowser();
+        persist();
+      });
+      renameInput?.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Enter') {
+          renameInput.blur();
+        } else if (evt.key === 'Escape') {
+          renameInput.value = trace.name || `Trace ${rowInfo.idx + 1}`;
+          renameInput.blur();
         }
       });
-  };
 
-  const attachPlot = (entry) => {
-    if (typeof Plotly === 'undefined') return;
-    const fig = cloneFigure(entry.state.figure);
-    Plotly.newPlot(entry.plotEl, fig?.data || [], fig?.layout || {}, {
-      displaylogo: false,
-      responsive: true
-    });
-    scheduleResize(entry);
-  };
+      const removeBtn = row.querySelector('.trace-remove');
+      removeBtn?.addEventListener('click', () => {
+        pushHistory();
+        const traces = ensureArray(entry.state.figure?.data);
+        traces.splice(rowInfo.idx, 1);
+        if (!traces.length) {
+          removePanel(entry.state.id, { pushToHistory: false });
+          return;
+        }
+        normalizePanelTraces(entry);
+        renderPlot(entry);
+        renderGraphBrowser();
+        persist();
+        updateHistoryButtons();
+      });
 
-  const registerPanel = (incomingState, { skipPersist = false, silent = false } = {}) => {
-    const baseState = {
-      id: incomingState.id || generatePanelId(),
-      type: incomingState.type || 'plot',
-      x: Number.isFinite(incomingState.x) ? incomingState.x : 36 + panels.size * 24,
-      y: Number.isFinite(incomingState.y) ? incomingState.y : 36 + panels.size * 24,
-      width: Number.isFinite(incomingState.width) ? incomingState.width : 420,
-      height: Number.isFinite(incomingState.height) ? incomingState.height : 280,
-      figure: cloneFigure(incomingState.figure) || buildSampleFigure()
+      row.addEventListener('dragstart', (event) => {
+        if (!dragFromHandle) {
+          event.preventDefault();
+          setDragFromHandle(false);
+          return;
+        }
+        dragState = { type: 'trace', panelId: entry.state.id, traceIndex: rowInfo.idx };
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData(TRACE_DRAG_MIME, JSON.stringify(dragState));
+        event.dataTransfer.setData('text/plain', `${entry.state.id}:${rowInfo.idx}`);
+        row.classList.add('is-dragging');
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('is-dragging');
+        dragState = null;
+        setDropTarget(null);
+        setDragFromHandle(false);
+      });
+
+      return row;
     };
+
+    const renderGraphNode = (entry, sectionId, depth) => {
+      const info = makeTraceRows(entry);
+      if (!info.hasVisible) return null;
+
+      const node = document.createElement('div');
+      node.className = 'folder-node graph-node';
+      node.dataset.type = 'graph';
+      node.dataset.id = entry.state.id;
+      node.dataset.panelId = entry.state.id;
+      node.dataset.sectionId = sectionId;
+      node.dataset.depth = String(depth + 1);
+      const sectionVisible = isSectionVisible(sectionId);
+      const graphVisible = entry.state.hidden !== true;
+      const fullyVisible = sectionVisible && graphVisible;
+      node.dataset.visible = fullyVisible ? 'true' : 'false';
+      node.dataset.sectionVisible = sectionVisible ? 'true' : 'false';
+      node.dataset.graphVisible = graphVisible ? 'true' : 'false';
+      node.classList.toggle('graph-hidden', !graphVisible);
+
+      const header = document.createElement('div');
+      header.className = 'folder-header graph-header';
+      header.dataset.panelId = entry.state.id;
+      header.dataset.sectionId = sectionId;
+      header.dataset.depth = String(depth + 1);
+      header.setAttribute('draggable', 'true');
+      if (!graphVisible) {
+        header.classList.add('is-hidden');
+      }
+
+      header.addEventListener('dragstart', (event) => {
+        if (event.target.closest('button')) {
+          event.preventDefault();
+          return;
+        }
+        dragState = { type: 'graph', panelId: entry.state.id, sectionId };
+        node.classList.add('is-dragging');
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData(GRAPH_DRAG_MIME, entry.state.id);
+          event.dataTransfer.setData('text/plain', entry.state.id);
+        }
+      });
+      header.addEventListener('dragend', () => {
+        node.classList.remove('is-dragging');
+        dragState = null;
+        setDropTarget(null);
+      });
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'toggle';
+      toggle.innerHTML = `<i class="bi ${entry.state.collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
+      toggle.setAttribute('aria-expanded', String(!entry.state.collapsed));
+      toggle.setAttribute('draggable', 'false');
+      toggle.addEventListener('click', () => {
+        entry.state.collapsed = !entry.state.collapsed;
+        renderGraphBrowser();
+        persist();
+      });
+      header.appendChild(toggle);
+
+      const name = document.createElement('span');
+      name.className = 'folder-name graph-name';
+      name.textContent = `Graph ${entry.state.index}`;
+      if (!graphVisible) {
+        name.classList.add('is-muted');
+      }
+      if (term && !info.graphMatches) {
+        name.classList.add('is-muted');
+      }
+      header.appendChild(name);
+
+      const actions = document.createElement('div');
+      actions.className = 'folder-actions graph-actions';
+
+      const graphVisibilityBtn = document.createElement('button');
+      graphVisibilityBtn.className = 'btn-icon graph-visibility';
+      graphVisibilityBtn.type = 'button';
+      graphVisibilityBtn.dataset.panelId = entry.state.id;
+      graphVisibilityBtn.title = graphVisible ? 'Hide graph' : 'Show graph';
+      graphVisibilityBtn.setAttribute('draggable', 'false');
+      graphVisibilityBtn.innerHTML = `<i class="bi ${graphVisible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
+      actions.appendChild(graphVisibilityBtn);
+
+      const graphBrowseBtn = document.createElement('button');
+      graphBrowseBtn.className = 'btn-icon graph-browse';
+      graphBrowseBtn.type = 'button';
+      graphBrowseBtn.dataset.panelId = entry.state.id;
+      graphBrowseBtn.title = 'Add traces from file';
+      graphBrowseBtn.setAttribute('draggable', 'false');
+      graphBrowseBtn.innerHTML = '<i class="bi bi-file-earmark-plus"></i>';
+      actions.appendChild(graphBrowseBtn);
+
+      const graphDeleteBtn = document.createElement('button');
+      graphDeleteBtn.className = 'btn-icon graph-delete';
+      graphDeleteBtn.type = 'button';
+      graphDeleteBtn.dataset.panelId = entry.state.id;
+      graphDeleteBtn.title = 'Delete graph';
+      graphDeleteBtn.setAttribute('draggable', 'false');
+      graphDeleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      actions.appendChild(graphDeleteBtn);
+
+      header.appendChild(actions);
+
+      node.appendChild(header);
+
+      const children = document.createElement('div');
+      children.className = 'folder-children';
+      children.style.display = entry.state.collapsed ? 'none' : '';
+
+      const tracesWrap = document.createElement('div');
+      tracesWrap.className = 'folder-traces';
+      if (info.rows.length) {
+        info.rows.forEach((rowInfo) => {
+          const row = buildTraceRow(entry, rowInfo);
+          tracesWrap.appendChild(row);
+        });
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'text-muted small px-2 py-1';
+        empty.textContent = term ? 'No traces match search.' : 'No traces in this graph yet.';
+        tracesWrap.appendChild(empty);
+      }
+
+      children.appendChild(tracesWrap);
+      node.appendChild(children);
+      return node;
+    };
+
+    const renderSectionNode = (sectionId, depth = 0) => {
+      const section = sections.get(sectionId);
+      if (!section) return null;
+
+      const childIds = Array.isArray(section.children) ? section.children : [];
+      const sectionMatches = !term || (section.name || '').toLowerCase().includes(term);
+
+      const childNodes = [];
+      childIds.forEach((childId) => {
+        const childNode = renderSectionNode(childId, depth + 1);
+        if (childNode) childNodes.push(childNode);
+      });
+
+      const graphNodes = [];
+      (panelsBySection.get(sectionId) || []).forEach((entry) => {
+        const graphNode = renderGraphNode(entry, sectionId, depth);
+        if (graphNode) graphNodes.push(graphNode);
+      });
+
+      const hasChildContent = childNodes.length > 0;
+      const hasGraphContent = graphNodes.length > 0;
+      const hasSearchContent = sectionMatches || hasChildContent || hasGraphContent;
+
+      if (term && !hasSearchContent) {
+        return null;
+      }
+
+      const node = document.createElement('div');
+      node.className = 'folder-node section-node';
+      node.dataset.type = 'section';
+      node.dataset.sectionId = sectionId;
+      node.dataset.depth = String(depth);
+      node.dataset.visible = section.visible === false ? 'false' : 'true';
+      if (!section.locked) {
+        node.setAttribute('draggable', 'true');
+      }
+
+      const header = document.createElement('div');
+      header.className = 'folder-header section-header';
+      header.dataset.sectionId = sectionId;
+      header.dataset.depth = String(depth);
+      if (section.visible === false) {
+        header.classList.add('is-hidden');
+      }
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'toggle';
+      toggle.innerHTML = `<i class="bi ${section.collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
+      toggle.setAttribute('aria-expanded', String(!section.collapsed));
+      toggle.addEventListener('click', () => {
+        setSectionCollapsed(sectionId, !section.collapsed);
+        renderGraphBrowser();
+        persist();
+      });
+      header.appendChild(toggle);
+
+      const name = document.createElement('span');
+      name.className = 'folder-name section-name';
+      name.dataset.sectionId = sectionId;
+      name.dataset.depth = String(depth);
+      name.textContent = section.name || (depth === 0 ? 'Group' : 'Subgroup');
+      header.appendChild(name);
+
+      const actions = document.createElement('div');
+      actions.className = 'folder-actions';
+
+      const visible = section.visible !== false;
+      const visibilityBtn = document.createElement('button');
+      visibilityBtn.className = 'btn-icon section-visibility';
+      visibilityBtn.type = 'button';
+      visibilityBtn.dataset.sectionId = sectionId;
+      visibilityBtn.title = visible ? 'Hide group' : 'Show group';
+      visibilityBtn.innerHTML = `<i class="bi ${visible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
+      actions.appendChild(visibilityBtn);
+
+      const addGraphBtn = document.createElement('button');
+      addGraphBtn.className = 'btn-icon section-add-graph';
+      addGraphBtn.type = 'button';
+      addGraphBtn.dataset.sectionId = sectionId;
+      addGraphBtn.title = 'Add graph to this group';
+      addGraphBtn.innerHTML = '<i class="bi bi-plus-square"></i>';
+      actions.appendChild(addGraphBtn);
+
+      if (depth === 0) {
+        const addSubBtn = document.createElement('button');
+        addSubBtn.className = 'btn-icon section-add-sub';
+        addSubBtn.type = 'button';
+        addSubBtn.dataset.sectionId = sectionId;
+        addSubBtn.title = 'Add subgroup';
+        addSubBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+        actions.appendChild(addSubBtn);
+      }
+
+      if (!section.locked) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-icon section-delete';
+        deleteBtn.type = 'button';
+        deleteBtn.dataset.sectionId = sectionId;
+        deleteBtn.title = 'Delete group';
+        deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        actions.appendChild(deleteBtn);
+      }
+
+      header.appendChild(actions);
+      node.appendChild(header);
+
+      const container = document.createElement('div');
+      container.className = 'folder-children';
+      container.dataset.sectionId = sectionId;
+      container.style.display = section.collapsed ? 'none' : '';
+
+      childNodes.forEach((childNode) => container.appendChild(childNode));
+      graphNodes.forEach((graphNode) => container.appendChild(graphNode));
+
+      if (!childNodes.length && !graphNodes.length && !term) {
+        const empty = document.createElement('div');
+        empty.className = 'text-muted small px-2 py-1';
+        empty.textContent = depth === 0 ? 'No graphs in this group yet.' : 'No graphs in this subgroup yet.';
+        container.appendChild(empty);
+      }
+
+      node.appendChild(container);
+      renderedSomething = true;
+      return node;
+    };
+
+    const topLevelIds = sectionOrder.filter((id) => sections.has(id));
+    topLevelIds.forEach((id) => {
+      const node = renderSectionNode(id, 0);
+      if (node) {
+        tree.appendChild(node);
+      }
+    });
+
+    sections.forEach((section) => {
+      if (!section.parentId && !topLevelIds.includes(section.id)) {
+        const node = renderSectionNode(section.id, 0);
+        if (node) {
+          tree.appendChild(node);
+        }
+      }
+    });
+
+    if (!renderedSomething) {
+      if (panelDom.empty) {
+        panelDom.empty.dataset.mode = 'search-empty';
+        panelDom.empty.style.display = '';
+        panelDom.empty.textContent = term
+          ? 'No graphs match your search.'
+          : 'Drop files or use the toolbar to add graphs.';
+      }
+    } else if (panelDom.empty) {
+      delete panelDom.empty.dataset.mode;
+      panelDom.empty.style.display = 'none';
+    }
+
+    applyActivePanelState();
+    ensureChipPanelsMount();
+    refreshPanelVisibility();
+
+    if (pendingRenameSectionId) {
+      const targetId = pendingRenameSectionId;
+      const nameEl = panelDom.tree?.querySelector(`.section-name[data-section-id="${targetId}"]`);
+      pendingRenameSectionId = null;
+      if (nameEl) {
+        startSectionRename(targetId, nameEl, { selectAll: true });
+      }
+    }
+  };
+
+  const collectSectionDescendants = (sectionId) => {
+    const result = [];
+    const visit = (id) => {
+      if (!sections.has(id)) return;
+      result.push(id);
+      const node = sections.get(id);
+      ensureArray(node.children).forEach(visit);
+    };
+    visit(sectionId);
+    return result;
+  };
+
+  const focusSectionById = (sectionId, { scrollBrowser = true } = {}) => {
+    if (!sectionId) return;
+    const descendantIds = new Set(collectSectionDescendants(sectionId));
+    let target = null;
+    if (activePanelId) {
+      const activeEntry = panels.get(activePanelId);
+      if (activeEntry && descendantIds.has(activeEntry.state.sectionId)) {
+        target = activeEntry;
+      }
+    }
+    if (!target) {
+      panels.forEach((entry) => {
+        if (!entry || entry.state.hidden === true) return;
+        if (!descendantIds.has(entry.state.sectionId)) return;
+        if (!target || (entry.state?.zIndex || 0) > (target.state?.zIndex || 0)) {
+          target = entry;
+        }
+      });
+    }
+    if (target) {
+      bringPanelToFront(target, { scrollBrowser });
+    }
+  };
+
+  const deleteSectionInteractive = (sectionId) => {
+    const section = sections.get(sectionId);
+    if (!section || section.locked) return;
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm(`Delete group "${section.name || 'Group'}"? Graphs will move to Group 1.`);
+      if (!confirmed) return;
+    }
+    pushHistory();
+    const descendants = collectSectionDescendants(sectionId);
+    panels.forEach((entry) => {
+      if (descendants.includes(entry.state.sectionId)) {
+        entry.state.sectionId = DEFAULT_SECTION_ID;
+      }
+    });
+    deleteSection(sectionId);
+    ensureDefaultSection();
+    renderGraphBrowser();
+    persist();
+    refreshPanelVisibility();
+    updateHistoryButtons();
+  };
+
+  const deleteGraphInteractive = (panelId) => {
+    const entry = panels.get(panelId);
+    if (!entry) return;
+    const label = entry.state?.index ? `Graph ${entry.state.index}` : 'this graph';
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm(`Delete ${label}?`);
+      if (!confirmed) return;
+    }
+    removePanel(panelId);
+  };
+
+  const moveTrace = (source, target) => {
+    const sourceEntry = panels.get(source?.panelId);
+    const targetEntry = panels.get(target?.panelId);
+    if (!sourceEntry || !targetEntry) return false;
+
+    const sourceTraces = ensureArray(sourceEntry.state.figure?.data);
+    if (!Number.isInteger(source.traceIndex) || source.traceIndex < 0 || source.traceIndex >= sourceTraces.length) {
+      return false;
+    }
+
+    const [trace] = sourceTraces.splice(source.traceIndex, 1);
+    const targetTraces = ensureArray(targetEntry.state.figure?.data);
+    let insertIndex = Number.isInteger(target.traceIndex) ? target.traceIndex : targetTraces.length;
+    if (sourceEntry === targetEntry && source.traceIndex < insertIndex) {
+      insertIndex -= 1;
+    }
+    insertIndex = Math.max(0, Math.min(insertIndex, targetTraces.length));
+    targetTraces.splice(insertIndex, 0, trace);
+
+    normalizePanelTraces(targetEntry);
+    renderPlot(targetEntry);
+
+    if (sourceEntry !== targetEntry) {
+      if (!sourceTraces.length) {
+        removePanel(source.panelId, { pushToHistory: false });
+      } else {
+        normalizePanelTraces(sourceEntry);
+        renderPlot(sourceEntry);
+      }
+    }
+
+    renderGraphBrowser();
+    persist();
+    refreshPanelVisibility();
+    updateHistoryButtons();
+    return true;
+  };
+
+  const moveGraph = (panelId, { sectionId, beforePanelId } = {}) => {
+    const entry = panels.get(panelId);
+    if (!entry) return false;
+
+    if (sectionId && sections.has(sectionId)) {
+      entry.state.sectionId = sectionId;
+    }
+
+    const ordered = Array.from(panels.values())
+      .sort((a, b) => (a.state.index || 0) - (b.state.index || 0));
+    const currentIdx = ordered.findIndex((item) => item.state.id === panelId);
+    if (currentIdx === -1) return false;
+    const [current] = ordered.splice(currentIdx, 1);
+
+    let targetIdx = ordered.length;
+    if (beforePanelId && beforePanelId !== panelId) {
+      targetIdx = ordered.findIndex((item) => item.state.id === beforePanelId);
+      if (targetIdx === -1) targetIdx = ordered.length;
+    } else if (sectionId && sections.has(sectionId)) {
+      const lastIdx = ordered.reduce((acc, item, idx) => (item.state.sectionId === sectionId ? idx : acc), -1);
+      targetIdx = lastIdx >= 0 ? lastIdx + 1 : ordered.length;
+    }
+
+    ordered.splice(targetIdx, 0, current);
+    ordered.forEach((item, idx) => {
+      item.state.index = idx + 1;
+    });
+
+    refreshPanelVisibility();
+    renderGraphBrowser();
+    persist();
+    updateHistoryButtons();
+    return true;
+  };
+
+  const resolveTraceTarget = (event) => {
+    const traceRow = event.target.closest('.folder-trace');
+    if (traceRow) {
+      return {
+        element: traceRow,
+        panelId: traceRow.dataset.panelId,
+        traceIndex: Number(traceRow.dataset.traceIndex) || 0
+      };
+    }
+    const tracesContainer = event.target.closest('.folder-traces');
+    if (tracesContainer) {
+      const graphNode = tracesContainer.closest('.graph-node');
+      const panelId = graphNode?.dataset?.panelId;
+      if (!panelId) return null;
+      const entry = panels.get(panelId);
+      const traces = ensureArray(entry?.state?.figure?.data);
+      return {
+        element: tracesContainer,
+        panelId,
+        traceIndex: traces.length
+      };
+    }
+    const graphNode = event.target.closest('.graph-node');
+    if (graphNode) {
+      const panelId = graphNode.dataset.panelId;
+      const entry = panels.get(panelId);
+      const traces = ensureArray(entry?.state?.figure?.data);
+      return {
+        element: graphNode,
+        panelId,
+        traceIndex: traces.length
+      };
+    }
+    return null;
+  };
+
+  const handleTreeDragOver = (event) => {
+    if (!dragState) return;
+    if (dragState.type === 'trace') {
+      const target = resolveTraceTarget(event);
+      if (!target || !target.panelId) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      setDropTarget(target.element);
+    } else if (dragState.type === 'graph') {
+      const targetGraph = event.target.closest('.graph-node');
+      const targetSection = event.target.closest('.section-node');
+      if (!targetGraph && !targetSection) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      setDropTarget(targetGraph || targetSection);
+    }
+  };
+
+  const handleTreeDrop = (event) => {
+    if (!dragState) return;
+    if (dragState.type === 'trace') {
+      const target = resolveTraceTarget(event);
+      if (!target || !target.panelId) {
+        setDropTarget(null);
+        return;
+      }
+      event.preventDefault();
+      if (target.panelId === dragState.panelId && target.traceIndex === dragState.traceIndex) {
+        setDropTarget(null);
+        dragState = null;
+        return;
+      }
+      pushHistory();
+      if (!moveTrace(dragState, { panelId: target.panelId, traceIndex: target.traceIndex })) {
+        history.pop();
+      }
+    } else if (dragState.type === 'graph') {
+      const targetGraph = event.target.closest('.graph-node');
+      const targetSection = event.target.closest('.section-node');
+      if (!targetGraph && !targetSection) {
+        setDropTarget(null);
+        return;
+      }
+      event.preventDefault();
+      const sectionId = (targetGraph || targetSection)?.dataset?.sectionId;
+      let beforePanelId = null;
+      if (targetGraph) {
+        beforePanelId = targetGraph.dataset.panelId;
+        if (beforePanelId === dragState.panelId) {
+          setDropTarget(null);
+          dragState = null;
+          return;
+        }
+      }
+      pushHistory();
+      if (!moveGraph(dragState.panelId, { sectionId, beforePanelId })) {
+        history.pop();
+      }
+    }
+    setDropTarget(null);
+    dragState = null;
+  };
+
+  const removePanel = (id, { pushToHistory = true } = {}) => {
+    const entry = panels.get(id);
+    if (!entry) return;
+    if (pushToHistory) {
+      pushHistory();
+    }
+    const wasActive = activePanelId === id;
+    let fallback = null;
+    panels.delete(id);
+    entry.el.remove();
+    if (wasActive) {
+      panels.forEach((candidate) => {
+        if (!candidate) return;
+        if (!fallback || (candidate.state?.zIndex || 0) > (fallback.state?.zIndex || 0)) {
+          fallback = candidate;
+        }
+      });
+      setActivePanel(fallback ? fallback.state.id : null);
+    }
+    renderGraphBrowser();
+    refreshPanelVisibility();
+    updateCanvasState();
+    persist();
+    updateHistoryButtons();
+  };
+
+  const registerPanel = (incomingState, {
+    skipHistory = false,
+    skipPersist = false,
+    preserveIndex = false
+  } = {}) => {
+    if (!skipHistory) {
+      pushHistory();
+    }
+
+      const incomingZIndex = Number(incomingState.zIndex);
+      const resolvedZIndex = Number.isFinite(incomingZIndex) && incomingZIndex > 0
+        ? incomingZIndex
+        : zIndexCursor + 1;
+
+      const baseState = {
+        id: incomingState.id || randomPanelId(),
+        type: incomingState.type || 'plot',
+        index: resolveIndex(incomingState.index, preserveIndex),
+        x: Number.isFinite(incomingState.x) ? incomingState.x : 36 + panels.size * 24,
+        y: Number.isFinite(incomingState.y) ? incomingState.y : 36 + panels.size * 24,
+        width: Number.isFinite(incomingState.width) ? incomingState.width : 440,
+        height: Number.isFinite(incomingState.height) ? incomingState.height : 300,
+        collapsed: !!incomingState.collapsed,
+        hidden: incomingState.hidden === true,
+        sectionId: sections.has(incomingState.sectionId) ? incomingState.sectionId : DEFAULT_SECTION_ID,
+        figure: incomingState.figure ? deepClone(incomingState.figure) : {
+          data: [],
+          layout: defaultLayout()
+        },
+        zIndex: resolvedZIndex
+      };
+
+    zIndexCursor = Math.max(zIndexCursor, baseState.zIndex);
 
     const panelEl = document.createElement('div');
     panelEl.className = 'workspace-panel';
     panelEl.dataset.panelId = baseState.id;
+    panelEl.dataset.graphIndex = String(baseState.index);
+    panelEl.style.zIndex = String(baseState.zIndex);
 
     const header = document.createElement('div');
     header.className = 'workspace-panel-header';
 
     const title = document.createElement('div');
     title.className = 'workspace-panel-title';
-    title.textContent = baseState.type === 'plot' ? 'Plot panel' : 'Panel';
+    title.textContent = `Graph ${baseState.index}`;
 
     const actions = document.createElement('div');
     actions.className = 'workspace-panel-actions btn-group btn-group-sm';
@@ -269,78 +1788,525 @@ export function initWorkspaceCanvas(instance) {
 
     panelEl.appendChild(header);
     panelEl.appendChild(body);
-
     canvas.appendChild(panelEl);
 
-    const entry = {
-      state: baseState,
-      el: panelEl,
-      plotEl: plotHost,
-      resizeFrame: null
-    };
+      const entry = {
+        state: baseState,
+        el: panelEl,
+        plotEl: plotHost,
+        dragSnapshot: false
+      };
+      panelEl.addEventListener('pointerdown', (evt) => {
+        if (typeof evt.button === 'number' && evt.button !== 0) return;
+        bringPanelToFront(entry);
+      });
+      panelEl.addEventListener('focusin', () => bringPanelToFront(entry));
+      normalizePanelTraces(entry);
 
-    applySize(entry);
-    applyPosition(entry);
-
-    panels.set(baseState.id, entry);
-    attachPlot(entry);
+      panels.set(baseState.id, entry);
+    applyPanelGeometry(entry);
+    applyPanelZIndex(entry);
+    renderPlot(entry);
     configureInteractivity(entry);
     updateCanvasState();
+    renderGraphBrowser();
+    setActivePanel(entry.state.id);
+    refreshPanelVisibility();
 
     if (!skipPersist) {
       persist();
-      if (!silent && typeof window?.showAppToast === 'function') {
-        window.showAppToast({
-          message: 'Plot panel added to canvas.',
-          variant: 'success',
-          delay: 2200
-        });
+    }
+
+    updateHistoryButtons();
+    return entry;
+  };
+
+  const createTraceFromPayload = (payload = {}, file = null) => {
+    const xValues = ensureArray(payload?.x).map(Number);
+    const yValues = ensureArray(payload?.y).map(Number);
+    const resolvedName = decodeName(payload?.name)
+      || decodeName(payload?.filename)
+      || (file ? decodeName(file.name) : '')
+      || 'Trace';
+    const baseLine = payload?.line || {};
+    const colorValue = baseLine.color || pickColor();
+
+    return {
+      type: payload?.type || 'scatter',
+      mode: payload?.mode || 'lines',
+      name: resolvedName,
+      x: xValues,
+      y: yValues,
+      line: {
+        color: toHexColor(colorValue),
+        width: Number.isFinite(baseLine.width) ? baseLine.width : 2,
+        dash: baseLine.dash || 'solid'
+      },
+      opacity: Number.isFinite(payload?.opacity) ? payload.opacity : 1,
+      visible: payload?.visible !== false,
+      meta: payload?.meta || {},
+      filename: decodeName(payload?.filename || payload?.name || (file ? file.name : ''))
+    };
+  };
+
+  const ingestPayloadAsPanel = (payload, {
+    width = 520,
+    height = 320,
+    skipHistory = false,
+    skipPersist = false,
+    sectionId = DEFAULT_SECTION_ID
+  } = {}) => {
+    const trace = createTraceFromPayload(payload);
+
+    return registerPanel({
+      type: 'plot',
+      width,
+      height,
+      hidden: payload?.hidden === true,
+      sectionId,
+      figure: {
+        data: [trace],
+        layout: defaultLayout(payload)
       }
+    }, { skipHistory, skipPersist });
+  };
+
+  const appendFilesToGraph = async (panelId, fileList) => {
+    const entry = panels.get(panelId);
+    if (!entry) return;
+    const files = Array.from(fileList || []).filter(Boolean);
+    if (!files.length) return;
+
+    pushHistory();
+    const traces = ensureArray(entry.state.figure?.data);
+    let added = 0;
+
+    for (const file of files) {
+      try {
+        const payload = await uploadTraceFile(file, 'auto');
+        traces.push(createTraceFromPayload(payload, file));
+        added += 1;
+      } catch (err) {
+        console.warn('Failed to add file to graph', file?.name, err);
+      }
+    }
+
+    if (!added) {
+      history.pop();
+      updateHistoryButtons();
+      showToast('No files were added to the graph.', 'warning');
+      return;
+    }
+
+    normalizePanelTraces(entry);
+    renderPlot(entry);
+    renderGraphBrowser();
+    persist();
+    refreshPanelVisibility();
+    updateHistoryButtons();
+    showToast(`Added ${added} file${added === 1 ? '' : 's'} to graph.`, 'success');
+  };
+
+  const requestGraphFileBrowse = (panelId) => {
+    if (!fileInput || !panels.has(panelId)) return;
+    pendingGraphFileTarget = panelId;
+    fileInput.value = '';
+    fileInput.click();
+  };
+
+  const handleFilesPayload = async (files, { origin } = {}) => {
+    if (!files.length) return;
+    pushHistory();
+
+    for (const file of files) {
+      try {
+        const payload = await uploadTraceFile(file, 'auto');
+        ingestPayloadAsPanel({
+          ...payload,
+          name: decodeName(payload?.name) || decodeName(file?.name) || 'Trace',
+          filename: decodeName(payload?.filename || file?.name || '')
+        }, { skipHistory: true, skipPersist: true });
+      } catch (err) {
+        console.warn('Failed to ingest file', file?.name, err);
+      }
+    }
+
+    persist();
+    updateHistoryButtons();
+    const message =
+      origin === 'drop'
+        ? 'Files added from drop.'
+        : origin === 'demo'
+          ? 'Demo files added to workspace.'
+          : 'Files added to workspace.';
+    showToast(message, 'success');
+  };
+
+  const handleImportedFiles = async (fileList, { origin } = {}) => {
+    const files = Array.from(fileList || []).filter(Boolean);
+    if (!files.length) return;
+    await handleFilesPayload(files, { origin });
+  };
+
+  const loadDemoGraphs = async () => {
+    if (!demoBtn) return;
+    demoBtn.disabled = true;
+    demoBtn.classList.add('disabled');
+    try {
+      const files = await fetchDemoFiles(12);
+      if (!files.length) {
+        showToast('No demo files available right now.', 'warning');
+        return;
+      }
+      await handleFilesPayload(files, { origin: 'demo' });
+    } catch (err) {
+      console.warn('Failed to load demo files', err);
+      showToast('Unable to load demo files.', 'danger');
+    } finally {
+      demoBtn.disabled = false;
+      demoBtn.classList.remove('disabled');
     }
   };
 
-  addPlotBtn?.addEventListener('click', () => {
-    const { figure, fallback } = figureFromInstance();
-    registerPanel(
-      {
-        type: 'plot',
-        figure,
-        width: 440,
-        height: 300
-      },
-      { silent: true }
-    );
-    const message = fallback
-      ? 'No traces loaded yet. Added a sample plot to the canvas.'
-      : 'Current plot added to the canvas.';
+  const showToast = (message, variant = 'info', delay = 2400) => {
     if (typeof window?.showAppToast === 'function') {
-      window.showAppToast({
-        message,
-        variant: fallback ? 'info' : 'success',
-        delay: 2600
-      });
+      window.showAppToast({ message, variant, delay });
     }
+  };
+
+  const configureInteractivity = (entry) => {
+    if (!interact) return;
+
+      interact(entry.el)
+        .draggable({
+          inertia: false,
+          allowFrom: '.workspace-panel-header',
+          ignoreFrom: '.workspace-panel-body',
+          modifiers: [
+            interact.modifiers.restrictRect({
+              restriction: canvas,
+              endOnly: false
+            })
+          ],
+          listeners: {
+            start: () => {
+            bringPanelToFront(entry, { persistChange: false });
+            if (!entry.dragSnapshot) {
+              pushHistory();
+              entry.dragSnapshot = true;
+            }
+            entry.el.classList.add('is-active');
+            canvas.classList.add('is-active');
+          },
+          move: (event) => {
+            entry.state.x += event.dx;
+            entry.state.y += event.dy;
+            applyPanelGeometry(entry);
+          },
+          end: () => {
+            entry.dragSnapshot = false;
+            entry.el.classList.remove('is-active');
+            canvas.classList.remove('is-active');
+            persist();
+            updateHistoryButtons();
+          }
+        }
+      })
+        .resizable({
+          edges: { left: true, right: true, bottom: true, top: true },
+          inertia: false,
+          margin: 6,
+          modifiers: [
+            interact.modifiers.restrictEdges({
+              outer: canvas,
+              endOnly: true
+            }),
+          interact.modifiers.restrictSize({
+            min: { width: MIN_WIDTH, height: MIN_HEIGHT }
+          })
+        ],
+          listeners: {
+            start: () => {
+            bringPanelToFront(entry, { persistChange: false });
+            if (!entry.dragSnapshot) {
+              pushHistory();
+              entry.dragSnapshot = true;
+            }
+            entry.el.classList.add('is-active');
+            canvas.classList.add('is-active');
+          },
+          move: (event) => {
+            entry.state.width = event.rect.width;
+            entry.state.height = event.rect.height;
+            entry.state.x += event.deltaRect.left;
+            entry.state.y += event.deltaRect.top;
+            applyPanelGeometry(entry);
+            if (entry.plotEl && typeof Plotly?.Plots?.resize === 'function') {
+              Plotly.Plots.resize(entry.plotEl);
+            }
+          },
+          end: () => {
+            entry.dragSnapshot = false;
+            entry.el.classList.remove('is-active');
+            canvas.classList.remove('is-active');
+            persist();
+            updateHistoryButtons();
+          }
+        }
+      });
+  };
+
+  // --- UI event bindings ---
+
+  panelDom.pin?.addEventListener('click', () => {
+    setPanelPinned(!panelPinned);
+  });
+
+  panelDom.toggle?.addEventListener('click', () => {
+    if (!panelDom.root) return;
+    const nextCollapsed = !panelDom.root.classList.contains('collapsed');
+    setPanelCollapsed(nextCollapsed);
+  });
+
+  panelDom.root?.addEventListener('mouseenter', handlePanelHoverEnter);
+  panelDom.root?.addEventListener('mouseleave', handlePanelMouseLeave);
+  browserHotspot?.addEventListener('pointerenter', handlePanelHoverEnter);
+  browserHotspot?.addEventListener('pointerleave', handleHotspotLeave);
+  browserHotspot?.addEventListener('click', () => {
+    if (!panelDom.root) return;
+    if (panelPinned && isPanelCollapsed()) {
+      setPanelCollapsed(false);
+    }
+  });
+
+  panelDom.searchBtn?.addEventListener('click', () => {
+    if (!panelDom.searchInput) return;
+    const hidden = panelDom.searchInput.style.display === 'none';
+    if (hidden) {
+      panelDom.searchInput.style.display = '';
+      panelDom.searchInput.focus();
+    } else {
+      panelDom.searchInput.value = '';
+      panelDom.searchInput.style.display = 'none';
+      searchTerm = '';
+      renderGraphBrowser();
+    }
+  });
+
+  panelDom.searchInput?.addEventListener('input', (evt) => {
+    searchTerm = evt.target.value || '';
+    renderGraphBrowser();
+  });
+
+  panelDom.searchInput?.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') {
+      panelDom.searchInput.value = '';
+      searchTerm = '';
+      panelDom.searchInput.blur();
+      panelDom.searchInput.style.display = 'none';
+      renderGraphBrowser();
+    }
+  });
+
+  panelDom.undo?.addEventListener('click', undo);
+  panelDom.redo?.addEventListener('click', redo);
+
+  if (panelDom.tree) {
+    panelDom.tree.addEventListener('dragover', handleTreeDragOver);
+    panelDom.tree.addEventListener('drop', handleTreeDrop);
+    panelDom.tree.addEventListener('dragleave', (event) => {
+      if (!panelDom.tree.contains(event.relatedTarget)) {
+        setDropTarget(null);
+      }
+    });
+    panelDom.tree.addEventListener('dragend', () => setDropTarget(null));
+    panelDom.tree.addEventListener('click', (evt) => {
+      const visibilityBtn = evt.target.closest('.section-visibility');
+      if (visibilityBtn?.dataset?.sectionId) {
+        toggleSectionVisibility(visibilityBtn.dataset.sectionId);
+        return;
+      }
+      const addGraphBtn = evt.target.closest('.section-add-graph');
+      if (addGraphBtn?.dataset?.sectionId) {
+        addGraphToSection(addGraphBtn.dataset.sectionId);
+        return;
+      }
+      const addSubBtn = evt.target.closest('.section-add-sub');
+      if (addSubBtn?.dataset?.sectionId) {
+        pushHistory();
+        const section = createSection(null, { parentId: addSubBtn.dataset.sectionId });
+        queueSectionRename(section.id);
+        renderGraphBrowser();
+        persist();
+        updateHistoryButtons();
+        return;
+      }
+      const graphVisibilityBtn = evt.target.closest('.graph-visibility');
+      if (graphVisibilityBtn?.dataset?.panelId) {
+        toggleGraphVisibility(graphVisibilityBtn.dataset.panelId);
+        return;
+      }
+      const graphBrowseBtn = evt.target.closest('.graph-browse');
+      if (graphBrowseBtn?.dataset?.panelId) {
+        requestGraphFileBrowse(graphBrowseBtn.dataset.panelId);
+        return;
+      }
+      const graphDeleteBtn = evt.target.closest('.graph-delete');
+      if (graphDeleteBtn?.dataset?.panelId) {
+        deleteGraphInteractive(graphDeleteBtn.dataset.panelId);
+        return;
+      }
+      const graphHeader = evt.target.closest('.graph-header');
+      if (graphHeader?.dataset?.panelId && !evt.target.closest('button')) {
+        focusPanelById(graphHeader.dataset.panelId, { scrollBrowser: false });
+        return;
+      }
+      const sectionHeader = evt.target.closest('.section-header');
+      if (sectionHeader?.dataset?.sectionId && !evt.target.closest('button')) {
+        focusSectionById(sectionHeader.dataset.sectionId, { scrollBrowser: false });
+        return;
+      }
+      const deleteBtn = evt.target.closest('.section-delete');
+      if (deleteBtn?.dataset?.sectionId) {
+        deleteSectionInteractive(deleteBtn.dataset.sectionId);
+      }
+    });
+    panelDom.tree.addEventListener('focusin', () => {
+      if (!panelPinned) {
+        panelDom.root?.classList.add('peeking');
+        panelDom.root?.classList.add('is-active');
+      }
+    });
+    panelDom.tree.addEventListener('focusout', (evt) => {
+      if (!panelPinned && panelDom.root && !panelDom.root.contains(evt.relatedTarget)) {
+        panelDom.root.classList.remove('is-active');
+        panelDom.root.classList.remove('peeking');
+      }
+    });
+    panelDom.tree.addEventListener('dblclick', (evt) => {
+      const nameEl = evt.target.closest('.section-name');
+      if (!nameEl?.dataset?.sectionId) return;
+      startSectionRename(nameEl.dataset.sectionId, nameEl, { selectAll: true });
+    });
+  }
+
+  if (panelDom.newSection) {
+    panelDom.newSection.disabled = false;
+    panelDom.newSection.addEventListener('click', () => {
+      pushHistory();
+      const section = createSection();
+      queueSectionRename(section.id);
+      renderGraphBrowser();
+      persist();
+      updateHistoryButtons();
+    });
+  }
+
+  addPlotBtn?.addEventListener('click', () => {
+    ingestPayloadAsPanel({
+      name: `Sample ${panelCounter + 1}`
+    });
+    showToast('Sample graph added to workspace.', 'success');
+    updateHistoryButtons();
   });
 
   resetBtn?.addEventListener('click', () => {
     if (!panels.size) return;
-    panels.forEach(({ el }) => el.remove());
-    panels.clear();
-    clearStorage();
+    pushHistory();
+    clearPanels();
+    panelCounter = 0;
+    colorCursor = 0;
+    persist();
     updateCanvasState();
-    if (typeof window?.showAppToast === 'function') {
-      window.showAppToast({
-        message: 'Workspace canvas cleared.',
-        variant: 'warning',
-        delay: 2200
-      });
+    renderGraphBrowser();
+    showToast('Workspace canvas cleared.', 'warning');
+    updateHistoryButtons();
+  });
+
+  browseBtn?.addEventListener('click', () => {
+    pendingGraphFileTarget = null;
+    fileInput?.click();
+  });
+
+  fileInput?.addEventListener('change', async () => {
+    const targetGraphId = pendingGraphFileTarget;
+    const files = fileInput.files;
+    pendingGraphFileTarget = null;
+    if (targetGraphId) {
+      await appendFilesToGraph(targetGraphId, files);
+    } else {
+      await handleImportedFiles(files, { origin: 'browse' });
     }
+    if (fileInput) fileInput.value = '';
   });
 
-  loadSavedPanels().forEach((state) => {
-    registerPanel(state, { skipPersist: true, silent: true });
+  demoBtn?.addEventListener('click', () => {
+    loadDemoGraphs();
   });
-  updateCanvasState();
 
-  window.addEventListener('resize', resizeAll);
+  if (canvas) {
+    const deactivate = () => canvas.classList.remove('is-active');
+    const onDrag = (event) => {
+      event.preventDefault();
+      canvas.classList.add('is-active');
+    };
+    const onDrop = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      deactivate();
+      const files = event.dataTransfer?.files;
+      if (files?.length) {
+        await handleImportedFiles(files, { origin: 'drop' });
+      }
+    };
+    ['dragover', 'dragenter'].forEach((evt) => canvas.addEventListener(evt, onDrag));
+    ['dragleave', 'dragend'].forEach((evt) => canvas.addEventListener(evt, deactivate));
+    canvas.addEventListener('drop', onDrop);
+    if (emptyOverlay) {
+      ['dragover', 'dragenter'].forEach((evt) => emptyOverlay.addEventListener(evt, onDrag));
+      ['dragleave', 'dragend'].forEach((evt) => emptyOverlay.addEventListener(evt, deactivate));
+      emptyOverlay.addEventListener('drop', onDrop);
+    }
+  }
+
+  const saved = (() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  })();
+
+  if (saved) {
+    restoreSnapshot(saved, { skipHistory: true });
+  } else {
+    updateCanvasState();
+    renderGraphBrowser();
+  }
+
+  updateHistoryButtons();
+
+  window.addEventListener('resize', () => {
+    panels.forEach((entry) => {
+      applyPanelGeometry(entry);
+      if (entry.plotEl && typeof Plotly?.Plots?.resize === 'function') {
+        Plotly.Plots.resize(entry.plotEl);
+      }
+    });
+    requestLayoutSync();
+  });
+
+  window.addEventListener('scroll', requestLayoutSync, { passive: true });
+
+  if (workspacePane) {
+    new MutationObserver(requestLayoutSync).observe(workspacePane, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  }
+
+  requestLayoutSync();
 }
+

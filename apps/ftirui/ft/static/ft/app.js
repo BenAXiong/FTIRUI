@@ -526,9 +526,11 @@ btnClose?.addEventListener('click', closePreviewPopup);
 document.addEventListener('DOMContentLoaded', () => {
   // Lazy init Option B when its tab is first shown
   const plotBTab = document.getElementById('tab-plotB');
+  const plotCTab = document.getElementById('tab-plotC');
   let initializedB = false;
+  let initializedCanvas = false;
 
-  plotBTab?.addEventListener('shown.bs.tab', () => {
+  const initPlotB = () => {
     if (initializedB) return;
 
     const instanceB = {
@@ -543,9 +545,24 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     initUI_IntB(instanceB);   // sets up DnD + multi-file ingest + render
-    initWorkspaceCanvas(instanceB);
     initializedB = true;
-  });
+  };
+
+  const initCanvas = () => {
+    if (initializedCanvas) return;
+    initWorkspaceCanvas();
+    initializedCanvas = true;
+  };
+
+  plotBTab?.addEventListener('shown.bs.tab', initPlotB);
+  plotCTab?.addEventListener('shown.bs.tab', initCanvas);
+
+  if (document.getElementById('pane-plotB')?.classList.contains('show')) {
+    initPlotB();
+  }
+  if (document.getElementById('pane-plotC')?.classList.contains('show')) {
+    initCanvas();
+  }
 });
 
 

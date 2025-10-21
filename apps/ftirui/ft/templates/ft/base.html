@@ -20,8 +20,8 @@
     </script>
 
   </head>
-  <body class="bg-body">
-    <div class="container-fluid py-3 px-3 px-lg-4">
+  <body class="bg-body app-frame">
+    <div class="container-fluid py-3 px-3 px-lg-4 app-frame-main">
       <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
         <h1 class="h4 mb-0">
           <i class="bi bi-graph-up"></i> mlirui
@@ -31,6 +31,7 @@
           <!-- <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#plot" type="button">Plot</button></li> -->
           <li class="nav-item"><button class="nav-link active" id="tab-plotA" data-bs-toggle="tab" data-bs-target="#pane-plotA" type="button" role="tab">A</button></li>
           <li class="nav-item"><button class="nav-link" id="tab-plotB" data-bs-toggle="tab" data-bs-target="#pane-plotB" type="button" role="tab">B</button></li>
+          <li class="nav-item"><button class="nav-link" id="tab-plotC" data-bs-toggle="tab" data-bs-target="#pane-plotC" type="button" role="tab">C</button></li>
           <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#live" type="button">Live</button></li>
           <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes" type="button">Tools</button></li>
           <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#logs" type="button">Dashboard</button></li>
@@ -63,9 +64,9 @@
         </div>
       </div>
 
-      <div class="mb-3">
+      <div class="mb-3 app-tabs-container">
         <div class="tab-content">
-          <!-- Plot -->
+
           <!--UI option A -->
           <div id="pane-plotA" class="tab-pane fade show active" role="tabpanel">
             <div class="row g-3 mt-2">
@@ -258,7 +259,7 @@
           <div class="tab-pane fade" id="pane-plotB" role="tabpanel">
             <div class="plot-b-wrapper">
               <aside id="b_panel" class="plot-b-panel" aria-label="Trace browser">
-                <div class="panel-toolbar">
+                            <div class="panel-toolbar">
                   <span class="panel-title flex-grow-1">Browser</span>
                   <button id="b_panel_search" class="btn btn-sm btn-outline-secondary me-1" type="button" title="Search traces">
                     <i class="bi bi-search"></i>
@@ -288,7 +289,7 @@
                 </div>
               </aside>
 
-              <div class="plot-b-main">
+                          <div class="plot-b-main">
 
                 <div class="card mb-2">
                   <div class="card-body py-2 d-flex flex-wrap gap-2 align-items-center">
@@ -383,44 +384,79 @@
                     <input id="b_file_input" type="file" multiple hidden>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <div class="card mt-3">
+          <!-- Canvas -->
+          <div id="pane-plotC" class="tab-pane fade workspace-pane" role="tabpanel">
+            <div class="plot-b-wrapper mt-2">
+              <aside id="c_panel" class="plot-b-panel workspace-browser" aria-label="Group browser">
+                <div class="panel-toolbar">
+                  <span class="panel-title flex-grow-1">Project X</span>
+                  <button id="c_panel_search" class="btn btn-sm btn-outline-secondary me-1" type="button" title="Search groups or graphs">
+                    <i class="bi bi-search"></i>
+                  </button>
+                  <input id="c_panel_search_input" class="form-control form-control-sm panel-search-input me-2" type="text" placeholder="Find group or graph..." style="max-width: 160px; display: none;">
+                  <div class="btn-group btn-group-sm me-2" role="group" aria-label="History">
+                    <button id="c_history_undo" class="btn btn-outline-secondary" type="button" title="Undo" disabled>
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <button id="c_history_redo" class="btn btn-outline-secondary" type="button" title="Redo" disabled>
+                      <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                  </div>
+                  <button id="c_new_section" class="btn btn-sm btn-outline-secondary" type="button" title="New group">
+                    <i class="bi bi-plus-lg"></i>
+                  </button>
+                  <button id="c_panel_toggle" class="btn btn-sm btn-outline-secondary panel-toggle ms-1" type="button" aria-expanded="true" title="Collapse groups">
+                    <i class="bi bi-chevron-double-left"></i>
+                  </button>
+                </div>
+                <div id="c_panel_dropzone" class="panel-body" tabindex="0">
+                  <div class="panel-empty text-muted small">Drop files or use the toolbar to add graphs.</div>
+                  <div id="c_folder_tree" class="folder-tree"></div>
+                </div>
+              </aside>
+
+              <div class="plot-b-main">
+                <div class="card">
                   <div class="card-header d-flex flex-wrap align-items-center gap-2">
-                    <span class="fw-semibold">Workspace canvas (prototype)</span>
-                    <div class="ms-auto btn-group btn-group-sm" role="group" aria-label="Canvas actions">
-                      <button id="b_canvas_add_plot" class="btn btn-primary" type="button">
-                        <i class="bi bi-plus-lg me-1"></i>Add plot
-                      </button>
-                      <button id="b_canvas_reset_layout" class="btn btn-outline-secondary" type="button">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout
-                      </button>
+                    <span class="fw-semibold">Workspace</span>
+                    <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Canvas actions">
+                        <button id="c_canvas_add_plot" class="btn btn-primary" type="button">
+                          <i class="bi bi-plus-lg me-1"></i>Add plot
+                        </button>
+                        <button id="c_canvas_reset_layout" class="btn btn-outline-secondary" type="button">
+                          <i class="bi bi-arrow-counterclockwise me-1"></i>Reset layout
+                        </button>
+                      </div>
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Canvas panel types">
+                        <button id="c_canvas_add_markdown" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">Markdown</button>
+                        <button id="c_canvas_add_sheet" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">Spreadsheet</button>
+                        <button id="c_canvas_add_script" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">Script</button>
+                        <button id="c_canvas_add_images" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">Images</button>
+                      </div>
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Canvas import">
+                        <button id="c_canvas_demo_btn" class="btn btn-outline-secondary" type="button">Load demo files</button>
+                        <button id="c_canvas_browse_btn" class="btn btn-outline-secondary" type="button">Browse files</button>
+                      </div>
                     </div>
                   </div>
                   <div class="card-body">
-                    <div class="workspace-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
-                      <div class="text-muted small flex-grow-1">
-                        Drag panels anywhere inside the canvas. Resize using the handles. Layout auto-saves locally.
-                      </div>
-                      <div class="btn-group btn-group-sm" role="group" aria-label="Upcoming panel types">
-                        <button id="b_canvas_add_markdown" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">
-                          Markdown
-                        </button>
-                        <button id="b_canvas_add_sheet" class="btn btn-outline-secondary" type="button" disabled title="Coming soon">
-                          Spreadsheet
-                        </button>
-                      </div>
-                    </div>
                     <div class="workspace-canvas-wrapper">
-                      <div id="b_canvas_root" class="workspace-canvas" role="region" aria-live="polite">
-                        <div id="b_canvas_empty" class="workspace-empty">
-                          Use the toolbar to add panels to the canvas.
+                      <div id="c_canvas_root" class="workspace-canvas" role="region" aria-live="polite">
+                        <div id="c_canvas_empty" class="workspace-empty">
+                          <div class="workspace-empty-inner text-center">
+                            <p class="mb-0 text-body-secondary">Drop files here or use the toolbar above to add graphs.</p>
+                          </div>
                         </div>
                       </div>
+                      <input id="c_canvas_file_input" type="file" multiple hidden>
                     </div>
                   </div>
                 </div>
-
-
               </div>
             </div>
           </div>
@@ -443,17 +479,17 @@
                     <i class="bi bi-broadcast-pin text-primary"></i>
                     <span class="fw-semibold">Live acquisition</span>
                   </div>
-                  <div class="card-body">
-                    <div class="plot-panel idle rounded d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 320px;">
-                      <p class="text-muted mb-3">Ready to connect to your FT-IR instrument.</p>
-                      <button id="live_connect_btn" class="btn btn-primary btn-lg">
-                        <i class="bi bi-plug me-2"></i>Connect to instrument
-                      </button>
+                    <div class="card-body">
+                      <div class="plot-panel idle rounded d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 320px;">
+                        <p class="text-muted mb-3">Ready to connect to your FT-IR instrument.</p>
+                        <button id="live_connect_btn" class="btn btn-primary btn-lg">
+                          <i class="bi bi-plug me-2"></i>Connect to instrument
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
           </div>
 
           <!-- Tools -->
@@ -464,318 +500,319 @@
                 <h2 class="h5 mb-0">Laboratory tools</h2>
               </div>
               <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 lab-tools-grid">
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Potential conversion illustration">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">Potential conversion</h5>
-                      <p class="card-text small text-muted">Convert potentials or energies between reference systems.</p>
-                      <a class="btn btn-outline-primary" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Potential conversion illustration">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">Potential conversion</h5>
+                        <p class="card-text small text-muted">Convert potentials or energies between reference systems.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1581092160620-84c89f36dfab?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Molecular mass calculator">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">Molecular mass calculator</h5>
-                      <p class="card-text small text-muted">Assemble molecular formulas and compute accurate masses.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1581092160620-84c89f36dfab?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Molecular mass calculator">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">Molecular mass calculator</h5>
+                        <p class="card-text small text-muted">Assemble molecular formulas and compute accurate masses.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1526721940322-10fb6f3f7c2d?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="XPS references">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">XPS references</h5>
-                      <p class="card-text small text-muted">Browse binding energy tables and calibration surfaces.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1526721940322-10fb6f3f7c2d?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="XPS references">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">XPS references</h5>
+                        <p class="card-text small text-muted">Browse binding energy tables and calibration surfaces.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1581090700227-1e37b190418e?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="NMR principles">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">NMR principles</h5>
-                      <p class="card-text small text-muted">Quick refresher on relaxation, coupling and referencing.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1581090700227-1e37b190418e?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="NMR principles">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">NMR principles</h5>
+                        <p class="card-text small text-muted">Quick refresher on relaxation, coupling and referencing.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="FTIR theory">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">FTIR theory</h5>
-                      <p class="card-text small text-muted">Key concepts behind interferograms and spectra.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="FTIR theory">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">FTIR theory</h5>
+                        <p class="card-text small text-muted">Key concepts behind interferograms and spectra.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1559757175-0eb30cd469ed?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Raman primer">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">Raman primer</h5>
-                      <p class="card-text small text-muted">Compare complementary Raman scattering techniques.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1559757175-0eb30cd469ed?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Raman primer">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">Raman primer</h5>
+                        <p class="card-text small text-muted">Compare complementary Raman scattering techniques.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Spectral database">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">Spectral database</h5>
-                      <p class="card-text small text-muted">Search curated FT-IR spectra and download references.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Spectral database">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">Spectral database</h5>
+                        <p class="card-text small text-muted">Search curated FT-IR spectra and download references.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Peak assignment helper">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">Peak assignment helper</h5>
-                      <p class="card-text small text-muted">Map vibrational modes to typical functional groups.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Peak assignment helper">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">Peak assignment helper</h5>
+                        <p class="card-text small text-muted">Map vibrational modes to typical functional groups.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Sample prep checklist">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">Sample prep checklist</h5>
-                      <p class="card-text small text-muted">Ensure KBr pellets and ATR crystals are ready to go.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Sample prep checklist">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">Sample prep checklist</h5>
+                        <p class="card-text small text-muted">Ensure KBr pellets and ATR crystals are ready to go.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="col">
-                  <div class="card h-100 shadow-sm lab-tool-card">
-                    <img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Calibration toolkit">
-                    <div class="card-body d-flex flex-column">
-                      <h5 class="card-title">Calibration toolkit</h5>
-                      <p class="card-text small text-muted">Track standards, polystyrene bands, and instrument health.</p>
-                      <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                  <div class="col">
+                    <div class="card h-100 shadow-sm lab-tool-card">
+                      <img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=400&q=80" class="card-img-top" alt="Calibration toolkit">
+                      <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">Calibration toolkit</h5>
+                        <p class="card-text small text-muted">Track standards, polystyrene bands, and instrument health.</p>
+                        <a class="btn btn-outline-primary mt-auto" href="#" role="button">Launch</a>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
           </div>
 
           <!-- Dashboard -->
           <div id="logs" class="tab-pane fade" role="tabpanel">
             <div class="mt-3 d-flex flex-column gap-3">
               <div id="workspace_summary" class="card workspace-card">
-                <div class="card-header d-flex align-items-center gap-2">
-                  <i class="bi bi-diagram-3 text-primary"></i>
-                  <span class="fw-semibold">Workspace</span>
-                  <span id="workspace_status_badge" class="badge text-bg-secondary ms-auto">Guest</span>
-                </div>
-                <div class="card-body">
-                  <div class="d-flex flex-wrap gap-3 align-items-center">
-                    <div class="workspace-profile">
-                      <div id="workspace_user_name" class="fw-semibold">Guest</div>
-                      <div id="workspace_user_desc" class="small text-muted">Not signed in</div>
-                    </div>
-                    <div class="workspace-divider d-none d-md-block"></div>
-                    <div class="workspace-stats">
-                      <span class="small text-muted text-uppercase">Cloud sessions</span>
-                      <div id="workspace_session_count" class="fs-5 fw-semibold">0</div>
-                    </div>
-                    <div class="workspace-actions ms-md-auto d-flex flex-wrap gap-2">
-                      <button id="workspace_btn_open_cloud" class="btn btn-outline-secondary btn-sm" type="button">
-                        Manage cloud sessions
-                      </button>
-                      <button id="workspace_btn_save_local" class="btn btn-outline-primary btn-sm" type="button">
-                        Export local copy
-                      </button>
+                  <div class="card-header d-flex align-items-center gap-2">
+                    <i class="bi bi-diagram-3 text-primary"></i>
+                    <span class="fw-semibold">Workspace</span>
+                    <span id="workspace_status_badge" class="badge text-bg-secondary ms-auto">Guest</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex flex-wrap gap-3 align-items-center">
+                      <div class="workspace-profile">
+                        <div id="workspace_user_name" class="fw-semibold">Guest</div>
+                        <div id="workspace_user_desc" class="small text-muted">Not signed in</div>
+                      </div>
+                      <div class="workspace-divider d-none d-md-block"></div>
+                      <div class="workspace-stats">
+                        <span class="small text-muted text-uppercase">Cloud sessions</span>
+                        <div id="workspace_session_count" class="fs-5 fw-semibold">0</div>
+                      </div>
+                      <div class="workspace-actions ms-md-auto d-flex flex-wrap gap-2">
+                        <button id="workspace_btn_open_cloud" class="btn btn-outline-secondary btn-sm" type="button">
+                          Manage cloud sessions
+                        </button>
+                        <button id="workspace_btn_save_local" class="btn btn-outline-primary btn-sm" type="button">
+                          Export local copy
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="row g-3 dashboard-grid">
-                <div class="col-12 col-xl-7">
-                  <div class="card h-100 shadow-sm">
-                    <div class="card-header d-flex align-items-center gap-2">
-                      <i class="bi bi-kanban me-1 text-primary"></i>
-                      <span class="fw-semibold">Projects</span>
-                      <span class="badge rounded-pill text-bg-light ms-auto">.ben</span>
-                    </div>
-                    <div class="card-body">
-                      <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-3 project-grid">
-                        <div class="col">
-                          <a class="project-card card shadow-sm h-100" href="#" download>
-                            <div class="card-header d-flex align-items-center gap-2">
-                              <span class="project-emoji">🧪</span>
-                              <span class="fw-semibold flex-grow-1">Catalyst screening</span>
-                              <span class="badge text-bg-light">.ben</span>
-                            </div>
-                            <div class="card-body">
-                              <div class="project-preview">
-                                <img src="https://images.unsplash.com/photo-1580894908361-967195033215?auto=format&fit=crop&w=600&q=80" alt="Catalyst screening preview">
-                                <div class="project-preview-overlay">
-                                  <i class="bi bi-search"></i>
+                <div class="row g-3 dashboard-grid">
+                  <div class="col-12 col-xl-7">
+                    <div class="card h-100 shadow-sm">
+                      <div class="card-header d-flex align-items-center gap-2">
+                        <i class="bi bi-kanban me-1 text-primary"></i>
+                        <span class="fw-semibold">Projects</span>
+                        <span class="badge rounded-pill text-bg-light ms-auto">.ben</span>
+                      </div>
+                      <div class="card-body">
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-3 project-grid">
+                          <div class="col">
+                            <a class="project-card card shadow-sm h-100" href="#" download>
+                              <div class="card-header d-flex align-items-center gap-2">
+                                <span class="project-emoji">🧪</span>
+                                <span class="fw-semibold flex-grow-1">Catalyst screening</span>
+                                <span class="badge text-bg-light">.ben</span>
+                              </div>
+                              <div class="card-body">
+                                <div class="project-preview">
+                                  <img src="https://images.unsplash.com/photo-1580894908361-967195033215?auto=format&fit=crop&w=600&q=80" alt="Catalyst screening preview">
+                                  <div class="project-preview-overlay">
+                                    <i class="bi bi-search"></i>
+                                  </div>
                                 </div>
+                                <div class="project-meta small text-muted mt-2">Updated 2 days ago</div>
                               </div>
-                              <div class="project-meta small text-muted mt-2">Updated 2 days ago</div>
-                            </div>
-                          </a>
-                        </div>
-                        <div class="col">
-                          <a class="project-card card shadow-sm h-100" href="#" download>
-                            <div class="card-header d-flex align-items-center gap-2">
-                              <span class="project-emoji">🧴</span>
-                              <span class="fw-semibold flex-grow-1">Polymer baseline</span>
-                              <span class="badge text-bg-light">.ben</span>
-                            </div>
-                            <div class="card-body">
-                              <div class="project-preview">
-                                <img src="https://images.unsplash.com/photo-1523861751938-12104e498b76?auto=format&fit=crop&w=600&q=80" alt="Polymer baseline preview">
-                                <div class="project-preview-overlay">
-                                  <i class="bi bi-search"></i>
+                            </a>
+                          </div>
+                          <div class="col">
+                            <a class="project-card card shadow-sm h-100" href="#" download>
+                              <div class="card-header d-flex align-items-center gap-2">
+                                <span class="project-emoji">🧴</span>
+                                <span class="fw-semibold flex-grow-1">Polymer baseline</span>
+                                <span class="badge text-bg-light">.ben</span>
+                              </div>
+                              <div class="card-body">
+                                <div class="project-preview">
+                                  <img src="https://images.unsplash.com/photo-1523861751938-12104e498b76?auto=format&fit=crop&w=600&q=80" alt="Polymer baseline preview">
+                                  <div class="project-preview-overlay">
+                                    <i class="bi bi-search"></i>
+                                  </div>
                                 </div>
+                                <div class="project-meta small text-muted mt-2">Updated 5 days ago</div>
                               </div>
-                              <div class="project-meta small text-muted mt-2">Updated 5 days ago</div>
-                            </div>
-                          </a>
-                        </div>
-                        <div class="col">
-                          <a class="project-card card shadow-sm h-100" href="#" download>
-                            <div class="card-header d-flex align-items-center gap-2">
-                              <span class="project-emoji">🧊</span>
-                              <span class="fw-semibold flex-grow-1">Cryo runs</span>
-                              <span class="badge text-bg-light">.ben</span>
-                            </div>
-                            <div class="card-body">
-                              <div class="project-preview">
-                                <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80" alt="Cryo runs preview">
-                                <div class="project-preview-overlay">
-                                  <i class="bi bi-search"></i>
+                            </a>
+                          </div>
+                          <div class="col">
+                            <a class="project-card card shadow-sm h-100" href="#" download>
+                              <div class="card-header d-flex align-items-center gap-2">
+                                <span class="project-emoji">🧊</span>
+                                <span class="fw-semibold flex-grow-1">Cryo runs</span>
+                                <span class="badge text-bg-light">.ben</span>
+                              </div>
+                              <div class="card-body">
+                                <div class="project-preview">
+                                  <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80" alt="Cryo runs preview">
+                                  <div class="project-preview-overlay">
+                                    <i class="bi bi-search"></i>
+                                  </div>
                                 </div>
+                                <div class="project-meta small text-muted mt-2">Updated 1 week ago</div>
                               </div>
-                              <div class="project-meta small text-muted mt-2">Updated 1 week ago</div>
-                            </div>
-                          </a>
-                        </div>
-                        <div class="col">
-                          <a class="project-card card shadow-sm h-100" href="#" download>
-                            <div class="card-header d-flex align-items-center gap-2">
-                              <span class="project-emoji">🧬</span>
-                              <span class="fw-semibold flex-grow-1">Protein library</span>
-                              <span class="badge text-bg-light">.ben</span>
-                            </div>
-                            <div class="card-body">
-                              <div class="project-preview">
-                                <img src="https://images.unsplash.com/photo-1581091011209-2930ed224c98?auto=format&fit=crop&w=600&q=80" alt="Protein library preview">
-                                <div class="project-preview-overlay">
-                                  <i class="bi bi-search"></i>
+                            </a>
+                          </div>
+                          <div class="col">
+                            <a class="project-card card shadow-sm h-100" href="#" download>
+                              <div class="card-header d-flex align-items-center gap-2">
+                                <span class="project-emoji">🧬</span>
+                                <span class="fw-semibold flex-grow-1">Protein library</span>
+                                <span class="badge text-bg-light">.ben</span>
+                              </div>
+                              <div class="card-body">
+                                <div class="project-preview">
+                                  <img src="https://images.unsplash.com/photo-1581091011209-2930ed224c98?auto=format&fit=crop&w=600&q=80" alt="Protein library preview">
+                                  <div class="project-preview-overlay">
+                                    <i class="bi bi-search"></i>
+                                  </div>
                                 </div>
+                                <div class="project-meta small text-muted mt-2">Updated 2 weeks ago</div>
                               </div>
-                              <div class="project-meta small text-muted mt-2">Updated 2 weeks ago</div>
-                            </div>
-                          </a>
-                        </div>
-                        <div class="col">
-                          <a class="project-card card shadow-sm h-100" href="#" download>
-                            <div class="card-header d-flex align-items-center gap-2">
-                              <span class="project-emoji">🧯</span>
-                              <span class="fw-semibold flex-grow-1">Combustion residues</span>
-                              <span class="badge text-bg-light">.ben</span>
-                            </div>
-                            <div class="card-body">
-                              <div class="project-preview">
-                                <img src="https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=600&q=80" alt="Combustion residues preview">
-                                <div class="project-preview-overlay">
-                                  <i class="bi bi-search"></i>
+                            </a>
+                          </div>
+                          <div class="col">
+                            <a class="project-card card shadow-sm h-100" href="#" download>
+                              <div class="card-header d-flex align-items-center gap-2">
+                                <span class="project-emoji">🧯</span>
+                                <span class="fw-semibold flex-grow-1">Combustion residues</span>
+                                <span class="badge text-bg-light">.ben</span>
+                              </div>
+                              <div class="card-body">
+                                <div class="project-preview">
+                                  <img src="https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=600&q=80" alt="Combustion residues preview">
+                                  <div class="project-preview-overlay">
+                                    <i class="bi bi-search"></i>
+                                  </div>
                                 </div>
+                                <div class="project-meta small text-muted mt-2">Updated 1 month ago</div>
                               </div>
-                              <div class="project-meta small text-muted mt-2">Updated 1 month ago</div>
-                            </div>
-                          </a>
-                        </div>
-                        <div class="col">
-                          <button class="project-card project-card-add card shadow-sm h-100" type="button">
-                            <div class="card-header d-flex align-items-center gap-2">
-                              <span class="project-emoji">＋</span>
-                              <span class="fw-semibold flex-grow-1">Create new project</span>
-                            </div>
-                            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
-                              <div class="project-preview placeholder-preview mb-3">
-                                <i class="bi bi-folder-plus"></i>
+                            </a>
+                          </div>
+                          <div class="col">
+                            <button class="project-card project-card-add card shadow-sm h-100" type="button">
+                              <div class="card-header d-flex align-items-center gap-2">
+                                <span class="project-emoji">＋</span>
+                                <span class="fw-semibold flex-grow-1">Create new project</span>
                               </div>
-                              <div class="project-meta small text-muted">Start from a blank workspace</div>
-                            </div>
-                          </button>
+                              <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
+                                <div class="project-preview placeholder-preview mb-3">
+                                  <i class="bi bi-folder-plus"></i>
+                                </div>
+                                <div class="project-meta small text-muted">Start from a blank workspace</div>
+                              </div>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div class="col-12 col-xl-5 d-flex flex-column gap-3">
-                  <div class="card shadow-sm flex-fill">
-                    <div class="card-header d-flex align-items-center gap-2">
-                      <i class="bi bi-journal-text text-primary"></i>
-                      <span class="fw-semibold">Papers</span>
+                  <div class="col-12 col-xl-5 d-flex flex-column gap-3">
+                    <div class="card shadow-sm flex-fill">
+                      <div class="card-header d-flex align-items-center gap-2">
+                        <i class="bi bi-journal-text text-primary"></i>
+                        <span class="fw-semibold">Papers</span>
+                      </div>
+                      <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                          <li class="list-group-item d-flex align-items-start gap-2">
+                            <i class="bi bi-link-45deg text-muted"></i>
+                            <div>
+                              <a href="https://doi.org/10.1021/acsomega.0c00350" class="stretched-link">Machine learning assisted FT-IR interpretation</a>
+                              <div class="small text-muted">ACS Omega · 2020</div>
+                            </div>
+                          </li>
+                          <li class="list-group-item d-flex align-items-start gap-2">
+                            <i class="bi bi-link-45deg text-muted"></i>
+                            <div>
+                              <a href="https://doi.org/10.1038/s41563-021-00923-5" class="stretched-link">Operando IR for catalytic surfaces</a>
+                              <div class="small text-muted">Nature Materials · 2021</div>
+                            </div>
+                          </li>
+                          <li class="list-group-item d-flex align-items-start gap-2">
+                            <i class="bi bi-link-45deg text-muted"></i>
+                            <div>
+                              <a href="https://doi.org/10.1016/j.aca.2019.04.024" class="stretched-link">Quantitative ATR-FTIR workflows</a>
+                              <div class="small text-muted">Analytica Chimica Acta · 2019</div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
-                    <div class="card-body">
-                      <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex align-items-start gap-2">
-                          <i class="bi bi-link-45deg text-muted"></i>
-                          <div>
-                            <a href="https://doi.org/10.1021/acsomega.0c00350" class="stretched-link">Machine learning assisted FT-IR interpretation</a>
-                            <div class="small text-muted">ACS Omega · 2020</div>
+                    <div class="card shadow-sm flex-fill">
+                      <div class="card-header d-flex align-items-center gap-2">
+                        <i class="bi bi-clipboard-data text-primary"></i>
+                        <span class="fw-semibold">Reports</span>
+                      </div>
+                      <div class="card-body">
+                        <div class="timeline">
+                          <div class="timeline-entry">
+                            <div class="timeline-bullet bg-primary"></div>
+                            <div class="timeline-content">
+                              <div class="fw-semibold">Q4 Instrument health</div>
+                              <div class="small text-muted">Generated Oct 18 · 6 pages</div>
+                            </div>
                           </div>
-                        </li>
-                        <li class="list-group-item d-flex align-items-start gap-2">
-                          <i class="bi bi-link-45deg text-muted"></i>
-                          <div>
-                            <a href="https://doi.org/10.1038/s41563-021-00923-5" class="stretched-link">Operando IR for catalytic surfaces</a>
-                            <div class="small text-muted">Nature Materials · 2021</div>
+                          <div class="timeline-entry">
+                            <div class="timeline-bullet bg-success"></div>
+                            <div class="timeline-content">
+                              <div class="fw-semibold">Customer deliverables</div>
+                              <div class="small text-muted">Generated Oct 11 · 12 pages</div>
+                            </div>
                           </div>
-                        </li>
-                        <li class="list-group-item d-flex align-items-start gap-2">
-                          <i class="bi bi-link-45deg text-muted"></i>
-                          <div>
-                            <a href="https://doi.org/10.1016/j.aca.2019.04.024" class="stretched-link">Quantitative ATR-FTIR workflows</a>
-                            <div class="small text-muted">Analytica Chimica Acta · 2019</div>
-                          </div>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div class="card shadow-sm flex-fill">
-                    <div class="card-header d-flex align-items-center gap-2">
-                      <i class="bi bi-clipboard-data text-primary"></i>
-                      <span class="fw-semibold">Reports</span>
-                    </div>
-                    <div class="card-body">
-                      <div class="timeline">
-                        <div class="timeline-entry">
-                          <div class="timeline-bullet bg-primary"></div>
-                          <div class="timeline-content">
-                            <div class="fw-semibold">Q4 Instrument health</div>
-                            <div class="small text-muted">Generated Oct 18 · 6 pages</div>
-                          </div>
-                        </div>
-                        <div class="timeline-entry">
-                          <div class="timeline-bullet bg-success"></div>
-                          <div class="timeline-content">
-                            <div class="fw-semibold">Customer deliverables</div>
-                            <div class="small text-muted">Generated Oct 11 · 12 pages</div>
-                          </div>
-                        </div>
-                        <div class="timeline-entry">
-                          <div class="timeline-bullet bg-secondary"></div>
-                          <div class="timeline-content">
-                            <div class="fw-semibold">Archived baseline pack</div>
-                            <div class="small text-muted">Generated Sep 27 · PDF</div>
+                          <div class="timeline-entry">
+                            <div class="timeline-bullet bg-secondary"></div>
+                            <div class="timeline-content">
+                              <div class="fw-semibold">Archived baseline pack</div>
+                              <div class="small text-muted">Generated Sep 27 · PDF</div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -783,7 +820,6 @@
                   </div>
                 </div>
               </div>
-            </div>
           </div>
 
           <!-- About -->
@@ -877,6 +913,11 @@
         </div>
       </div>
     </div>
+  </div>
+
+    <footer class="app-footer text-center text-muted py-1">
+      Placeholder footer text
+    </footer>
 
     <div class="toast-container position-fixed top-0 end-0 p-3" id="app_toasts" aria-live="polite" aria-atomic="true"></div>
 
@@ -886,5 +927,7 @@
     <script type="module" src="{% static 'ft/app.js' %}"></script>
   </body>
 </html>
+
+
 
 
