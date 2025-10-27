@@ -1,0 +1,2 @@
+// purpose: a single exported function that delegates to window.showAppToast when present, and otherwise no-ops.
+// (later, modules can import the adapter instead of the global; today nothing changes.)

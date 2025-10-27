@@ -1,0 +1,1 @@
+// reserved for truly pure helpers (array, string, math) you may add later.
