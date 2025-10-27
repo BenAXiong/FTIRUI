@@ -1,0 +1,1 @@
+// will own: pushHistory(snapshot), undo(), redo(), getCursor(), etc., and enforce max depth.
