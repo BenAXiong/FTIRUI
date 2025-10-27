@@ -184,6 +184,10 @@ function handleTreeClick(event, instance, deps) {
     return;
   }
 
+  if (target.closest('.folder-name')) {
+    return;
+  }
+
   const addBtn = target.closest('.folder-add');
   if (addBtn) {
     event.preventDefault();
@@ -481,9 +485,73 @@ async function handleTreeDrop(event, instance, deps, panel) {
   }
 }
 
+function beginFolderRename(instance, deps, nameSpanEl) {
+  const header = nameSpanEl.closest('.folder-header');
+  const node = nameSpanEl.closest('.folder-node');
+  if (!header || !node) return;
+
+  const folderId = node.dataset.id;
+  const oldName = String(nameSpanEl.textContent || 'Untitled folder');
+
+  // Build input
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-control form-control-sm';
+  input.value = oldName;
+  input.size = Math.max(8, oldName.length + 2);
+
+  // Swap span -> input
+  nameSpanEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  const cleanup = () => {
+    input.removeEventListener('blur', onBlur);
+    input.removeEventListener('keydown', onKey);
+  };
+
+  const commit = () => {
+    if (done) return; done = true;
+    const next = (input.value || '').trim() || oldName;
+
+    // Restore span
+    nameSpanEl.textContent = next;
+    input.replaceWith(nameSpanEl);
+    cleanup();
+
+    if (next !== oldName) {
+      // Mirror menu-based rename flow
+      deps.recordHistory();
+      renameFolder(instance.state, folderId, next);
+      deps.renderTree();
+      deps.updateHistoryButtons();
+      deps.syncDemoButton();
+    }
+  };
+
+  const cancel = () => {
+    if (done) return; done = true;
+    input.replaceWith(nameSpanEl);
+    cleanup();
+  };
+
+  const onBlur = () => commit();
+  const onKey = (e) => {
+    if (e.key === 'Enter') commit();
+    else if (e.key === 'Escape') cancel();
+  };
+
+  input.addEventListener('blur', onBlur);
+  input.addEventListener('keydown', onKey);
+}
+
+
 export function bindFolderTree(instance, deps) {
   const panel = instance.dom.panel;
   const tree = panel?.tree;
+  if (!tree) console.error('[FT] No tree element found; selector is wrong or DOM not ready');
+
   if (!tree || tree.dataset.bound) return;
   tree.dataset.bound = '1';
 
@@ -517,6 +585,14 @@ export function bindFolderTree(instance, deps) {
     input.addEventListener('keydown', onKey);
     e.stopPropagation();
     e.preventDefault();
+  });
+  // Double-click on folder name to inline-rename the section/graph (“Graph X”)
+  tree.addEventListener('dblclick', (e) => {
+    const nameSpan = e.target.closest('.folder-name');
+    if (!nameSpan) return;
+    e.preventDefault();
+    e.stopPropagation(); // avoid toggling collapse / selection
+    beginFolderRename(instance, deps, nameSpan);
   });
 
 
