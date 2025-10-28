@@ -639,20 +639,27 @@ export function initWorkspaceCanvas() {
     if (!panelId || !traceKey) return null;
     const entry = panels.get(panelId);
     if (!entry) return null;
-    const traces = ensureArray(entry.state.figure?.data);
-    const traceIndex = traces.findIndex((trace) => ensureTraceId(trace) === traceKey);
+    let traces = panelsModel.getPanelTraces(panelId);
+    let traceIndex = traces.findIndex((trace) => trace?._canvasId === traceKey);
+    if (traceIndex === -1) {
+      normalizePanelTraces(panelId);
+      traces = panelsModel.getPanelTraces(panelId);
+      traceIndex = traces.findIndex((trace) => trace?._canvasId === traceKey);
+    }
     if (traceIndex === -1) return null;
-    return { entry, trace: traces[traceIndex], traceIndex };
+    return { entry, panelId, trace: traces[traceIndex], traceIndex };
   };
 
   const rerenderTracePanel = (rowId) => {
     const handle = findTraceByRowId(rowId);
     if (!handle) return;
-    normalizePanelTraces(handle.entry);
+    normalizePanelTraces(handle.panelId);
+    const traces = panelsModel.getPanelTraces(handle.panelId);
+    const nextTrace = traces[handle.traceIndex] || traces.find((trace) => trace?._canvasId === handle.trace?._canvasId) || handle.trace;
     renderPlot(handle.entry);
     updateTraceChip(
       panelDom.tree?.querySelector(`.folder-trace[data-id="${rowId}"]`),
-      handle.trace
+      nextTrace
     );
     persist();
   };
@@ -718,19 +725,16 @@ export function initWorkspaceCanvas() {
 
   // === Plot layout patch helper (used by header icons) =========================
   function patchLayout(entry, patchObj) {
-    const dom = getPanelDom(entry?.state?.id);
+    const panelId = entry?.state?.id;
+    if (!panelId) return;
+    const dom = getPanelDom(panelId);
     if (!dom?.plotEl) return;
 
-    // 1) Make the change undoable
     pushHistory();
 
-    // 2) Update our in-memory state so session restore & undo/redo stay correct
-    entry.state = entry.state || {};
-    entry.state.figure = entry.state.figure || {};
-    const layout = (entry.state.figure.layout = entry.state.figure.layout || {});
+    const figure = panelsModel.getPanelFigure(panelId) || {};
+    const layout = figure.layout && typeof figure.layout === 'object' ? { ...figure.layout } : {};
 
-    // Support both nested keys (e.g., { xaxis:{ showgrid:true } })
-    // and dotted relayout keys (e.g., { 'xaxis.showgrid': true }).
     for (const [key, val] of Object.entries(patchObj || {})) {
       if (key.includes('.')) {
         applyDottedLayoutKey(layout, key, val);
@@ -743,10 +747,13 @@ export function initWorkspaceCanvas() {
       }
     }
 
-    // 3) Apply to the live figure quickly (faster than full react for layout-only)
-    Plotly.relayout(dom.plotEl, patchObj);
+    const nextFigure = {
+      ...figure,
+      layout
+    };
+    panelsModel.updatePanelFigure(panelId, nextFigure);
 
-    // 4) Save & refresh history UI
+    Plotly.relayout(dom.plotEl, patchObj);
     persist();
     updateHistoryButtons();
   }
@@ -762,19 +769,14 @@ export function initWorkspaceCanvas() {
     return layout[axisKey];
   };
 
-  const axisExists = (entry, axisKey) => {
+  const axisExists = (panelId, figure, axisKey) => {
     if (isPrimaryAxis(axisKey)) return true;
-    if (!entry) return false;
-    const figure = entry.state?.figure;
     if (!figure) return false;
-    if (!figure.layout || typeof figure.layout !== 'object') {
-      figure.layout = {};
-    }
-    const layout = figure.layout;
+    const layout = figure.layout && typeof figure.layout === 'object' ? figure.layout : (figure.layout = {});
     if (typeof layout[axisKey] === 'object') {
       return true;
     }
-    const dom = getPanelDom(entry?.state?.id);
+    const dom = getPanelDom(panelId);
     const runtimeAxis = dom?.plotEl?.layout?.[axisKey];
     if (runtimeAxis && typeof runtimeAxis === 'object') {
       const copied = deepClone(runtimeAxis);
@@ -784,10 +786,10 @@ export function initWorkspaceCanvas() {
     return false;
   };
 
-  const forEachAxis = (entry, axes, cb) => {
-    const layout = entry?.state?.figure?.layout || {};
+  const forEachAxis = (panelId, figure, axes, cb) => {
+    const layout = figure?.layout || {};
     axes.forEach((axis) => {
-      if (!axisExists(entry, axis)) return;
+      if (!axisExists(panelId, figure, axis)) return;
       const axisState = ensureAxisState(layout, axis) || {};
       cb(axis, axisState);
     });
@@ -806,6 +808,9 @@ export function initWorkspaceCanvas() {
 
   // === Header actions dispatcher (used by header buttons & popovers) ===========
   function handleHeaderAction(entry, act, payload = {}) {
+    const panelId = entry?.state?.id;
+    if (!panelId) return;
+    const dom = getPanelDom(panelId);
     switch (act) {
       // 1) MVP #1: Crosshair / cursor toggle
       case 'cursor': {
@@ -842,9 +847,10 @@ export function initWorkspaceCanvas() {
         const map = { thin: 1, medium: 2, thick: 3 };
         const w = Number.isFinite(payload.value) ? payload.value : (map[level] ?? 2);
 
-        const L = entry.state?.figure?.layout || {};
-        const xColor = L?.xaxis?.linecolor || '#444';
-        const yColor = L?.yaxis?.linecolor || '#444';
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const layout = figure.layout || {};
+        const xColor = layout?.xaxis?.linecolor || '#444';
+        const yColor = layout?.yaxis?.linecolor || '#444';
 
         // Only touch linewidth/gridwidth/linecolor using dotted keys ΓÇö do NOT send xaxis:{...}
         patchLayout(entry, {
@@ -860,9 +866,10 @@ export function initWorkspaceCanvas() {
 
       case 'axes-thickness-custom': {
         const w = Math.max(1, Math.round(Number(payload.value) || 2));
-        const L = entry.state?.figure?.layout || {};
-        const xColor = L?.xaxis?.linecolor || '#444';
-        const yColor = L?.yaxis?.linecolor || '#444';
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const layout = figure.layout || {};
+        const xColor = layout?.xaxis?.linecolor || '#444';
+        const yColor = layout?.yaxis?.linecolor || '#444';
 
         patchLayout(entry, {
           'xaxis.linewidth': w,
@@ -882,11 +889,12 @@ export function initWorkspaceCanvas() {
       //    (Same pattern for y: left/right)
       case 'axes-side': {
         const s = payload || {};
-        const L  = entry.state?.figure?.layout || {};
-        const wx = Math.max(1, Number(L?.xaxis?.linewidth) || 2);
-        const wy = Math.max(1, Number(L?.yaxis?.linewidth) || 2);
-        const cx = L?.xaxis?.linecolor || '#444';
-        const cy = L?.yaxis?.linecolor || '#444';
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const layout = figure.layout || {};
+        const wx = Math.max(1, Number(layout?.xaxis?.linewidth) || 2);
+        const wy = Math.max(1, Number(layout?.yaxis?.linewidth) || 2);
+        const cx = layout?.xaxis?.linecolor || '#444';
+        const cy = layout?.yaxis?.linecolor || '#444';
 
         const xTop = !!s.top, xBottom = !!s.bottom;
         const yLeft = !!s.left, yRight = !!s.right;
@@ -955,8 +963,8 @@ export function initWorkspaceCanvas() {
         const on = !!payload.on;
         const patch = {};
         const axes = ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'];
-        const layoutState = entry.state?.figure?.layout || {};
-        const dom = getPanelDom(entry?.state?.id);
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const layoutState = figure.layout || {};
         const liveLayout = dom?.plotEl?.layout || {};
         axes.forEach((axis, index) => {
           const isPrimary = index < 2;
@@ -974,9 +982,9 @@ export function initWorkspaceCanvas() {
       case 'grid-minor': {
         const on = !!payload.on;
         // Use lighter lines for minor grid; only touch minor.*
-        const L = entry.state?.figure?.layout || {};
+        const figure = panelsModel.getPanelFigure(panelId) || {};
         const patch = {};
-        forEachAxis(entry, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], (axis, axisState) => {
+        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], (axis, axisState) => {
           const baseColor = axisState.gridcolor || '#e0e0e0';
           patch[`${axis}.minor.showgrid`] = on;
           patch[`${axis}.minor.gridcolor`] = baseColor;
@@ -991,7 +999,7 @@ export function initWorkspaceCanvas() {
       case 'grid-minor-subdiv': {
         // Set minor dtick as (major dtick) / (subdiv+1), if we can infer major dtick
         const N = Math.max(1, Math.min(10, Math.round(Number(payload.subdiv) || 2)));
-        const L = entry.state?.figure?.layout || {};
+        const figure = panelsModel.getPanelFigure(panelId) || {};
         const patch = {};
 
         // helper to compute dtick for an axis (x or y)
@@ -1015,7 +1023,7 @@ export function initWorkspaceCanvas() {
           }
         };
 
-        forEachAxis(entry, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinorDtick);
+        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinorDtick);
 
         // Apply only if we have something to set; otherwise no-op
         if (Object.keys(patch).length) {
@@ -1033,9 +1041,10 @@ export function initWorkspaceCanvas() {
 
       case 'ticks-placement': {
         const p = (payload.placement ?? 'outside'); // 'outside'|'inside'|''
-        const L = entry.state?.figure?.layout || {};
-        const hasX2 = axisExists(entry, 'xaxis2');
-        const hasY2 = axisExists(entry, 'yaxis2');
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const layout = figure.layout || {};
+        const hasX2 = axisExists(panelId, figure, 'xaxis2');
+        const hasY2 = axisExists(panelId, figure, 'yaxis2');
         const patch = {
           'xaxis.ticks': p,
           'yaxis.ticks': p
@@ -1043,10 +1052,10 @@ export function initWorkspaceCanvas() {
         if (hasX2) patch['xaxis2.ticks'] = p;
         if (hasY2) patch['yaxis2.ticks'] = p;
 
-        preserveAxisDecorations(L, 'xaxis', patch);
-        preserveAxisDecorations(L, 'yaxis', patch);
-        if (hasX2) preserveAxisDecorations(L, 'xaxis2', patch);
-        if (hasY2) preserveAxisDecorations(L, 'yaxis2', patch);
+        preserveAxisDecorations(layout, 'xaxis', patch);
+        preserveAxisDecorations(layout, 'yaxis', patch);
+        if (hasX2) preserveAxisDecorations(layout, 'xaxis2', patch);
+        if (hasY2) preserveAxisDecorations(layout, 'yaxis2', patch);
 
         patchLayout(entry, patch);
         break;
@@ -1054,22 +1063,23 @@ export function initWorkspaceCanvas() {
 
       case 'ticks-labels': {
         const on = !!payload.on;
-        const L = entry.state?.figure?.layout || {};
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const layout = figure.layout || {};
         const patch = {
           'xaxis.showticklabels': on,
           'yaxis.showticklabels': on
         };
-        if (axisExists(entry, 'xaxis2')) patch['xaxis2.showticklabels'] = on;
-        if (axisExists(entry, 'yaxis2')) patch['yaxis2.showticklabels'] = on;
+        if (axisExists(panelId, figure, 'xaxis2')) patch['xaxis2.showticklabels'] = on;
+        if (axisExists(panelId, figure, 'yaxis2')) patch['yaxis2.showticklabels'] = on;
         patchLayout(entry, patch);
         break;
       }
 
       case 'ticks-major-offset': {
         // null clears; number sets starting tick
-        const L = entry.state?.figure?.layout || {};
-        const hasX2 = axisExists(entry, 'xaxis2');
-        const hasY2 = axisExists(entry, 'yaxis2');
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const hasX2 = axisExists(panelId, figure, 'xaxis2');
+        const hasY2 = axisExists(panelId, figure, 'yaxis2');
         const patch = {};
         if (payload.x0 === null || Number.isFinite(payload.x0)) {
           patch['xaxis.tick0'] = payload.x0;
@@ -1085,9 +1095,9 @@ export function initWorkspaceCanvas() {
 
       case 'ticks-major-dtick': {
         // null ΓåÆ auto; number ΓåÆ fixed spacing
-        const L = entry.state?.figure?.layout || {};
-        const hasX2 = axisExists(entry, 'xaxis2');
-        const hasY2 = axisExists(entry, 'yaxis2');
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const hasX2 = axisExists(panelId, figure, 'xaxis2');
+        const hasY2 = axisExists(panelId, figure, 'yaxis2');
         const patch = {};
         if (payload.dx === null || Number.isFinite(payload.dx)) {
           patch['xaxis.dtick'] = payload.dx;
@@ -1103,9 +1113,9 @@ export function initWorkspaceCanvas() {
 
       case 'ticks-minor': {
         const on = !!payload.on;
-        const L = entry.state?.figure?.layout || {};
-        const hasX2 = axisExists(entry, 'xaxis2');
-        const hasY2 = axisExists(entry, 'yaxis2');
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const hasX2 = axisExists(panelId, figure, 'xaxis2');
+        const hasY2 = axisExists(panelId, figure, 'yaxis2');
         const patch = {
           'xaxis.minor.show': on,
           'yaxis.minor.show': on
@@ -1135,9 +1145,10 @@ export function initWorkspaceCanvas() {
         const p = (payload.placement ?? ''); // ''|'outside'|'inside'
         const on = p !== '';
 
-        const L = entry.state?.figure?.layout || {};
-        const hasX2 = axisExists(entry, 'xaxis2');
-        const hasY2 = axisExists(entry, 'yaxis2');
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const layout = figure.layout || {};
+        const hasX2 = axisExists(panelId, figure, 'xaxis2');
+        const hasY2 = axisExists(panelId, figure, 'yaxis2');
 
         const patch = {
           'xaxis.minor.ticks': p,
@@ -1155,10 +1166,10 @@ export function initWorkspaceCanvas() {
         }
 
         // keep existing grid/line state only if explicitly configured
-        preserveAxisDecorations(L, 'xaxis', patch);
-        preserveAxisDecorations(L, 'yaxis', patch);
-        if (hasX2) preserveAxisDecorations(L, 'xaxis2', patch);
-        if (hasY2) preserveAxisDecorations(L, 'yaxis2', patch);
+        preserveAxisDecorations(layout, 'xaxis', patch);
+        preserveAxisDecorations(layout, 'yaxis', patch);
+        if (hasX2) preserveAxisDecorations(layout, 'xaxis2', patch);
+        if (hasY2) preserveAxisDecorations(layout, 'yaxis2', patch);
 
         patchLayout(entry, patch);
         break;
@@ -1166,14 +1177,13 @@ export function initWorkspaceCanvas() {
 
       case 'ticks-minor-subdiv': {
         const N = Math.max(1, Math.min(10, Math.round(Number(payload.subdiv) || 2)));
-        const L = entry.state?.figure?.layout || {};
         const patch = {};
 
-        const setMinor = (axis) => {
-          const a = L?.[axis];
-          if (!a) return;
-          let major = Number(a.dtick);
+        const figure = panelsModel.getPanelFigure(panelId) || {};
 
+        const setMinor = (axis, axisState) => {
+          const a = axisState || {};
+          let major = Number(a.dtick);
           if (!Number.isFinite(major)) {
             const rng = Array.isArray(a.range) && a.range.length === 2 ? a.range : null;
             const span = rng ? Math.abs(rng[1] - rng[0]) : NaN;
@@ -1188,27 +1198,33 @@ export function initWorkspaceCanvas() {
           }
         };
 
-        setMinor('xaxis');
-        setMinor('yaxis');
-        if (axisExists(entry, 'xaxis2')) setMinor('xaxis2');
-        if (axisExists(entry, 'yaxis2')) setMinor('yaxis2');
+        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinor);
 
         if (Object.keys(patch).length) patchLayout(entry, patch);
         break;
       }
 
       case 'smooth': {
-        const fig = entry.state.figure || {};
-        const data = Array.isArray(fig.data) ? fig.data : [];
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const data = Array.isArray(figure.data) ? figure.data.slice() : [];
         const on = !!payload.on;
         pushHistory();
-        data.forEach((tr) => {
-          tr.line = tr.line || {};
-          tr.line.shape = on ? 'spline' : 'linear';
-          if (on) tr.line.smoothing = 1.15; else delete tr.line.smoothing;
+        const updatedData = data.map((trace) => {
+          const next = { ...trace };
+          next.line = { ...(trace?.line || {}) };
+          next.line.shape = on ? 'spline' : 'linear';
+          if (on) {
+            next.line.smoothing = 1.15;
+          } else {
+            delete next.line.smoothing;
+          }
+          return next;
         });
-        renderPlot(entry); // your renderPlot does Plotly.react
-        persist(); updateHistoryButtons();
+        figure.data = updatedData;
+        normalizePanelTraces(panelId, figure);
+        renderPlot(entry);
+        persist();
+        updateHistoryButtons();
         break;
       }
 
@@ -1386,6 +1402,7 @@ export function initWorkspaceCanvas() {
       ...flags,
       ...geometry
     };
+    merged.figure = panelsModel.getPanelFigure(panelId);
     return deepClone(merged);
   };
 
@@ -1519,13 +1536,19 @@ export function initWorkspaceCanvas() {
 
   const renderPlot = (entry) => {
     if (typeof Plotly === 'undefined') return;
-    const dom = getPanelDom(entry?.state?.id);
+    const panelId = entry?.state?.id;
+    if (!panelId) return;
+    const dom = getPanelDom(panelId);
     if (!dom?.plotEl) return;
-    const fig = entry.state.figure;
+    const figure = panelsModel.getPanelFigure(panelId) || {};
+    const data = ensureArray(figure.data);
+    const layout = figure.layout && typeof figure.layout === 'object'
+      ? figure.layout
+      : defaultLayout();
     Plotly.react(
       dom.plotEl,
-      ensureArray(fig?.data),
-      fig?.layout || defaultLayout(),
+      data,
+      layout || defaultLayout(),
       { displaylogo: false, responsive: true }
     );
   };
@@ -1542,7 +1565,7 @@ export function initWorkspaceCanvas() {
 };
 
   const syncTraceAppearance = (trace) => {
-    if (!trace) return;
+    if (!trace) return trace;
     trace.line = trace.line || {};
     const resolvedColor = toHexColor(
       trace.color
@@ -1566,12 +1589,15 @@ export function initWorkspaceCanvas() {
 
     const resolvedOpacity = Number.isFinite(trace.opacity) ? trace.opacity : 1;
     trace.opacity = resolvedOpacity;
+    return trace;
   };
 
-    const normalizePanelTraces = (entry) => {
-    const traces = ensureArray(entry?.state?.figure?.data);
-    traces.forEach((trace) => {
-      if (!trace) return;
+  const normalizePanelTraces = (panelId, figureOverride = null) => {
+    if (!panelId) return null;
+    const figure = figureOverride || panelsModel.getPanelFigure(panelId) || {};
+    const traces = ensureArray(figure.data).map((original) => {
+      if (!original) return original;
+      const trace = deepClone(original);
       syncTraceAppearance(trace);
       if (typeof trace.name === 'string') trace.name = decodeName(trace.name);
       if (typeof trace.filename === 'string') trace.filename = decodeName(trace.filename);
@@ -1589,7 +1615,14 @@ export function initWorkspaceCanvas() {
       trace.color = trace.line.color;
       trace.width = trace.line.width;
       trace.dash = trace.line.dash;
+      return trace;
     });
+    const nextFigure = {
+      ...figure,
+      data: traces
+    };
+    panelsModel.updatePanelFigure(panelId, nextFigure);
+    return nextFigure;
   };
 
   const isSectionVisible = (sectionId) => {
@@ -1789,7 +1822,8 @@ export function initWorkspaceCanvas() {
 
     const makeTraceRows = (panelItem) => {
       const { entry, meta } = panelItem;
-      const traces = ensureArray(entry.state.figure?.data);
+      const panelId = meta.id || entry.state.id;
+      const traces = panelsModel.getPanelTraces(panelId);
       const labelIndex = meta.index || entry.state.index || 0;
       const label = labelIndex ? `Graph ${labelIndex}` : 'Graph';
       const graphMatches = !term || label.toLowerCase().includes(term);
@@ -1806,13 +1840,19 @@ export function initWorkspaceCanvas() {
       const entry = panelItem.entry;
       const panelMeta = panelItem.meta;
       const panelId = panelMeta.id || entry.state.id;
-      const trace = rowInfo.trace;
+      let trace = rowInfo.trace;
       const row = document.createElement('div');
       row.className = 'folder-trace';
       row.dataset.panelId = panelId;
       row.dataset.traceIndex = String(rowInfo.idx);
-      const traceId = ensureTraceId(trace);
-      row.dataset.id = `${panelId}:${traceId}`;
+      let traceId = trace?._canvasId || null;
+      if (!traceId) {
+        const normalized = normalizePanelTraces(panelId);
+        const refreshedTraces = ensureArray(normalized?.data);
+        traceId = refreshedTraces[rowInfo.idx]?._canvasId;
+        trace = refreshedTraces[rowInfo.idx] || trace;
+      }
+      row.dataset.id = `${panelId}:${traceId || rowInfo.idx}`;
       if (term && !rowInfo.matchesTrace) {
         row.classList.add('is-muted');
       }
@@ -1858,9 +1898,24 @@ export function initWorkspaceCanvas() {
 
       const visToggle = row.querySelector('.vis');
       visToggle?.addEventListener('change', () => {
-        trace.visible = visToggle.checked;
+        pushHistory();
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const tracesData = ensureArray(figure.data);
+        const current = tracesData[rowInfo.idx];
+        if (!current) {
+          history.pop();
+          return;
+        }
+        tracesData[rowInfo.idx] = {
+          ...current,
+          visible: visToggle.checked
+        };
+        figure.data = tracesData;
+        normalizePanelTraces(panelId, figure);
         renderPlot(entry);
         persist();
+        renderGraphBrowser();
+        updateHistoryButtons();
       });
 
       const renameInput = row.querySelector('.rename');
@@ -1873,16 +1928,35 @@ export function initWorkspaceCanvas() {
       renameInput?.addEventListener('blur', () => {
         renameInput.readOnly = true;
         const value = renameInput.value.trim();
-        trace.name = value || trace.name || `Trace ${rowInfo.idx + 1}`;
+        if (!value) {
+          renderGraphBrowser();
+          return;
+        }
+        const figure = panelsModel.getPanelFigure(panelId) || {};
+        const tracesData = ensureArray(figure.data);
+        const current = tracesData[rowInfo.idx];
+        if (!current) {
+          return;
+        }
+        if ((current.name || '').trim() === value) {
+          return;
+        }
+        pushHistory();
+        current.name = value;
+        figure.data = tracesData;
+        normalizePanelTraces(panelId, figure);
         renderPlot(entry);
         renderGraphBrowser();
         persist();
+        updateHistoryButtons();
       });
       renameInput?.addEventListener('keydown', (evt) => {
         if (evt.key === 'Enter') {
           renameInput.blur();
         } else if (evt.key === 'Escape') {
-          renameInput.value = trace.name || `Trace ${rowInfo.idx + 1}`;
+          const tracesData = panelsModel.getPanelTraces(panelId);
+          const current = tracesData[rowInfo.idx];
+          renameInput.value = current?.name || `Trace ${rowInfo.idx + 1}`;
           renameInput.blur();
         }
       });
@@ -1890,14 +1964,18 @@ export function initWorkspaceCanvas() {
       const removeBtn = row.querySelector('.trace-remove');
       removeBtn?.addEventListener('click', () => {
         pushHistory();
-        const traces = ensureArray(entry.state.figure?.data);
-        traces.splice(rowInfo.idx, 1);
-        if (!traces.length) {
-          removePanel(panelId, { pushToHistory: false });
+        const result = panelsModel.removeTrace(panelId, rowInfo.idx);
+        if (!result) {
+          history.pop();
           return;
         }
-        normalizePanelTraces(entry);
-        renderPlot(entry);
+        const remaining = ensureArray(result.figure?.data);
+        if (!remaining.length) {
+          removePanel(panelId, { pushToHistory: false });
+        } else {
+          normalizePanelTraces(panelId, result.figure);
+          renderPlot(entry);
+        }
         renderGraphBrowser();
         persist();
         updateHistoryButtons();
@@ -2319,30 +2397,22 @@ export function initWorkspaceCanvas() {
     const targetEntry = panels.get(target?.panelId);
     if (!sourceEntry || !targetEntry) return false;
 
-    const sourceTraces = ensureArray(sourceEntry.state.figure?.data);
-    if (!Number.isInteger(source.traceIndex) || source.traceIndex < 0 || source.traceIndex >= sourceTraces.length) {
-      return false;
+    const moved = panelsModel.moveTrace(source, target);
+    if (!moved) return false;
+
+    normalizePanelTraces(source.panelId);
+    if (source.panelId !== target.panelId) {
+      normalizePanelTraces(target.panelId);
     }
 
-    const [trace] = sourceTraces.splice(source.traceIndex, 1);
-    const targetTraces = ensureArray(targetEntry.state.figure?.data);
-    let insertIndex = Number.isInteger(target.traceIndex) ? target.traceIndex : targetTraces.length;
-    if (sourceEntry === targetEntry && source.traceIndex < insertIndex) {
-      insertIndex -= 1;
-    }
-    insertIndex = Math.max(0, Math.min(insertIndex, targetTraces.length));
-    targetTraces.splice(insertIndex, 0, trace);
-
-    normalizePanelTraces(targetEntry);
-    renderPlot(targetEntry);
-
+    renderPlot(sourceEntry);
     if (sourceEntry !== targetEntry) {
-      if (!sourceTraces.length) {
-        removePanel(source.panelId, { pushToHistory: false });
-      } else {
-        normalizePanelTraces(sourceEntry);
-        renderPlot(sourceEntry);
-      }
+      renderPlot(targetEntry);
+    }
+
+    const remaining = panelsModel.getPanelTraces(source.panelId);
+    if (!remaining.length) {
+      removePanel(source.panelId, { pushToHistory: false });
     }
 
     renderGraphBrowser();
@@ -2413,8 +2483,7 @@ export function initWorkspaceCanvas() {
       const graphNode = tracesContainer.closest('.graph-node');
       const panelId = graphNode?.dataset?.panelId;
       if (!panelId) return null;
-      const entry = panels.get(panelId);
-      const traces = ensureArray(entry?.state?.figure?.data);
+      const traces = panelsModel.getPanelTraces(panelId);
       return {
         element: tracesContainer,
         panelId,
@@ -2424,8 +2493,7 @@ export function initWorkspaceCanvas() {
     const graphNode = event.target.closest('.graph-node');
     if (graphNode) {
       const panelId = graphNode.dataset.panelId;
-      const entry = panels.get(panelId);
-      const traces = ensureArray(entry?.state?.figure?.data);
+      const traces = panelsModel.getPanelTraces(panelId);
       return {
         element: graphNode,
         panelId,
@@ -2574,6 +2642,7 @@ export function initWorkspaceCanvas() {
       y: baseY,
       width: baseWidth,
       height: baseHeight,
+      figure: _initialFigure,
       collapsed: _initialCollapsed,
       hidden: _initialHidden,
       sectionId: _initialSectionId,
@@ -2714,7 +2783,8 @@ export function initWorkspaceCanvas() {
     `;
     
     axesPopover.onOpen = () => {
-      const L = entry.state?.figure?.layout || {};
+      const figure = panelsModel.getPanelFigure(entry.state.id) || {};
+      const L = figure.layout || {};
       const X = L.xaxis || {};
       const Y = L.yaxis || {};
 
@@ -2907,7 +2977,8 @@ export function initWorkspaceCanvas() {
 
 
       // === Major Grid (header toggle) ==============================================
-      const currentLayout = entry.state?.figure?.layout || {};
+      const figureForLayout = panelsModel.getPanelFigure(entry.state.id) || {};
+      const currentLayout = figureForLayout.layout || {};
       const isMajorGridOn = Boolean(currentLayout?.xaxis?.showgrid || currentLayout?.yaxis?.showgrid);
 
       const gridMajorBtn = createToggleButton({
@@ -2949,7 +3020,8 @@ export function initWorkspaceCanvas() {
 
       // Sync UI to current layout on open
       gridPopover.onOpen = () => {
-        const L = entry.state?.figure?.layout || {};
+        const figure = panelsModel.getPanelFigure(entry.state.id) || {};
+        const L = figure.layout || {};
         const isMinorOn = !!(L?.xaxis?.minor?.showgrid || L?.yaxis?.minor?.showgrid);
         const minorToggle = gridPopover.querySelector('[data-role="minor-toggle"]');
         minorToggle.querySelectorAll('.workspace-panel-popover-btn').forEach(b => {
@@ -3069,7 +3141,8 @@ export function initWorkspaceCanvas() {
     `;
 
     ticksPopover.onOpen = () => {
-      const L = entry.state?.figure?.layout || {};
+      const figure = panelsModel.getPanelFigure(entry.state.id) || {};
+      const L = figure.layout || {};
       const X = L.xaxis || {};
       const Y = L.yaxis || {};
 
@@ -3519,7 +3592,7 @@ export function initWorkspaceCanvas() {
       bringPanelToFront(entry);
     });
     panelEl.addEventListener('focusin', () => bringPanelToFront(entry));
-    normalizePanelTraces(entry);
+    normalizePanelTraces(baseState.id);
 
     panels.set(baseState.id, entry);
     applyPanelGeometry(entry, entry.visual, { persistNormalized: true });
@@ -3597,13 +3670,13 @@ export function initWorkspaceCanvas() {
     if (!files.length) return;
 
     pushHistory();
-    const traces = ensureArray(entry.state.figure?.data);
     let added = 0;
 
     for (const file of files) {
       try {
         const payload = await uploadTraceFile(file, 'auto');
-        traces.push(createTraceFromPayload(payload, file));
+        const trace = createTraceFromPayload(payload, file);
+        panelsModel.addTrace(panelId, trace);
         added += 1;
       } catch (err) {
         console.warn('Failed to add file to graph', file?.name, err);
@@ -3617,11 +3690,10 @@ export function initWorkspaceCanvas() {
       return;
     }
 
-    normalizePanelTraces(entry);
+    normalizePanelTraces(panelId);
     renderPlot(entry);
     renderGraphBrowser();
     persist();
-    refreshPanelVisibility();
     updateHistoryButtons();
     showToast(`Added ${added} file${added === 1 ? '' : 's'} to graph.`, 'success');
   };
