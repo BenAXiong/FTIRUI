@@ -1,0 +1,1 @@
+// comment-only file explaining its future responsibilities (state init, event wiring, render coordination, persistence hooks).
