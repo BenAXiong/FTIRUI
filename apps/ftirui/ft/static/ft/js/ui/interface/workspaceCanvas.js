@@ -295,19 +295,6 @@ export function initWorkspaceCanvas() {
     panelDomRegistry.delete(panelId);
   };
 
-  const hydratePanelsDom = () => {
-    if (!canvas) return;
-    const nodes = canvas.querySelectorAll('.workspace-panel[data-panel-id]');
-    nodes.forEach((node) => {
-      const panelId = node.dataset.panelId;
-      if (!panelId) return;
-      registerPanelDom(panelId, {
-        rootEl: node,
-        headerEl: node.querySelector('.workspace-panel-header'),
-        plotEl: node.querySelector('.workspace-panel-plot')
-      });
-    });
-  };
   const history = [];
   const future = [];
   let searchTerm = '';
@@ -332,8 +319,6 @@ export function initWorkspaceCanvas() {
     undo: document.getElementById('c_history_undo'),
     redo: document.getElementById('c_history_redo')
   };
-
-  hydratePanelsDom();
 
   const browserHotspot = (() => {
     if (typeof document === 'undefined') return null;
