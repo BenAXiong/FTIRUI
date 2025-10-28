@@ -1234,28 +1234,74 @@ export function initWorkspaceCanvas() {
     }
   };
 
-  const clampPosition = (entry) => {
-    const canvasWidth = canvas.clientWidth || MIN_WIDTH;
-    const canvasHeight = canvas.clientHeight || MIN_HEIGHT;
-
-    entry.state.width = Math.max(MIN_WIDTH, Math.min(entry.state.width, canvasWidth));
-    entry.state.height = Math.max(MIN_HEIGHT, Math.min(entry.state.height, canvasHeight));
-
-    const maxX = Math.max(0, canvasWidth - entry.state.width);
-    const maxY = Math.max(0, canvasHeight - entry.state.height);
-
-    entry.state.x = Math.max(0, Math.min(entry.state.x, maxX));
-    entry.state.y = Math.max(0, Math.min(entry.state.y, maxY));
+  const coerceNumber = (value, fallback = 0) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
   };
 
-  const applyPanelGeometry = (entry) => {
-    clampPosition(entry);
-    const dom = getPanelDom(entry?.state?.id);
+  const getPanelGeometry = (panelId) => {
+    if (!panelId) return null;
+    const record = panelsModel.getPanel(panelId);
+    if (!record) return null;
+    return {
+      x: coerceNumber(record.x, 0),
+      y: coerceNumber(record.y, 0),
+      width: Math.max(MIN_WIDTH, coerceNumber(record.width, MIN_WIDTH)),
+      height: Math.max(MIN_HEIGHT, coerceNumber(record.height, MIN_HEIGHT))
+    };
+  };
+
+  const clampGeometryToCanvas = (geometry = {}) => {
+    const canvasWidth = canvas?.clientWidth || MIN_WIDTH;
+    const canvasHeight = canvas?.clientHeight || MIN_HEIGHT;
+
+    const width = Math.max(
+      MIN_WIDTH,
+      Math.min(coerceNumber(geometry.width, MIN_WIDTH), canvasWidth)
+    );
+    const height = Math.max(
+      MIN_HEIGHT,
+      Math.min(coerceNumber(geometry.height, MIN_HEIGHT), canvasHeight)
+    );
+    const maxX = Math.max(0, canvasWidth - width);
+    const maxY = Math.max(0, canvasHeight - height);
+
+    const x = Math.max(0, Math.min(coerceNumber(geometry.x, 0), maxX));
+    const y = Math.max(0, Math.min(coerceNumber(geometry.y, 0), maxY));
+
+    return { x, y, width, height };
+  };
+
+  const applyPanelGeometry = (entry, geometryOverride = null, { persistNormalized = false } = {}) => {
+    const panelId = entry?.state?.id;
+    if (!panelId) return null;
+    const dom = getPanelDom(panelId);
     const rootEl = dom?.rootEl;
-    if (!rootEl) return;
-    rootEl.style.width = `${entry.state.width}px`;
-    rootEl.style.height = `${entry.state.height}px`;
-    rootEl.style.transform = `translate(${entry.state.x}px, ${entry.state.y}px)`;
+    if (!rootEl) return null;
+
+    const baseGeometry = geometryOverride
+      ? { ...geometryOverride }
+      : getPanelGeometry(panelId);
+    if (!baseGeometry) return null;
+
+    const normalized = clampGeometryToCanvas(baseGeometry);
+
+    rootEl.style.width = `${normalized.width}px`;
+    rootEl.style.height = `${normalized.height}px`;
+    rootEl.style.transform = `translate(${normalized.x}px, ${normalized.y}px)`;
+
+    entry.visual = normalized;
+
+    if (persistNormalized && geometryOverride) {
+      const changed = ['x', 'y', 'width', 'height'].some(
+        (key) => normalized[key] !== geometryOverride[key]
+      );
+      if (changed) {
+        panelsModel.setPanelGeometry(panelId, normalized);
+      }
+    }
+
+    return normalized;
   };
 
   const applyPanelZIndex = (entry) => {
@@ -1285,11 +1331,45 @@ export function initWorkspaceCanvas() {
     };
   };
 
+  const serializePanelState = (entry) => {
+    const panelId = entry?.state?.id;
+    if (!panelId) return null;
+    const modelRecord = panelsModel.getPanel(panelId);
+    const fallbackGeometry = entry?.visual || {
+      x: 0,
+      y: 0,
+      width: MIN_WIDTH,
+      height: MIN_HEIGHT
+    };
+    const geometry = modelRecord
+      ? {
+          x: coerceNumber(modelRecord.x, 0),
+          y: coerceNumber(modelRecord.y, 0),
+          width: Math.max(MIN_WIDTH, coerceNumber(modelRecord.width, MIN_WIDTH)),
+          height: Math.max(MIN_HEIGHT, coerceNumber(modelRecord.height, MIN_HEIGHT)),
+          zIndex: coerceNumber(modelRecord.zIndex, entry?.state?.zIndex ?? 1)
+        }
+      : {
+          x: coerceNumber(fallbackGeometry.x, 0),
+          y: coerceNumber(fallbackGeometry.y, 0),
+          width: Math.max(MIN_WIDTH, coerceNumber(fallbackGeometry.width, MIN_WIDTH)),
+          height: Math.max(MIN_HEIGHT, coerceNumber(fallbackGeometry.height, MIN_HEIGHT)),
+          zIndex: entry?.state?.zIndex ?? 1
+        };
+    const merged = {
+      ...entry.state,
+      ...geometry
+    };
+    return deepClone(merged);
+  };
+
   const snapshotState = () => ({
     counter: panelCounter,
     colorCursor,
     sections: serializeSections(),
-    panels: Array.from(panels.values()).map(({ state }) => deepClone(state))
+    panels: Array.from(panels.values())
+      .map((entry) => serializePanelState(entry))
+      .filter(Boolean)
   });
 
   const persist = () => {
@@ -1298,7 +1378,9 @@ export function initWorkspaceCanvas() {
       counter: panelCounter,
       colorCursor,
       sections: serializeSections(),
-      panels: Array.from(panels.values()).map(({ state }) => deepClone(state))
+      panels: Array.from(panels.values())
+        .map((entry) => serializePanelState(entry))
+        .filter(Boolean)
     };
 
     try {
@@ -2388,9 +2470,23 @@ export function initWorkspaceCanvas() {
 
     panelCounter = Math.max(panelCounter, Number(baseState.index) || 0);
 
+    const {
+      x: baseX,
+      y: baseY,
+      width: baseWidth,
+      height: baseHeight,
+      ...stateWithoutGeometry
+    } = baseState;
+
     const entry = {
-      state: baseState,
-      dragSnapshot: false
+      state: stateWithoutGeometry,
+      dragSnapshot: null,
+      visual: clampGeometryToCanvas({
+        x: baseX,
+        y: baseY,
+        width: baseWidth,
+        height: baseHeight
+      })
     };
 
     const panelEl = document.createElement('div');
@@ -3315,7 +3411,7 @@ export function initWorkspaceCanvas() {
       headerEl: header,
       plotEl: plotHost
     });
-    entry.dragSnapshot = false;
+    entry.dragSnapshot = null;
     panelEl.addEventListener('pointerdown', (evt) => {
       if (typeof evt.button === 'number' && evt.button !== 0) return;
       bringPanelToFront(entry);
@@ -3324,7 +3420,7 @@ export function initWorkspaceCanvas() {
     normalizePanelTraces(entry);
 
     panels.set(baseState.id, entry);
-    applyPanelGeometry(entry);
+    applyPanelGeometry(entry, entry.visual, { persistNormalized: true });
     applyPanelZIndex(entry);
     renderPlot(entry);
     configureInteractivity(entry);
@@ -3502,6 +3598,66 @@ export function initWorkspaceCanvas() {
     const plotHost = dom?.plotEl;
     if (!rootEl) return;
 
+    const beginInteraction = (mode) => {
+      bringPanelToFront(entry, { persistChange: false });
+      if (!entry.dragSnapshot) {
+        pushHistory();
+      }
+      const modelGeometry = getPanelGeometry(entry.state.id);
+      const sourceGeometry = modelGeometry
+        || entry.visual
+        || { x: 0, y: 0, width: MIN_WIDTH, height: MIN_HEIGHT };
+      const baseGeometry = clampGeometryToCanvas(sourceGeometry);
+      entry.dragSnapshot = {
+        mode,
+        initial: { ...baseGeometry },
+        current: { ...baseGeometry }
+      };
+      rootEl.classList.add('is-active');
+      canvas.classList.add('is-active');
+    };
+
+    const finalizeInteraction = (mode) => {
+      const panelId = entry.state?.id;
+      const snapshot = entry.dragSnapshot;
+      const fallback = entry.visual
+        || getPanelGeometry(panelId)
+        || { x: 0, y: 0, width: MIN_WIDTH, height: MIN_HEIGHT };
+      const base = snapshot?.current || snapshot?.initial || fallback;
+      const normalized = clampGeometryToCanvas(base);
+
+      if (panelId) {
+        if (mode === 'resize') {
+          panelsModel.setPanelSize(panelId, {
+            width: normalized.width,
+            height: normalized.height
+          });
+          panelsModel.setPanelPosition(panelId, {
+            x: normalized.x,
+            y: normalized.y
+          });
+        } else {
+          panelsModel.setPanelPosition(panelId, {
+            x: normalized.x,
+            y: normalized.y
+          });
+        }
+      }
+
+      const latest = panelId ? panelsModel.getPanel(panelId) : null;
+      applyPanelGeometry(entry, latest || normalized);
+      entry.refreshActionOverflow?.();
+      if (plotHost && typeof Plotly?.Plots?.resize === 'function') {
+        Plotly.Plots.resize(plotHost);
+      }
+
+      entry.dragSnapshot = null;
+      rootEl.classList.remove('is-active');
+      canvas.classList.remove('is-active');
+      persist();
+      updateHistoryButtons();
+    };
+
     interact(rootEl)
       .draggable({
         inertia: false,
@@ -3515,26 +3671,22 @@ export function initWorkspaceCanvas() {
         ],
         listeners: {
           start: () => {
-            bringPanelToFront(entry, { persistChange: false });
-            if (!entry.dragSnapshot) {
-              pushHistory();
-              entry.dragSnapshot = true;
-            }
-            rootEl.classList.add('is-active');
-            canvas.classList.add('is-active');
+            beginInteraction('drag');
           },
           move: (event) => {
-            entry.state.x += event.dx;
-            entry.state.y += event.dy;
-            applyPanelGeometry(entry);
+            if (!entry.dragSnapshot) return;
+            const previous = entry.dragSnapshot.current || entry.dragSnapshot.initial;
+            const next = clampGeometryToCanvas({
+              ...previous,
+              x: previous.x + coerceNumber(event.dx, 0),
+              y: previous.y + coerceNumber(event.dy, 0)
+            });
+            entry.dragSnapshot.current = next;
+            applyPanelGeometry(entry, next);
             entry.refreshActionOverflow?.();
           },
           end: () => {
-            entry.dragSnapshot = false;
-            rootEl.classList.remove('is-active');
-            canvas.classList.remove('is-active');
-            persist();
-            updateHistoryButtons();
+            finalizeInteraction('drag');
           }
         }
       })
@@ -3553,31 +3705,26 @@ export function initWorkspaceCanvas() {
         ],
         listeners: {
           start: () => {
-            bringPanelToFront(entry, { persistChange: false });
-            if (!entry.dragSnapshot) {
-              pushHistory();
-              entry.dragSnapshot = true;
-            }
-            rootEl.classList.add('is-active');
-            canvas.classList.add('is-active');
+            beginInteraction('resize');
           },
           move: (event) => {
-            entry.state.width = event.rect.width;
-            entry.state.height = event.rect.height;
-            entry.state.x += event.deltaRect.left;
-            entry.state.y += event.deltaRect.top;
-            applyPanelGeometry(entry);
+            if (!entry.dragSnapshot) return;
+            const previous = entry.dragSnapshot.current || entry.dragSnapshot.initial;
+            const next = clampGeometryToCanvas({
+              x: previous.x + coerceNumber(event.deltaRect?.left, 0),
+              y: previous.y + coerceNumber(event.deltaRect?.top, 0),
+              width: coerceNumber(event.rect?.width, previous.width),
+              height: coerceNumber(event.rect?.height, previous.height)
+            });
+            entry.dragSnapshot.current = next;
+            applyPanelGeometry(entry, next);
             if (plotHost && typeof Plotly?.Plots?.resize === 'function') {
               Plotly.Plots.resize(plotHost);
             }
             entry.refreshActionOverflow?.();
           },
           end: () => {
-            entry.dragSnapshot = false;
-            rootEl.classList.remove('is-active');
-            canvas.classList.remove('is-active');
-            persist();
-            updateHistoryButtons();
+            finalizeInteraction('resize');
           }
         }
       });
