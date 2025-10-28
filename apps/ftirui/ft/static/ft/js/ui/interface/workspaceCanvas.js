@@ -249,6 +249,18 @@ export function initWorkspaceCanvas() {
   const panelsModel = createPanelsModel();
   const panelDomRegistry = new Map();
 
+  if (typeof panelsModel.setCollapsed !== 'function' && typeof panelsModel.setPanelCollapsed === 'function') {
+    panelsModel.setCollapsed = (...args) => panelsModel.setPanelCollapsed(...args);
+  }
+  if (typeof panelsModel.setHidden !== 'function' && typeof panelsModel.setPanelHidden === 'function') {
+    panelsModel.setHidden = (...args) => panelsModel.setPanelHidden(...args);
+  }
+  if (typeof panelsModel.attachToSection !== 'function' && typeof panelsModel.setPanelSection === 'function') {
+    panelsModel.attachToSection = (...args) => panelsModel.setPanelSection(...args);
+  }
+
+  const getPanelRecord = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
+
   const debugSyncPanels = (panelId = null) => {
     if (!DEBUG_PANELS) return;
     const first = panels.keys().next();
@@ -1356,8 +1368,22 @@ export function initWorkspaceCanvas() {
           height: Math.max(MIN_HEIGHT, coerceNumber(fallbackGeometry.height, MIN_HEIGHT)),
           zIndex: entry?.state?.zIndex ?? 1
         };
+    const flags = modelRecord
+      ? {
+          collapsed: modelRecord.collapsed === true,
+          hidden: modelRecord.hidden === true,
+          sectionId: modelRecord.sectionId || DEFAULT_SECTION_ID,
+          index: coerceNumber(modelRecord.index, entry?.state?.index || 0)
+        }
+      : {
+          collapsed: entry?.state?.collapsed === true,
+          hidden: entry?.state?.hidden === true,
+          sectionId: entry?.state?.sectionId || DEFAULT_SECTION_ID,
+          index: entry?.state?.index
+        };
     const merged = {
       ...entry.state,
+      ...flags,
       ...geometry
     };
     return deepClone(merged);
@@ -1577,16 +1603,20 @@ export function initWorkspaceCanvas() {
 
   const refreshPanelVisibility = () => {
     panels.forEach((entry) => {
-      const sectionVisible = isSectionVisible(entry.state.sectionId);
-      const graphVisible = entry.state.hidden !== true;
+      const panelId = entry?.state?.id;
+      if (!panelId) return;
+      const record = getPanelRecord(panelId) || {};
+      const sectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
+      const sectionVisible = isSectionVisible(sectionId);
+      const graphVisible = record.hidden !== true;
       const shouldShow = sectionVisible && graphVisible;
-      entry.state.groupHidden = !sectionVisible;
-      const dom = getPanelDom(entry.state.id);
+      const dom = getPanelDom(panelId);
       const rootEl = dom?.rootEl;
       if (rootEl) {
         rootEl.style.display = shouldShow ? '' : 'none';
         rootEl.classList.toggle('is-hidden-by-group', !sectionVisible);
         rootEl.classList.toggle('is-hidden-by-graph', !graphVisible);
+        rootEl.classList.toggle('is-collapsed', record.collapsed === true);
       }
       const plotHost = dom?.plotEl;
       if (shouldShow && plotHost && typeof Plotly?.Plots?.resize === 'function') {
@@ -1667,12 +1697,13 @@ export function initWorkspaceCanvas() {
   };
 
   const toggleGraphVisibility = (panelId) => {
-    const entry = panels.get(panelId);
-    if (!entry) return;
+    if (!panelId) return;
+    const record = getPanelRecord(panelId);
+    if (!record) return;
     pushHistory();
-    entry.state.hidden = entry.state.hidden !== true;
+    const nextHidden = record.hidden !== true;
+    panelsModel.setHidden(panelId, nextHidden);
     persist();
-    refreshPanelVisibility();
     renderGraphBrowser();
     updateHistoryButtons();
   };
@@ -1683,7 +1714,10 @@ export function initWorkspaceCanvas() {
       name: `Sample ${panelCounter + 1}`
     }, { sectionId });
     if (entry) {
-      showToast(`Graph ${entry.state.index} added to group.`, 'success');
+      const record = getPanelRecord(entry.state.id);
+      const labelIndex = record?.index ?? entry.state.index;
+      const label = labelIndex ? `Graph ${labelIndex}` : 'Graph';
+      showToast(`${label} added to group.`, 'success');
     }
   };
 
@@ -1694,10 +1728,39 @@ export function initWorkspaceCanvas() {
     ensureDefaultSection();
 
     const term = searchTerm.trim().toLowerCase();
-    const sortedEntries = Array.from(panels.values())
-      .sort((a, b) => (a.state.index || 0) - (b.state.index || 0));
+    const sortedPanels = Array.from(panels.values())
+      .map((entry, position) => {
+        const panelId = entry?.state?.id;
+        if (!panelId) return null;
+        const record = getPanelRecord(panelId) || {};
+        const sectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
+        const rawIndex = coerceNumber(record.index, entry.state.index || position + 1);
+        return {
+          entry,
+          meta: {
+            id: panelId,
+            sectionId,
+            hidden: record.hidden === true,
+            collapsed: record.collapsed === true,
+            index: Number.isFinite(rawIndex) && rawIndex > 0 ? rawIndex : 0,
+            record
+          }
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aIndex = a.meta.index || coerceNumber(a.entry.state.index, 0);
+        const bIndex = b.meta.index || coerceNumber(b.entry.state.index, 0);
+        return aIndex - bIndex;
+      });
 
-    if (!sortedEntries.length) {
+    sortedPanels.forEach((item, idx) => {
+      if (!item.meta.index || item.meta.index <= 0) {
+        item.meta.index = idx + 1;
+      }
+    });
+
+    if (!sortedPanels.length) {
       if (panelDom.empty) {
         panelDom.empty.dataset.mode = 'search-empty';
         panelDom.empty.style.display = '';
@@ -1715,19 +1778,20 @@ export function initWorkspaceCanvas() {
       panelsBySection.set(id, []);
     });
 
-    sortedEntries.forEach((entry) => {
-      let sectionId = sections.has(entry.state.sectionId) ? entry.state.sectionId : DEFAULT_SECTION_ID;
-      if (!sections.has(sectionId)) sectionId = DEFAULT_SECTION_ID;
-      entry.state.sectionId = sectionId;
+    sortedPanels.forEach((item) => {
+      const sectionId = sections.has(item.meta.sectionId) ? item.meta.sectionId : DEFAULT_SECTION_ID;
+      item.meta.sectionId = sectionId;
       if (!panelsBySection.has(sectionId)) panelsBySection.set(sectionId, []);
-      panelsBySection.get(sectionId).push(entry);
+      panelsBySection.get(sectionId).push(item);
     });
 
     let renderedSomething = false;
 
-    const makeTraceRows = (entry) => {
+    const makeTraceRows = (panelItem) => {
+      const { entry, meta } = panelItem;
       const traces = ensureArray(entry.state.figure?.data);
-      const label = `Graph ${entry.state.index}`;
+      const labelIndex = meta.index || entry.state.index || 0;
+      const label = labelIndex ? `Graph ${labelIndex}` : 'Graph';
       const graphMatches = !term || label.toLowerCase().includes(term);
       const rows = traces.map((trace, idx) => {
         const name = trace?.name || `Trace ${idx + 1}`;
@@ -1738,14 +1802,17 @@ export function initWorkspaceCanvas() {
       return { rows: visibleRows, graphMatches, hasVisible: visibleRows.length > 0 };
     };
 
-    const buildTraceRow = (entry, rowInfo) => {
+    const buildTraceRow = (panelItem, rowInfo) => {
+      const entry = panelItem.entry;
+      const panelMeta = panelItem.meta;
+      const panelId = panelMeta.id || entry.state.id;
       const trace = rowInfo.trace;
       const row = document.createElement('div');
       row.className = 'folder-trace';
-      row.dataset.panelId = entry.state.id;
+      row.dataset.panelId = panelId;
       row.dataset.traceIndex = String(rowInfo.idx);
       const traceId = ensureTraceId(trace);
-      row.dataset.id = `${entry.state.id}:${traceId}`;
+      row.dataset.id = `${panelId}:${traceId}`;
       if (term && !rowInfo.matchesTrace) {
         row.classList.add('is-muted');
       }
@@ -1826,7 +1893,7 @@ export function initWorkspaceCanvas() {
         const traces = ensureArray(entry.state.figure?.data);
         traces.splice(rowInfo.idx, 1);
         if (!traces.length) {
-          removePanel(entry.state.id, { pushToHistory: false });
+          removePanel(panelId, { pushToHistory: false });
           return;
         }
         normalizePanelTraces(entry);
@@ -1842,10 +1909,10 @@ export function initWorkspaceCanvas() {
           setDragFromHandle(false);
           return;
         }
-        dragState = { type: 'trace', panelId: entry.state.id, traceIndex: rowInfo.idx };
+        dragState = { type: 'trace', panelId, traceIndex: rowInfo.idx };
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData(TRACE_DRAG_MIME, JSON.stringify(dragState));
-        event.dataTransfer.setData('text/plain', `${entry.state.id}:${rowInfo.idx}`);
+        event.dataTransfer.setData('text/plain', `${panelId}:${rowInfo.idx}`);
         row.classList.add('is-dragging');
       });
       row.addEventListener('dragend', () => {
@@ -1858,19 +1925,24 @@ export function initWorkspaceCanvas() {
       return row;
     };
 
-    const renderGraphNode = (entry, sectionId, depth) => {
-      const info = makeTraceRows(entry);
-      if (!info.hasVisible) return null;
-
+    const renderGraphNode = (panelItem, sectionId, depth) => {
+      const { entry, meta } = panelItem;
+      const panelId = meta.id || entry.state.id;
+      const traceInfo = makeTraceRows(panelItem);
+      if (!traceInfo.hasVisible) return null;
+      const graphIndex = meta.index || entry.state.index || 0;
+      const graphLabel = graphIndex ? `Graph ${graphIndex}` : 'Graph';
+      const collapsed = meta.collapsed === true;
+      const hidden = meta.hidden === true;
+      const sectionVisible = isSectionVisible(sectionId);
+      const graphVisible = !hidden;
       const node = document.createElement('div');
       node.className = 'folder-node graph-node';
       node.dataset.type = 'graph';
-      node.dataset.id = entry.state.id;
-      node.dataset.panelId = entry.state.id;
+      node.dataset.id = panelId;
+      node.dataset.panelId = panelId;
       node.dataset.sectionId = sectionId;
       node.dataset.depth = String(depth + 1);
-      const sectionVisible = isSectionVisible(sectionId);
-      const graphVisible = entry.state.hidden !== true;
       const fullyVisible = sectionVisible && graphVisible;
       node.dataset.visible = fullyVisible ? 'true' : 'false';
       node.dataset.sectionVisible = sectionVisible ? 'true' : 'false';
@@ -1879,7 +1951,7 @@ export function initWorkspaceCanvas() {
 
       const header = document.createElement('div');
       header.className = 'folder-header graph-header';
-      header.dataset.panelId = entry.state.id;
+      header.dataset.panelId = panelId;
       header.dataset.sectionId = sectionId;
       header.dataset.depth = String(depth + 1);
       header.setAttribute('draggable', 'true');
@@ -1892,12 +1964,12 @@ export function initWorkspaceCanvas() {
           event.preventDefault();
           return;
         }
-        dragState = { type: 'graph', panelId: entry.state.id, sectionId };
+        dragState = { type: 'graph', panelId, sectionId };
         node.classList.add('is-dragging');
         if (event.dataTransfer) {
           event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData(GRAPH_DRAG_MIME, entry.state.id);
-          event.dataTransfer.setData('text/plain', entry.state.id);
+          event.dataTransfer.setData(GRAPH_DRAG_MIME, panelId);
+          event.dataTransfer.setData('text/plain', panelId);
         }
       });
       header.addEventListener('dragend', () => {
@@ -1909,11 +1981,12 @@ export function initWorkspaceCanvas() {
       const toggle = document.createElement('button');
       toggle.type = 'button';
       toggle.className = 'toggle';
-      toggle.innerHTML = `<i class="bi ${entry.state.collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
-      toggle.setAttribute('aria-expanded', String(!entry.state.collapsed));
+      toggle.innerHTML = `<i class="bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
+      toggle.setAttribute('aria-expanded', String(!collapsed));
       toggle.setAttribute('draggable', 'false');
       toggle.addEventListener('click', () => {
-        entry.state.collapsed = !entry.state.collapsed;
+        const current = getPanelRecord(panelId)?.collapsed === true;
+        panelsModel.setCollapsed(panelId, !current);
         renderGraphBrowser();
         persist();
       });
@@ -1921,11 +1994,11 @@ export function initWorkspaceCanvas() {
 
       const name = document.createElement('span');
       name.className = 'folder-name graph-name';
-      name.textContent = `Graph ${entry.state.index}`;
+      name.textContent = graphLabel;
       if (!graphVisible) {
         name.classList.add('is-muted');
       }
-      if (term && !info.graphMatches) {
+      if (term && !traceInfo.graphMatches) {
         name.classList.add('is-muted');
       }
       header.appendChild(name);
@@ -1936,7 +2009,7 @@ export function initWorkspaceCanvas() {
       const graphVisibilityBtn = document.createElement('button');
       graphVisibilityBtn.className = 'btn-icon graph-visibility';
       graphVisibilityBtn.type = 'button';
-      graphVisibilityBtn.dataset.panelId = entry.state.id;
+      graphVisibilityBtn.dataset.panelId = panelId;
       graphVisibilityBtn.title = graphVisible ? 'Hide graph' : 'Show graph';
       graphVisibilityBtn.setAttribute('draggable', 'false');
       graphVisibilityBtn.innerHTML = `<i class="bi ${graphVisible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
@@ -1945,7 +2018,7 @@ export function initWorkspaceCanvas() {
       const graphBrowseBtn = document.createElement('button');
       graphBrowseBtn.className = 'btn-icon graph-browse';
       graphBrowseBtn.type = 'button';
-      graphBrowseBtn.dataset.panelId = entry.state.id;
+      graphBrowseBtn.dataset.panelId = panelId;
       graphBrowseBtn.title = 'Add traces from file';
       graphBrowseBtn.setAttribute('draggable', 'false');
       graphBrowseBtn.innerHTML = '<i class="bi bi-file-earmark-plus"></i>';
@@ -1954,7 +2027,7 @@ export function initWorkspaceCanvas() {
       const graphDeleteBtn = document.createElement('button');
       graphDeleteBtn.className = 'btn-icon graph-delete';
       graphDeleteBtn.type = 'button';
-      graphDeleteBtn.dataset.panelId = entry.state.id;
+      graphDeleteBtn.dataset.panelId = panelId;
       graphDeleteBtn.title = 'Delete graph';
       graphDeleteBtn.setAttribute('draggable', 'false');
       graphDeleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
@@ -1966,13 +2039,13 @@ export function initWorkspaceCanvas() {
 
       const children = document.createElement('div');
       children.className = 'folder-children';
-      children.style.display = entry.state.collapsed ? 'none' : '';
+      children.style.display = collapsed ? 'none' : '';
 
       const tracesWrap = document.createElement('div');
       tracesWrap.className = 'folder-traces';
-      if (info.rows.length) {
-        info.rows.forEach((rowInfo) => {
-          const row = buildTraceRow(entry, rowInfo);
+      if (traceInfo.rows.length) {
+        traceInfo.rows.forEach((rowInfo) => {
+          const row = buildTraceRow(panelItem, rowInfo);
           tracesWrap.appendChild(row);
         });
       } else {
@@ -2001,8 +2074,8 @@ export function initWorkspaceCanvas() {
       });
 
       const graphNodes = [];
-      (panelsBySection.get(sectionId) || []).forEach((entry) => {
-        const graphNode = renderGraphNode(entry, sectionId, depth);
+      (panelsBySection.get(sectionId) || []).forEach((panelItem) => {
+        const graphNode = renderGraphNode(panelItem, sectionId, depth);
         if (graphNode) graphNodes.push(graphNode);
       });
 
@@ -2176,15 +2249,25 @@ export function initWorkspaceCanvas() {
     let target = null;
     if (activePanelId) {
       const activeEntry = panels.get(activePanelId);
-      if (activeEntry && descendantIds.has(activeEntry.state.sectionId)) {
-        target = activeEntry;
+      if (activeEntry) {
+        const record = getPanelRecord(activeEntry.state.id);
+        if (record && descendantIds.has(record.sectionId || DEFAULT_SECTION_ID)) {
+          target = activeEntry;
+        }
       }
     }
     if (!target) {
       panels.forEach((entry) => {
-        if (!entry || entry.state.hidden === true) return;
-        if (!descendantIds.has(entry.state.sectionId)) return;
-        if (!target || (entry.state?.zIndex || 0) > (target.state?.zIndex || 0)) {
+        if (!entry) return;
+        const record = getPanelRecord(entry.state.id);
+        if (!record) return;
+        if (record.hidden === true) return;
+        const recordSectionId = record.sectionId || DEFAULT_SECTION_ID;
+        if (!descendantIds.has(recordSectionId)) return;
+        const currentTargetRecord = target ? getPanelRecord(target.state.id) : null;
+        const currentZ = currentTargetRecord ? coerceNumber(currentTargetRecord.zIndex, 0) : 0;
+        const candidateZ = coerceNumber(record.zIndex, 0);
+        if (!target || candidateZ > currentZ) {
           target = entry;
         }
       });
@@ -2204,22 +2287,26 @@ export function initWorkspaceCanvas() {
     pushHistory();
     const descendants = collectSectionDescendants(sectionId);
     panels.forEach((entry) => {
-      if (descendants.includes(entry.state.sectionId)) {
-        entry.state.sectionId = DEFAULT_SECTION_ID;
+      if (!entry) return;
+      const record = getPanelRecord(entry.state.id);
+      if (!record) return;
+      if (descendants.includes(record.sectionId)) {
+        panelsModel.attachToSection(entry.state.id, DEFAULT_SECTION_ID);
       }
     });
     deleteSection(sectionId);
     ensureDefaultSection();
     renderGraphBrowser();
     persist();
-    refreshPanelVisibility();
     updateHistoryButtons();
   };
 
   const deleteGraphInteractive = (panelId) => {
     const entry = panels.get(panelId);
     if (!entry) return;
-    const label = entry.state?.index ? `Graph ${entry.state.index}` : 'this graph';
+    const record = getPanelRecord(panelId);
+    const labelIndex = record?.index ?? entry.state?.index;
+    const label = labelIndex ? `Graph ${labelIndex}` : 'this graph';
     if (typeof window !== 'undefined') {
       const confirmed = window.confirm(`Delete ${label}?`);
       if (!confirmed) return;
@@ -2260,40 +2347,52 @@ export function initWorkspaceCanvas() {
 
     renderGraphBrowser();
     persist();
-    refreshPanelVisibility();
     updateHistoryButtons();
     return true;
   };
 
   const moveGraph = (panelId, { sectionId, beforePanelId } = {}) => {
-    const entry = panels.get(panelId);
-    if (!entry) return false;
+    const record = getPanelRecord(panelId);
+    if (!record) return false;
 
-    if (sectionId && sections.has(sectionId)) {
-      entry.state.sectionId = sectionId;
+    const initialSectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
+    const targetSectionId = sectionId && sections.has(sectionId)
+      ? sectionId
+      : initialSectionId;
+
+    if (targetSectionId && targetSectionId !== record.sectionId) {
+      panelsModel.attachToSection(panelId, targetSectionId);
     }
 
-    const ordered = Array.from(panels.values())
-      .sort((a, b) => (a.state.index || 0) - (b.state.index || 0));
-    const currentIdx = ordered.findIndex((item) => item.state.id === panelId);
+    const orderedRecords = panelsModel.getPanelsInIndexOrder();
+    const currentIdx = orderedRecords.findIndex((item) => item.id === panelId);
     if (currentIdx === -1) return false;
-    const [current] = ordered.splice(currentIdx, 1);
+    const [current] = orderedRecords.splice(currentIdx, 1);
 
-    let targetIdx = ordered.length;
+    let targetIdx = orderedRecords.length;
     if (beforePanelId && beforePanelId !== panelId) {
-      targetIdx = ordered.findIndex((item) => item.state.id === beforePanelId);
-      if (targetIdx === -1) targetIdx = ordered.length;
-    } else if (sectionId && sections.has(sectionId)) {
-      const lastIdx = ordered.reduce((acc, item, idx) => (item.state.sectionId === sectionId ? idx : acc), -1);
-      targetIdx = lastIdx >= 0 ? lastIdx + 1 : ordered.length;
+      targetIdx = orderedRecords.findIndex((item) => item.id === beforePanelId);
+      if (targetIdx === -1) targetIdx = orderedRecords.length;
+    } else if (targetSectionId && sections.has(targetSectionId)) {
+      const lastIdx = orderedRecords.reduce(
+        (acc, item, idx) => (item.sectionId === targetSectionId ? idx : acc),
+        -1
+      );
+      targetIdx = lastIdx >= 0 ? lastIdx + 1 : orderedRecords.length;
     }
 
-    ordered.splice(targetIdx, 0, current);
-    ordered.forEach((item, idx) => {
-      item.state.index = idx + 1;
+    orderedRecords.splice(targetIdx, 0, current);
+
+    orderedRecords.forEach((panel, idx) => {
+      panelsModel.setPanelIndex(panel.id, idx + 1);
     });
 
-    refreshPanelVisibility();
+    const updatedRecords = panelsModel.getPanelsInIndexOrder();
+    panelCounter = updatedRecords.reduce(
+      (acc, panel) => Math.max(acc, Number(panel.index) || 0),
+      panelCounter
+    );
+
     renderGraphBrowser();
     persist();
     updateHistoryButtons();
@@ -2475,6 +2574,9 @@ export function initWorkspaceCanvas() {
       y: baseY,
       width: baseWidth,
       height: baseHeight,
+      collapsed: _initialCollapsed,
+      hidden: _initialHidden,
+      sectionId: _initialSectionId,
       ...stateWithoutGeometry
     } = baseState;
 
