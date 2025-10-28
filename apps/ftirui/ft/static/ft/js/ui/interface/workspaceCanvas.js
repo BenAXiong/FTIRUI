@@ -1,6 +1,7 @@
 import { fetchDemoFiles } from '../../services/demos.js';
 import { uploadTraceFile } from '../../services/uploads.js';
 import { createChipPanels } from './chipPanels.js';
+import { createPanelsModel } from '../../workspace/canvas/state/panelsModel.js';
 import { applyLineChip } from '../utils/styling_linechip.js';
 import { toHexColor } from '../utils/styling.js';
 import { escapeHtml } from '../utils/dom.js';
@@ -33,7 +34,6 @@ let chipPanelsInstance = null;
 let dragState = null;
 let currentDropTarget = null;
 let pendingRenameSectionId = null;
-let zIndexCursor = 0;
 let activePanelId = null;
 
 const setDropTarget = (element) => {
@@ -246,6 +246,7 @@ export function initWorkspaceCanvas() {
   canvas.dataset.initialized = '1';
 
   const panels = new Map();
+  const panelsModel = createPanelsModel();
   const panelDomRegistry = new Map();
 
   const debugSyncPanels = (panelId = null) => {
@@ -1258,12 +1259,15 @@ export function initWorkspaceCanvas() {
   };
 
   const applyPanelZIndex = (entry) => {
-    if (!entry?.state) return;
+    if (!entry?.state?.id) return;
     const dom = getPanelDom(entry.state.id);
     const rootEl = dom?.rootEl;
     if (!rootEl) return;
-    const value = Number(entry.state?.zIndex);
-    rootEl.style.zIndex = String(Number.isFinite(value) && value > 0 ? value : 1);
+    const panelRecord = panelsModel.getPanel(entry.state.id);
+    const value = Number(panelRecord?.zIndex ?? entry.state?.zIndex);
+    const resolved = Number.isFinite(value) && value > 0 ? value : 1;
+    entry.state.zIndex = resolved;
+    rootEl.style.zIndex = String(resolved);
   };
 
   const defaultLayout = (payload = {}) => {
@@ -1305,17 +1309,19 @@ export function initWorkspaceCanvas() {
   };
 
   const bringPanelToFront = (entry, { persistChange = true, scrollBrowser = false } = {}) => {
-    const dom = getPanelDom(entry?.state?.id);
+    const panelId = entry?.state?.id;
+    if (!panelId) return;
+    const dom = getPanelDom(panelId);
     if (!dom?.rootEl) return;
-    if (entry.state?.zIndex !== zIndexCursor) {
-      zIndexCursor += 1;
-      entry.state.zIndex = zIndexCursor;
+    const updated = panelsModel.bringPanelToFront(panelId);
+    if (updated) {
+      entry.state.zIndex = updated.zIndex;
       applyPanelZIndex(entry);
       if (persistChange) {
         persist();
       }
     }
-    setActivePanel(entry.state.id, { scrollBrowser });
+    setActivePanel(panelId, { scrollBrowser });
   };
 
   const focusPanelById = (panelId, { scrollBrowser = true } = {}) => {
@@ -1342,26 +1348,31 @@ export function initWorkspaceCanvas() {
       detachPanelDom(entry.state.id);
     });
     panels.clear();
-    zIndexCursor = 0;
+    panelsModel.load({ counter: 0, panels: [] });
     setActivePanel(null);
   };
 
-    const restoreSnapshot = (snapshot, { skipHistory = false } = {}) => {
-      clearPanels();
-      panelCounter = snapshot?.counter || 0;
-      colorCursor = snapshot?.colorCursor || 0;
-      restoreSections(snapshot?.sections);
+  const restoreSnapshot = (snapshot, { skipHistory = false } = {}) => {
+    clearPanels();
+    panelCounter = snapshot?.counter || 0;
+    colorCursor = snapshot?.colorCursor || 0;
+    restoreSections(snapshot?.sections);
 
-      const panelStates = ensureArray(snapshot?.panels).slice();
-      zIndexCursor = panelStates.reduce((acc, state) => {
-        const value = Number(state?.zIndex);
-        return Number.isFinite(value) ? Math.max(acc, value) : acc;
-      }, 0);
+    const panelStates = ensureArray(snapshot?.panels).slice();
+    panelsModel.load({
+      counter: panelCounter,
+      panels: panelStates
+    });
 
-      panelStates
-        .sort((a, b) => (a.index || 0) - (b.index || 0))
-        .forEach((state) => {
-        registerPanel(state, { skipHistory: true, skipPersist: true, preserveIndex: true });
+    panelsModel
+      .getPanelsInIndexOrder()
+      .forEach((state) => {
+        registerPanel(state, {
+          skipHistory: true,
+          skipPersist: true,
+          preserveIndex: true,
+          useModelState: true
+        });
       });
 
     updateCanvasState();
@@ -2314,6 +2325,7 @@ export function initWorkspaceCanvas() {
     }
     const wasActive = activePanelId === id;
     let fallback = null;
+    panelsModel.removePanel(id);
     panels.delete(id);
     const dom = getPanelDom(id);
     dom?.rootEl?.remove();
@@ -2337,47 +2349,54 @@ export function initWorkspaceCanvas() {
   const registerPanel = (incomingState, {
     skipHistory = false,
     skipPersist = false,
-    preserveIndex = false
+    preserveIndex = false,
+    useModelState = false
   } = {}) => {
     if (!skipHistory) {
       pushHistory();
     }
 
-      const incomingZIndex = Number(incomingState.zIndex);
-      const resolvedZIndex = Number.isFinite(incomingZIndex) && incomingZIndex > 0
-        ? incomingZIndex
-        : zIndexCursor + 1;
+    const candidateId = incomingState.id || randomPanelId();
+    const resolvedIndex = resolveIndex(incomingState.index, preserveIndex);
+    const candidateState = {
+      id: candidateId,
+      type: incomingState.type || 'plot',
+      index: resolvedIndex,
+      x: Number.isFinite(incomingState.x) ? incomingState.x : 36 + panels.size * 24,
+      y: Number.isFinite(incomingState.y) ? incomingState.y : 36 + panels.size * 24,
+      width: Number.isFinite(incomingState.width) ? incomingState.width : 440,
+      height: Number.isFinite(incomingState.height) ? incomingState.height : 300,
+      collapsed: !!incomingState.collapsed,
+      hidden: incomingState.hidden === true,
+      sectionId: sections.has(incomingState.sectionId) ? incomingState.sectionId : DEFAULT_SECTION_ID,
+      figure: incomingState.figure ? deepClone(incomingState.figure) : {
+        data: [],
+        layout: defaultLayout()
+      },
+      zIndex: incomingState.zIndex
+    };
 
-      const baseState = {
-        id: incomingState.id || randomPanelId(),
-        type: incomingState.type || 'plot',
-        index: resolveIndex(incomingState.index, preserveIndex),
-        x: Number.isFinite(incomingState.x) ? incomingState.x : 36 + panels.size * 24,
-        y: Number.isFinite(incomingState.y) ? incomingState.y : 36 + panels.size * 24,
-        width: Number.isFinite(incomingState.width) ? incomingState.width : 440,
-        height: Number.isFinite(incomingState.height) ? incomingState.height : 300,
-        collapsed: !!incomingState.collapsed,
-        hidden: incomingState.hidden === true,
-        sectionId: sections.has(incomingState.sectionId) ? incomingState.sectionId : DEFAULT_SECTION_ID,
-        figure: incomingState.figure ? deepClone(incomingState.figure) : {
-          data: [],
-          layout: defaultLayout()
-        },
-        zIndex: resolvedZIndex
-      };
+    let baseState = null;
+    if (useModelState) {
+      baseState = panelsModel.getPanel(candidateId)
+        || panelsModel.registerPanel(candidateState, { preserveIndex: true });
+    } else {
+      baseState = panelsModel.registerPanel(candidateState, { preserveIndex: true });
+    }
 
-      const entry = {
-        state: baseState,
-        dragSnapshot: false
-      };
+    if (!baseState) return null;
 
-    zIndexCursor = Math.max(zIndexCursor, baseState.zIndex);
+    panelCounter = Math.max(panelCounter, Number(baseState.index) || 0);
+
+    const entry = {
+      state: baseState,
+      dragSnapshot: false
+    };
 
     const panelEl = document.createElement('div');
     panelEl.className = 'workspace-panel';
     panelEl.dataset.panelId = baseState.id;
     panelEl.dataset.graphIndex = String(baseState.index);
-    panelEl.style.zIndex = String(baseState.zIndex);
 
     const header = document.createElement('div');
     header.className = 'workspace-panel-header';
