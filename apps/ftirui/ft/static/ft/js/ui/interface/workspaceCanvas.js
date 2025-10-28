@@ -21,6 +21,7 @@ const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
 const GRAPH_DRAG_MIME = 'application/x-ftir-workspace-graph';
+const DEBUG_PANELS = false;
 
 let panelCounter = 0;
 let colorCursor = 0;
@@ -245,6 +246,55 @@ export function initWorkspaceCanvas() {
   canvas.dataset.initialized = '1';
 
   const panels = new Map();
+  const panelDomRegistry = new Map();
+
+  const debugSyncPanels = (panelId = null) => {
+    if (!DEBUG_PANELS) return;
+    const first = panels.keys().next();
+    const targetId = panelId || (first.done ? null : first.value);
+    if (!targetId) return;
+    const domEntry = panelDomRegistry.get(targetId);
+    console.assert(domEntry?.rootEl, `Panel DOM missing rootEl for ${targetId}`);
+    console.assert(domEntry?.plotEl, `Panel DOM missing plotEl for ${targetId}`);
+  };
+
+  const registerPanelDom = (panelId, refs = {}) => {
+    if (!panelId) return;
+    panelDomRegistry.set(panelId, {
+      rootEl: refs.rootEl ?? null,
+      headerEl: refs.headerEl ?? null,
+      plotEl: refs.plotEl ?? null
+    });
+    debugSyncPanels(panelId);
+  };
+
+  const getPanelDom = (panelId) => {
+    if (!panelId) return null;
+    const domEntry = panelDomRegistry.get(panelId) || null;
+    if (!domEntry && DEBUG_PANELS) {
+      console.warn('[workspaceCanvas] Missing DOM refs for panel:', panelId);
+    }
+    return domEntry;
+  };
+
+  const detachPanelDom = (panelId) => {
+    if (!panelId) return;
+    panelDomRegistry.delete(panelId);
+  };
+
+  const hydratePanelsDom = () => {
+    if (!canvas) return;
+    const nodes = canvas.querySelectorAll('.workspace-panel[data-panel-id]');
+    nodes.forEach((node) => {
+      const panelId = node.dataset.panelId;
+      if (!panelId) return;
+      registerPanelDom(panelId, {
+        rootEl: node,
+        headerEl: node.querySelector('.workspace-panel-header'),
+        plotEl: node.querySelector('.workspace-panel-plot')
+      });
+    });
+  };
   const history = [];
   const future = [];
   let searchTerm = '';
@@ -269,6 +319,8 @@ export function initWorkspaceCanvas() {
     undo: document.getElementById('c_history_undo'),
     redo: document.getElementById('c_history_redo')
   };
+
+  hydratePanelsDom();
 
   const browserHotspot = (() => {
     if (typeof document === 'undefined') return null;
@@ -653,7 +705,8 @@ export function initWorkspaceCanvas() {
 
   // === Plot layout patch helper (used by header icons) =========================
   function patchLayout(entry, patchObj) {
-    if (!entry?.plotEl) return;
+    const dom = getPanelDom(entry?.state?.id);
+    if (!dom?.plotEl) return;
 
     // 1) Make the change undoable
     pushHistory();
@@ -678,7 +731,7 @@ export function initWorkspaceCanvas() {
     }
 
     // 3) Apply to the live figure quickly (faster than full react for layout-only)
-    Plotly.relayout(entry.plotEl, patchObj);
+    Plotly.relayout(dom.plotEl, patchObj);
 
     // 4) Save & refresh history UI
     persist();
@@ -708,7 +761,8 @@ export function initWorkspaceCanvas() {
     if (typeof layout[axisKey] === 'object') {
       return true;
     }
-    const runtimeAxis = entry?.plotEl?.layout?.[axisKey];
+    const dom = getPanelDom(entry?.state?.id);
+    const runtimeAxis = dom?.plotEl?.layout?.[axisKey];
     if (runtimeAxis && typeof runtimeAxis === 'object') {
       const copied = deepClone(runtimeAxis);
       layout[axisKey] = { ...(layout[axisKey] || {}), ...copied };
@@ -889,7 +943,8 @@ export function initWorkspaceCanvas() {
         const patch = {};
         const axes = ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'];
         const layoutState = entry.state?.figure?.layout || {};
-        const liveLayout = entry.plotEl?.layout || {};
+        const dom = getPanelDom(entry?.state?.id);
+        const liveLayout = dom?.plotEl?.layout || {};
         axes.forEach((axis, index) => {
           const isPrimary = index < 2;
           const axisExistsInState = layoutState[axis] && typeof layoutState[axis] === 'object';
@@ -1145,7 +1200,9 @@ export function initWorkspaceCanvas() {
       }
 
       case 'export': {
-        Plotly.toImage(entry.plotEl, { format: 'png', scale: 2 })
+        const dom = getPanelDom(entry?.state?.id);
+        if (!dom?.plotEl) return;
+        Plotly.toImage(dom.plotEl, { format: 'png', scale: 2 })
           .then((url) => { const a=document.createElement('a'); a.href=url; a.download='plot.png'; a.click(); });
         break;
       }
@@ -1192,15 +1249,21 @@ export function initWorkspaceCanvas() {
 
   const applyPanelGeometry = (entry) => {
     clampPosition(entry);
-    entry.el.style.width = `${entry.state.width}px`;
-    entry.el.style.height = `${entry.state.height}px`;
-    entry.el.style.transform = `translate(${entry.state.x}px, ${entry.state.y}px)`;
+    const dom = getPanelDom(entry?.state?.id);
+    const rootEl = dom?.rootEl;
+    if (!rootEl) return;
+    rootEl.style.width = `${entry.state.width}px`;
+    rootEl.style.height = `${entry.state.height}px`;
+    rootEl.style.transform = `translate(${entry.state.x}px, ${entry.state.y}px)`;
   };
 
   const applyPanelZIndex = (entry) => {
-    if (!entry?.el) return;
+    if (!entry?.state) return;
+    const dom = getPanelDom(entry.state.id);
+    const rootEl = dom?.rootEl;
+    if (!rootEl) return;
     const value = Number(entry.state?.zIndex);
-    entry.el.style.zIndex = String(Number.isFinite(value) && value > 0 ? value : 1);
+    rootEl.style.zIndex = String(Number.isFinite(value) && value > 0 ? value : 1);
   };
 
   const defaultLayout = (payload = {}) => {
@@ -1242,7 +1305,8 @@ export function initWorkspaceCanvas() {
   };
 
   const bringPanelToFront = (entry, { persistChange = true, scrollBrowser = false } = {}) => {
-    if (!entry?.el) return;
+    const dom = getPanelDom(entry?.state?.id);
+    if (!dom?.rootEl) return;
     if (entry.state?.zIndex !== zIndexCursor) {
       zIndexCursor += 1;
       entry.state.zIndex = zIndexCursor;
@@ -1271,7 +1335,12 @@ export function initWorkspaceCanvas() {
   };
 
   const clearPanels = () => {
-    panels.forEach(({ el }) => el.remove());
+    panels.forEach((entry) => {
+      if (!entry?.state?.id) return;
+      const dom = getPanelDom(entry.state.id);
+      dom?.rootEl?.remove();
+      detachPanelDom(entry.state.id);
+    });
     panels.clear();
     zIndexCursor = 0;
     setActivePanel(null);
@@ -1331,9 +1400,11 @@ export function initWorkspaceCanvas() {
 
   const renderPlot = (entry) => {
     if (typeof Plotly === 'undefined') return;
+    const dom = getPanelDom(entry?.state?.id);
+    if (!dom?.plotEl) return;
     const fig = entry.state.figure;
     Plotly.react(
-      entry.plotEl,
+      dom.plotEl,
       ensureArray(fig?.data),
       fig?.layout || defaultLayout(),
       { displaylogo: false, responsive: true }
@@ -1417,13 +1488,16 @@ export function initWorkspaceCanvas() {
       const graphVisible = entry.state.hidden !== true;
       const shouldShow = sectionVisible && graphVisible;
       entry.state.groupHidden = !sectionVisible;
-      if (entry.el) {
-        entry.el.style.display = shouldShow ? '' : 'none';
-        entry.el.classList.toggle('is-hidden-by-group', !sectionVisible);
-        entry.el.classList.toggle('is-hidden-by-graph', !graphVisible);
+      const dom = getPanelDom(entry.state.id);
+      const rootEl = dom?.rootEl;
+      if (rootEl) {
+        rootEl.style.display = shouldShow ? '' : 'none';
+        rootEl.classList.toggle('is-hidden-by-group', !sectionVisible);
+        rootEl.classList.toggle('is-hidden-by-graph', !graphVisible);
       }
-      if (shouldShow && entry.plotEl && typeof Plotly?.Plots?.resize === 'function') {
-        Plotly.Plots.resize(entry.plotEl);
+      const plotHost = dom?.plotEl;
+      if (shouldShow && plotHost && typeof Plotly?.Plots?.resize === 'function') {
+        Plotly.Plots.resize(plotHost);
       }
     });
   };
@@ -2241,7 +2315,9 @@ export function initWorkspaceCanvas() {
     const wasActive = activePanelId === id;
     let fallback = null;
     panels.delete(id);
-    entry.el.remove();
+    const dom = getPanelDom(id);
+    dom?.rootEl?.remove();
+    detachPanelDom(id);
     if (wasActive) {
       panels.forEach((candidate) => {
         if (!candidate) return;
@@ -2292,8 +2368,6 @@ export function initWorkspaceCanvas() {
 
       const entry = {
         state: baseState,
-        el: null,
-        plotEl: null,
         dragSnapshot: false
       };
 
@@ -3217,17 +3291,20 @@ export function initWorkspaceCanvas() {
     panelEl.appendChild(body);
     canvas.appendChild(panelEl);
 
-      entry.el = panelEl;
-      entry.plotEl = plotHost;
-      entry.dragSnapshot = false;
-      panelEl.addEventListener('pointerdown', (evt) => {
-        if (typeof evt.button === 'number' && evt.button !== 0) return;
-        bringPanelToFront(entry);
-      });
-      panelEl.addEventListener('focusin', () => bringPanelToFront(entry));
-      normalizePanelTraces(entry);
+    registerPanelDom(baseState.id, {
+      rootEl: panelEl,
+      headerEl: header,
+      plotEl: plotHost
+    });
+    entry.dragSnapshot = false;
+    panelEl.addEventListener('pointerdown', (evt) => {
+      if (typeof evt.button === 'number' && evt.button !== 0) return;
+      bringPanelToFront(entry);
+    });
+    panelEl.addEventListener('focusin', () => bringPanelToFront(entry));
+    normalizePanelTraces(entry);
 
-      panels.set(baseState.id, entry);
+    panels.set(baseState.id, entry);
     applyPanelGeometry(entry);
     applyPanelZIndex(entry);
     renderPlot(entry);
@@ -3401,26 +3478,30 @@ export function initWorkspaceCanvas() {
 
   const configureInteractivity = (entry) => {
     if (!interact) return;
+    const dom = getPanelDom(entry?.state?.id);
+    const rootEl = dom?.rootEl;
+    const plotHost = dom?.plotEl;
+    if (!rootEl) return;
 
-      interact(entry.el)
-        .draggable({
-          inertia: false,
-          allowFrom: '.workspace-panel-header',
-          ignoreFrom: '.workspace-panel-body',
-          modifiers: [
-            interact.modifiers.restrictRect({
-              restriction: canvas,
-              endOnly: false
-            })
-          ],
-          listeners: {
-            start: () => {
+    interact(rootEl)
+      .draggable({
+        inertia: false,
+        allowFrom: '.workspace-panel-header',
+        ignoreFrom: '.workspace-panel-body',
+        modifiers: [
+          interact.modifiers.restrictRect({
+            restriction: canvas,
+            endOnly: false
+          })
+        ],
+        listeners: {
+          start: () => {
             bringPanelToFront(entry, { persistChange: false });
             if (!entry.dragSnapshot) {
               pushHistory();
               entry.dragSnapshot = true;
             }
-            entry.el.classList.add('is-active');
+            rootEl.classList.add('is-active');
             canvas.classList.add('is-active');
           },
           move: (event) => {
@@ -3431,34 +3512,34 @@ export function initWorkspaceCanvas() {
           },
           end: () => {
             entry.dragSnapshot = false;
-            entry.el.classList.remove('is-active');
+            rootEl.classList.remove('is-active');
             canvas.classList.remove('is-active');
             persist();
             updateHistoryButtons();
           }
         }
       })
-        .resizable({
-          edges: { left: true, right: true, bottom: true, top: true },
-          inertia: false,
-          margin: 6,
-          modifiers: [
-            interact.modifiers.restrictEdges({
-              outer: canvas,
-              endOnly: true
-            }),
+      .resizable({
+        edges: { left: true, right: true, bottom: true, top: true },
+        inertia: false,
+        margin: 6,
+        modifiers: [
+          interact.modifiers.restrictEdges({
+            outer: canvas,
+            endOnly: true
+          }),
           interact.modifiers.restrictSize({
             min: { width: MIN_WIDTH, height: MIN_HEIGHT }
           })
         ],
-          listeners: {
-            start: () => {
+        listeners: {
+          start: () => {
             bringPanelToFront(entry, { persistChange: false });
             if (!entry.dragSnapshot) {
               pushHistory();
               entry.dragSnapshot = true;
             }
-            entry.el.classList.add('is-active');
+            rootEl.classList.add('is-active');
             canvas.classList.add('is-active');
           },
           move: (event) => {
@@ -3467,14 +3548,14 @@ export function initWorkspaceCanvas() {
             entry.state.x += event.deltaRect.left;
             entry.state.y += event.deltaRect.top;
             applyPanelGeometry(entry);
-            if (entry.plotEl && typeof Plotly?.Plots?.resize === 'function') {
-              Plotly.Plots.resize(entry.plotEl);
+            if (plotHost && typeof Plotly?.Plots?.resize === 'function') {
+              Plotly.Plots.resize(plotHost);
             }
             entry.refreshActionOverflow?.();
           },
           end: () => {
             entry.dragSnapshot = false;
-            entry.el.classList.remove('is-active');
+            rootEl.classList.remove('is-active');
             canvas.classList.remove('is-active');
             persist();
             updateHistoryButtons();
@@ -3719,8 +3800,9 @@ export function initWorkspaceCanvas() {
   window.addEventListener('resize', () => {
     panels.forEach((entry) => {
       applyPanelGeometry(entry);
-      if (entry.plotEl && typeof Plotly?.Plots?.resize === 'function') {
-        Plotly.Plots.resize(entry.plotEl);
+      const dom = getPanelDom(entry.state.id);
+      if (dom?.plotEl && typeof Plotly?.Plots?.resize === 'function') {
+        Plotly.Plots.resize(dom.plotEl);
       }
       entry.refreshActionOverflow?.();
     });
