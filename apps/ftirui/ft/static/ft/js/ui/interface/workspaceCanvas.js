@@ -222,6 +222,13 @@ const restoreSections = (snapshot) => {
   ensureDefaultSection();
 };
 
+const sectionsModel = {
+  snapshot: () => serializeSections(),
+  load: (snapshot) => {
+    restoreSections(snapshot);
+  }
+};
+
 export function initWorkspaceCanvas() {
   const canvas = document.getElementById('c_canvas_root');
   const addPlotBtn = document.getElementById('c_canvas_add_plot');
@@ -1344,71 +1351,19 @@ export function initWorkspaceCanvas() {
     };
   };
 
-  const serializePanelState = (entry) => {
-    const panelId = entry?.state?.id;
-    if (!panelId) return null;
-    const modelRecord = panelsModel.getPanel(panelId);
-    const fallbackGeometry = entry?.visual || {
-      x: 0,
-      y: 0,
-      width: MIN_WIDTH,
-      height: MIN_HEIGHT
-    };
-    const geometry = modelRecord
-      ? {
-          x: coerceNumber(modelRecord.x, 0),
-          y: coerceNumber(modelRecord.y, 0),
-          width: Math.max(MIN_WIDTH, coerceNumber(modelRecord.width, MIN_WIDTH)),
-          height: Math.max(MIN_HEIGHT, coerceNumber(modelRecord.height, MIN_HEIGHT)),
-          zIndex: coerceNumber(modelRecord.zIndex, entry?.state?.zIndex ?? 1)
-        }
-      : {
-          x: coerceNumber(fallbackGeometry.x, 0),
-          y: coerceNumber(fallbackGeometry.y, 0),
-          width: Math.max(MIN_WIDTH, coerceNumber(fallbackGeometry.width, MIN_WIDTH)),
-          height: Math.max(MIN_HEIGHT, coerceNumber(fallbackGeometry.height, MIN_HEIGHT)),
-          zIndex: entry?.state?.zIndex ?? 1
-        };
-    const flags = modelRecord
-      ? {
-          collapsed: modelRecord.collapsed === true,
-          hidden: modelRecord.hidden === true,
-          sectionId: modelRecord.sectionId || DEFAULT_SECTION_ID,
-          index: coerceNumber(modelRecord.index, entry?.state?.index || 0)
-        }
-      : {
-          collapsed: entry?.state?.collapsed === true,
-          hidden: entry?.state?.hidden === true,
-          sectionId: entry?.state?.sectionId || DEFAULT_SECTION_ID,
-          index: entry?.state?.index
-        };
-    const merged = {
-      ...entry.state,
-      ...flags,
-      ...geometry
-    };
-    merged.figure = panelsModel.getPanelFigure(panelId);
-    return deepClone(merged);
-  };
-
   const snapshotState = () => ({
     counter: panelCounter,
     colorCursor,
-    sections: serializeSections(),
-    panels: Array.from(panels.values())
-      .map((entry) => serializePanelState(entry))
-      .filter(Boolean)
+    sections: sectionsModel.snapshot(),
+    panels: typeof panelsModel.snapshot === 'function'
+      ? panelsModel.snapshot()
+      : { counter: panelCounter, items: [] }
   });
 
   const persist = () => {
     const payload = {
       version: 1,
-      counter: panelCounter,
-      colorCursor,
-      sections: serializeSections(),
-      panels: Array.from(panels.values())
-        .map((entry) => serializePanelState(entry))
-        .filter(Boolean)
+      ...snapshotState()
     };
 
     try {
@@ -1458,7 +1413,7 @@ export function initWorkspaceCanvas() {
       detachPanelDom(entry.state.id);
     });
     panels.clear();
-    panelsModel.load({ counter: 0, panels: [] });
+    panelsModel.load({ counter: 0, items: [] });
     setActivePanel(null);
   };
 
@@ -1466,13 +1421,10 @@ export function initWorkspaceCanvas() {
     clearPanels();
     panelCounter = snapshot?.counter || 0;
     colorCursor = snapshot?.colorCursor || 0;
-    restoreSections(snapshot?.sections);
+    sectionsModel.load(snapshot?.sections);
 
-    const panelStates = ensureArray(snapshot?.panels).slice();
-    panelsModel.load({
-      counter: panelCounter,
-      panels: panelStates
-    });
+    const panelSnapshot = snapshot?.panels || { counter: panelCounter, items: [] };
+    panelsModel.load(panelSnapshot);
 
     panelsModel
       .getPanelsInIndexOrder()
@@ -1484,6 +1436,12 @@ export function initWorkspaceCanvas() {
           useModelState: true
         });
       });
+
+    const latestPanelSnapshot = typeof panelsModel.snapshot === 'function' ? panelsModel.snapshot() : null;
+    const loadedCounter = Number(latestPanelSnapshot?.counter);
+    if (Number.isFinite(loadedCounter)) {
+      panelCounter = Math.max(panelCounter, loadedCounter);
+    }
 
     updateCanvasState();
     renderGraphBrowser();
