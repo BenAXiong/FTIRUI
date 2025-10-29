@@ -22,8 +22,6 @@ const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
 const GRAPH_DRAG_MIME = 'application/x-ftir-workspace-graph';
-const DEBUG_PANELS = false;
-
 let colorCursor = 0;
 let sectionCounter = 0;
 
@@ -251,16 +249,6 @@ export function initWorkspaceCanvas() {
   if (!canvas || canvas.dataset.initialized === '1') return;
   canvas.dataset.initialized = '1';
 
-  const legacyWarning = (kind, detail, value) => {
-    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      if (arguments.length >= 3) {
-        console.warn(`[workspaceCanvas][legacy-${kind}]`, detail, value);
-      } else {
-        console.warn(`[workspaceCanvas][legacy-${kind}]`, detail);
-      }
-    }
-  };
-
   const panelsModel = createPanelsModel();
   const panelDomRegistry = new Map();
 
@@ -330,8 +318,6 @@ export function initWorkspaceCanvas() {
     if (!runtime) return null;
     Object.assign(runtime, patch);
     return runtime;
-  };
-
   };
 
   const history = [];
@@ -1454,11 +1440,6 @@ export function initWorkspaceCanvas() {
         });
       });
 
-    const latestPanelSnapshot = typeof panelsModel.snapshot === 'function' ? panelsModel.snapshot() : null;
-    const loadedCounter = Number(latestPanelSnapshot?.counter);
-    if (Number.isFinite(loadedCounter)) {
-    }
-
     updateCanvasState();
     renderGraphBrowser();
     persist();
@@ -2283,7 +2264,7 @@ export function initWorkspaceCanvas() {
         targetPanelId = activePanelId;
       }
     }
-  if (!targetPanelId) {
+    if (!targetPanelId) {
       getPanelsOrdered().forEach((record) => {
         const panelId = record?.id;
         if (!panelId) return;
@@ -2291,9 +2272,9 @@ export function initWorkspaceCanvas() {
         const recordSectionId = record.sectionId || DEFAULT_SECTION_ID;
         if (!descendantIds.has(recordSectionId)) return;
         const currentTargetRecord = targetPanelId ? getPanelRecord(targetPanelId) : null;
-        const currentZ = currentTargetRecord ? coerceNumber(currentTargetRecord.zIndex, 0) : 0;
+        const activeZIndex = currentTargetRecord ? coerceNumber(currentTargetRecord.zIndex, 0) : 0;
         const candidateZ = coerceNumber(record.zIndex, 0);
-        if (!targetPanelId || candidateZ > currentZ) {
+        if (!targetPanelId || candidateZ > activeZIndex) {
           targetPanelId = panelId;
         }
       });
