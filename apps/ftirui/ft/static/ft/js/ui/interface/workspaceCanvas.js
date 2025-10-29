@@ -286,17 +286,6 @@ export function initWorkspaceCanvas() {
 
   const getPanelTraces = (panelId) => panelsModel.getPanelTraces(panelId) || [];
 
-  const getPanelSectionId = (panelId) => {
-    const record = getPanelSnapshot(panelId);
-    const candidate = record?.sectionId;
-    return candidate && sections.has(candidate) ? candidate : DEFAULT_SECTION_ID;
-  };
-
-  const getPanelSection = (panelId) => {
-    const sectionId = getPanelSectionId(panelId);
-    return sections.get(sectionId) || null;
-  };
-
   const ensurePanelRuntime = (panelId) => {
     if (!panelId) return null;
     const dom = getPanelDom(panelId);
@@ -1413,7 +1402,7 @@ export function initWorkspaceCanvas() {
   };
 
   const clearPanels = () => {
-    panelDomRegistry.forEach((dom, panelId) => {
+    Array.from(panelDomRegistry.entries()).forEach(([panelId, dom]) => {
       dom?.rootEl?.remove();
       detachPanelDom(panelId);
     });

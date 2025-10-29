@@ -1,56 +1,114 @@
+# JavaScript Architecture (FTIR UI)
+
+This document captures the current layout and responsibilities of the FTIR front‑end code living under
+`apps/ftirui/ft/static/ft/js/`. It is the canonical reference when deciding where new logic should live
+and how existing modules interact.
+
+---
+
+## 1. Directory Overview
+
+```
 static/ft/js/
-├─ core/
-│  ├─ state/
-│  │  └─ index.js          -> exports `createState`, `rootFolderId`, `newId`, `newFolderId`, `nextColor`, `palette`
-│  ├─ plot/
-│  │  ├─ renderer.js       -> houses `buildData`, `buildLayout`, `render`
-│  │  └─ index.js          -> re-exports renderer helpers
-│  └─ parse/
-│     ├─ file.js           -> `parseFileToXY`, `checksumFile`
-│     ├─ preview.js        -> `downsamplePreview`
-│     └─ index.js          -> aggregates parse helpers
-├─ services/
-│  ├─ uploads.js           -> posts files to `/api/xy/`, returns payload JSON
-│  ├─ demos.js             -> retrieves demo file list/blob data
-│  └─ sessions.js          -> session save/list/get/delete requests
-└─ ui/
-   ├─ config/
-   │  └─ display.js        -> shared display configuration + `getDisplayConfig`
-   ├─ utils/
-   │  ├─ styling.js        -> `normalizeDashValue`, dash icons, colour helpers
-   │  ├─ traceMeta.js      -> metadata normalisation/summarisation
-   │  └─ dom.js            -> HTML escape helpers
-   └─ interface/
-      ├─ state.js          -> folder-tree state helpers (ensure structure, move/reorder)
-      ├─ history.js        -> history stack + undo/redo bindings
-      ├─ sessions.js       -> session modal wiring around service calls
-      ├─ dropzone.js       -> drag/drop binding + FileSystemEntry helpers
-      ├─ panel.js          -> panel toggles, empty state handling
-      ├─ folderTree.js     -> render tree, trace rows, trace drag/drop wiring
-      ├─ demos.js          -> demo button show/hide + preload orchestrator
-      ├─ inputMode.js      -> global input-mode state syncing + toggle binding
-      ├─ controls.js       -> binds global plot/input controls to state + Plotly
-      └─ index.js          -> planned bootstrap entry (future extraction)
+├── architecture_js.md   # this document
+├── workspace/           # workspace (plot canvas) domain
+│   └── canvas/          # new modular home for the plot canvas
+│       ├── controller/  # orchestration + bootstrap entry
+│       ├── core/        # DOM-agnostic utilities (ids, history, storage, schema)
+│       ├── init/        # initialization scripts for the controller
+│       ├── io/          # upload/export adapters (to be populated during migration)
+│       ├── plotting/    # Plotly layout/data helpers (extraction in progress)
+│       ├── services/    # shared service wrappers (toast, sessions, feature flags)
+│       ├── state/       # source-of-truth models (panelsModel, sectionsModel)
+│       └── ui/          # DOM bindings split by feature (browser, panel, styling, viewport)
+├── core/                # legacy modules still consumed by the workspace & other screens
+│   ├── state/           # re-exports of legacy state helpers (to be consolidated into workspace/core)
+│   ├── plot/            # Plotly renderer helpers used by non-workspace screens
+│   └── parse/           # File parsing/downsampling utilities
+├── services/            # HTTP service wrappers (uploads, demos, sessions)
+└── ui/                  # User-interface packages outside the canvas migration
+    ├── config/          # Shared display configuration
+    ├── utils/           # Styling + trace metadata + DOM helpers
+    └── interface/       # Legacy workspace UI (being replaced by workspace/canvas/ui)
+```
 
-Legacy entry-points (`core/state.js`, `core/plot.js`, `core/parse.js`) now re-export the modular equivalents so existing imports keep working during the transition.
+> **Migration status:** the monolithic `ui/interface/workspaceCanvas.js` still bootstraps the experience
+> but now delegates storage, ordering, and UI rendering to the new workspace/canvas modules. Once the
+> remaining UI fragments are extracted the legacy entry point will be removed.
 
-## Session Schema v2 (UI)
+---
 
-- `ui/interface/sessions.js` persists sessions with `version: 2` via `buildSessionState`.
-- Root payload keys: `version`, `global`, `order`, `traces`, `folders`, `folderOrder`, `ui`.
-- `traces` is a map of trace id -> trace snapshot; each trace stores runtime fields (colour, visibility, folder membership, ingest mode, meta) plus:
-  - `data.x`/`data.y`: arrays cloned from the displayed trace.
-  - `source.y` (and optional `source.x`): canonical spectra used to recompute display units on load.
-- Load path rebuilds state from the stored arrays and immediately invokes `applyDisplayUnits` so the plot reflects the active unit preference.
-- Older meta-only session files are no longer supported; attempting to load them will surface validation errors during JSON parsing instead of partial state.
-- Large spectra are written as plain JSON arrays; expect session files to scale with the number of points (~16 bytes per sample pair before compression).
-- Exporting from the UI downloads `.ben` files (JSON with `{schema: "ftir-session", version: 2, exported_at, title, state}`); importing expects the same schema and only accepts version 2 payloads.
-- Autosave mirrors the same snapshot into IndexedDB (`sciben`, store `autosave`, key `plot-session-v2`) every few seconds but only after the UI has been idle for a full interval; tab-hide/exit still forces a flush, and the indicator badge surfaces "saving/saved/error" transitions.
-- The "Clear" action wipes the current workspace, drops the autosave entry, and rehydrates the empty browser/demo state without requiring a full page reload.
-- Session modal now surfaces backend metadata (`size`, `storage`, `updated`) and disables save/load controls when authentication is required. Oversized payloads trigger HTTP 413 and the UI relays the limit message directly to users.
+## 2. Canvas Data Flow
 
-## Workspace Summary & Auth UX
+1. **Models (`workspace/canvas/state/`)**  
+   - `panelsModel.js` and `sectionsModel.js` encapsulate all persisted state: geometry, visibility,
+     traces, and section hierarchy. They expose pure functions that return immutable snapshots to the rest of the UI.
 
-- `app.js` fetches `/api/me/`, renders the header account widget, and issues `ftir:user-status` events plus toast notifications when authentication state changes.
-- `ui/interfaceB.js` listens for those events (and for session-save updates) to populate the `workspace_summary` card with login badge, cloud-session counts, and quick actions (open modal, export `.ben`).
-- Global toasts (`window.showAppToast`) replace ad-hoc alerts so session operations (save/import/delete) and auth transitions present consistent feedback.
+2. **Controller (`workspace/canvas/controller/`)**  
+   - The controller will become the single entry point when the migration finishes. Today the legacy
+     `initWorkspaceCanvas()` still performs bootstrapping, but it already leans on controller helpers
+     for viewport syncing and history coordination.
+
+3. **UI Bindings (`workspace/canvas/ui/**`)**  
+   - UI modules subscribe to model snapshots and issue write operations through the models. The legacy
+     file currently forwards events (drag/drop, clicks) to the new helpers until the final cut-over.
+
+4. **Services (`workspace/canvas/services/` + `static/ft/js/services/`)**  
+   - Network interactions (uploads, demos, session persistence) are provided by the top-level services
+     package. The workspace controller wraps these and re-exposes a typed API for the UI layer.
+
+5. **Plotting (`workspace/canvas/plotting/`)**  
+   - Plotly-specific logic is being migrated from `ui/interface/workspaceCanvas.js` into this folder.
+     The plan is to have `buildLayout`, `buildData`, and `render` in Plotly-specific modules so alternative
+     renderers can coexist in the future.
+
+---
+
+## 3. Models & Persistence
+
+| Model              | Responsibility | Notes |
+|--------------------|----------------|-------|
+| `panelsModel`      | Panel layout (position, geometry, z-index), trace list & figure payload, visibility | Now the **only** source of truth for panels; all UI reads go through helper shims. |
+| `sectionsModel`    | Section hierarchy, ordering, and collapsed state                                  | Used by the browser tree and session persistence. |
+
+Both models expose:
+
+- `register*` / `remove*` methods for CRUD operations.
+- `snapshot()` to obtain serialisable dumps for sessions/autosave.
+- Getter helpers that always return cloned data to avoid accidental mutation.
+
+The legacy session loader already uses these models and the new controller will soon wrap them for
+initialisation and undo/redo orchestration.
+
+---
+
+## 4. Services
+
+- `services/uploads.js` – handles file uploads to `/api/xy/`.
+- `services/demos.js`   – queries demo spectra.
+- `services/sessions.js`– list/save/load/delete workspace sessions.
+- `workspace/canvas/services/toast.js` – lightweight wrapper around `window.showAppToast` used by the new UI modules.
+
+All network calls return plain Promises and leave caching or retry behaviour up to the consumer.  As the
+controller matures, service access will be centralised there to keep UI modules stateless.
+
+---
+
+## 5. Migration Checklist
+
+- ✅ Models moved under `workspace/canvas/state/` and set as single source of truth.  
+- ✅ Legacy `workspaceCanvas.js` updated to read/write through the models.  
+- 🚧 UI extraction into `workspace/canvas/ui/` (browser tree, panel controls, viewport syncing).  
+- 🚧 Plot and IO helpers relocation.  
+- 🚧 Controller bootstrap replacing `initWorkspaceCanvas`.  
+- ⏳ Remove `ui/interface/workspaceCanvas.js` once consumers import the controller directly.
+
+For day-to-day work:
+
+- When adding cross-cutting utilities, prefer `workspace/canvas/core/`.  
+- When touching the legacy entry, favour delegating to a new module in the workspace package instead of adding more inline logic.  
+- Update this document whenever new folders or responsibilities appear.
+
+---
+
+Questions or suggestions? Reach out in `#ftir-frontend` and reference this document so we can keep the architecture aligned with reality. :sparkles:
