@@ -252,55 +252,68 @@ export function initWorkspaceCanvas() {
   if (!canvas || canvas.dataset.initialized === '1') return;
   canvas.dataset.initialized = '1';
 
-  const panels = new Map();
+  const legacyWarning = (kind, detail, value) => {
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      if (arguments.length >= 3) {
+        console.warn(`[workspaceCanvas][legacy-${kind}]`, detail, value);
+      } else {
+        console.warn(`[workspaceCanvas][legacy-${kind}]`, detail);
+      }
+    }
+  };
+
+  const guardLegacyState = (entry, panelId) => {
+    const wrapState = (state) => new Proxy(state || {}, {
+      set(target, prop, value) {
+        legacyWarning('entry-state-write', `${panelId}.${String(prop)}`, value);
+        return Reflect.set(target, prop, value);
+      },
+      deleteProperty(target, prop) {
+        legacyWarning('entry-state-delete', `${panelId}.${String(prop)}`);
+        return Reflect.deleteProperty(target, prop);
+      }
+    });
+
+    let stateProxy = wrapState(entry.state || {});
+
+    Object.defineProperty(entry, 'state', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return stateProxy;
+      },
+      set(next) {
+        legacyWarning('entry-state-replace', panelId, next);
+        stateProxy = wrapState(next);
+      }
+    });
+  };
+
+  const panels = new Proxy(new Map(), {
+    get(target, prop, receiver) {
+      if (prop === 'set') {
+        return function legacyGuardedSet(key, value) {
+          legacyWarning('panels-map-write', `set(${String(key)})`, value);
+          return Map.prototype.set.call(target, key, value);
+        };
+      }
+      if (prop === 'delete') {
+        return function legacyGuardedDelete(key) {
+          legacyWarning('panels-map-write', `delete(${String(key)})`);
+          return Map.prototype.delete.call(target, key);
+        };
+      }
+      if (prop === 'clear') {
+        return function legacyGuardedClear() {
+          legacyWarning('panels-map-write', 'clear()');
+          return Map.prototype.clear.call(target);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
   const panelsModel = createPanelsModel();
   const panelDomRegistry = new Map();
-
-  if (typeof panelsModel.setCollapsed !== 'function' && typeof panelsModel.setPanelCollapsed === 'function') {
-    panelsModel.setCollapsed = (...args) => panelsModel.setPanelCollapsed(...args);
-  }
-  if (typeof panelsModel.setHidden !== 'function' && typeof panelsModel.setPanelHidden === 'function') {
-    panelsModel.setHidden = (...args) => panelsModel.setPanelHidden(...args);
-  }
-  if (typeof panelsModel.attachToSection !== 'function' && typeof panelsModel.setPanelSection === 'function') {
-    panelsModel.attachToSection = (...args) => panelsModel.setPanelSection(...args);
-  }
-
-  const getPanelRecord = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
-
-  const debugSyncPanels = (panelId = null) => {
-    if (!DEBUG_PANELS) return;
-    const first = panels.keys().next();
-    const targetId = panelId || (first.done ? null : first.value);
-    if (!targetId) return;
-    const domEntry = panelDomRegistry.get(targetId);
-    console.assert(domEntry?.rootEl, `Panel DOM missing rootEl for ${targetId}`);
-    console.assert(domEntry?.plotEl, `Panel DOM missing plotEl for ${targetId}`);
-  };
-
-  const registerPanelDom = (panelId, refs = {}) => {
-    if (!panelId) return;
-    panelDomRegistry.set(panelId, {
-      rootEl: refs.rootEl ?? null,
-      headerEl: refs.headerEl ?? null,
-      plotEl: refs.plotEl ?? null
-    });
-    debugSyncPanels(panelId);
-  };
-
-  const getPanelDom = (panelId) => {
-    if (!panelId) return null;
-    const domEntry = panelDomRegistry.get(panelId) || null;
-    if (!domEntry && DEBUG_PANELS) {
-      console.warn('[workspaceCanvas] Missing DOM refs for panel:', panelId);
-    }
-    return domEntry;
-  };
-
-  const detachPanelDom = (panelId) => {
-    if (!panelId) return;
-    panelDomRegistry.delete(panelId);
-  };
 
   const history = [];
   const future = [];
@@ -1413,9 +1426,9 @@ export function initWorkspaceCanvas() {
       detachPanelDom(entry.state.id);
     });
     panels.clear();
-    panelsModel.load({ counter: 0, items: [] });
-    setActivePanel(null);
-  };
+  panelsModel.load({ counter: 0, items: [] });
+  setActivePanel(null);
+};
 
   const restoreSnapshot = (snapshot, { skipHistory = false } = {}) => {
     clearPanels();
@@ -2602,6 +2615,7 @@ export function initWorkspaceCanvas() {
         height: baseHeight
       })
     };
+    guardLegacyState(entry, baseState.id);
 
     const panelEl = document.createElement('div');
     panelEl.className = 'workspace-panel';
