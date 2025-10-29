@@ -6,6 +6,9 @@ import { applyLineChip } from '../utils/styling_linechip.js';
 import { toHexColor } from '../utils/styling.js';
 import { escapeHtml } from '../utils/dom.js';
 
+import * as Render from '../../workspace/canvas/plotting/render.js';
+import * as Actions from '../../workspace/canvas/plotting/actionsController.js';
+
 const STORAGE_KEY = 'ftir.workspace.canvas.v1';
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -276,6 +279,72 @@ export function initWorkspaceCanvas() {
     if (!panelId) return;
     panelDomRegistry.delete(panelId);
   };
+
+
+  /* ----------------HLEPRS FOR MIGRATION------------*/
+
+  // must return the plot container from your DOM registry
+  function getPlotContainerEl(panelId) {
+    const refs = getPanelDom(panelId);      // you already have this from the DOM registry
+    return refs?.plotEl;
+  }
+
+  // read the current figure from your model/accessor
+  function getFigureById(panelId) {
+    return getPanelFigure(panelId);         // you said this accessor exists
+  }
+
+  // write back to the model (and optionally queue persistence)
+  function setFigureById(panelId, nextFigure) {
+    // You likely already have a PanelsModel setter; if not, add one earlier.
+    panelsModel.updatePanelFigure(panelId, nextFigure);
+    // If you maintain history/persist, call your existing hooks here.
+  }
+
+  // ---- Plot façade: the ONLY thing UI code calls from here on ----
+  const Plot = {
+    renderNow(panelId) {
+      const el = getPlotContainerEl(panelId);
+      if (!el) return;
+      const fig = getFigureById(panelId);
+      if (!Render.isRendered(el)) {
+        return Render.renderInitial(panelId, el, fig);
+      }
+      return Render.renderUpdate(panelId, el, fig);
+    },
+
+    scheduleRender(panelId) {
+      // If you already had throttling logic, call it here.
+      // Default: just render immediately.
+      return this.renderNow(panelId);
+    },
+
+    applyLayoutPatch(panelId, patch) {
+      // Route generic patches through the actions controller
+      Actions.applyLayout(panelId, patch);
+    },
+
+    exportFigure(panelId, opts) {
+      const el = getPlotContainerEl(panelId);
+      return Render.exportFigure(panelId, el, opts);
+    },
+
+    resize(panelId) {
+      const el = getPlotContainerEl(panelId);
+      return Render.resize(panelId, el);
+    }
+  };
+
+  // This gives actionsController.js access to the model read/write 
+  // and render trigger, without importing your models directly.
+  Actions.__wire({
+    getFigureById,
+    setFigureById,
+    renderNow: (panelId) => Plot.renderNow(panelId)
+  });
+
+
+
 
   const getPanelSnapshot = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
   const getPanelRecord = getPanelSnapshot;
@@ -749,7 +818,7 @@ export function initWorkspaceCanvas() {
     };
     panelsModel.updatePanelFigure(panelId, nextFigure);
 
-    Plotly.relayout(dom.plotEl, patchObj);
+    Plot.applyLayoutPatch(panelId, patchObj);
     persist();
     updateHistoryButtons();
   }
@@ -1226,8 +1295,12 @@ export function initWorkspaceCanvas() {
       case 'export': {
         const dom = getPanelDom(panelId);
         if (!dom?.plotEl) return;
-        Plotly.toImage(dom.plotEl, { format: 'png', scale: 2 })
-          .then((url) => { const a=document.createElement('a'); a.href=url; a.download='plot.png'; a.click(); });
+        Plot.exportFigure(panelId, { format: 'png', scale: 2 }).then((url) => {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'plot.png';
+          a.click();
+        });
         break;
       }
 
@@ -1455,21 +1528,8 @@ export function initWorkspaceCanvas() {
   };
 
   const renderPlot = (panelId) => {
-    if (typeof Plotly === 'undefined') return;
     if (!panelId) return;
-    const dom = getPanelDom(panelId);
-    if (!dom?.plotEl) return;
-    const figure = getPanelFigure(panelId);
-    const data = ensureArray(figure.data);
-    const layout = figure.layout && typeof figure.layout === 'object'
-      ? figure.layout
-      : defaultLayout();
-    Plotly.react(
-      dom.plotEl,
-      data,
-      layout || defaultLayout(),
-      { displaylogo: false, responsive: true }
-    );
+    Plot.renderNow(panelId);
   };
 
   const updateTraceChip = (rowEl, trace) => {
@@ -1568,8 +1628,8 @@ export function initWorkspaceCanvas() {
         rootEl.classList.toggle('is-collapsed', record.collapsed === true);
       }
       const plotHost = dom?.plotEl;
-      if (shouldShow && plotHost && typeof Plotly?.Plots?.resize === 'function') {
-        Plotly.Plots.resize(plotHost);
+      if (shouldShow) {
+        Plot.resize(panelId);
       }
     });
   };
@@ -3732,8 +3792,8 @@ export function initWorkspaceCanvas() {
       const latest = panelsModel.getPanel(panelId);
       applyPanelGeometry(panelId, latest || normalized);
       dom?.runtime?.refreshActionOverflow?.();
-      if (plotHost && typeof Plotly?.Plots?.resize === 'function') {
-        Plotly.Plots.resize(plotHost);
+      if (plotHost) {
+        Plot.resize(panelId);;
       }
 
       updatePanelRuntime(panelId, { dragSnapshot: null });
@@ -3806,8 +3866,8 @@ export function initWorkspaceCanvas() {
             snapshot.current = next;
             applyPanelGeometry(panelId, next);
             dom?.runtime?.refreshActionOverflow?.();
-            if (plotHost && typeof Plotly?.Plots?.resize === 'function') {
-              Plotly.Plots.resize(plotHost);
+            if (plotHost) {
+              Plot.resize(panelId);;
             }
           },
           end: () => {
@@ -4052,8 +4112,8 @@ export function initWorkspaceCanvas() {
   window.addEventListener('resize', () => {
     panelDomRegistry.forEach((dom, panelId) => {
       applyPanelGeometry(panelId);
-      if (dom?.plotEl && typeof Plotly?.Plots?.resize === 'function') {
-        Plotly.Plots.resize(dom.plotEl);
+      if (dom?.plotEl) {
+        Plot.resize(panelId);;
       }
       dom?.runtime?.refreshActionOverflow?.();
     });
@@ -4071,7 +4131,21 @@ export function initWorkspaceCanvas() {
   }
 
   requestLayoutSync();
+
+  // -- Debug hooks (non-production) -------------------------------
+  if (typeof window !== 'undefined') {
+    // List panel IDs quickly: window._panels()
+    window._panels = () =>
+      Array.from(document.querySelectorAll('.workspace-panel'))
+        .map(n => n.dataset.panelId);
+
+    // Quick access in console:
+    window.Actions = Actions;   // <-- so `typeof Actions` becomes "object"
+    window._Plot = Plot;        // <-- so `_Plot.renderNow(id)` is callable
+  }
+
 }
+
 
 
 
