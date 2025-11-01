@@ -4134,16 +4134,16 @@ export function initWorkspaceCanvas() {
   requestLayoutSync();
 
   // -- Debug hooks (non-production) -------------------------------
-  if (typeof window !== 'undefined') {
-    // List panel IDs quickly: window._panels()
-    window._panels = () =>
-      Array.from(document.querySelectorAll('.workspace-panel'))
-        .map(n => n.dataset.panelId);
-
-    // Quick access in console:
-    window.Actions = Actions;   // <-- so `typeof Actions` becomes "object"
-    window._Plot = Plot;        // <-- so `_Plot.renderNow(id)` is callable
-  }
+  // if (typeof window !== 'undefined') {
+  //   // List panel IDs quickly: window._panels()
+  //   window._panels = () =>
+  //     Array.from(document.querySelectorAll('.workspace-panel'))
+  //       .map(n => n.dataset.panelId);
+  //
+  //   // Quick access in console:
+  //   window.Actions = Actions;   // <-- so `typeof Actions` becomes "object"
+  //   window._Plot = Plot;        // <-- so `_Plot.renderNow(id)` is callable
+  // }
 
 }
 
