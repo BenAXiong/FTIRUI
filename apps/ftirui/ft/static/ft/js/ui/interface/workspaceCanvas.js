@@ -807,42 +807,31 @@ export function initWorkspaceCanvas() {
   const hasOwn = Object.prototype.hasOwnProperty;
   const isPrimaryAxis = (axisKey) => axisKey === 'xaxis' || axisKey === 'yaxis';
 
-  const ensureAxisState = (layout, axisKey) => {
-    if (!layout || typeof layout !== 'object') return null;
-    const existing = layout[axisKey];
-    if (existing && typeof existing === 'object') return existing;
-    layout[axisKey] = {};
-    return layout[axisKey];
+  const getAxisState = (panelId, figure, axisKey) => {
+    const layout = figure?.layout;
+    const fromModel = layout && typeof layout === 'object' && typeof layout[axisKey] === 'object'
+      ? layout[axisKey]
+      : null;
+    if (fromModel) return fromModel;
+    const runtime = getPanelDom(panelId)?.plotEl?.layout?.[axisKey];
+    return typeof runtime === 'object' ? runtime : null;
   };
 
   const axisExists = (panelId, figure, axisKey) => {
     if (isPrimaryAxis(axisKey)) return true;
-    if (!figure) return false;
-    const layout = figure.layout && typeof figure.layout === 'object' ? figure.layout : (figure.layout = {});
-    if (typeof layout[axisKey] === 'object') {
-      return true;
-    }
-    const dom = getPanelDom(panelId);
-    const runtimeAxis = dom?.plotEl?.layout?.[axisKey];
-    if (runtimeAxis && typeof runtimeAxis === 'object') {
-      const copied = deepClone(runtimeAxis);
-      layout[axisKey] = { ...(layout[axisKey] || {}), ...copied };
-      return true;
-    }
-    return false;
+    return !!getAxisState(panelId, figure, axisKey);
   };
 
   const forEachAxis = (panelId, figure, axes, cb) => {
-    const layout = figure?.layout || {};
     axes.forEach((axis) => {
       if (!axisExists(panelId, figure, axis)) return;
-      const axisState = ensureAxisState(layout, axis) || {};
+      const axisState = getAxisState(panelId, figure, axis) || {};
       cb(axis, axisState);
     });
   };
 
-  const preserveAxisDecorations = (layout, axisKey, patch) => {
-    const axisState = layout?.[axisKey];
+  const preserveAxisDecorations = (panelId, figure, axisKey, patch) => {
+    const axisState = getAxisState(panelId, figure, axisKey);
     if (!axisState) return;
     if (hasOwn.call(axisState, 'showgrid')) {
       patch[`${axisKey}.showgrid`] = axisState.showgrid;
@@ -1129,10 +1118,10 @@ export function initWorkspaceCanvas() {
         if (hasX2) patch['xaxis2.ticks'] = p;
         if (hasY2) patch['yaxis2.ticks'] = p;
 
-        preserveAxisDecorations(layout, 'xaxis', patch);
-        preserveAxisDecorations(layout, 'yaxis', patch);
-        if (hasX2) preserveAxisDecorations(layout, 'xaxis2', patch);
-        if (hasY2) preserveAxisDecorations(layout, 'yaxis2', patch);
+        preserveAxisDecorations(panelId, figure, 'xaxis', patch);
+        preserveAxisDecorations(panelId, figure, 'yaxis', patch);
+        if (hasX2) preserveAxisDecorations(panelId, figure, 'xaxis2', patch);
+        if (hasY2) preserveAxisDecorations(panelId, figure, 'yaxis2', patch);
 
         applyLayoutPatch(patch);
         break;
@@ -1243,10 +1232,10 @@ export function initWorkspaceCanvas() {
         }
 
         // keep existing grid/line state only if explicitly configured
-        preserveAxisDecorations(layout, 'xaxis', patch);
-        preserveAxisDecorations(layout, 'yaxis', patch);
-        if (hasX2) preserveAxisDecorations(layout, 'xaxis2', patch);
-        if (hasY2) preserveAxisDecorations(layout, 'yaxis2', patch);
+        preserveAxisDecorations(panelId, figure, 'xaxis', patch);
+        preserveAxisDecorations(panelId, figure, 'yaxis', patch);
+        if (hasX2) preserveAxisDecorations(panelId, figure, 'xaxis2', patch);
+        if (hasY2) preserveAxisDecorations(panelId, figure, 'yaxis2', patch);
 
         applyLayoutPatch(patch);
         break;
