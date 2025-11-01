@@ -768,60 +768,13 @@ export function initWorkspaceCanvas() {
     if (panelDom.redo) panelDom.redo.disabled = future.length === 0;
   };
 
-  const applyDottedLayoutKey = (layout, dottedKey, value) => {
-    if (!layout || typeof layout !== 'object' || typeof dottedKey !== 'string') return;
-    const segments = dottedKey
-      .split('.')
-      .map((segment) => segment.trim())
-      .filter(Boolean);
-    if (!segments.length) return;
-
-    let node = layout;
-    for (let i = 0; i < segments.length - 1; i += 1) {
-      const key = segments[i];
-      const existing = node[key];
-      if (!existing || typeof existing !== 'object') {
-        node[key] = {};
-      }
-      node = node[key];
-    }
-
-    node[segments[segments.length - 1]] = value;
-  };
-
-  // === Plot layout patch helper (used by header icons) =========================
-  function patchLayout(panelId, patchObj) {
-    if (!panelId) return;
-    const dom = getPanelDom(panelId);
-    if (!dom?.plotEl) return;
-
-    pushHistory();
-
-    const figure = getPanelFigure(panelId);
-    const layout = figure.layout && typeof figure.layout === 'object' ? { ...figure.layout } : {};
-
-    for (const [key, val] of Object.entries(patchObj || {})) {
-      if (key.includes('.')) {
-        applyDottedLayoutKey(layout, key, val);
-        continue;
-      }
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
-        layout[key] = { ...(layout[key] || {}), ...val };
-      } else {
-        layout[key] = val;
-      }
-    }
-
-    const nextFigure = {
-      ...figure,
-      layout
-    };
-    panelsModel.updatePanelFigure(panelId, nextFigure);
-
-    Plot.applyLayoutPatch(panelId, patchObj);
-    persist();
-    updateHistoryButtons();
-  }
+  const SIMPLE_LAYOUT_INTENTS = new Set([
+    'legend',
+    'yscale-log',
+    'yscale-linear',
+    'xscale-log',
+    'xscale-linear'
+  ]);
 
   const hasOwn = Object.prototype.hasOwnProperty;
   const isPrimaryAxis = (axisKey) => axisKey === 'xaxis' || axisKey === 'yaxis';
@@ -874,6 +827,23 @@ export function initWorkspaceCanvas() {
   // === Header actions dispatcher (used by header buttons & popovers) ===========
   function handleHeaderAction(panelId, act, payload = {}) {
     if (!panelId) return;
+
+    const applyLayoutPatch = (patch) => {
+      if (!patch || typeof patch !== 'object' || !Object.keys(patch).length) {
+        return false;
+      }
+      pushHistory();
+      Actions.applyLayout(panelId, patch);
+      persist();
+      updateHistoryButtons();
+      return true;
+    };
+
+    const simpleIntent = SIMPLE_LAYOUT_INTENTS.has(act);
+    if (simpleIntent) {
+      pushHistory();
+    }
+
     const dom = getPanelDom(panelId);
     switch (act) {
       // 1) MVP #1: Crosshair / cursor toggle
@@ -901,7 +871,7 @@ export function initWorkspaceCanvas() {
               'yaxis.showspikes': false
             };
 
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -917,7 +887,7 @@ export function initWorkspaceCanvas() {
         const yColor = layout?.yaxis?.linecolor || '#444';
 
         // Only touch linewidth/gridwidth/linecolor using dotted keys ΓÇö do NOT send xaxis:{...}
-        patchLayout(panelId, {
+        applyLayoutPatch({
           'xaxis.linewidth': w,
           'yaxis.linewidth': w,
           'xaxis.gridwidth': Math.max(0, Math.round(w * 0.75)),
@@ -935,7 +905,7 @@ export function initWorkspaceCanvas() {
         const xColor = layout?.xaxis?.linecolor || '#444';
         const yColor = layout?.yaxis?.linecolor || '#444';
 
-        patchLayout(panelId, {
+        applyLayoutPatch({
           'xaxis.linewidth': w,
           'yaxis.linewidth': w,
           'xaxis.linecolor': xColor,
@@ -1007,19 +977,34 @@ export function initWorkspaceCanvas() {
         }
 
 
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
 
       
       case 'legend': {
-        patchLayout(panelId, { showlegend: !!payload.on });
+        Actions.toggleLegend(panelId);
         break;
       }
 
       case 'yscale-log': {
-        patchLayout(panelId, { 'yaxis.type': payload.on ? 'log' : 'linear' });
+        Actions.setAxisType(panelId, 'yaxis', 'log');
+        break;
+      }
+
+      case 'yscale-linear': {
+        Actions.setAxisType(panelId, 'yaxis', 'linear');
+        break;
+      }
+
+      case 'xscale-log': {
+        Actions.setAxisType(panelId, 'xaxis', 'log');
+        break;
+      }
+
+      case 'xscale-linear': {
+        Actions.setAxisType(panelId, 'xaxis', 'linear');
         break;
       }
 
@@ -1038,7 +1023,7 @@ export function initWorkspaceCanvas() {
           patch[`${axis}.showgrid`] = on;
         });
         if (Object.keys(patch).length) {
-          patchLayout(panelId, patch);
+          applyLayoutPatch(patch);
         }
         break;
       }
@@ -1055,7 +1040,7 @@ export function initWorkspaceCanvas() {
           patch[`${axis}.minor.gridwidth`] = 1;
         });
         if (Object.keys(patch).length) {
-          patchLayout(panelId, patch);
+          applyLayoutPatch(patch);
         }
         break;
       }
@@ -1091,7 +1076,7 @@ export function initWorkspaceCanvas() {
 
         // Apply only if we have something to set; otherwise no-op
         if (Object.keys(patch).length) {
-          patchLayout(panelId, patch);
+          applyLayoutPatch(patch);
         }
         break;
       }
@@ -1099,7 +1084,7 @@ export function initWorkspaceCanvas() {
 
       case 'ticklabels': {
         const on = !!payload.on;
-        patchLayout(panelId, { 'xaxis.showticklabels': on, 'yaxis.showticklabels': on });
+        applyLayoutPatch({ 'xaxis.showticklabels': on, 'yaxis.showticklabels': on });
         break;
       }
 
@@ -1121,7 +1106,7 @@ export function initWorkspaceCanvas() {
         if (hasX2) preserveAxisDecorations(layout, 'xaxis2', patch);
         if (hasY2) preserveAxisDecorations(layout, 'yaxis2', patch);
 
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -1135,7 +1120,7 @@ export function initWorkspaceCanvas() {
         };
         if (axisExists(panelId, figure, 'xaxis2')) patch['xaxis2.showticklabels'] = on;
         if (axisExists(panelId, figure, 'yaxis2')) patch['yaxis2.showticklabels'] = on;
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -1153,7 +1138,7 @@ export function initWorkspaceCanvas() {
           patch['yaxis.tick0'] = payload.y0;
           if (hasY2) patch['yaxis2.tick0'] = payload.y0;
         }
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -1171,7 +1156,7 @@ export function initWorkspaceCanvas() {
           patch['yaxis.dtick'] = payload.dy;
           if (hasY2) patch['yaxis2.dtick'] = payload.dy;
         }
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -1201,7 +1186,7 @@ export function initWorkspaceCanvas() {
             patch['yaxis2.minor.dtick'] = null;
           }
         }
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -1235,7 +1220,7 @@ export function initWorkspaceCanvas() {
         if (hasX2) preserveAxisDecorations(layout, 'xaxis2', patch);
         if (hasY2) preserveAxisDecorations(layout, 'yaxis2', patch);
 
-        patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -1264,7 +1249,7 @@ export function initWorkspaceCanvas() {
 
         forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinor);
 
-        if (Object.keys(patch).length) patchLayout(panelId, patch);
+        applyLayoutPatch(patch);
         break;
       }
 
@@ -1309,6 +1294,11 @@ export function initWorkspaceCanvas() {
         console.warn('Unhandled header action:', act, payload);
         break;
       }
+    }
+
+    if (simpleIntent) {
+      persist();
+      updateHistoryButtons();
     }
   }
 
@@ -3392,7 +3382,7 @@ export function initWorkspaceCanvas() {
       scaleBtn.setAttribute('aria-pressed', String(isLog));
       scaleBtn.innerHTML = isLog ? '<i class="bi bi-graph-down"></i>' : '<i class="bi bi-graph-up"></i>';
       scaleBtn.title = isLog ? 'Scale: Log' : 'Scale: Linear';
-      handleHeaderAction(panelId, 'yscale-log', { on: isLog });
+      handleHeaderAction(panelId, isLog ? 'yscale-log' : 'yscale-linear');
     });
     controlsWrapper.appendChild(scaleBtn);
 
@@ -3400,7 +3390,7 @@ export function initWorkspaceCanvas() {
       icon: 'bi-list-ul',
       title: 'Toggle legend',
       pressed: true,
-      onClick: (on) => handleHeaderAction(panelId, 'legend', { on })
+      onClick: () => handleHeaderAction(panelId, 'legend')
     });
     controlsWrapper.appendChild(legendBtn);
 

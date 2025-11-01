@@ -46,16 +46,17 @@ export function setFigure(panelId, figure) {
 }
 
 // Toggle Plotly legend visibility
-
-export function toggleLegend(panelId){
-    const cur = _getFigureById(panelId);
-    const show = !(cur?.layout.showLegend ??true);
-    applyLayout(panelId, {'showlegend': show })
+export function toggleLegend(panelId) {
+  if (!_getFigureById) return;
+  const cur = _getFigureById(panelId);
+  const current = !!cur?.layout?.showlegend;
+  applyLayout(panelId, { showlegend: !current });
 }
 
-// Set axis type: acisKey is 'xaxis' or 'yaxis', type is 'linear'|'log'|'category'|'date'
-export function setAxisType(panelId, axisId, type){
-    applyLayout(panelId, { [`${axisKey}.type`]: type})
+// Set axis type: axisKey is 'xaxis' or 'yaxis', type is 'linear'|'log'|'category'|'date'
+export function setAxisType(panelId, axisKey, type) {
+  if (!axisKey) return;
+  applyLayout(panelId, { [`${axisKey}.type`]: type });
 }
 
 // Toggle major grid for a given axis ('xaxis' | 'yaxis')
