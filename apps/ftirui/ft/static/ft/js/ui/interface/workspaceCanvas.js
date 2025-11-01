@@ -796,14 +796,6 @@ export function initWorkspaceCanvas() {
     if (panelDom.redo) panelDom.redo.disabled = future.length === 0;
   };
 
-  const SIMPLE_LAYOUT_INTENTS = new Set([
-    'legend',
-    'yscale-log',
-    'yscale-linear',
-    'xscale-log',
-    'xscale-linear'
-  ]);
-
   const hasOwn = Object.prototype.hasOwnProperty;
   const isPrimaryAxis = (axisKey) => axisKey === 'xaxis' || axisKey === 'yaxis';
 
@@ -845,21 +837,22 @@ export function initWorkspaceCanvas() {
   function handleHeaderAction(panelId, act, payload = {}) {
     if (!panelId) return;
 
-    const applyLayoutPatch = (patch) => {
-      if (!patch || typeof patch !== 'object' || !Object.keys(patch).length) {
-        return false;
-      }
+    const runLayoutMutations = (...mutations) => {
+      const tasks = mutations.filter((fn) => typeof fn === 'function');
+      if (!tasks.length) return false;
       pushHistory();
-      Actions.applyLayout(panelId, patch);
+      tasks.forEach((fn) => fn());
       persist();
       updateHistoryButtons();
       return true;
     };
 
-    const simpleIntent = SIMPLE_LAYOUT_INTENTS.has(act);
-    if (simpleIntent) {
-      pushHistory();
-    }
+    const commitLayoutPatch = (patch) => {
+      if (!patch || typeof patch !== 'object' || !Object.keys(patch).length) {
+        return false;
+      }
+      return runLayoutMutations(() => Actions.applyLayout(panelId, patch));
+    };
 
     const dom = getPanelDom(panelId);
     switch (act) {
@@ -872,7 +865,6 @@ export function initWorkspaceCanvas() {
         // - spikes add visible crosshair lines along axes
         const patch = on
           ? {
-              hovermode: 'x',
               'xaxis.showspikes': true,
               'yaxis.showspikes': true,
               'xaxis.spikemode': 'across',
@@ -883,12 +875,14 @@ export function initWorkspaceCanvas() {
               'yaxis.spikethickness': 1
             }
           : {
-              hovermode: 'closest',
               'xaxis.showspikes': false,
               'yaxis.showspikes': false
             };
 
-        applyLayoutPatch(patch);
+        runLayoutMutations(
+          () => Actions.setHoverMode(panelId, on ? 'x' : 'closest'),
+          () => Actions.applyLayout(panelId, patch)
+        );
         break;
       }
 
@@ -904,7 +898,7 @@ export function initWorkspaceCanvas() {
         const yColor = layout?.yaxis?.linecolor || '#444';
 
         // Only touch linewidth/gridwidth/linecolor using dotted keys ΓÇö do NOT send xaxis:{...}
-        applyLayoutPatch({
+        commitLayoutPatch({
           'xaxis.linewidth': w,
           'yaxis.linewidth': w,
           'xaxis.gridwidth': Math.max(0, Math.round(w * 0.75)),
@@ -922,7 +916,7 @@ export function initWorkspaceCanvas() {
         const xColor = layout?.xaxis?.linecolor || '#444';
         const yColor = layout?.yaxis?.linecolor || '#444';
 
-        applyLayoutPatch({
+        commitLayoutPatch({
           'xaxis.linewidth': w,
           'yaxis.linewidth': w,
           'xaxis.linecolor': xColor,
@@ -994,34 +988,34 @@ export function initWorkspaceCanvas() {
         }
 
 
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
 
       
       case 'legend': {
-        Actions.toggleLegend(panelId);
+        runLayoutMutations(() => Actions.toggleLegend(panelId));
         break;
       }
 
       case 'yscale-log': {
-        Actions.setAxisType(panelId, 'yaxis', 'log');
+        runLayoutMutations(() => Actions.setAxisType(panelId, 'yaxis', 'log'));
         break;
       }
 
       case 'yscale-linear': {
-        Actions.setAxisType(panelId, 'yaxis', 'linear');
+        runLayoutMutations(() => Actions.setAxisType(panelId, 'yaxis', 'linear'));
         break;
       }
 
       case 'xscale-log': {
-        Actions.setAxisType(panelId, 'xaxis', 'log');
+        runLayoutMutations(() => Actions.setAxisType(panelId, 'xaxis', 'log'));
         break;
       }
 
       case 'xscale-linear': {
-        Actions.setAxisType(panelId, 'xaxis', 'linear');
+        runLayoutMutations(() => Actions.setAxisType(panelId, 'xaxis', 'linear'));
         break;
       }
 
@@ -1040,7 +1034,7 @@ export function initWorkspaceCanvas() {
           patch[`${axis}.showgrid`] = on;
         });
         if (Object.keys(patch).length) {
-          applyLayoutPatch(patch);
+          commitLayoutPatch(patch);
         }
         break;
       }
@@ -1057,7 +1051,7 @@ export function initWorkspaceCanvas() {
           patch[`${axis}.minor.gridwidth`] = 1;
         });
         if (Object.keys(patch).length) {
-          applyLayoutPatch(patch);
+          commitLayoutPatch(patch);
         }
         break;
       }
@@ -1093,7 +1087,7 @@ export function initWorkspaceCanvas() {
 
         // Apply only if we have something to set; otherwise no-op
         if (Object.keys(patch).length) {
-          applyLayoutPatch(patch);
+          commitLayoutPatch(patch);
         }
         break;
       }
@@ -1101,7 +1095,7 @@ export function initWorkspaceCanvas() {
 
       case 'ticklabels': {
         const on = !!payload.on;
-        applyLayoutPatch({ 'xaxis.showticklabels': on, 'yaxis.showticklabels': on });
+        commitLayoutPatch({ 'xaxis.showticklabels': on, 'yaxis.showticklabels': on });
         break;
       }
 
@@ -1123,7 +1117,7 @@ export function initWorkspaceCanvas() {
         if (hasX2) preserveAxisDecorations(panelId, figure, 'xaxis2', patch);
         if (hasY2) preserveAxisDecorations(panelId, figure, 'yaxis2', patch);
 
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
@@ -1137,7 +1131,7 @@ export function initWorkspaceCanvas() {
         };
         if (axisExists(panelId, figure, 'xaxis2')) patch['xaxis2.showticklabels'] = on;
         if (axisExists(panelId, figure, 'yaxis2')) patch['yaxis2.showticklabels'] = on;
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
@@ -1155,7 +1149,7 @@ export function initWorkspaceCanvas() {
           patch['yaxis.tick0'] = payload.y0;
           if (hasY2) patch['yaxis2.tick0'] = payload.y0;
         }
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
@@ -1173,7 +1167,7 @@ export function initWorkspaceCanvas() {
           patch['yaxis.dtick'] = payload.dy;
           if (hasY2) patch['yaxis2.dtick'] = payload.dy;
         }
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
@@ -1203,7 +1197,7 @@ export function initWorkspaceCanvas() {
             patch['yaxis2.minor.dtick'] = null;
           }
         }
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
@@ -1237,7 +1231,7 @@ export function initWorkspaceCanvas() {
         if (hasX2) preserveAxisDecorations(panelId, figure, 'xaxis2', patch);
         if (hasY2) preserveAxisDecorations(panelId, figure, 'yaxis2', patch);
 
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
@@ -1266,7 +1260,7 @@ export function initWorkspaceCanvas() {
 
         forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinor);
 
-        applyLayoutPatch(patch);
+        commitLayoutPatch(patch);
         break;
       }
 
@@ -4140,16 +4134,16 @@ export function initWorkspaceCanvas() {
   requestLayoutSync();
 
   // -- Debug hooks (non-production) -------------------------------
-  if (typeof window !== 'undefined') {
-    // List panel IDs quickly: window._panels()
-    window._panels = () =>
-      Array.from(document.querySelectorAll('.workspace-panel'))
-        .map(n => n.dataset.panelId);
-
-    // Quick access in console:
-    window.Actions = Actions;   // <-- so `typeof Actions` becomes "object"
-    window._Plot = Plot;        // <-- so `_Plot.renderNow(id)` is callable
-  }
+  // if (typeof window !== 'undefined') {
+  //   // List panel IDs quickly: window._panels()
+  //   window._panels = () =>
+  //     Array.from(document.querySelectorAll('.workspace-panel'))
+  //       .map(n => n.dataset.panelId);
+  //
+  //   // Quick access in console:
+  //   window.Actions = Actions;   // <-- so `typeof Actions` becomes "object"
+  //   window._Plot = Plot;        // <-- so `_Plot.renderNow(id)` is callable
+  // }
 
 }
 

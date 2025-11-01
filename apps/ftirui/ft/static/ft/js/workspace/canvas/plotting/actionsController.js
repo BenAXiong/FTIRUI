@@ -66,6 +66,44 @@ export function toggleMajorGrid(panelId, axisKey) {
   applyLayout(panelId, { [`${axisKey}.showgrid`]: !curr });
 }
 
+// Toggle minor grid visibility for an axis ('xaxis' | 'yaxis')
+export function toggleMinorGrid(panelId, axisKey) {
+  const cur = _getFigureById(panelId);
+  const current = !!cur?.layout?.[axisKey]?.minor?.show;
+  const patch = {
+    [`${axisKey}.minor.show`]: !current,
+    [`${axisKey}.minor.showgrid`]: !current
+  };
+  applyLayout(panelId, patch);
+}
+
+// Enable/disable axis zero line
+export function setZeroLine(panelId, axisKey, enabled) {
+  applyLayout(panelId, { [`${axisKey}.zeroline`]: !!enabled });
+}
+
+// Set legend orientation: 'h' | 'v'
+export function setLegendOrientation(panelId, orientation) {
+  if (!orientation) return;
+  applyLayout(panelId, { 'legend.orientation': orientation });
+}
+
+// Set plot margins
+export function setMargins(panelId, { l, r, t, b } = {}) {
+  const patch = {};
+  if (Number.isFinite(l)) patch['margin.l'] = l;
+  if (Number.isFinite(r)) patch['margin.r'] = r;
+  if (Number.isFinite(t)) patch['margin.t'] = t;
+  if (Number.isFinite(b)) patch['margin.b'] = b;
+  if (Object.keys(patch).length === 0) return;
+  applyLayout(panelId, patch);
+}
+
+// Set hovermode
+export function setHoverMode(panelId, mode) {
+  applyLayout(panelId, { hovermode: mode || false });
+}
+
 // Set line width for a trace by index (simple, index-based version)
 export function setTraceLineWidth(panelId, traceIndex, widthPx = 2) {
   if (!_getFigureById || !_setFigureById || !_renderNow) return;
