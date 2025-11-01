@@ -43,6 +43,10 @@ export async function renderInitial(panelId, containerEl, figure) {
 
 export async function renderUpdate(panelId, containerEl, figure) {
   if (!containerEl) throw new Error('renderUpdate: missing containerEl');
+  if (!isRendered(containerEl)) {
+    await renderInitial(panelId, containerEl, figure);
+    return;
+  }
   // eslint-disable-next-line no-undef
   await Plotly.react(containerEl, figure?.data ?? [], figure?.layout ?? {}, {
     responsive: true,
