@@ -1,0 +1,1 @@
+// This module will orchestrate DOM lookups (from base.html), construct a controller, and delegate to models/UI. Not referenced yet.

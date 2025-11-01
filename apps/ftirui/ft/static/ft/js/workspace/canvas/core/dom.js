@@ -1,0 +1,1 @@
+// reserved for DOM-agnostic helpers like escapeHtml (your app already has a toast container and many IDs in the template

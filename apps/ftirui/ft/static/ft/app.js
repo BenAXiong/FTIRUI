@@ -1,5 +1,7 @@
 import { createState }   from './js/core/state.js';
 import { initUI_IntB } from './js/ui/interfaceB.js';
+import { initWorkspaceCanvas } from './js/ui/interface/workspaceCanvas.js';
+import { getCsrfToken } from './js/lib/csrf.js';
 
 // Option A likely already initializes somewhere else.
 // If not, you can do a similar instance for A later.
@@ -14,7 +16,7 @@ const setTheme = (t) => {
     document.documentElement.setAttribute('data-bs-theme', t);
     localStorage.setItem('theme', t);
     const icon = document.querySelector('#themeToggle .theme-icon');
-    if (icon) icon.textContent = t === 'dark' ? '☀️' : '🌙';
+    if (icon) icon.textContent = t === 'dark' ? '🌙' : '☀️';
 };
 
 document.getElementById('themeToggle')?.addEventListener('click', () => {
@@ -26,17 +28,204 @@ document.getElementById('themeToggle')?.addEventListener('click', () => {
 (function initIcon(){
     const cur = document.documentElement.getAttribute('data-bs-theme') || 'light';
     const icon = document.querySelector('#themeToggle .theme-icon');
-    if (icon) icon.textContent = cur === 'dark' ? '☀️' : '🌙';
+    if (icon) icon.textContent = cur === 'dark' ? '🌙' : '☀️';
 })();
 
 // CSRF
-function getCookie(name){const v=`; ${document.cookie}`;const p=v.split(`; ${name}=`);if(p.length===2) return p.pop().split(';').shift();}
-const csrftoken = getCookie('csrftoken');
+const csrftoken = getCsrfToken();
 
 // Helpers
 function el(id){ return document.getElementById(id); }
 function setHTML(id, html){ el(id).innerHTML = html; }
 function show(id, yes){ el(id).style.display = yes ? '' : 'none'; }
+
+const toastContainer = document.getElementById('app_toasts');
+const toastVariants = {
+  success: 'text-bg-success',
+  info: 'text-bg-info',
+  warning: 'text-bg-warning',
+  danger: 'text-bg-danger',
+  primary: 'text-bg-primary'
+};
+
+function showAppToast({ title = '', message = '', variant = 'primary', delay = 4500 } = {}) {
+  if (!toastContainer || typeof bootstrap === 'undefined') {
+    if (title || message) console.info(title ? `${title}: ${message}` : message);
+    return;
+  }
+  const toast = document.createElement('div');
+  toast.className = `toast ${toastVariants[variant] || toastVariants.primary}`;
+  toast.role = 'status';
+  toast.setAttribute('aria-live', 'polite');
+  toast.innerHTML = `
+    <div class="toast-header">
+      <strong class="me-auto">${title || 'Notice'}</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body">${message || ''}</div>
+  `;
+  toastContainer.appendChild(toast);
+  const toastObj = new bootstrap.Toast(toast, { delay, autohide: true });
+  toast.addEventListener('hidden.bs.toast', () => toast.remove());
+  toastObj.show();
+}
+
+window.showAppToast = showAppToast;
+const AUTH_STORAGE_KEY = 'ftir:last-auth';
+
+const userStatusCard = el('user_status');
+let currentUserState = null;
+const userSignInLink = el('user_sign_in');
+const userSignOutLink = el('user_sign_out');
+
+userSignInLink?.addEventListener('click', () => {
+  showAppToast({
+    title: 'Signing in',
+    message: 'Redirecting to login…',
+    variant: 'info',
+    delay: 2400
+  });
+});
+
+userSignOutLink?.addEventListener('click', () => {
+  showAppToast({
+    title: 'Signing out',
+    message: 'Redirecting to logout…',
+    variant: 'info',
+    delay: 2400
+  });
+});
+
+function applyUserStatus(data) {
+  if (!userStatusCard) return;
+  userStatusCard.classList.remove('is-error');
+  currentUserState = data;
+  const nameEl = userStatusCard.querySelector('.user-primary');
+  const secondaryEl = userStatusCard.querySelector('.user-secondary');
+  const avatarEl = userStatusCard.querySelector('.user-avatar');
+  const signInBtn = el('user_sign_in');
+  const signOutBtn = el('user_sign_out');
+
+  if (data.authenticated) {
+    if (nameEl) nameEl.textContent = data.username || 'Account';
+    if (secondaryEl) {
+      const sessionsLabel = typeof data.session_count === 'number' ? `${data.session_count} cloud sessions` : 'Signed in';
+      secondaryEl.textContent = sessionsLabel;
+    }
+    if (signInBtn) {
+      signInBtn.href = data.login_url || signInBtn.getAttribute('href') || '/accounts/login/';
+      signInBtn.classList.add('d-none');
+    }
+    if (signOutBtn) {
+      signOutBtn.href = data.logout_url || signOutBtn.getAttribute('href') || '/accounts/logout/';
+      signOutBtn.classList.remove('d-none');
+    }
+    if (avatarEl) {
+      if (data.avatar) {
+        avatarEl.innerHTML = `<img src="${data.avatar}" alt="">`;
+        avatarEl.classList.remove('placeholder');
+      } else {
+        avatarEl.innerHTML = '<i class="bi bi-person-circle"></i>';
+        avatarEl.classList.add('placeholder');
+      }
+    }
+    userStatusCard.dataset.authenticated = '1';
+  } else {
+    if (nameEl) nameEl.textContent = 'Guest';
+    if (secondaryEl) secondaryEl.textContent = 'Not signed in';
+    if (signInBtn) {
+      signInBtn.href = data.login_url || signInBtn.getAttribute('href') || '/accounts/login/';
+      signInBtn.classList.remove('d-none');
+    }
+    if (signOutBtn) {
+      signOutBtn.href = data.logout_url || signOutBtn.getAttribute('href') || '/accounts/logout/';
+      signOutBtn.classList.add('d-none');
+    }
+    if (avatarEl) {
+      avatarEl.innerHTML = '<i class="bi bi-person-circle"></i>';
+      avatarEl.classList.add('placeholder');
+    }
+    userStatusCard.dataset.authenticated = '0';
+  }
+}
+
+async function refreshUserStatus(options = {}) {
+  if (!userStatusCard) return null;
+  const previousState = currentUserState;
+  try {
+    const resp = await fetch('/api/me/', { credentials: 'same-origin' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    let storedAuth;
+    try {
+      storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+    } catch (storageErr) {
+      storedAuth = null;
+    }
+
+    const prevAuth =
+      typeof previousState?.authenticated === 'boolean'
+        ? previousState.authenticated
+        : storedAuth !== null
+          ? storedAuth === '1'
+          : undefined;
+    const newAuth = !!data.authenticated;
+
+    applyUserStatus(data);
+
+    if (prevAuth !== undefined && prevAuth !== newAuth) {
+      if (newAuth) {
+        showAppToast({
+          title: 'Signed in',
+          message: data.username ? `Welcome back, ${data.username}!` : 'Cloud features are now enabled.',
+          variant: 'success'
+        });
+      } else {
+        showAppToast({
+          title: 'Signed out',
+          message: 'Cloud features paused. Local autosave continues offline.',
+          variant: 'info'
+        });
+      }
+    }
+
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, newAuth ? '1' : '0');
+    } catch (storageErr) {
+      console.warn('Unable to persist auth state indicator', storageErr);
+    }
+
+    document.dispatchEvent(new CustomEvent('ftir:user-status', { detail: { data, previous: previousState } }));
+    return data;
+  } catch (err) {
+    console.warn('User status failed', err);
+    userStatusCard.classList.add('is-error');
+    const nameEl = userStatusCard.querySelector('.user-primary');
+    const secondaryEl = userStatusCard.querySelector('.user-secondary');
+    if (nameEl) nameEl.textContent = 'Offline';
+    if (secondaryEl) secondaryEl.textContent = 'Unable to reach account services';
+    if (!userStatusCard.dataset.errorToastShown) {
+      showAppToast({
+        title: 'Account status unavailable',
+        message: err?.message || 'Unable to reach account services.',
+        variant: 'warning'
+      });
+      userStatusCard.dataset.errorToastShown = '1';
+    }
+    return null;
+  }
+}
+
+window.refreshUserStatus = refreshUserStatus;
+if (userStatusCard) {
+  refreshUserStatus();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshUserStatus();
+    }
+  });
+}
 
 // ---- Convert: Preview table ----
 el('btn_toggle_preview').addEventListener('click', ()=> {
@@ -46,9 +235,12 @@ el('btn_toggle_preview').addEventListener('click', ()=> {
 
 
 // Auto-plot on Live tab when Feather files are chosen
-el('live_file').addEventListener('change', async () => {
-    await doLivePlot();
-});
+const liveFileInput = el('live_file');
+if (liveFileInput) {
+    liveFileInput.addEventListener('change', async () => {
+        await doLivePlot();
+    });
+}
 
 // ---- Plotly render helpers ----
 function renderPlotly(data){
@@ -160,22 +352,31 @@ el('btn_convert_feather').addEventListener('click', async () => {
 
 // ---- Live: multi-file overlay plot ----
 async function doLivePlot(){
-    const files = el('live_file').files;
+    const liveInput = el('live_file');
     const img = el('plot_img_live');
+    if (!liveInput || !img) return;
+
+    const files = liveInput.files || [];
     if (!files.length){ img.alt='Choose Feather file(s)'; img.removeAttribute('src'); return; }
 
     const fd = new FormData();
     for (const f of files) fd.append('file', f);  // multiple
-    fd.append('invert', el('invert_live').checked);
-    fd.append('xmin', el('xmin_live').value || 'auto');
-    fd.append('xmax', el('xmax_live').value || 'auto');
+    const invertField = el('invert_live');
+    const xminField = el('xmin_live');
+    const xmaxField = el('xmax_live');
+    fd.append('invert', invertField ? invertField.checked : false);
+    fd.append('xmin', xminField ? (xminField.value || 'auto') : 'auto');
+    fd.append('xmax', xmaxField ? (xmaxField.value || 'auto') : 'auto');
 
     const resp = await fetch('/plot', { method:'POST', headers:{'X-CSRFToken':csrftoken}, body:fd });
     if (!resp.ok){ const d = await resp.json().catch(()=>({})); img.alt = d.error||'Plot failed'; img.removeAttribute('src'); return; }
     const blob = await resp.blob(); img.src = URL.createObjectURL(blob);
     lastPlotMode = 'live';
 }
-el('btn_plot').addEventListener('click', doLivePlot);
+const livePlotButton = el('btn_plot');
+if (livePlotButton) {
+    livePlotButton.addEventListener('click', doLivePlot);
+}
 
 // ---- Auto replot on invert/x-range changes ----
 let lastPlotMode = null; // 'preview' | 'live'
@@ -193,9 +394,12 @@ el('btn_reset_x').addEventListener('click', ()=>{ el('xmin').value=''; el('xmax'
 el('btn_reset_y').addEventListener('click', ()=>{ el('ymin').value=''; el('ymax').value=''; scheduleReplot('preview'); });
 
 // Live panel controls
-el('invert_live').addEventListener('change', ()=>scheduleReplot('live'));
-el('xmin_live').addEventListener('input', ()=>scheduleReplot('live'));
-el('xmax_live').addEventListener('input', ()=>scheduleReplot('live'));
+const invertLive = el('invert_live');
+const xminLive = el('xmin_live');
+const xmaxLive = el('xmax_live');
+if (invertLive) invertLive.addEventListener('change', ()=>scheduleReplot('live'));
+if (xminLive) xminLive.addEventListener('input', ()=>scheduleReplot('live'));
+if (xmaxLive) xmaxLive.addEventListener('input', ()=>scheduleReplot('live'));
 
 // helper: build a FileList for input
 
@@ -322,9 +526,11 @@ btnClose?.addEventListener('click', closePreviewPopup);
 document.addEventListener('DOMContentLoaded', () => {
   // Lazy init Option B when its tab is first shown
   const plotBTab = document.getElementById('tab-plotB');
+  const plotCTab = document.getElementById('tab-plotC');
   let initializedB = false;
+  let initializedCanvas = false;
 
-  plotBTab?.addEventListener('shown.bs.tab', () => {
+  const initPlotB = () => {
     if (initializedB) return;
 
     const instanceB = {
@@ -332,13 +538,31 @@ document.addEventListener('DOMContentLoaded', () => {
         plot: document.getElementById('b_plot_el'),
         dz:   document.getElementById('b_dropzone'),
         inp:  document.getElementById('b_file_input'),
-        add:  document.getElementById('b_btn_add')
+        demoBtn: document.getElementById('b_demo_btn'),
+        browseBtn: document.getElementById('b_browse_btn')
       },
       state: createState(),   // fresh, independent state for Plot B
     };
 
     initUI_IntB(instanceB);   // sets up DnD + multi-file ingest + render
     initializedB = true;
-  });
+  };
+
+  const initCanvas = () => {
+    if (initializedCanvas) return;
+    initWorkspaceCanvas();
+    initializedCanvas = true;
+  };
+
+  plotBTab?.addEventListener('shown.bs.tab', initPlotB);
+  plotCTab?.addEventListener('shown.bs.tab', initCanvas);
+
+  if (document.getElementById('pane-plotB')?.classList.contains('show')) {
+    initPlotB();
+  }
+  if (document.getElementById('pane-plotC')?.classList.contains('show')) {
+    initCanvas();
+  }
 });
+
 

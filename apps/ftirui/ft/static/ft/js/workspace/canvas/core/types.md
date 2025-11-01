@@ -1,0 +1,1 @@
+list the shapes you already use: Section, PanelState, Figure, Trace (names + fields only).

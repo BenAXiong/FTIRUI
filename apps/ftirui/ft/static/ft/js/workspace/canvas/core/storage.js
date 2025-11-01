@@ -1,0 +1,1 @@
+// will own: persist(state), restore(), and (later) a versioned migrator. Keep a note of your storage keys listed in constants.md

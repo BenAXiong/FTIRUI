@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import io
+import tempfile
+from functools import wraps
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
+from urllib.parse import quote
 
 from django.conf import settings
+from django.contrib.auth import get_user
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.utils.decorators import method_decorator
+from django.utils import timezone
+from django.urls import reverse
 
 import pandas as pd 
 import numpy as np
@@ -21,13 +27,20 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # Import reusable logic from repo-root core/
+from core.jcamp_utils import load_jcamp_fixed
 from core.io import convert_many
+from . import sessions_repository as session_repo
+from .models import PlotSession
+from .sessions_repository import SessionStorageError, SessionTooLargeError
 
 BASE_DIR = Path(__file__).resolve().parents[1]          # apps/ftirui
 REPO_ROOT = BASE_DIR.parent                              # mlirui/
 LOGS_DIR = REPO_ROOT / "logs"
 MEDIA_ROOT = Path(settings.MEDIA_ROOT)
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+SESSIONS_DIR = MEDIA_ROOT / "sessions"
+SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+DEMOS_DIR = BASE_DIR / "ft" / "static" / "ft" / "demos"
 
 # Helper: coerce y to fractional Transmittance [0..1]
 def _to_fractional_T(y: np.ndarray) -> np.ndarray:
@@ -352,12 +365,35 @@ def _read_tabular_upload(f, *, delimiter=None, decimal_comma=False, skiprows=0, 
             sheet_name=(sheet if sheet not in (None, "") else 0),
             engine="openpyxl" if name.endswith(".xlsx") else None,
         )
-    # CSV/TSV/TXT: read as text
+    # CSV/TSV/TXT/JCAMP: read as text
     raw = f.read()
     text = raw.decode("utf-8", errors="ignore")
+
+    snippet = text[:4096].upper()
+    if "##JCAMP" in snippet or "##XYDATA" in snippet:
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile("wb", delete=False, suffix=".jdx") as tmp:
+                tmp.write(raw)
+                tmp.flush()
+                tmp_path = Path(tmp.name)
+            x, y, meta = load_jcamp_fixed(tmp_path)
+            df = pd.DataFrame({0: x, 1: y})
+            if meta:
+                df.attrs["meta"] = meta
+            return df
+        except Exception as exc:
+            raise ValueError(f"JCAMP parse failed: {exc}") from exc
+        finally:
+            if tmp_path:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
     fh = io.StringIO(text)
     kw = dict(header=None, skiprows=int(skiprows or 0), decimal=decimal, engine="python")
-    if delimiter: kw["sep"] = delimiter
+    if delimiter:
+        kw["sep"] = delimiter
     return pd.read_csv(fh, **kw)
 
 def _coerce_xy(df, x_col=0, y_col=1):
@@ -366,6 +402,215 @@ def _coerce_xy(df, x_col=0, y_col=1):
     y = pd.to_numeric(df.iloc[:, int(y_col or 1)], errors="coerce").to_numpy(dtype=np.float32)
     m = ~(np.isnan(x) | np.isnan(y))
     return x[m], y[m]
+
+def _normalize_input_units(
+    y: np.ndarray,
+    mode: Optional[str],
+    meta: Optional[dict] = None,
+) -> tuple[np.ndarray, str]:
+    """
+    Normalise uploaded Y data into fractional transmittance based on the declared units.
+
+    Returns (converted_y, resolved_mode) where resolved_mode is either "abs" or "tr".
+    """
+    arr = np.asarray(y, dtype=np.float32)
+    if arr.size == 0:
+        return arr, "tr"
+
+    def _set_conversion(text: str) -> None:
+        if meta is None or not text:
+            return
+        meta["CONVERSION"] = text
+
+    def _mark_reason(source: str) -> None:
+        if meta is None:
+            return
+        existing = meta.get("CONVERSION_REASON")
+        if existing:
+            meta["CONVERSION_REASON"] = f"{existing}; {source}"
+        else:
+            meta["CONVERSION_REASON"] = source
+
+    mode_norm = (mode or "auto").strip().lower()
+    manual_abs = mode_norm in {"abs", "absorbance"}
+    manual_tr = mode_norm in {"tr", "t", "transmittance"}
+
+    resolved_mode = "tr"
+    treat_as_percent = False
+
+    if manual_abs:
+        _mark_reason("manual selection (absorbance)")
+        converted = np.power(10.0, -arr)
+        _set_conversion("Absorbance → Transmittance")
+        return converted.astype(np.float32), "abs"
+
+    if manual_tr:
+        _mark_reason("manual selection (transmittance)")
+        finite = arr[np.isfinite(arr)]
+        if finite.size and float(np.max(np.abs(finite))) > 1.5:
+            treat_as_percent = True
+        if treat_as_percent:
+            _set_conversion("Percent → Fraction")
+            return (arr / 100.0).astype(np.float32), "tr"
+        _set_conversion(meta.get("CONVERSION", "Transmittance (no change)") if meta else "Transmittance (no change)")
+        return arr, "tr"
+
+    # --- Auto detection path -------------------------------------------------
+    resolved_via_meta = False
+
+    if isinstance(meta, dict):
+        def _normalise_value(val: str) -> str:
+            txt = str(val or "").strip().upper()
+            replacements = {
+                "%": " PERCENT ",
+                "‰": " PERCENT ",
+                "ABS.": "ABS ",
+                "ABSORBANCE": "ABSORBANCE",
+            }
+            for old, new in replacements.items():
+                txt = txt.replace(old, new)
+            return " ".join(txt.split())
+
+        meta_keys = (
+            "INPUT_MODE",
+            "YUNITS",
+            "YUNITS_ORIGINAL",
+            "DATA TYPE",
+            "DATATYPE",
+            "UNITS",
+            "Y_LABEL",
+            "YLABEL",
+        )
+        for key in meta_keys:
+            raw_val = meta.get(key)
+            if not raw_val:
+                continue
+            token = _normalise_value(raw_val)
+            if "ABS" in token or "LOG(1/R)" in token or "LOG1/R" in token:
+                resolved_mode = "abs"
+                resolved_via_meta = True
+                _mark_reason(f"metadata {key}={raw_val}")
+                break
+            if "TRANSM" in token or "T%" in token or "PERCENT T" in token or "PERCENT" in token:
+                resolved_mode = "tr"
+                resolved_via_meta = True
+                treat_as_percent = "PERCENT" in token or "T%" in token
+                _mark_reason(f"metadata {key}={raw_val}")
+                break
+
+    if not resolved_via_meta:
+        finite = arr[np.isfinite(arr)]
+        if finite.size == 0:
+            finite = arr
+        if finite.size:
+            y_max = float(np.nanmax(finite))
+            y_med = float(np.nanmedian(finite))
+            if 0 <= y_med and 0.05 <= y_max <= 5.0:
+                resolved_mode = "abs"
+                _mark_reason("heuristic magnitude (absorbance-like)")
+            elif y_max > 1.5:
+                resolved_mode = "tr"
+                treat_as_percent = y_max <= 120.0
+                if treat_as_percent:
+                    _mark_reason("heuristic magnitude (percent transmittance)")
+                else:
+                    _mark_reason("heuristic magnitude (fractional transmittance)")
+            else:
+                resolved_mode = "tr"
+                _mark_reason("heuristic default (fractional transmittance)")
+
+    if resolved_mode == "abs":
+        _set_conversion("Absorbance → Transmittance")
+        converted = np.power(10.0, -arr)
+        return converted.astype(np.float32), "abs"
+
+    if treat_as_percent:
+        _set_conversion("Percent → Fraction")
+        return (arr / 100.0).astype(np.float32), "tr"
+
+    _set_conversion(meta.get("CONVERSION", "Transmittance (no change)") if meta else "Transmittance (no change)")
+    return arr, "tr"
+
+
+def _stringify_meta(meta) -> dict[str, str]:
+    if not isinstance(meta, dict):
+        return {}
+    result: dict[str, str] = {}
+    for key, value in meta.items():
+        if value is None:
+            continue
+        text = str(value).strip()
+        if not text:
+            continue
+        result[str(key).upper()] = text
+    return result
+
+def _require_json_auth(view_func):
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+
+
+def _build_login_urls(request, *, next_path: str) -> dict[str, str]:
+    base_next = next_path or request.GET.get("next") or request.path
+    login_url = settings.LOGIN_URL
+    if hasattr(settings, "LOGOUT_URL"):
+        logout_url = settings.LOGOUT_URL
+    else:
+        try:
+            logout_url = reverse("logout")
+        except Exception:  # pragma: no cover
+            logout_url = "/accounts/logout/"
+    if base_next:
+        sep_login = "&" if "?" in login_url else "?"
+        sep_logout = "&" if "?" in logout_url else "?"
+        login_target = f"{login_url}{sep_login}next={quote(base_next)}"
+        logout_target = f"{logout_url}{sep_logout}next={quote(base_next)}"
+    else:
+        login_target = login_url
+        logout_target = logout_url
+    return {
+        "login": login_target,
+        "logout": logout_target,
+    }
+
+
+@require_http_methods(["GET"])
+def api_me(request):
+    user = get_user(request)
+    urls = _build_login_urls(request, next_path=request.GET.get("next") or "/")
+    if not user.is_authenticated:
+        return JsonResponse(
+            {
+                "authenticated": False,
+                "login_url": urls["login"],
+                "logout_url": urls["logout"],
+            }
+        )
+
+    email = (getattr(user, "email", "") or "").strip().lower()
+    avatar_url = None
+    if email:
+        import hashlib
+
+        digest = hashlib.md5(email.encode("utf-8")).hexdigest()
+        avatar_url = f"https://www.gravatar.com/avatar/{digest}?s=96&d=identicon"
+
+    session_count = PlotSession.objects.filter(owner=user).count()
+    return JsonResponse(
+        {
+            "authenticated": True,
+            "username": getattr(user, "get_full_name", lambda: user.get_username())() or user.get_username(),
+            "email": email,
+            "avatar": avatar_url,
+            "session_count": session_count,
+            "login_url": urls["login"],
+            "logout_url": urls["logout"],
+        }
+    )
 
 # --- REPLACE old preview() with this JSON-contract version ---
 @require_http_methods(["POST"])
@@ -403,6 +648,69 @@ def preview_json(request):
     return JsonResponse({"columns": cols, "rows": rows})
 
 # --- NEW: /data JSON for Plotly ---
+@require_http_methods(["POST"])
+def api_xy(request):
+    """
+    Parse an uploaded file and return numeric x/y arrays for the interactive trace browser.
+    Supports the same column + delimiter options as the other upload endpoints.
+    """
+    f = request.FILES.get("file")
+    if not f:
+        return JsonResponse({"error": "No file uploaded"}, status=400)
+
+    raw_name = getattr(f, "name", "trace.dat")
+    explicit_title = request.POST.get("title")
+    display_name = (explicit_title or "").strip()
+    try:
+        df = _read_tabular_upload(
+            f,
+            delimiter=request.POST.get("delimiter") or None,
+            decimal_comma=(request.POST.get("decimal_comma") == "true"),
+            skiprows=request.POST.get("skiprows") or 0,
+            sheet=request.POST.get("sheet") or None,
+        )
+    except Exception as e:
+        return JsonResponse({"error": f"Read failed: {e}"}, status=400)
+
+    try:
+        x, y = _coerce_xy(df, request.POST.get("x_col") or 0, request.POST.get("y_col") or 1)
+    except Exception as e:
+        return JsonResponse({"error": f"Column selection failed: {e}"}, status=400)
+
+    meta_dict = _stringify_meta(getattr(df, "attrs", {}).get("meta") if hasattr(df, "attrs") else None)
+    mode_raw = request.POST.get("input_units")
+    y, resolved_mode = _normalize_input_units(y, mode_raw, meta=meta_dict)
+
+    finite = np.isfinite(x) & np.isfinite(y)
+    x = x[finite]
+    y = y[finite]
+    meta_dict["POINT_COUNT"] = str(int(x.size))
+
+    if x.size == 0 or y.size == 0:
+        return JsonResponse({"error": "No numeric samples detected"}, status=400)
+
+    mode_label = "Absorbance" if resolved_mode == "abs" else "Transmittance"
+    meta_dict["INPUT_MODE"] = mode_label
+    meta_dict.setdefault("DISPLAY_UNITS", "Transmittance")
+    if "YUNITS" not in meta_dict and meta_dict.get("YUNITS_ORIGINAL"):
+        meta_dict["YUNITS"] = meta_dict["YUNITS_ORIGINAL"]
+    meta_dict.setdefault("FILENAME", Path(raw_name).name)
+
+    if not display_name:
+        title_meta = (meta_dict.get("TITLE") or meta_dict.get("SAMPLE") or "").strip()
+        if title_meta:
+            display_name = title_meta
+    if not display_name:
+        display_name = Path(raw_name).name or "trace"
+
+    return JsonResponse({
+        "x": x.astype(float).tolist(),
+        "y": y.astype(float).tolist(),
+        "name": display_name,
+        "meta": meta_dict,
+        "ingest_mode": resolved_mode,
+    })
+
 @require_http_methods(["POST"])
 def data_json(request):
     """
@@ -469,7 +777,7 @@ def data_json(request):
 @require_http_methods(["POST"])
 def export_png(request):
     """
-    Server “paper-ready” export.
+    Server "paper-ready" export.
     Accept either:
       - JSON body: {"x":[...],"y":[...],"invert":true,"title":"...","width":1200,"height":600,"dpi":200}
       - or an uploaded file + the same form options as /data.
@@ -533,3 +841,117 @@ def export_png(request):
     plt.close(fig)
     buf.seek(0)
     return HttpResponse(buf.getvalue(), content_type="image/png")
+
+# --- Sessions API for interface B -------------------------------------------
+@require_http_methods(["POST"])
+@_require_json_auth
+def api_session_create(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    state = payload.get("state")
+    if not isinstance(state, dict):
+        return JsonResponse({"error": "'state' must be an object"}, status=400)
+
+    title = str(payload.get("title") or "").strip()
+
+    try:
+        session = session_repo.create_session(request.user, title, state)
+    except SessionTooLargeError as exc:
+        return JsonResponse({"error": str(exc)}, status=413)
+    except SessionStorageError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except Exception as exc:  # pragma: no cover - unexpected failure
+        return JsonResponse({"error": f"Failed to save session: {exc}"}, status=500)
+
+    return JsonResponse(
+        {
+            "session_id": str(session.id),
+            "title": session.title,
+            "size": session.state_size,
+            "storage": session.storage_backend,
+        },
+        status=201,
+    )
+
+@require_http_methods(["GET"])
+@_require_json_auth
+def api_session_list(request):
+    items: List[dict] = []
+    for row in session_repo.list_sessions(request.user):
+        updated = row.get("updated_at")
+        items.append({
+            "session_id": str(row["id"]),
+            "title": row.get("title") or "",
+            "updated": updated.isoformat() if updated else None,
+            "size": row.get("state_size", 0),
+            "storage": row.get("storage_backend", "db"),
+        })
+    return JsonResponse({"items": items})
+
+@require_http_methods(["GET", "PUT", "DELETE"])
+@_require_json_auth
+def api_session_get(request, session_id):
+    sid = str(session_id)
+
+    if request.method == "DELETE":
+        try:
+            session_repo.delete_session(request.user, sid)
+        except PlotSession.DoesNotExist:
+            return JsonResponse({"error": "Session not found"}, status=404)
+        return HttpResponse(status=204)
+
+    if request.method == "GET":
+        try:
+            session = session_repo.get_session(request.user, sid)
+        except PlotSession.DoesNotExist:
+            return JsonResponse({"error": "Session not found"}, status=404)
+        return JsonResponse({
+            "session_id": sid,
+            "title": session.title or "",
+            "state": session.state_json or {},
+            "updated": session.updated_at.isoformat() if session.updated_at else None,
+            "size": session.state_size,
+            "storage": session.storage_backend,
+        })
+
+    # PUT
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    state = payload.get("state")
+    if not isinstance(state, dict):
+        return JsonResponse({"error": "'state' must be an object"}, status=400)
+    title = str(payload.get("title") or "").strip()
+
+    try:
+        session = session_repo.update_session(request.user, sid, title, state)
+    except PlotSession.DoesNotExist:
+        return JsonResponse({"error": "Session not found"}, status=404)
+    except SessionTooLargeError as exc:
+        return JsonResponse({"error": str(exc)}, status=413)
+    except SessionStorageError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse(
+        {"session_id": sid, "title": session.title, "size": session.state_size, "storage": session.storage_backend}
+    )
+
+# --- Demo file discovery -----------------------------------------------------
+@require_http_methods(["GET"])
+def api_demo_files(request):
+    if not DEMOS_DIR.exists():
+        return JsonResponse({"files": []})
+
+    static_root = (settings.STATIC_URL or "/static/").rstrip("/")
+    files = [
+        f"{static_root}/ft/demos/{quote(path.name)}"
+        for path in sorted(DEMOS_DIR.glob("*"))
+        if path.is_file()
+    ]
+    return JsonResponse({"files": files})
+

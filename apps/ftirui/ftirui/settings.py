@@ -12,11 +12,21 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import sys, os
 from pathlib import Path
+from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent  # \mlirui\apps\ftirui
 APPS_DIR = BASE_DIR.parent
-REPO_ROOT = APPS_DIR.parent  # points to mlirui/
+REPO_ROOT = APPS_DIR.parent  # mlirui/
+
+load_dotenv(BASE_DIR / ".env")
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
+SITE_ID = int(os.getenv("SITE_ID", "1"))
+LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/")
+LOGOUT_REDIRECT_URL = os.getenv("LOGOUT_REDIRECT_URL", "/")
 
 repo_str = str(REPO_ROOT)
 if repo_str not in sys.path:
@@ -51,6 +61,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'ft',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.github',
 ]
 
 MIDDLEWARE = [
@@ -60,6 +76,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -140,6 +157,45 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+SITE_ID = int(os.getenv("SITE_ID", "1"))
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/")
+LOGOUT_REDIRECT_URL = os.getenv("LOGOUT_REDIRECT_URL", "/")
+
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '5/5m',
+}
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': GOOGLE_CLIENT_ID,
+            'secret': GOOGLE_CLIENT_SECRET,
+            'key': '',
+        },
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    },
+    'github': {
+        'APP': {
+            'client_id': GITHUB_CLIENT_ID,
+            'secret':GITHUB_CLIENT_SECRET,
+            'key': '',
+        },
+        'SCOPE': ['user:email'],
+    },
+}
+
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 
 # 4) CSRF for Render domain (helps with form/POST calls)
 CSRF_TRUSTED_ORIGINS = [
