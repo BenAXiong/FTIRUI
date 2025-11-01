@@ -44,3 +44,36 @@ export function setFigure(panelId, figure) {
   _setFigureById(panelId, safe);
   _renderNow(panelId);
 }
+
+// Toggle Plotly legend visibility
+
+export function toggleLegend(panelId){
+    const cur = _getFigureById(panelId);
+    const show = !(cur?.layout.showLegend ??true);
+    applyLayout(panelId, {'showlegend': show })
+}
+
+// Set axis type: acisKey is 'xaxis' or 'yaxis', type is 'linear'|'log'|'category'|'date'
+export function setAxisType(panelId, axisId, type){
+    applyLayout(panelId, { [`${axisKey}.type`]: type})
+}
+
+// Toggle major grid for a given axis ('xaxis' | 'yaxis')
+export function toggleMajorGrid(panelId, axisKey) {
+  const cur = _getFigureById(panelId);
+  const curr = !!cur?.layout?.[axisKey]?.showgrid;
+  applyLayout(panelId, { [`${axisKey}.showgrid`]: !curr });
+}
+
+// Set line width for a trace by index (simple, index-based version)
+export function setTraceLineWidth(panelId, traceIndex, widthPx = 2) {
+  const fig = _getFigureById(panelId);
+  if (!fig) return;
+  const next = cloneFigure(fig);
+  next.data = (next.data || []).map((d, i) =>
+    i === traceIndex ? { ...d, line: { ...(d.line || {}), width: widthPx } } : d
+  );
+  _setFigureById(panelId, next);
+  _renderNow(panelId);
+}
+
