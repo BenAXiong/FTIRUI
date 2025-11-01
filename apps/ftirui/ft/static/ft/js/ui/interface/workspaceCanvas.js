@@ -739,7 +739,35 @@ export function initWorkspaceCanvas() {
         const handle = findTraceByRowId(rowId);
         if (!handle?.trace) return null;
         syncTraceAppearance(handle.trace);
-        return handle.trace;
+        return new Proxy(handle.trace, {
+          get(target, prop) {
+            return target[prop];
+          },
+          set(target, prop, value) {
+            if (prop === 'width') {
+              const widthPx = Number(value);
+              if (!Number.isFinite(widthPx)) {
+                return true;
+              }
+              const currentTraces = getPanelTraces(handle.panelId);
+              const current = currentTraces[handle.traceIndex];
+              const prevWidth = Number(
+                (current?.line && current.line.width) ?? current?.width ?? NaN
+              );
+              if (!Number.isFinite(prevWidth) || Math.abs(prevWidth - widthPx) > 1e-6) {
+                pushHistory();
+                Actions.setTraceLineWidth(handle.panelId, handle.traceIndex, widthPx);
+                persist();
+              }
+              target.width = widthPx;
+              target.line = target.line || {};
+              target.line.width = widthPx;
+              return true;
+            }
+            target[prop] = value;
+            return true;
+          }
+        });
       },
       repaintChip: (rowEl) => {
         const rowId = rowEl?.dataset.id;

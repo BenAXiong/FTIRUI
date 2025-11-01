@@ -68,12 +68,17 @@ export function toggleMajorGrid(panelId, axisKey) {
 
 // Set line width for a trace by index (simple, index-based version)
 export function setTraceLineWidth(panelId, traceIndex, widthPx = 2) {
+  if (!_getFigureById || !_setFigureById || !_renderNow) return;
   const fig = _getFigureById(panelId);
   if (!fig) return;
   const next = cloneFigure(fig);
-  next.data = (next.data || []).map((d, i) =>
-    i === traceIndex ? { ...d, line: { ...(d.line || {}), width: widthPx } } : d
-  );
+  const numericWidth = Number(widthPx);
+  const width = Number.isFinite(numericWidth) && numericWidth > 0 ? numericWidth : 1;
+  next.data = (next.data || []).map((trace, idx) => {
+    if (idx !== traceIndex) return trace;
+    const line = { ...(trace?.line || {}), width };
+    return { ...trace, width, line };
+  });
   _setFigureById(panelId, next);
   _renderNow(panelId);
 }
