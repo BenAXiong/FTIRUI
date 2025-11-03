@@ -1,3 +1,9 @@
+/**
+ * Responsibility: Bootstrap the workspace canvas by collecting DOM roots and wiring the controller.
+ * Inputs: optional controller configuration plus DOM selectors resolved within this module.
+ * Outputs: returns the active canvas controller and manages global event handlers for lifecycle.
+ * Never: never touch panels/models directly, never import Plotly, never assume global listeners persist beyond controller teardown.
+ */
 import { createCanvasController } from '../controller/canvasController.js';
 
 let activeSession = null;

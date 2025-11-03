@@ -1,5 +1,9 @@
-// Single responsibility: talk to Plotly. No models, no business logic.
-// Export small, explicit functions. Keep state minimal & local.
+/**
+ * Responsibility: Manage Plotly rendering for workspace panels without owning business logic.
+ * Inputs: receives panel identifiers, DOM nodes, and figure data prepared by upstream controllers.
+ * Outputs: updates Plotly-managed DOM elements and returns promises for render/resize tasks.
+ * Never: never mutate PanelsModel state, never access browser UI modules, never emit autosave/history events.
+ */
 
 const rendered = new WeakSet();  // marks containers that had an initial render
 const resizeQueue = new Set();

@@ -1,3 +1,9 @@
+/**
+ * Responsibility: Attach and manage event handlers for the legacy browser tree interactions.
+ * Inputs: receives a root element plus callbacks supplied by the canvas controller/runtime.
+ * Outputs: invokes provided callbacks on user interactions and exposes a detach routine.
+ * Never: never mutate PanelsModel directly, never trigger Plotly, never assume tree markup structure beyond data attributes.
+ */
 const contexts = new WeakMap();
 
 const noop = () => false;

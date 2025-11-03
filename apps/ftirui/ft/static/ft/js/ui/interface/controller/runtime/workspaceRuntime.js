@@ -1,3 +1,9 @@
+/**
+ * Responsibility: Orchestrate workspace canvas behaviour by coordinating models, plotting, browser UI, storage, and history.
+ * Inputs: expects DOM root handles, optional debug flags, and imported facades (models, storage, history, browser bridges).
+ * Outputs: mutates DOM and models as side effects and returns a runtime API for the controller (render, focus, lifecycle handlers).
+ * Never: never invoke Plotly directly (delegate to Render facade), never mutate panel data outside the PanelsModel API, never attach global listeners that are not exposed through the returned handlers.
+ */
 import { fetchDemoFiles } from '../../../../services/demos.js';
 import { uploadTraceFile } from '../../../../services/uploads.js';
 import { createChipPanels } from '../../chipPanels.js';
@@ -234,7 +240,7 @@ const sectionsModel = {
   }
 };
 
-export function initLegacyWorkspaceCanvas(context = {}) {
+export function initWorkspaceRuntime(context = {}) {
   colorCursor = 0;
   sectionCounter = 0;
   sections.clear();
@@ -295,28 +301,20 @@ export function initLegacyWorkspaceCanvas(context = {}) {
     panelDomRegistry.delete(panelId);
   };
 
-
-  /* ----------------HLEPRS FOR MIGRATION------------*/
-
-  // must return the plot container from your DOM registry
   function getPlotContainerEl(panelId) {
-    const refs = getPanelDom(panelId);      // you already have this from the DOM registry
+    const refs = getPanelDom(panelId);
     return refs?.plotEl;
   }
 
-  // read the current figure from your model/accessor
   function getFigureById(panelId) {
-    return getPanelFigure(panelId);         // you said this accessor exists
+    return getPanelFigure(panelId);
   }
 
-  // write back to the model (and optionally queue persistence)
   function setFigureById(panelId, nextFigure) {
-    // You likely already have a PanelsModel setter; if not, add one earlier.
     panelsModel.updatePanelFigure(panelId, nextFigure);
-    // If you maintain history/persist, call your existing hooks here.
   }
 
-  // ---- Plot façade: the ONLY thing UI code calls from here on ----
+  // Plot facade: single entry point into the renderer.
   const Plot = {
     renderNow(panelId) {
       const el = getPlotContainerEl(panelId);
@@ -350,16 +348,13 @@ export function initLegacyWorkspaceCanvas(context = {}) {
     }
   };
 
-  // This gives actionsController.js access to the model read/write 
+  // This gives actionsController.js access to the model read/write
   // and render trigger, without importing your models directly.
   Actions.__wire({
     getFigureById,
     setFigureById,
     renderNow: (panelId) => Plot.renderNow(panelId)
   });
-
-
-
 
   const getPanelSnapshot = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
   const getPanelRecord = getPanelSnapshot;
@@ -1100,13 +1095,10 @@ export function initLegacyWorkspaceCanvas(context = {}) {
           patch['yaxis.linecolor']      = cy;
         }
 
-
         commitLayoutPatch(patch);
         break;
       }
 
-
-      
       case 'legend': {
         runLayoutMutations(() => Actions.toggleLegend(panelId));
         break;
@@ -1204,7 +1196,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
         }
         break;
       }
-
 
       case 'ticklabels': {
         const on = !!payload.on;
@@ -1425,7 +1416,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
       updateHistoryButtons();
     }
   }
-
 
   const updatePanelEmpty = () => {
     if (!panelDom.empty) return;
@@ -2782,7 +2772,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
 
     if (!baseState) return null;
 
-
     const {
       x: baseX,
       y: baseY,
@@ -2878,7 +2867,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
       registerPopoverButton(buttonEl, popoverEl);
     };
 
-
     const cursorBtn = createToggleButton({
       icon: 'bi-crosshair',
       title: 'Toggle crosshair cursor',
@@ -2929,7 +2917,7 @@ export function initLegacyWorkspaceCanvas(context = {}) {
         </div>
       </div>
     `;
-    
+
     axesPopover.onOpen = () => {
       const figure = getPanelFigure(panelId);
       const L = figure.layout || {};
@@ -2992,9 +2980,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
       if (r) r.textContent = `${slider.value}px`;
     });
 
-
-
-
     let axesOutsideActive = false;
     const closeAxesPopover = () => {
       if (!axesPopover.classList.contains('is-open')) return;
@@ -3011,9 +2996,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
       if (axesPopover.contains(event.target) || axesBtn.contains(event.target)) return;
       closeAxesPopover();
     };
-
-
-
 
       axesPopover.addEventListener('click', (event) => event.stopPropagation());
 
@@ -3117,12 +3099,8 @@ export function initLegacyWorkspaceCanvas(context = {}) {
         }
       });
 
-
-
-
       axesPopover.__close = closeAxesPopover;
       appendPopoverControl(axesBtn, axesPopover);
-
 
       // === Major Grid (header toggle) ==============================================
       const figureForLayout = getPanelFigure(panelId);
@@ -3227,8 +3205,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
 
       // Add to header and auto-portal like other popovers
       appendPopoverControl(gridBtn, gridPopover);
-
-
 
     const ticksBtn = document.createElement('button');
     ticksBtn.type = 'button';
@@ -3533,12 +3509,6 @@ export function initLegacyWorkspaceCanvas(context = {}) {
       pop.__btn = btn;
       pop.__close = close;
     }
-
-
-
-
-
-
 
     const labelsAxisBtn = createToggleButton({
       icon: 'bi-type',
@@ -4404,21 +4374,4 @@ export function initLegacyWorkspaceCanvas(context = {}) {
     getModels: () => ({ panelsModel, sectionsModel }),
     getPanelDomRegistry: () => panelDomRegistry
   };
-
-  // -- Debug hooks (non-production) -------------------------------
-  // if (typeof window !== 'undefined') {
-  //   // List panel IDs quickly: window._panels()
-  //   window._panels = () =>
-  //     Array.from(document.querySelectorAll('.workspace-panel'))
-  //       .map(n => n.dataset.panelId);
-  //
-  //   // Quick access in console:
-  //   window.Actions = Actions;   // <-- so `typeof Actions` becomes "object"
-  //   window._Plot = Plot;        // <-- so `_Plot.renderNow(id)` is callable
-  // }
-
 }
-
-
-
-

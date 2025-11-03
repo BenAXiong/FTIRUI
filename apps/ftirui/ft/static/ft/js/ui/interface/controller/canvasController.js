@@ -1,4 +1,10 @@
-import { initLegacyWorkspaceCanvas } from './runtime/legacyWorkspaceCanvas.js';
+/**
+ * Responsibility: Shield callers from the workspace runtime with guarded, timed operations.
+ * Inputs: accepts toast and debug hooks plus runtime context forwarded into the runtime module.
+ * Outputs: exposes render/focus/select handlers, model accessors, and lifecycle management.
+ * Never: never reach into DOM directly, never call Plotly, never mutate panel models outside runtime APIs.
+ */
+import { initWorkspaceRuntime } from './runtime/workspaceRuntime.js';
 
 const SESSION_DEBUG_FLAG = 'ftir.canvas.controller.debug';
 
@@ -55,7 +61,7 @@ export class CanvasController {
 
   init(context = {}) {
     return this._guard('init', () => {
-      this._runtime = initLegacyWorkspaceCanvas({
+      this._runtime = initWorkspaceRuntime({
         ...context,
         debugFlags: this._debug
       });

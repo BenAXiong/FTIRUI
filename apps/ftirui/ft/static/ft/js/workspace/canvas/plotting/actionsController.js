@@ -1,6 +1,11 @@
+/**
+ * Responsibility: Apply high-level plot layout and trace actions using injected model and renderer callbacks.
+ * Inputs: wired getters/setters plus render callback supplied by the canvas controller at boot.
+ * Outputs: mutates panel figures via the provided setter and triggers re-render callbacks.
+ * Never: never import the PanelsModel directly, never talk to Plotly, never perform DOM queries.
+ */
 import { applyLayoutPatch, guardAxisGrid, cloneFigure } from './patchLayout.js';
 
-// Simple DI container so we don't import models inside UI controllers.
 let _getFigureById = null;
 let _setFigureById = null;
 let _renderNow = null;

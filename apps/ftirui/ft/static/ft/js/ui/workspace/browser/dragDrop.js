@@ -1,3 +1,9 @@
+/**
+ * Responsibility: Coordinate drag-and-drop between browser tree nodes and delegate results to runtime callbacks.
+ * Inputs: accepts a root element plus handlers for move/drop operations supplied by the controller.
+ * Outputs: invokes callbacks with inferred panel/section targets and provides teardown support.
+ * Never: never mutate DOM structure beyond drag affordances, never talk to Plotly, never update models directly.
+ */
 const contexts = new WeakMap();
 
 const noop = () => false;

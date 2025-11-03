@@ -1,7 +1,8 @@
 /**
- * Minimal tree renderer facade.
- * Future phases will replace the legacy browser markup with this output.
- * For now we only tag the root so downstream modules can detect readiness.
+ * Responsibility: Surface minimal browser-tree metadata for legacy DOM until full renderer lands.
+ * Inputs: receives root element plus section ordering, panel mapping, and active panel id.
+ * Outputs: stamps data attributes for downstream modules; leaves legacy markup untouched.
+ * Never: never mutate PanelsModel directly, never call Plotly, never emit storage/history events.
  */
 export function render({ rootEl, sections = [], panelsBySection = new Map(), activePanelId = null } = {}) {
   if (!rootEl) return;

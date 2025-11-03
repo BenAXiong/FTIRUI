@@ -1,4 +1,9 @@
-// Pure helpers: mutate a *copy* of figure/layout safely, guard dotted keys.
+/**
+ * Responsibility: Provide immutable-friendly helpers for cloning figures and applying dotted layout patches.
+ * Inputs: accepts figure objects and patch descriptors passed by the actions controller.
+ * Outputs: returns cloned figure structures and mutates provided copies in-place as directed.
+ * Never: never reach into DOM or Plotly, never mutate the original model references, never call storage/history.
+ */
 
 export function cloneFigure(fig) {
   return {

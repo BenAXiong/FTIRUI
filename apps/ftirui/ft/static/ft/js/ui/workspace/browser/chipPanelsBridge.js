@@ -1,9 +1,10 @@
-let highlighter = null;
-
 /**
- * Registers an optional highlighter callback supplied by the canvas.
- * The callback receives the active panel id whenever selection changes.
+ * Responsibility: Expose a lightweight bridge so chip panels can mirror canvas selection state.
+ * Inputs: accepts an optional highlighter callback registered by the runtime.
+ * Outputs: forwards active panel ids to the highlighter when selection changes.
+ * Never: never mutate PanelsModel or DOM, never call Plotly, never assume chip panel internals.
  */
+let highlighter = null;
 export function registerHighlighter(fn) {
   highlighter = typeof fn === 'function' ? fn : null;
 }
