@@ -6,6 +6,7 @@ import { applyLineChip } from '../utils/styling_linechip.js';
 import { toHexColor } from '../utils/styling.js';
 import { escapeHtml } from '../utils/dom.js';
 import { render as renderTreeView } from '../workspace/browser/treeView.js';
+import * as storage from '../../core/storage.js';
 import * as treeEvents from '../workspace/browser/treeEvents.js';
 import * as dragDrop from '../workspace/browser/dragDrop.js';
 import * as chipPanelsBridge from '../workspace/browser/chipPanelsBridge.js';
@@ -13,7 +14,6 @@ import * as chipPanelsBridge from '../workspace/browser/chipPanelsBridge.js';
 import * as Render from '../../workspace/canvas/plotting/render.js';
 import * as Actions from '../../workspace/canvas/plotting/actionsController.js';
 
-const STORAGE_KEY = 'ftir.workspace.canvas.v1';
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
 const COLOR_PALETTE = [
@@ -1433,24 +1433,38 @@ export function initWorkspaceCanvas() {
   };
 
   const snapshotState = () => ({
-    colorCursor,
     sections: sectionsModel.snapshot(),
     panels: typeof panelsModel.snapshot === 'function'
       ? panelsModel.snapshot()
-      : { counter: 0, items: [] }
+      : { counter: 0, items: [] },
+    uiPrefs: {
+      colorCursor
+    }
   });
 
-  const persist = () => {
-    const payload = {
-      version: 1,
-      ...snapshotState()
-    };
-
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch (err) {
-      console.warn('Failed to persist workspace layout', err);
+  const collectFigureSnapshots = () => {
+    if (typeof panelsModel.getPanelsInIndexOrder !== 'function') {
+      return {};
     }
+    return panelsModel
+      .getPanelsInIndexOrder()
+      .reduce((acc, panel) => {
+        if (!panel?.id) return acc;
+        acc[panel.id] = panel.figure ? deepClone(panel.figure) : { data: [], layout: {} };
+        return acc;
+      }, {});
+  };
+
+  const buildStorageSnapshot = () => {
+    const figures = collectFigureSnapshots();
+    return {
+      ...snapshotState(),
+      figures: Object.keys(figures).length ? figures : null
+    };
+  };
+
+  const persist = () => {
+    storage.queueSave(buildStorageSnapshot());
   };
 
   const bringPanelToFront = (panelId, { persistChange = true, scrollBrowser = false } = {}) => {
@@ -1492,7 +1506,13 @@ export function initWorkspaceCanvas() {
 
   const restoreSnapshot = (snapshot, { skipHistory = false } = {}) => {
     clearPanels();
-    colorCursor = snapshot?.colorCursor || 0;
+    const basePrefs = snapshot?.uiPrefs && typeof snapshot.uiPrefs === 'object'
+      ? { ...snapshot.uiPrefs }
+      : {};
+    if (Object.prototype.hasOwnProperty.call(snapshot || {}, 'colorCursor') && !('colorCursor' in basePrefs)) {
+      basePrefs.colorCursor = snapshot.colorCursor;
+    }
+    colorCursor = Number(basePrefs.colorCursor) || 0;
     sectionsModel.load(snapshot?.sections);
 
     const panelSnapshot = snapshot?.panels || { counter: 0, items: [] };
@@ -4114,15 +4134,7 @@ export function initWorkspaceCanvas() {
     }
   }
 
-  const saved = (() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  })();
+  const saved = storage.load();
 
   if (saved) {
     restoreSnapshot(saved, { skipHistory: true });
@@ -4147,6 +4159,16 @@ export function initWorkspaceCanvas() {
   });
 
   window.addEventListener('scroll', requestLayoutSync, { passive: true });
+
+  window.addEventListener('beforeunload', () => {
+    storage.flush();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      storage.flush();
+    }
+  });
 
   if (workspacePane) {
     new MutationObserver(requestLayoutSync).observe(workspacePane, {
