@@ -5,6 +5,10 @@ import { createPanelsModel } from '../../workspace/canvas/state/panelsModel.js';
 import { applyLineChip } from '../utils/styling_linechip.js';
 import { toHexColor } from '../utils/styling.js';
 import { escapeHtml } from '../utils/dom.js';
+import { render as renderTreeView } from '../workspace/browser/treeView.js';
+import * as treeEvents from '../workspace/browser/treeEvents.js';
+import * as dragDrop from '../workspace/browser/dragDrop.js';
+import * as chipPanelsBridge from '../workspace/browser/chipPanelsBridge.js';
 
 import * as Render from '../../workspace/canvas/plotting/render.js';
 import * as Actions from '../../workspace/canvas/plotting/actionsController.js';
@@ -24,7 +28,6 @@ const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
-const GRAPH_DRAG_MIME = 'application/x-ftir-workspace-graph';
 let colorCursor = 0;
 let sectionCounter = 0;
 
@@ -403,6 +406,8 @@ export function initWorkspaceCanvas() {
     redo: document.getElementById('c_history_redo')
   };
 
+  const getBrowserRootEl = () => panelDom.tree || null;
+
   const browserHotspot = (() => {
     if (typeof document === 'undefined') return null;
     let el = document.getElementById('c_browser_hotspot');
@@ -577,6 +582,7 @@ export function initWorkspaceCanvas() {
 
   const setActivePanel = (panelId, options = {}) => {
     activePanelId = panelId || null;
+    chipPanelsBridge.onPanelSelected(activePanelId);
     applyActivePanelState(options);
   };
 
@@ -1504,7 +1510,7 @@ export function initWorkspaceCanvas() {
       });
 
     updateCanvasState();
-    renderGraphBrowser();
+    renderBrowser();
     persist();
 
     if (!skipHistory) {
@@ -1665,7 +1671,7 @@ export function initWorkspaceCanvas() {
       pushHistory();
       renameSection(sectionId, nextValue);
       persist();
-      renderGraphBrowser();
+      renderBrowser();
       updateHistoryButtons();
     };
     const onBlur = () => finish(true);
@@ -1702,7 +1708,7 @@ export function initWorkspaceCanvas() {
     section.visible = section.visible === false ? true : false;
     persist();
     refreshPanelVisibility();
-    renderGraphBrowser();
+    renderBrowser();
     updateHistoryButtons();
   };
 
@@ -1714,8 +1720,29 @@ export function initWorkspaceCanvas() {
     const nextHidden = record.hidden !== true;
     panelsModel.setHidden(panelId, nextHidden);
     persist();
-    renderGraphBrowser();
+    renderBrowser();
     updateHistoryButtons();
+  };
+
+  const toggleSectionCollapsedState = (sectionId) => {
+    const section = sections.get(sectionId);
+    if (!section) return false;
+    const next = !section.collapsed;
+    setSectionCollapsed(sectionId, next);
+    renderBrowser();
+    persist();
+    return true;
+  };
+
+  const togglePanelCollapsedState = (panelId) => {
+    if (!panelId) return false;
+    const record = getPanelRecord(panelId);
+    if (!record) return false;
+    const current = record.collapsed === true;
+    panelsModel.setCollapsed(panelId, !current);
+    renderBrowser();
+    persist();
+    return true;
   };
 
   const addGraphToSection = (sectionId) => {
@@ -1731,8 +1758,8 @@ export function initWorkspaceCanvas() {
     }
   };
 
-  const renderGraphBrowser = () => {
-    const tree = panelDom.tree;
+  const renderBrowser = () => {
+    const tree = getBrowserRootEl();
     if (!tree) return;
     tree.innerHTML = '';
     ensureDefaultSection();
@@ -1772,6 +1799,46 @@ export function initWorkspaceCanvas() {
       }
     });
 
+    const treeSections = sectionOrder
+      .map((sectionId) => sections.get(sectionId))
+      .filter(Boolean)
+      .map((section) => ({
+        id: section.id,
+        name: section.name || 'Group',
+        collapsed: section.collapsed === true,
+        locked: section.locked === true,
+        parentId: section.parentId || null
+      }));
+
+    const treeViewPanels = new Map();
+    treeSections.forEach((section) => {
+      treeViewPanels.set(section.id, []);
+    });
+
+    sortedPanels.forEach((item) => {
+      const sectionId = sections.has(item.meta.sectionId) ? item.meta.sectionId : DEFAULT_SECTION_ID;
+      if (!treeViewPanels.has(sectionId)) {
+        treeViewPanels.set(sectionId, []);
+      }
+      treeViewPanels.get(sectionId).push({
+        id: item.panelId,
+        name: escapeHtml(item.record?.name || `Graph ${item.meta.index}`),
+        hidden: item.record?.hidden === true
+      });
+    });
+
+    renderTreeView({
+      rootEl: tree,
+      sections: treeSections,
+      panelsBySection: treeViewPanels,
+      activePanelId
+    });
+
+    const panelsBySection = new Map();
+    sections.forEach((section, id) => {
+      panelsBySection.set(id, []);
+    });
+
     if (!sortedPanels.length) {
       if (panelDom.empty) {
         panelDom.empty.dataset.mode = 'search-empty';
@@ -1784,11 +1851,6 @@ export function initWorkspaceCanvas() {
       refreshPanelVisibility();
       return;
     }
-
-    const panelsBySection = new Map();
-    sections.forEach((section, id) => {
-      panelsBySection.set(id, []);
-    });
 
     sortedPanels.forEach((item) => {
       const sectionId = sections.has(item.meta.sectionId) ? item.meta.sectionId : DEFAULT_SECTION_ID;
@@ -1897,7 +1959,7 @@ export function initWorkspaceCanvas() {
         normalizePanelTraces(panelId, figure);
         renderPlot(panelId);
         persist();
-        renderGraphBrowser();
+        renderBrowser();
         updateHistoryButtons();
       });
 
@@ -1912,7 +1974,7 @@ export function initWorkspaceCanvas() {
         renameInput.readOnly = true;
         const value = renameInput.value.trim();
         if (!value) {
-          renderGraphBrowser();
+          renderBrowser();
           return;
         }
         const figure = getPanelFigure(panelId);
@@ -1929,7 +1991,7 @@ export function initWorkspaceCanvas() {
         figure.data = tracesData;
         normalizePanelTraces(panelId, figure);
         renderPlot(panelId);
-        renderGraphBrowser();
+        renderBrowser();
         persist();
         updateHistoryButtons();
       });
@@ -1959,7 +2021,7 @@ export function initWorkspaceCanvas() {
           normalizePanelTraces(panelId, result.figure);
           renderPlot(panelId);
         }
-        renderGraphBrowser();
+        renderBrowser();
         persist();
         updateHistoryButtons();
       });
@@ -2020,37 +2082,12 @@ export function initWorkspaceCanvas() {
         header.classList.add('is-hidden');
       }
 
-      header.addEventListener('dragstart', (event) => {
-        if (event.target.closest('button')) {
-          event.preventDefault();
-          return;
-        }
-        dragState = { type: 'graph', panelId: resolvedPanelId, sectionId };
-        node.classList.add('is-dragging');
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData(GRAPH_DRAG_MIME, resolvedPanelId);
-          event.dataTransfer.setData('text/plain', resolvedPanelId);
-        }
-      });
-      header.addEventListener('dragend', () => {
-        node.classList.remove('is-dragging');
-        dragState = null;
-        setDropTarget(null);
-      });
-
       const toggle = document.createElement('button');
       toggle.type = 'button';
       toggle.className = 'toggle';
       toggle.innerHTML = `<i class="bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
       toggle.setAttribute('aria-expanded', String(!collapsed));
       toggle.setAttribute('draggable', 'false');
-      toggle.addEventListener('click', () => {
-        const current = getPanelRecord(resolvedPanelId)?.collapsed === true;
-        panelsModel.setCollapsed(resolvedPanelId, !current);
-        renderGraphBrowser();
-        persist();
-      });
       header.appendChild(toggle);
 
       const name = document.createElement('span');
@@ -2171,11 +2208,6 @@ export function initWorkspaceCanvas() {
       toggle.className = 'toggle';
       toggle.innerHTML = `<i class="bi ${section.collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
       toggle.setAttribute('aria-expanded', String(!section.collapsed));
-      toggle.addEventListener('click', () => {
-        setSectionCollapsed(sectionId, !section.collapsed);
-        renderGraphBrowser();
-        persist();
-      });
       header.appendChild(toggle);
 
       const name = document.createElement('span');
@@ -2352,7 +2384,7 @@ export function initWorkspaceCanvas() {
     });
     deleteSection(sectionId);
     ensureDefaultSection();
-    renderGraphBrowser();
+    renderBrowser();
     persist();
     updateHistoryButtons();
   };
@@ -2392,7 +2424,7 @@ export function initWorkspaceCanvas() {
       removePanel(sourcePanelId, { pushToHistory: false });
     }
 
-    renderGraphBrowser();
+    renderBrowser();
     persist();
     updateHistoryButtons();
     return true;
@@ -2434,7 +2466,7 @@ export function initWorkspaceCanvas() {
       panelsModel.setPanelIndex(panel.id, idx + 1);
     });
 
-    renderGraphBrowser();
+    renderBrowser();
     persist();
     updateHistoryButtons();
     return true;
@@ -2475,63 +2507,30 @@ export function initWorkspaceCanvas() {
   };
 
   const handleTreeDragOver = (event) => {
-    if (!dragState) return;
-    if (dragState.type === 'trace') {
-      const target = resolveTraceTarget(event);
-      if (!target || !target.panelId) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      setDropTarget(target.element);
-    } else if (dragState.type === 'graph') {
-      const targetGraph = event.target.closest('.graph-node');
-      const targetSection = event.target.closest('.section-node');
-      if (!targetGraph && !targetSection) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      setDropTarget(targetGraph || targetSection);
-    }
+    if (!dragState || dragState.type !== 'trace') return;
+    const target = resolveTraceTarget(event);
+    if (!target || !target.panelId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDropTarget(target.element);
   };
 
   const handleTreeDrop = (event) => {
-    if (!dragState) return;
-    if (dragState.type === 'trace') {
-      const target = resolveTraceTarget(event);
-      if (!target || !target.panelId) {
-        setDropTarget(null);
-        return;
-      }
-      event.preventDefault();
-      if (target.panelId === dragState.panelId && target.traceIndex === dragState.traceIndex) {
-        setDropTarget(null);
-        dragState = null;
-        return;
-      }
-      pushHistory();
-      if (!moveTrace(dragState, { panelId: target.panelId, traceIndex: target.traceIndex })) {
-        history.pop();
-      }
-    } else if (dragState.type === 'graph') {
-      const targetGraph = event.target.closest('.graph-node');
-      const targetSection = event.target.closest('.section-node');
-      if (!targetGraph && !targetSection) {
-        setDropTarget(null);
-        return;
-      }
-      event.preventDefault();
-      const sectionId = (targetGraph || targetSection)?.dataset?.sectionId;
-      let beforePanelId = null;
-      if (targetGraph) {
-        beforePanelId = targetGraph.dataset.panelId;
-        if (beforePanelId === dragState.panelId) {
-          setDropTarget(null);
-          dragState = null;
-          return;
-        }
-      }
-      pushHistory();
-      if (!moveGraph(dragState.panelId, { sectionId, beforePanelId })) {
-        history.pop();
-      }
+    if (!dragState || dragState.type !== 'trace') return;
+    const target = resolveTraceTarget(event);
+    if (!target || !target.panelId) {
+      setDropTarget(null);
+      return;
+    }
+    event.preventDefault();
+    if (target.panelId === dragState.panelId && target.traceIndex === dragState.traceIndex) {
+      setDropTarget(null);
+      dragState = null;
+      return;
+    }
+    pushHistory();
+    if (!moveTrace(dragState, { panelId: target.panelId, traceIndex: target.traceIndex })) {
+      history.pop();
     }
     setDropTarget(null);
     dragState = null;
@@ -2559,7 +2558,7 @@ export function initWorkspaceCanvas() {
       }, null);
       setActivePanel(fallbackRecord ? fallbackRecord.id : null);
     }
-    renderGraphBrowser();
+    renderBrowser();
     refreshPanelVisibility();
     updateCanvasState();
     persist();
@@ -3573,7 +3572,7 @@ export function initWorkspaceCanvas() {
     configureInteractivity(panelId);
     updateCanvasState();
     updateToolbarMetrics();
-    renderGraphBrowser();
+    renderBrowser();
     setActivePanel(panelId);
     refreshPanelVisibility();
 
@@ -3664,7 +3663,7 @@ export function initWorkspaceCanvas() {
 
     normalizePanelTraces(panelId);
     renderPlot(panelId);
-    renderGraphBrowser();
+    renderBrowser();
     persist();
     updateHistoryButtons();
     showToast(`Added ${added} file${added === 1 ? '' : 's'} to graph.`, 'success');
@@ -3911,13 +3910,13 @@ export function initWorkspaceCanvas() {
       panelDom.searchInput.value = '';
       panelDom.searchInput.style.display = 'none';
       searchTerm = '';
-      renderGraphBrowser();
+      renderBrowser();
     }
   });
 
   panelDom.searchInput?.addEventListener('input', (evt) => {
     searchTerm = evt.target.value || '';
-    renderGraphBrowser();
+    renderBrowser();
   });
 
   panelDom.searchInput?.addEventListener('keydown', (evt) => {
@@ -3926,7 +3925,7 @@ export function initWorkspaceCanvas() {
       searchTerm = '';
       panelDom.searchInput.blur();
       panelDom.searchInput.style.display = 'none';
-      renderGraphBrowser();
+      renderBrowser();
     }
   });
 
@@ -3937,61 +3936,14 @@ export function initWorkspaceCanvas() {
     panelDom.tree.addEventListener('dragover', handleTreeDragOver);
     panelDom.tree.addEventListener('drop', handleTreeDrop);
     panelDom.tree.addEventListener('dragleave', (event) => {
+      if (!dragState) return;
       if (!panelDom.tree.contains(event.relatedTarget)) {
         setDropTarget(null);
       }
     });
-    panelDom.tree.addEventListener('dragend', () => setDropTarget(null));
-    panelDom.tree.addEventListener('click', (evt) => {
-      const visibilityBtn = evt.target.closest('.section-visibility');
-      if (visibilityBtn?.dataset?.sectionId) {
-        toggleSectionVisibility(visibilityBtn.dataset.sectionId);
-        return;
-      }
-      const addGraphBtn = evt.target.closest('.section-add-graph');
-      if (addGraphBtn?.dataset?.sectionId) {
-        addGraphToSection(addGraphBtn.dataset.sectionId);
-        return;
-      }
-      const addSubBtn = evt.target.closest('.section-add-sub');
-      if (addSubBtn?.dataset?.sectionId) {
-        pushHistory();
-        const section = createSection(null, { parentId: addSubBtn.dataset.sectionId });
-        queueSectionRename(section.id);
-        renderGraphBrowser();
-        persist();
-        updateHistoryButtons();
-        return;
-      }
-      const graphVisibilityBtn = evt.target.closest('.graph-visibility');
-      if (graphVisibilityBtn?.dataset?.panelId) {
-        toggleGraphVisibility(graphVisibilityBtn.dataset.panelId);
-        return;
-      }
-      const graphBrowseBtn = evt.target.closest('.graph-browse');
-      if (graphBrowseBtn?.dataset?.panelId) {
-        requestGraphFileBrowse(graphBrowseBtn.dataset.panelId);
-        return;
-      }
-      const graphDeleteBtn = evt.target.closest('.graph-delete');
-      if (graphDeleteBtn?.dataset?.panelId) {
-        deleteGraphInteractive(graphDeleteBtn.dataset.panelId);
-        return;
-      }
-      const graphHeader = evt.target.closest('.graph-header');
-      if (graphHeader?.dataset?.panelId && !evt.target.closest('button')) {
-        focusPanelById(graphHeader.dataset.panelId, { scrollBrowser: false });
-        return;
-      }
-      const sectionHeader = evt.target.closest('.section-header');
-      if (sectionHeader?.dataset?.sectionId && !evt.target.closest('button')) {
-        focusSectionById(sectionHeader.dataset.sectionId, { scrollBrowser: false });
-        return;
-      }
-      const deleteBtn = evt.target.closest('.section-delete');
-      if (deleteBtn?.dataset?.sectionId) {
-        deleteSectionInteractive(deleteBtn.dataset.sectionId);
-      }
+    panelDom.tree.addEventListener('dragend', () => {
+      if (!dragState) return;
+      setDropTarget(null);
     });
     panelDom.tree.addEventListener('focusin', () => {
       if (!panelPinned) {
@@ -4005,10 +3957,82 @@ export function initWorkspaceCanvas() {
         panelDom.root.classList.remove('peeking');
       }
     });
-    panelDom.tree.addEventListener('dblclick', (evt) => {
-      const nameEl = evt.target.closest('.section-name');
-      if (!nameEl?.dataset?.sectionId) return;
-      startSectionRename(nameEl.dataset.sectionId, nameEl, { selectAll: true });
+    treeEvents.attach(panelDom.tree, {
+      onSelectPanel: (panelId) => {
+        focusPanelById(panelId, { scrollBrowser: false });
+        chipPanelsBridge.onPanelSelected(panelId);
+        return false;
+      },
+      onSelectSection: (sectionId) => {
+        focusSectionById(sectionId, { scrollBrowser: false });
+        return false;
+      },
+      onStateChanged: renderBrowser,
+      toggleSectionCollapsed: (sectionId) => {
+        toggleSectionCollapsedState(sectionId);
+        return false;
+      },
+      togglePanelCollapsed: (panelId) => {
+        togglePanelCollapsedState(panelId);
+        return false;
+      },
+      toggleSectionVisibility: (sectionId) => {
+        toggleSectionVisibility(sectionId);
+        return false;
+      },
+      togglePanelVisibility: (panelId) => {
+        toggleGraphVisibility(panelId);
+        return false;
+      },
+      addGraphToSection: (sectionId) => {
+        addGraphToSection(sectionId);
+        return false;
+      },
+      addSubSection: (sectionId) => {
+        pushHistory();
+        const section = createSection(null, { parentId: sectionId });
+        if (section?.id) {
+          queueSectionRename(section.id);
+        }
+        renderBrowser();
+        persist();
+        updateHistoryButtons();
+        return false;
+      },
+      deleteSection: (sectionId) => {
+        deleteSectionInteractive(sectionId);
+        return false;
+      },
+      deletePanel: (panelId) => {
+        deleteGraphInteractive(panelId);
+        return false;
+      },
+      browsePanel: (panelId) => {
+        requestGraphFileBrowse(panelId);
+        return false;
+      },
+      startSectionRename: (sectionId, nameEl, opts) => {
+        startSectionRename(sectionId, nameEl, opts);
+        return false;
+      }
+    });
+    dragDrop.attach(panelDom.tree, {
+      onStateChanged: renderBrowser,
+      onDropPanel: (panelId, sectionId) => {
+        if (!panelId || !sectionId) return false;
+        const record = getPanelRecord(panelId);
+        if (!record) return false;
+        const currentSection = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
+        if (currentSection === sectionId) {
+          return false;
+        }
+        pushHistory();
+        const moved = moveGraph(panelId, { sectionId });
+        if (!moved) {
+          history.pop();
+        }
+        return false;
+      }
     });
   }
 
@@ -4018,7 +4042,7 @@ export function initWorkspaceCanvas() {
       pushHistory();
       const section = createSection();
       queueSectionRename(section.id);
-      renderGraphBrowser();
+      renderBrowser();
       persist();
       updateHistoryButtons();
     });
@@ -4039,7 +4063,7 @@ export function initWorkspaceCanvas() {
     colorCursor = 0;
     persist();
     updateCanvasState();
-    renderGraphBrowser();
+    renderBrowser();
     showToast('Workspace canvas cleared.', 'warning');
     updateHistoryButtons();
   });
@@ -4104,7 +4128,7 @@ export function initWorkspaceCanvas() {
     restoreSnapshot(saved, { skipHistory: true });
   } else {
     updateCanvasState();
-    renderGraphBrowser();
+    renderBrowser();
   }
 
   updateHistoryButtons();
