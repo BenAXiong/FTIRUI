@@ -7,6 +7,7 @@ import { toHexColor } from '../utils/styling.js';
 import { escapeHtml } from '../utils/dom.js';
 import { render as renderTreeView } from '../workspace/browser/treeView.js';
 import * as storage from '../../core/storage.js';
+import { createHistory } from '../../core/history.js';
 import * as treeEvents from '../workspace/browser/treeEvents.js';
 import * as dragDrop from '../workspace/browser/dragDrop.js';
 import * as chipPanelsBridge from '../workspace/browser/chipPanelsBridge.js';
@@ -22,6 +23,7 @@ const COLOR_PALETTE = [
   '#bcbd22', '#17becf'
 ];
 const HISTORY_LIMIT = 25;
+const HISTORY_GEOMETRY_TOLERANCE = 6;
 const PANEL_COLLAPSE_KEY = 'ftir.workspace.panelCollapsed.v1';
 const PANEL_PIN_KEY = 'ftir.workspace.panelPinned.v1';
 const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
@@ -381,8 +383,10 @@ export function initWorkspaceCanvas() {
     return runtime;
   };
 
-  const history = [];
-  const future = [];
+  const history = createHistory({
+    limit: HISTORY_LIMIT,
+    tolerance: HISTORY_GEOMETRY_TOLERANCE
+  });
   let searchTerm = '';
   let pendingGraphFileTarget = null;
 
@@ -798,9 +802,11 @@ export function initWorkspaceCanvas() {
   };
 
   const updateHistoryButtons = () => {
-    if (panelDom.undo) panelDom.undo.disabled = history.length === 0;
-    if (panelDom.redo) panelDom.redo.disabled = future.length === 0;
+    if (panelDom.undo) panelDom.undo.disabled = !history.canUndo();
+    if (panelDom.redo) panelDom.redo.disabled = !history.canRedo();
   };
+
+  history.setOnChange(updateHistoryButtons);
 
   const hasOwn = Object.prototype.hasOwnProperty;
   const isPrimaryAxis = (axisKey) => axisKey === 'xaxis' || axisKey === 'yaxis';
@@ -1486,13 +1492,8 @@ export function initWorkspaceCanvas() {
     bringPanelToFront(panelId, { scrollBrowser });
   };
 
-  const pushHistory = () => {
-    history.push(snapshotState());
-    if (history.length > HISTORY_LIMIT) {
-      history.shift();
-    }
-    future.length = 0;
-    updateHistoryButtons();
+  const pushHistory = (label) => {
+    history.push(snapshotState(), label);
   };
 
   const clearPanels = () => {
@@ -1539,19 +1540,15 @@ export function initWorkspaceCanvas() {
   };
 
   const undo = () => {
-    if (!history.length) return;
-    future.push(snapshotState());
-    const snapshot = history.pop();
+    const snapshot = history.undo(snapshotState());
+    if (!snapshot) return;
     restoreSnapshot(snapshot, { skipHistory: true });
-    updateHistoryButtons();
   };
 
   const redo = () => {
-    if (!future.length) return;
-    history.push(snapshotState());
-    const snapshot = future.pop();
+    const snapshot = history.redo(snapshotState());
+    if (!snapshot) return;
     restoreSnapshot(snapshot, { skipHistory: true });
-    updateHistoryButtons();
   };
 
   const renderPlot = (panelId) => {
@@ -1968,7 +1965,7 @@ export function initWorkspaceCanvas() {
         const tracesData = ensureArray(figure.data);
         const current = tracesData[rowInfo.idx];
         if (!current) {
-          history.pop();
+          history.rewind();
           return;
         }
         tracesData[rowInfo.idx] = {
@@ -2031,7 +2028,7 @@ export function initWorkspaceCanvas() {
         pushHistory();
         const result = panelsModel.removeTrace(panelId, rowInfo.idx);
         if (!result) {
-          history.pop();
+          history.rewind();
           return;
         }
         const remaining = ensureArray(result.figure?.data);
@@ -2550,7 +2547,7 @@ export function initWorkspaceCanvas() {
     }
     pushHistory();
     if (!moveTrace(dragState, { panelId: target.panelId, traceIndex: target.traceIndex })) {
-      history.pop();
+      history.rewind();
     }
     setDropTarget(null);
     dragState = null;
@@ -3675,7 +3672,7 @@ export function initWorkspaceCanvas() {
     }
 
     if (!added) {
-      history.pop();
+      history.rewind();
       updateHistoryButtons();
       showToast('No files were added to the graph.', 'warning');
       return;
@@ -4049,7 +4046,7 @@ export function initWorkspaceCanvas() {
         pushHistory();
         const moved = moveGraph(panelId, { sectionId });
         if (!moved) {
-          history.pop();
+          history.rewind();
         }
         return false;
       }

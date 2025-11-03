@@ -2,13 +2,123 @@ const NAMESPACE_KEY = 'ftir.workspace.v1';
 const APP_ID = 'ftir.workspace';
 const SCHEMA_VERSION = 1;
 const DEFAULT_DEBOUNCE_MS = 1200;
+const LEGACY_NAMESPACE_KEYS = ['ftir.workspace.canvas.v1'];
+
+const coerceBoolean = (value, defaultValue = false) => (value === true ? true : value === false ? false : defaultValue);
+
+const normalizeSectionsSnapshot = (sections) => {
+  if (!sections || typeof sections !== 'object') return null;
+  const items = Array.isArray(sections.items)
+    ? sections.items
+        .map((section) => {
+          if (!section || typeof section !== 'object') return null;
+          const children = Array.isArray(section.children) ? section.children.slice() : [];
+          return {
+            ...section,
+            collapsed: coerceBoolean(section.collapsed, false),
+            locked: coerceBoolean(section.locked, false),
+            visible: section.visible === false ? false : true,
+            parentId: section.parentId || null,
+            children
+          };
+        })
+        .filter(Boolean)
+    : null;
+  const normalized = {
+    ...sections
+  };
+  if (items) normalized.items = items;
+  if (Object.prototype.hasOwnProperty.call(sections, 'order') && Array.isArray(sections.order)) {
+    normalized.order = sections.order.slice();
+  }
+  if (Object.prototype.hasOwnProperty.call(sections, 'counter')) {
+    const counter = Number(sections.counter);
+    normalized.counter = Number.isFinite(counter) ? counter : 0;
+  }
+  return normalized;
+};
+
+const normalizePanelsSnapshot = (panels) => {
+  if (!panels || typeof panels !== 'object') return null;
+  const items = Array.isArray(panels.items)
+    ? panels.items
+        .map((panel) => {
+          if (!panel || typeof panel !== 'object' || !panel.id) return null;
+          return {
+            ...panel,
+            collapsed: coerceBoolean(panel.collapsed, false),
+            hidden: panel.hidden === true,
+            sectionId: panel.sectionId || panel.section || null
+          };
+        })
+        .filter(Boolean)
+    : null;
+  const normalized = {
+    ...panels
+  };
+  if (items) normalized.items = items;
+  if (Object.prototype.hasOwnProperty.call(panels, 'counter')) {
+    const counter = Number(panels.counter);
+    normalized.counter = Number.isFinite(counter) ? counter : 0;
+  }
+  if (Object.prototype.hasOwnProperty.call(panels, 'zIndexCursor')) {
+    const zIndexCursor = Number(panels.zIndexCursor);
+    normalized.zIndexCursor = Number.isFinite(zIndexCursor) ? zIndexCursor : 0;
+  }
+  return normalized;
+};
+
+const normalizeFiguresSnapshot = (figures) => {
+  if (!figures || typeof figures !== 'object') return null;
+  const normalized = {};
+  Object.entries(figures).forEach(([panelId, figure]) => {
+    if (!panelId) return;
+    const safeFigure = figure && typeof figure === 'object' ? figure : {};
+    const data = Array.isArray(safeFigure.data)
+      ? safeFigure.data.map((trace) => (trace && typeof trace === 'object' ? { ...trace } : trace))
+      : [];
+    const layout = safeFigure.layout && typeof safeFigure.layout === 'object'
+      ? { ...safeFigure.layout }
+      : {};
+    normalized[panelId] = {
+      data,
+      layout
+    };
+  });
+  return Object.keys(normalized).length ? normalized : null;
+};
+
+const normalizeUiPrefs = (prefs, fallback = {}) => {
+  const source = prefs && typeof prefs === 'object' ? { ...prefs } : {};
+  if (Object.prototype.hasOwnProperty.call(fallback, 'colorCursor') && !Object.prototype.hasOwnProperty.call(source, 'colorCursor')) {
+    source.colorCursor = fallback.colorCursor;
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'colorCursor')) {
+    const value = Number(source.colorCursor);
+    source.colorCursor = Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+  }
+  return Object.keys(source).length ? source : null;
+};
+
+const normalizeSnapshot = (snapshot) => ({
+  sections: normalizeSectionsSnapshot(snapshot?.sections),
+  panels: normalizePanelsSnapshot(snapshot?.panels),
+  figures: normalizeFiguresSnapshot(snapshot?.figures),
+  uiPrefs: normalizeUiPrefs(snapshot?.uiPrefs, snapshot)
+});
+
+const MIGRATORS = new Map([
+  [0, (input) => ({
+    version: 1,
+    data: normalizeSnapshot(input)
+  })]
+]);
 
 let cachedStorage;
 let cachedStorageType = null;
 let pendingSnapshot = null;
 let debounceTimer = null;
 
-const noop = () => false;
 
 const isDevMode = () => {
   if (typeof window === 'undefined') return false;
@@ -78,31 +188,7 @@ const resolveStorage = () => {
   return null;
 };
 
-const cloneSnapshot = (snapshot) => {
-  if (!snapshot || typeof snapshot !== 'object') {
-    return {
-      sections: null,
-      panels: null,
-      figures: null,
-      uiPrefs: null
-    };
-  }
-
-  const base = {
-    sections: snapshot.sections ?? null,
-    panels: snapshot.panels ?? null,
-    figures: snapshot.figures ?? null,
-    uiPrefs: snapshot.uiPrefs ?? null
-  };
-
-  if (base.uiPrefs == null && Object.prototype.hasOwnProperty.call(snapshot, 'colorCursor')) {
-    base.uiPrefs = { colorCursor: snapshot.colorCursor };
-  } else if (base.uiPrefs && Object.prototype.hasOwnProperty.call(snapshot, 'colorCursor')) {
-    base.uiPrefs = { ...base.uiPrefs, colorCursor: snapshot.colorCursor };
-  }
-
-  return JSON.parse(JSON.stringify(base));
-};
+const cloneSnapshot = (snapshot) => JSON.parse(JSON.stringify(normalizeSnapshot(snapshot || {})));
 
 const composePayload = (snapshot, timestamp = Date.now()) => ({
   version: SCHEMA_VERSION,
@@ -135,6 +221,54 @@ const resetPending = () => {
   clearDebounceTimer();
 };
 
+export const migrate = (payload) => {
+  if (!payload || typeof payload !== 'object') return null;
+  if (payload.app && payload.app !== APP_ID) return null;
+
+  let version = Number(payload.version);
+  if (!Number.isFinite(version)) {
+    version = 0;
+  }
+  if (version > SCHEMA_VERSION) return null;
+
+  let data = payload.data && typeof payload.data === 'object'
+    ? payload.data
+    : {
+        sections: payload.sections ?? null,
+        panels: payload.panels ?? null,
+        figures: payload.figures ?? null,
+        uiPrefs: payload.uiPrefs ?? null,
+        colorCursor: payload.colorCursor
+      };
+
+  let workingVersion = version;
+  let workingData = data;
+
+  while (workingVersion < SCHEMA_VERSION) {
+    const migrator = MIGRATORS.get(workingVersion);
+    if (typeof migrator !== 'function') {
+      return null;
+    }
+    const result = migrator(workingData);
+    if (!result || typeof result !== 'object') {
+      return null;
+    }
+    const nextVersion = Number(result.version ?? workingVersion + 1);
+    if (!Number.isFinite(nextVersion) || nextVersion <= workingVersion) {
+      return null;
+    }
+    workingVersion = nextVersion;
+    workingData = result.data ?? workingData;
+  }
+
+  const normalizedData = normalizeSnapshot(workingData);
+
+  return {
+    version: SCHEMA_VERSION,
+    data: normalizedData
+  };
+};
+
 export const getNamespace = () => NAMESPACE_KEY;
 
 export const getStorageType = () => cachedStorageType;
@@ -143,7 +277,8 @@ export const hasSnapshot = () => {
   const storage = resolveStorage();
   if (!storage) return false;
   try {
-    return storage.getItem(NAMESPACE_KEY) != null;
+    if (storage.getItem(NAMESPACE_KEY) != null) return true;
+    return LEGACY_NAMESPACE_KEYS.some((key) => storage.getItem(key) != null);
   } catch {
     return false;
   }
@@ -153,12 +288,19 @@ export const clear = () => {
   const storage = resolveStorage();
   resetPending();
   if (!storage) return false;
-  try {
-    storage.removeItem(NAMESPACE_KEY);
-    return true;
-  } catch {
-    return false;
-  }
+  let removed = false;
+  const keys = [NAMESPACE_KEY, ...LEGACY_NAMESPACE_KEYS];
+  keys.forEach((key) => {
+    try {
+      if (storage.getItem(key) != null) {
+        removed = true;
+      }
+      storage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  });
+  return removed;
 };
 
 export const save = (snapshot, { timestamp = Date.now() } = {}) => {
@@ -194,48 +336,46 @@ export const load = () => {
   const storage = resolveStorage();
   if (!storage) return null;
   try {
-    const raw = storage.getItem(NAMESPACE_KEY);
-    if (!raw) return null;
+    let sourceKey = NAMESPACE_KEY;
+    let raw = storage.getItem(sourceKey);
+    if (!raw) {
+      for (const legacyKey of LEGACY_NAMESPACE_KEYS) {
+        raw = storage.getItem(legacyKey);
+        if (raw) {
+          sourceKey = legacyKey;
+          break;
+        }
+      }
+      if (!raw) return null;
+    }
+
     const payload = JSON.parse(raw);
     if (!payload || typeof payload !== 'object') return null;
 
-    const version = Number(payload.version);
-    if (!Number.isFinite(version) || version > SCHEMA_VERSION) {
-      return null;
-    }
+    const migrated = migrate(payload);
+    if (!migrated || !migrated.data) return null;
+    const snapshot = cloneSnapshot(migrated.data);
+    const timestamp = Number(payload.timestamp) || null;
 
-    const data = (() => {
-      if (payload.data && typeof payload.data === 'object') {
-        return payload.data;
+    if (sourceKey !== NAMESPACE_KEY) {
+      try {
+        const rewritePayload = composePayload(snapshot, timestamp ?? Date.now());
+        storage.setItem(NAMESPACE_KEY, JSON.stringify(rewritePayload));
+      } catch (rewriteErr) {
+        console.warn('[storage] Failed to rewrite legacy snapshot', rewriteErr);
       }
-      // Backwards compatibility with legacy schema.
-      return {
-        sections: payload.sections ?? null,
-        panels: payload.panels ?? null,
-        figures: payload.figures ?? null,
-        uiPrefs: payload.uiPrefs ?? null,
-        colorCursor: payload.colorCursor
-      };
-    })();
-
-    const snapshot = {
-      sections: data.sections ?? null,
-      panels: data.panels ?? null,
-      figures: data.figures ?? null,
-      uiPrefs: data.uiPrefs ?? null
-    };
-
-    if (!snapshot.uiPrefs && Object.prototype.hasOwnProperty.call(data, 'colorCursor')) {
-      snapshot.uiPrefs = { colorCursor: data.colorCursor };
-    } else if (snapshot.uiPrefs && Object.prototype.hasOwnProperty.call(data, 'colorCursor')) {
-      snapshot.uiPrefs = { ...snapshot.uiPrefs, colorCursor: data.colorCursor };
+      try {
+        storage.removeItem(sourceKey);
+      } catch {
+        /* ignore */
+      }
     }
 
     return {
       ...snapshot,
       meta: {
-        version: version || SCHEMA_VERSION,
-        timestamp: Number(payload.timestamp) || null,
+        version: migrated.version || SCHEMA_VERSION,
+        timestamp,
         storage: cachedStorageType
       }
     };
@@ -248,3 +388,5 @@ export const load = () => {
 export const getPendingSnapshot = () => (pendingSnapshot ? cloneSnapshot(pendingSnapshot) : null);
 
 export const DEFAULT_DELAY = DEFAULT_DEBOUNCE_MS;
+
+export const CURRENT_VERSION = SCHEMA_VERSION;
