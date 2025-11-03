@@ -389,6 +389,7 @@ export function initWorkspaceCanvas() {
   });
   let searchTerm = '';
   let pendingGraphFileTarget = null;
+  let storageQueueWarningShown = false;
 
   const interact = typeof window !== 'undefined' ? window.interact : null;
   ensureDefaultSection();
@@ -409,6 +410,86 @@ export function initWorkspaceCanvas() {
     undo: document.getElementById('c_history_undo'),
     redo: document.getElementById('c_history_redo')
   };
+
+  const workspaceMenu = (() => {
+    const toggle = document.getElementById('c_canvas_more_btn');
+    const menu = toggle?.parentElement?.querySelector('.dropdown-menu') || null;
+    if (!menu) {
+      return { root: null, toggle: null, save: null, load: null, clear: null };
+    }
+
+    if (!menu.dataset.workspaceActions) {
+      const preserved = Array.from(menu.children);
+      menu.innerHTML = `
+        <li><button id="c_workspace_save" class="dropdown-item" type="button"><i class="bi bi-download me-2"></i>Save workspace snapshot</button></li>
+        <li><button id="c_workspace_load" class="dropdown-item" type="button"><i class="bi bi-upload me-2"></i>Load saved workspace</button></li>
+        <li><button id="c_workspace_clear" class="dropdown-item text-danger" type="button"><i class="bi bi-trash3 me-2"></i>Clear saved snapshot</button></li>
+        <li><hr class="dropdown-divider"></li>
+      `;
+      preserved
+        .filter((node) => node.querySelector('button'))
+        .forEach((node) => menu.appendChild(node));
+      menu.dataset.workspaceActions = '1';
+    }
+
+    const save = menu.querySelector('#c_workspace_save');
+    const load = menu.querySelector('#c_workspace_load');
+    const clear = menu.querySelector('#c_workspace_clear');
+
+    return {
+      root: menu,
+      toggle,
+      save,
+      load,
+      clear
+    };
+  })();
+
+  const closeWorkspaceMenu = () => {
+    if (typeof window === 'undefined' || !workspaceMenu.toggle) return;
+    const dropdownApi = window.bootstrap?.Dropdown;
+    try {
+      if (dropdownApi?.getOrCreateInstance) {
+        dropdownApi.getOrCreateInstance(workspaceMenu.toggle).hide();
+      } else if (dropdownApi?.getInstance) {
+        const instance = dropdownApi.getInstance(workspaceMenu.toggle);
+        instance?.hide();
+      } else if (typeof workspaceMenu.toggle.dispatchEvent === 'function') {
+        workspaceMenu.toggle.setAttribute('aria-expanded', 'false');
+        workspaceMenu.root?.classList.remove('show');
+      }
+    } catch {
+      workspaceMenu.toggle.setAttribute('aria-expanded', 'false');
+      workspaceMenu.root?.classList.remove('show');
+    }
+  };
+
+  const updateStorageButtons = () => {
+    const hasSnapshot = storage.hasSnapshot();
+    if (workspaceMenu.save) {
+      workspaceMenu.save.disabled = false;
+      workspaceMenu.save.setAttribute('title', 'Save workspace snapshot');
+      workspaceMenu.save.setAttribute('aria-disabled', 'false');
+    }
+    if (workspaceMenu.load) {
+      workspaceMenu.load.disabled = !hasSnapshot;
+      workspaceMenu.load.setAttribute('aria-disabled', String(!hasSnapshot));
+      workspaceMenu.load.setAttribute(
+        'title',
+        hasSnapshot ? 'Load saved workspace snapshot' : 'No saved workspace available'
+      );
+    }
+    if (workspaceMenu.clear) {
+      workspaceMenu.clear.disabled = !hasSnapshot;
+      workspaceMenu.clear.setAttribute('aria-disabled', String(!hasSnapshot));
+      workspaceMenu.clear.setAttribute(
+        'title',
+        hasSnapshot ? 'Remove saved workspace snapshot' : 'No saved workspace to clear'
+      );
+    }
+  };
+
+  updateStorageButtons();
 
   const getBrowserRootEl = () => panelDom.tree || null;
 
@@ -802,8 +883,18 @@ export function initWorkspaceCanvas() {
   };
 
   const updateHistoryButtons = () => {
-    if (panelDom.undo) panelDom.undo.disabled = !history.canUndo();
-    if (panelDom.redo) panelDom.redo.disabled = !history.canRedo();
+    if (panelDom.undo) {
+      const canUndo = history.canUndo();
+      panelDom.undo.disabled = !canUndo;
+      panelDom.undo.setAttribute('aria-disabled', String(!canUndo));
+      panelDom.undo.setAttribute('title', canUndo ? 'Undo last action' : 'Nothing to undo');
+    }
+    if (panelDom.redo) {
+      const canRedo = history.canRedo();
+      panelDom.redo.disabled = !canRedo;
+      panelDom.redo.setAttribute('aria-disabled', String(!canRedo));
+      panelDom.redo.setAttribute('title', canRedo ? 'Redo last undone action' : 'Nothing to redo');
+    }
   };
 
   history.setOnChange(updateHistoryButtons);
@@ -1470,7 +1561,66 @@ export function initWorkspaceCanvas() {
   };
 
   const persist = () => {
-    storage.queueSave(buildStorageSnapshot());
+    const queued = storage.queueSave(buildStorageSnapshot());
+    if (!queued) {
+      if (!storageQueueWarningShown) {
+        storageQueueWarningShown = true;
+        console.warn('[workspaceCanvas] Failed to queue workspace autosave');
+        window.showAppToast?.({ message: 'Autosave is unavailable; workspace changes will not be saved.', variant: 'danger' });
+      }
+    } else if (storageQueueWarningShown) {
+      storageQueueWarningShown = false;
+    }
+    updateStorageButtons();
+  };
+
+  const saveWorkspaceSnapshot = () => {
+    closeWorkspaceMenu();
+    const success = storage.save(buildStorageSnapshot());
+    if (success) {
+      storageQueueWarningShown = false;
+      showToast('Workspace snapshot saved locally.', 'success');
+    } else {
+      storageQueueWarningShown = true;
+      showToast('Unable to save workspace snapshot locally.', 'danger');
+    }
+    updateStorageButtons();
+  };
+
+  const loadWorkspaceSnapshot = () => {
+    closeWorkspaceMenu();
+    const hadSnapshot = storage.hasSnapshot();
+    if (!hadSnapshot) {
+      showToast('No saved workspace snapshot found.', 'info');
+      return;
+    }
+    const beforeState = snapshotState();
+    const snapshot = storage.load();
+    if (snapshot) {
+      storageQueueWarningShown = false;
+      history.push(beforeState, 'Before manual load');
+      restoreSnapshot(snapshot, { skipHistory: true });
+      showToast('Workspace snapshot loaded.', 'success');
+      updateHistoryButtons();
+    } else {
+      showToast('Saved workspace snapshot could not be loaded. Using current workspace.', 'warning');
+    }
+    updateStorageButtons();
+  };
+
+  const clearWorkspaceSnapshot = () => {
+    closeWorkspaceMenu();
+    const hadSnapshot = storage.hasSnapshot();
+    const cleared = storage.clear();
+    if (hadSnapshot && cleared) {
+      storageQueueWarningShown = false;
+      showToast('Saved workspace snapshot cleared.', 'info');
+    } else if (!hadSnapshot) {
+      showToast('No saved workspace snapshot to clear.', 'info');
+    } else {
+      showToast('Unable to clear saved workspace snapshot.', 'danger');
+    }
+    updateStorageButtons();
   };
 
   const bringPanelToFront = (panelId, { persistChange = true, scrollBrowser = false } = {}) => {
@@ -3948,6 +4098,9 @@ export function initWorkspaceCanvas() {
 
   panelDom.undo?.addEventListener('click', undo);
   panelDom.redo?.addEventListener('click', redo);
+  workspaceMenu.save?.addEventListener('click', saveWorkspaceSnapshot);
+  workspaceMenu.load?.addEventListener('click', loadWorkspaceSnapshot);
+  workspaceMenu.clear?.addEventListener('click', clearWorkspaceSnapshot);
 
   if (panelDom.tree) {
     panelDom.tree.addEventListener('dragover', handleTreeDragOver);
@@ -4131,16 +4284,25 @@ export function initWorkspaceCanvas() {
     }
   }
 
+  const hadSnapshotOnBoot = storage.hasSnapshot();
   const saved = storage.load();
 
   if (saved) {
     restoreSnapshot(saved, { skipHistory: true });
+    history.clear();
+    storageQueueWarningShown = false;
   } else {
     updateCanvasState();
     renderBrowser();
+    history.clear();
+    if (hadSnapshotOnBoot) {
+      showToast('Saved workspace snapshot could not be restored. Starting with defaults.', 'warning');
+    }
+    storageQueueWarningShown = false;
   }
 
   updateHistoryButtons();
+  updateStorageButtons();
   updateToolbarMetrics();
 
   window.addEventListener('resize', () => {

@@ -114,6 +114,58 @@ const MIGRATORS = new Map([
   })]
 ]);
 
+const createMigrationError = (code, detail = null) => ({
+  error: { code, detail }
+});
+
+const STORAGE_ERROR_MESSAGES = {
+  invalid_payload: 'Saved workspace data was invalid and has been reset.',
+  app_mismatch: 'Saved workspace data belonged to a different application and was ignored.',
+  version_newer: 'Saved workspace data comes from a newer version. Please update to load it.',
+  missing_migrator: 'Saved workspace data is from an unsupported version and was cleared.',
+  invalid_migration_result: 'Saved workspace data could not be upgraded and has been reset.',
+  invalid_version_step: 'Saved workspace upgrade encountered invalid version metadata and was reset.',
+  normalized_empty: 'Saved workspace data was empty and has been cleared.',
+  parse_error: 'Saved workspace data was corrupted and has been cleared.',
+  load_failure: 'Failed to load saved workspace data; starting with defaults.'
+};
+
+const STORAGE_ERROR_VARIANTS = {
+  version_newer: 'warning',
+  app_mismatch: 'warning'
+};
+
+const STORAGE_ERROR_PURGE_CODES = new Set([
+  'invalid_payload',
+  'app_mismatch',
+  'missing_migrator',
+  'invalid_migration_result',
+  'invalid_version_step',
+  'normalized_empty',
+  'parse_error',
+  'load_failure'
+]);
+
+const emitToast = (message, variant = 'info') => {
+  if (typeof window !== 'undefined' && typeof window.showAppToast === 'function') {
+    window.showAppToast({ message, variant });
+  }
+};
+
+const reportStorageIssue = (code, detail, storageInstance, key) => {
+  const message = STORAGE_ERROR_MESSAGES[code] || 'Saved workspace data could not be loaded.';
+  const variant = STORAGE_ERROR_VARIANTS[code] || 'danger';
+  emitToast(message, variant);
+  console.warn(`[storage] ${message}`, detail || '');
+  if (storageInstance && key && STORAGE_ERROR_PURGE_CODES.has(code)) {
+    try {
+      storageInstance.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+};
+
 let cachedStorage;
 let cachedStorageType = null;
 let pendingSnapshot = null;
@@ -222,14 +274,20 @@ const resetPending = () => {
 };
 
 export const migrate = (payload) => {
-  if (!payload || typeof payload !== 'object') return null;
-  if (payload.app && payload.app !== APP_ID) return null;
+  if (!payload || typeof payload !== 'object') {
+    return createMigrationError('invalid_payload');
+  }
+  if (payload.app && payload.app !== APP_ID) {
+    return createMigrationError('app_mismatch', { app: payload.app });
+  }
 
   let version = Number(payload.version);
   if (!Number.isFinite(version)) {
     version = 0;
   }
-  if (version > SCHEMA_VERSION) return null;
+  if (version > SCHEMA_VERSION) {
+    return createMigrationError('version_newer', { version });
+  }
 
   let data = payload.data && typeof payload.data === 'object'
     ? payload.data
@@ -247,21 +305,24 @@ export const migrate = (payload) => {
   while (workingVersion < SCHEMA_VERSION) {
     const migrator = MIGRATORS.get(workingVersion);
     if (typeof migrator !== 'function') {
-      return null;
+      return createMigrationError('missing_migrator', { from: workingVersion });
     }
     const result = migrator(workingData);
     if (!result || typeof result !== 'object') {
-      return null;
+      return createMigrationError('invalid_migration_result', { from: workingVersion });
     }
     const nextVersion = Number(result.version ?? workingVersion + 1);
     if (!Number.isFinite(nextVersion) || nextVersion <= workingVersion) {
-      return null;
+      return createMigrationError('invalid_version_step', { from: workingVersion, to: result.version });
     }
     workingVersion = nextVersion;
     workingData = result.data ?? workingData;
   }
 
   const normalizedData = normalizeSnapshot(workingData);
+  if (!normalizedData) {
+    return createMigrationError('normalized_empty');
+  }
 
   return {
     version: SCHEMA_VERSION,
@@ -274,6 +335,7 @@ export const getNamespace = () => NAMESPACE_KEY;
 export const getStorageType = () => cachedStorageType;
 
 export const hasSnapshot = () => {
+  if (pendingSnapshot) return true;
   const storage = resolveStorage();
   if (!storage) return false;
   try {
@@ -335,13 +397,26 @@ export const flush = () => {
 export const load = () => {
   const storage = resolveStorage();
   if (!storage) return null;
+  if (pendingSnapshot) {
+    const snapshot = cloneSnapshot(pendingSnapshot);
+    return {
+      ...snapshot,
+      meta: {
+        version: SCHEMA_VERSION,
+        timestamp: Date.now(),
+        storage: cachedStorageType
+      }
+    };
+  }
+  let sourceKey = NAMESPACE_KEY;
+  let raw = null;
   try {
-    let sourceKey = NAMESPACE_KEY;
-    let raw = storage.getItem(sourceKey);
+    raw = storage.getItem(sourceKey);
     if (!raw) {
       for (const legacyKey of LEGACY_NAMESPACE_KEYS) {
-        raw = storage.getItem(legacyKey);
-        if (raw) {
+        const legacyRaw = storage.getItem(legacyKey);
+        if (legacyRaw) {
+          raw = legacyRaw;
           sourceKey = legacyKey;
           break;
         }
@@ -349,11 +424,25 @@ export const load = () => {
       if (!raw) return null;
     }
 
-    const payload = JSON.parse(raw);
-    if (!payload || typeof payload !== 'object') return null;
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch (err) {
+      reportStorageIssue('parse_error', err, storage, sourceKey);
+      return null;
+    }
+    if (!payload || typeof payload !== 'object') {
+      reportStorageIssue('invalid_payload', null, storage, sourceKey);
+      return null;
+    }
 
     const migrated = migrate(payload);
-    if (!migrated || !migrated.data) return null;
+    if (!migrated || migrated.error || !migrated.data) {
+      const { error } = migrated || {};
+      const code = error?.code || 'load_failure';
+      reportStorageIssue(code, error?.detail, storage, sourceKey);
+      return null;
+    }
     const snapshot = cloneSnapshot(migrated.data);
     const timestamp = Number(payload.timestamp) || null;
 
@@ -380,7 +469,7 @@ export const load = () => {
       }
     };
   } catch (err) {
-    console.warn('[storage] Failed to load workspace snapshot', err);
+    reportStorageIssue('load_failure', err, storage, sourceKey);
     return null;
   }
 };
