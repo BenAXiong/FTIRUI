@@ -10,17 +10,13 @@ import { createChipPanels } from '../../chipPanels.js';
 import { createPanelsModel } from '../../../../workspace/canvas/state/panelsModel.js';
 import { applyLineChip } from '../../../utils/styling_linechip.js';
 import { toHexColor } from '../../../utils/styling.js';
-import { escapeHtml } from '../../../utils/dom.js';
-import { render as renderTreeView } from '../../../workspace/browser/treeView.js';
 import * as storage from '../../../../core/storage.js';
 import { createHistory } from '../../../../core/history.js';
 import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.js';
 
 import * as Render from '../../../../workspace/canvas/plotting/render.js';
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
-import { attachBrowserDragDrop } from './browser/dragDrop.js';
-import { attachBrowserEvents } from './browser/events.js';
-import { createBrowserTreeState } from './browser/treeState.js';
+import { createBrowserFacade } from './browser/facade.js';
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -47,8 +43,7 @@ let dragState = null;
 let currentDropTarget = null;
 let pendingRenameSectionId = null;
 let activePanelId = null;
-let browserDragDropHandle = null;
-let browserEventsHandle = null;
+let browserFacade = null;
 
 const setDropTarget = (element) => {
   if (currentDropTarget === element) return;
@@ -65,6 +60,7 @@ const getDragState = () => dragState;
 const setDragState = (next) => {
   dragState = next;
 };
+const getActivePanelId = () => activePanelId;
 
 const pickColor = () => {
   const color = COLOR_PALETTE[colorCursor % COLOR_PALETTE.length];
@@ -387,8 +383,8 @@ export function initWorkspaceRuntime(context = {}) {
   currentDropTarget = null;
   pendingRenameSectionId = null;
   activePanelId = null;
-  browserDragDropHandle?.detach?.();
-  browserDragDropHandle = null;
+  browserFacade?.teardown?.();
+  browserFacade = null;
   const { roots = {} } = context;
   const canvas = roots.canvas ?? document.getElementById('c_canvas_root');
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
@@ -532,6 +528,7 @@ export function initWorkspaceRuntime(context = {}) {
     tolerance: HISTORY_GEOMETRY_TOLERANCE
   });
   let searchTerm = '';
+  const getSearchTerm = () => searchTerm;
   let pendingGraphFileTarget = null;
   let storageQueueWarningShown = false;
 
@@ -2065,519 +2062,8 @@ export function initWorkspaceRuntime(context = {}) {
   };
 
   const renderBrowser = () => {
-    const tree = getBrowserRootEl();
-    if (!tree) return;
-    ensureDefaultSection();
-
-    const state = createBrowserTreeState({
-      searchTerm,
-      sections,
-      sectionOrder,
-      defaultSectionId: DEFAULT_SECTION_ID,
-      getPanelsOrdered,
-      coerceNumber
-    });
-
-    const { term, sortedPanels, treeSections, treeViewPanels, panelsBySection, hasPanels } = state;
-
-    tree.innerHTML = '';
-
-    const sanitizedPanelsBySection = new Map();
-    treeViewPanels.forEach((panelList, sectionId) => {
-      sanitizedPanelsBySection.set(
-        sectionId,
-        panelList.map((panel) => ({
-          ...panel,
-          name: escapeHtml(panel.name)
-        }))
-      );
-    });
-
-    renderTreeView({
-      rootEl: tree,
-      sections: treeSections,
-      panelsBySection: sanitizedPanelsBySection,
-      activePanelId
-    });
-
-    if (!hasPanels) {
-      if (panelDom.empty) {
-        panelDom.empty.dataset.mode = 'search-empty';
-        panelDom.empty.style.display = '';
-        panelDom.empty.textContent = term
-          ? 'No graphs match your search.'
-          : 'Drop files or use the toolbar to add graphs.';
-      }
-      ensureChipPanelsMount();
-      refreshPanelVisibility();
-      return;
-    }
-
-    let renderedSomething = false;
-
-    const makeTraceRows = (panelItem) => {
-      const { meta, panelId, record } = panelItem;
-      const resolvedPanelId = meta.id || panelId;
-      const traces = getPanelTraces(resolvedPanelId);
-      const labelIndex = meta.index || record?.index || 0;
-      const label = labelIndex ? `Graph ${labelIndex}` : 'Graph';
-      const graphMatches = !term || label.toLowerCase().includes(term);
-      const rows = traces.map((trace, idx) => {
-        const name = trace?.name || `Trace ${idx + 1}`;
-        const matchesTrace = !term || name.toLowerCase().includes(term);
-        return { trace, idx, name, matchesTrace };
-      });
-      const visibleRows = term ? rows.filter((row) => row.matchesTrace || graphMatches) : rows;
-      return {
-        rows: visibleRows,
-        graphMatches,
-        hasVisible: visibleRows.length > 0,
-        panelId: resolvedPanelId
-      };
-    };
-
-    const buildTraceRow = (panelItem, rowInfo) => {
-      const panelMeta = panelItem.meta;
-      const panelId = panelMeta.id || panelItem.panelId;
-      let trace = rowInfo.trace;
-      const row = document.createElement('div');
-      row.className = 'folder-trace';
-      row.dataset.panelId = panelId;
-      row.dataset.traceIndex = String(rowInfo.idx);
-      let traceId = trace?._canvasId || null;
-      if (!traceId) {
-        const normalized = normalizePanelTraces(panelId);
-        const refreshedTraces = ensureArray(normalized?.data);
-        traceId = refreshedTraces[rowInfo.idx]?._canvasId;
-        trace = refreshedTraces[rowInfo.idx] || trace;
-      }
-      row.dataset.id = `${panelId}:${traceId || rowInfo.idx}`;
-      if (term && !rowInfo.matchesTrace) {
-        row.classList.add('is-muted');
-      }
-
-      const safeName = escapeHtml(rowInfo.name || `Trace ${rowInfo.idx + 1}`);
-      row.innerHTML = `
-        <span class="drag-handle bi bi-grip-vertical" title="Drag trace"></span>
-        <input class="form-check-input vis" type="checkbox" ${trace.visible !== false ? 'checked' : ''} title="Toggle visibility">
-        <button class="line-chip" type="button" aria-label="Edit line style"></button>
-        <button class="color-dot" type="button" style="--c:${toHexColor(trace.line?.color || '#1f77b4')}" title="Pick colour" hidden></button>
-        <input class="color form-control form-control-color form-control-sm" type="color" value="${toHexColor(trace.line?.color || '#1f77b4')}" title="Colour picker" hidden>
-        <input class="form-control form-control-sm rename" type="text" value="${safeName}" title="Double-click to rename" readonly>
-        <button class="trace-info-icon" type="button" title="Trace info"><i class="bi bi-info-circle"></i></button>
-        <select class="dash form-select form-select-sm" title="Line style" hidden>
-          <option value="solid" ${trace.line?.dash === 'solid' ? 'selected' : ''}>Solid</option>
-          <option value="dot" ${trace.line?.dash === 'dot' ? 'selected' : ''}>Dots</option>
-          <option value="dash" ${trace.line?.dash === 'dash' ? 'selected' : ''}>Dash</option>
-          <option value="longdash" ${trace.line?.dash === 'longdash' ? 'selected' : ''}>Long dash</option>
-          <option value="dashdot" ${trace.line?.dash === 'dashdot' ? 'selected' : ''}>Dash + dot</option>
-          <option value="longdashdot" ${trace.line?.dash === 'longdashdot' ? 'selected' : ''}>Long dash + dot</option>
-        </select>
-        <input class="opacity form-range" type="range" min="0.1" max="1" step="0.05" value="${trace.opacity ?? 1}" title="Opacity" hidden>
-        <button class="trace-remove" type="button" title="Remove trace"><i class="bi bi-x-circle"></i></button>
-      `;
-
-      row.draggable = false;
-      let dragFromHandle = false;
-      const setDragFromHandle = (enabled) => {
-        dragFromHandle = !!enabled;
-        row.draggable = dragFromHandle;
-      };
-      const dragHandle = row.querySelector('.drag-handle');
-      if (dragHandle) {
-        dragHandle.addEventListener('pointerdown', (evt) => {
-          if (typeof evt.button === 'number' && evt.button !== 0) return;
-          setDragFromHandle(true);
-        });
-        dragHandle.addEventListener('pointerup', () => setDragFromHandle(false));
-        dragHandle.addEventListener('pointercancel', () => setDragFromHandle(false));
-      }
-
-      updateTraceChip(row, trace);
-
-      const visToggle = row.querySelector('.vis');
-      visToggle?.addEventListener('change', () => {
-        pushHistory();
-        const figure = getPanelFigure(panelId);
-        const tracesData = ensureArray(figure.data);
-        const current = tracesData[rowInfo.idx];
-        if (!current) {
-          history.rewind();
-          return;
-        }
-        tracesData[rowInfo.idx] = {
-          ...current,
-          visible: visToggle.checked
-        };
-        figure.data = tracesData;
-        normalizePanelTraces(panelId, figure);
-        renderPlot(panelId);
-        persist();
-        renderBrowser();
-        updateHistoryButtons();
-      });
-
-      const renameInput = row.querySelector('.rename');
-      renameInput?.addEventListener('dblclick', (evt) => {
-        renameInput.readOnly = false;
-        renameInput.focus();
-        renameInput.select();
-        evt.stopPropagation();
-      });
-      renameInput?.addEventListener('blur', () => {
-        renameInput.readOnly = true;
-        const value = renameInput.value.trim();
-        if (!value) {
-          renderBrowser();
-          return;
-        }
-        const figure = getPanelFigure(panelId);
-        const tracesData = ensureArray(figure.data);
-        const current = tracesData[rowInfo.idx];
-        if (!current) {
-          return;
-        }
-        if ((current.name || '').trim() === value) {
-          return;
-        }
-        pushHistory();
-        current.name = value;
-        figure.data = tracesData;
-        normalizePanelTraces(panelId, figure);
-        renderPlot(panelId);
-        renderBrowser();
-        persist();
-        updateHistoryButtons();
-      });
-      renameInput?.addEventListener('keydown', (evt) => {
-        if (evt.key === 'Enter') {
-          renameInput.blur();
-        } else if (evt.key === 'Escape') {
-          const tracesData = getPanelTraces(panelId);
-          const current = tracesData[rowInfo.idx];
-          renameInput.value = current?.name || `Trace ${rowInfo.idx + 1}`;
-          renameInput.blur();
-        }
-      });
-
-      const removeBtn = row.querySelector('.trace-remove');
-      removeBtn?.addEventListener('click', () => {
-        pushHistory();
-        const result = panelsModel.removeTrace(panelId, rowInfo.idx);
-        if (!result) {
-          history.rewind();
-          return;
-        }
-        const remaining = ensureArray(result.figure?.data);
-        if (!remaining.length) {
-          removePanel(panelId, { pushToHistory: false });
-        } else {
-          normalizePanelTraces(panelId, result.figure);
-          renderPlot(panelId);
-        }
-        renderBrowser();
-        persist();
-        updateHistoryButtons();
-      });
-
-      row.addEventListener('dragstart', (event) => {
-        if (!dragFromHandle) {
-          event.preventDefault();
-          setDragFromHandle(false);
-          return;
-        }
-        setDragState({ type: 'trace', panelId, traceIndex: rowInfo.idx });
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData(TRACE_DRAG_MIME, JSON.stringify(getDragState()));
-        event.dataTransfer.setData('text/plain', `${panelId}:${rowInfo.idx}`);
-        row.classList.add('is-dragging');
-      });
-      row.addEventListener('dragend', () => {
-        row.classList.remove('is-dragging');
-        setDragState(null);
-        setDropTarget(null);
-        setDragFromHandle(false);
-      });
-
-      return row;
-    };
-
-    const renderGraphNode = (panelItem, sectionId, depth) => {
-      const { meta, panelId, record } = panelItem;
-      const resolvedPanelId = meta.id || panelId;
-      const traceInfo = makeTraceRows(panelItem);
-      if (!traceInfo.hasVisible) return null;
-      const graphIndex = meta.index || record?.index || 0;
-      const graphLabel = graphIndex ? `Graph ${graphIndex}` : 'Graph';
-      const collapsed = meta.collapsed === true;
-      const hidden = meta.hidden === true;
-      const sectionVisible = isSectionVisible(sectionId);
-      const graphVisible = !hidden;
-      const node = document.createElement('div');
-      node.className = 'folder-node graph-node';
-      node.dataset.type = 'graph';
-      node.dataset.id = resolvedPanelId;
-      node.dataset.panelId = resolvedPanelId;
-      node.dataset.sectionId = sectionId;
-      node.dataset.depth = String(depth + 1);
-      const fullyVisible = sectionVisible && graphVisible;
-      node.dataset.visible = fullyVisible ? 'true' : 'false';
-      node.dataset.sectionVisible = sectionVisible ? 'true' : 'false';
-      node.dataset.graphVisible = graphVisible ? 'true' : 'false';
-      node.classList.toggle('graph-hidden', !graphVisible);
-
-      const header = document.createElement('div');
-      header.className = 'folder-header graph-header';
-      header.dataset.panelId = resolvedPanelId;
-      header.dataset.sectionId = sectionId;
-      header.dataset.depth = String(depth + 1);
-      header.setAttribute('draggable', 'true');
-      if (!graphVisible) {
-        header.classList.add('is-hidden');
-      }
-
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'toggle';
-      toggle.innerHTML = `<i class="bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
-      toggle.setAttribute('aria-expanded', String(!collapsed));
-      toggle.setAttribute('draggable', 'false');
-      header.appendChild(toggle);
-
-      const name = document.createElement('span');
-      name.className = 'folder-name graph-name';
-      name.textContent = graphLabel;
-      if (!graphVisible) {
-        name.classList.add('is-muted');
-      }
-      if (term && !traceInfo.graphMatches) {
-        name.classList.add('is-muted');
-      }
-      header.appendChild(name);
-
-      const actions = document.createElement('div');
-      actions.className = 'folder-actions graph-actions';
-
-      const graphVisibilityBtn = document.createElement('button');
-      graphVisibilityBtn.className = 'btn-icon graph-visibility';
-      graphVisibilityBtn.type = 'button';
-      graphVisibilityBtn.dataset.panelId = resolvedPanelId;
-      graphVisibilityBtn.title = graphVisible ? 'Hide graph' : 'Show graph';
-      graphVisibilityBtn.setAttribute('draggable', 'false');
-      graphVisibilityBtn.innerHTML = `<i class="bi ${graphVisible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
-      actions.appendChild(graphVisibilityBtn);
-
-      const graphBrowseBtn = document.createElement('button');
-      graphBrowseBtn.className = 'btn-icon graph-browse';
-      graphBrowseBtn.type = 'button';
-      graphBrowseBtn.dataset.panelId = resolvedPanelId;
-      graphBrowseBtn.title = 'Add traces from file';
-      graphBrowseBtn.setAttribute('draggable', 'false');
-      graphBrowseBtn.innerHTML = '<i class="bi bi-file-earmark-plus"></i>';
-      actions.appendChild(graphBrowseBtn);
-
-      const graphDeleteBtn = document.createElement('button');
-      graphDeleteBtn.className = 'btn-icon graph-delete';
-      graphDeleteBtn.type = 'button';
-      graphDeleteBtn.dataset.panelId = resolvedPanelId;
-      graphDeleteBtn.title = 'Delete graph';
-      graphDeleteBtn.setAttribute('draggable', 'false');
-      graphDeleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
-      actions.appendChild(graphDeleteBtn);
-
-      header.appendChild(actions);
-
-      node.appendChild(header);
-
-      const children = document.createElement('div');
-      children.className = 'folder-children';
-      children.style.display = collapsed ? 'none' : '';
-
-      const tracesWrap = document.createElement('div');
-      tracesWrap.className = 'folder-traces';
-      if (traceInfo.rows.length) {
-        traceInfo.rows.forEach((rowInfo) => {
-          const row = buildTraceRow(panelItem, rowInfo);
-          tracesWrap.appendChild(row);
-        });
-      } else {
-        const empty = document.createElement('div');
-        empty.className = 'text-muted small px-2 py-1';
-        empty.textContent = term ? 'No traces match search.' : 'No traces in this graph yet.';
-        tracesWrap.appendChild(empty);
-      }
-
-      children.appendChild(tracesWrap);
-      node.appendChild(children);
-      return node;
-    };
-
-    const renderSectionNode = (sectionId, depth = 0) => {
-      const section = sections.get(sectionId);
-      if (!section) return null;
-
-      const childIds = Array.isArray(section.children) ? section.children : [];
-      const sectionMatches = !term || (section.name || '').toLowerCase().includes(term);
-
-      const childNodes = [];
-      childIds.forEach((childId) => {
-        const childNode = renderSectionNode(childId, depth + 1);
-        if (childNode) childNodes.push(childNode);
-      });
-
-      const graphNodes = [];
-      (panelsBySection.get(sectionId) || []).forEach((panelItem) => {
-        const graphNode = renderGraphNode(panelItem, sectionId, depth);
-        if (graphNode) graphNodes.push(graphNode);
-      });
-
-      const hasChildContent = childNodes.length > 0;
-      const hasGraphContent = graphNodes.length > 0;
-      const hasSearchContent = sectionMatches || hasChildContent || hasGraphContent;
-
-      if (term && !hasSearchContent) {
-        return null;
-      }
-
-  const node = document.createElement('div');
-  node.className = 'folder-node section-node';
-  node.dataset.type = 'section';
-  node.dataset.sectionId = sectionId;
-  node.dataset.depth = String(depth);
-  node.dataset.parentId = section.parentId || '';
-  node.dataset.locked = section.locked ? 'true' : 'false';
-      node.dataset.visible = section.visible === false ? 'false' : 'true';
-      if (!section.locked) {
-        node.setAttribute('draggable', 'true');
-      }
-
-      const header = document.createElement('div');
-      header.className = 'folder-header section-header';
-      header.dataset.sectionId = sectionId;
-      header.dataset.depth = String(depth);
-      if (section.visible === false) {
-        header.classList.add('is-hidden');
-      }
-
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'toggle';
-      toggle.innerHTML = `<i class="bi ${section.collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
-      toggle.setAttribute('aria-expanded', String(!section.collapsed));
-      header.appendChild(toggle);
-
-      const name = document.createElement('span');
-      name.className = 'folder-name section-name';
-      name.dataset.sectionId = sectionId;
-      name.dataset.depth = String(depth);
-      name.textContent = section.name || (depth === 0 ? 'Group' : 'Subgroup');
-      header.appendChild(name);
-
-      const actions = document.createElement('div');
-      actions.className = 'folder-actions';
-
-      const visible = section.visible !== false;
-      const visibilityBtn = document.createElement('button');
-      visibilityBtn.className = 'btn-icon section-visibility';
-      visibilityBtn.type = 'button';
-      visibilityBtn.dataset.sectionId = sectionId;
-      visibilityBtn.title = visible ? 'Hide group' : 'Show group';
-      visibilityBtn.innerHTML = `<i class="bi ${visible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
-      actions.appendChild(visibilityBtn);
-
-      const addGraphBtn = document.createElement('button');
-      addGraphBtn.className = 'btn-icon section-add-graph';
-      addGraphBtn.type = 'button';
-      addGraphBtn.dataset.sectionId = sectionId;
-      addGraphBtn.title = 'Add graph to this group';
-      addGraphBtn.innerHTML = '<i class="bi bi-plus-square"></i>';
-      actions.appendChild(addGraphBtn);
-
-      if (depth === 0) {
-        const addSubBtn = document.createElement('button');
-        addSubBtn.className = 'btn-icon section-add-sub';
-        addSubBtn.type = 'button';
-        addSubBtn.dataset.sectionId = sectionId;
-        addSubBtn.title = 'Add subgroup';
-        addSubBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
-        actions.appendChild(addSubBtn);
-      }
-
-      if (!section.locked) {
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn-icon section-delete';
-        deleteBtn.type = 'button';
-        deleteBtn.dataset.sectionId = sectionId;
-        deleteBtn.title = 'Delete group';
-        deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        actions.appendChild(deleteBtn);
-      }
-
-      header.appendChild(actions);
-      node.appendChild(header);
-
-      const container = document.createElement('div');
-      container.className = 'folder-children';
-      container.dataset.sectionId = sectionId;
-      container.style.display = section.collapsed ? 'none' : '';
-
-      childNodes.forEach((childNode) => container.appendChild(childNode));
-      graphNodes.forEach((graphNode) => container.appendChild(graphNode));
-
-      if (!childNodes.length && !graphNodes.length && !term) {
-        const empty = document.createElement('div');
-        empty.className = 'text-muted small px-2 py-1';
-        empty.textContent = depth === 0 ? 'No graphs in this group yet.' : 'No graphs in this subgroup yet.';
-        container.appendChild(empty);
-      }
-
-      node.appendChild(container);
-      renderedSomething = true;
-      return node;
-    };
-
-    const topLevelIds = sectionOrder.filter((id) => sections.has(id));
-    topLevelIds.forEach((id) => {
-      const node = renderSectionNode(id, 0);
-      if (node) {
-        tree.appendChild(node);
-      }
-    });
-
-    sections.forEach((section) => {
-      if (!section.parentId && !topLevelIds.includes(section.id)) {
-        const node = renderSectionNode(section.id, 0);
-        if (node) {
-          tree.appendChild(node);
-        }
-      }
-    });
-
-    if (!renderedSomething) {
-      if (panelDom.empty) {
-        panelDom.empty.dataset.mode = 'search-empty';
-        panelDom.empty.style.display = '';
-        panelDom.empty.textContent = term
-          ? 'No graphs match your search.'
-          : 'Drop files or use the toolbar to add graphs.';
-      }
-    } else if (panelDom.empty) {
-      delete panelDom.empty.dataset.mode;
-      panelDom.empty.style.display = 'none';
-    }
-
-    applyActivePanelState();
-    ensureChipPanelsMount();
-    refreshPanelVisibility();
-
-    if (pendingRenameSectionId) {
-      const targetId = pendingRenameSectionId;
-      const nameEl = panelDom.tree?.querySelector(`.section-name[data-section-id="${targetId}"]`);
-      pendingRenameSectionId = null;
-      if (nameEl) {
-        startSectionRename(targetId, nameEl, { selectAll: true });
-      }
-    }
+    if (!browserFacade) return;
+    browserFacade.render();
   };
 
   const collectSectionDescendants = (sectionId) => {
@@ -4125,63 +3611,80 @@ export function initWorkspaceRuntime(context = {}) {
   workspaceMenu.load?.addEventListener('click', loadWorkspaceSnapshot);
   workspaceMenu.clear?.addEventListener('click', clearWorkspaceSnapshot);
 
-  if (panelDom.tree) {
-    panelDom.tree.addEventListener('focusin', () => {
-      if (!panelPinned) {
-        panelDom.root?.classList.add('peeking');
-        panelDom.root?.classList.add('is-active');
-      }
-    });
-    panelDom.tree.addEventListener('focusout', (evt) => {
-      if (!panelPinned && panelDom.root && !panelDom.root.contains(evt.relatedTarget)) {
-        panelDom.root.classList.remove('is-active');
-        panelDom.root.classList.remove('peeking');
-      }
-    });
-    const eventsHandle = attachBrowserEvents({
-      panelDom,
-      isPanelPinned: () => panelPinned,
-      setDropTarget,
-      focusPanelById,
-      focusSectionById,
-      renderBrowser,
-      toggleSectionCollapsedState,
-      togglePanelCollapsedState,
-      toggleSectionVisibility,
-      toggleGraphVisibility,
-      addGraphToSection,
+  browserFacade = createBrowserFacade({
+    dom: { panelDom },
+    state: {
+      sections,
+      sectionOrder,
+      defaultSectionId: DEFAULT_SECTION_ID,
+      getSearchTerm,
+      getPanelsOrdered,
+      coerceNumber,
+      getActivePanelId
+    },
+    selectors: {
+      ensureArray,
+      getPanelTraces,
+      normalizePanelTraces,
+      getPanelFigure,
+      isSectionVisible,
+      getPanelRecord
+    },
+    actions: {
+      renderPlot: (panelId) => Plot.renderNow(panelId),
+      updateTraceChip,
       pushHistory,
-      createSection,
-      queueSectionRename,
+      history,
       persist,
       updateHistoryButtons,
+      addGraphToSection,
+      toggleGraphVisibility,
+      togglePanelCollapsedState,
+      toggleSectionCollapsedState,
+      toggleSectionVisibility,
+      moveTrace,
+      moveGraph,
+      moveSection,
+      removePanel,
       deleteSectionInteractive,
       deleteGraphInteractive,
       requestGraphFileBrowse,
+      showToast,
+      queueSectionRename,
       startSectionRename,
-      chipPanelsBridge
-    });
-    browserEventsHandle?.detach?.();
-    browserEventsHandle = eventsHandle;
-    browserDragDropHandle?.detach();
-    browserDragDropHandle = attachBrowserDragDrop({
-      panelDom,
-      getPanelTraces,
+      getPendingRenameSectionId: () => pendingRenameSectionId,
+      clearPendingRenameSectionId: () => {
+        pendingRenameSectionId = null;
+      },
+      createSection,
+      renameSection,
+      setSectionCollapsed,
+      setActivePanel,
+      focusSectionById,
+      focusPanelById,
+      bringPanelToFront,
+      ensureChipPanelsMount,
+      refreshPanelVisibility,
+      applyActivePanelState
+    },
+    drag: {
       setDropTarget,
       getDragState,
       setDragState,
-      pushHistory,
-      moveTrace,
-      history,
-      sections,
-      getPanelRecord,
-      moveGraph,
-      moveSection,
-      defaultSectionId: DEFAULT_SECTION_ID,
-      renderBrowser,
-      persist,
-      updateHistoryButtons
-    });
+      traceDragMime: TRACE_DRAG_MIME
+    },
+    services: {
+      panelsModel,
+      chipPanelsBridge
+    },
+    flags: {
+      isPanelPinned: () => panelPinned
+    }
+  });
+
+  if (panelDom.tree) {
+    browserFacade.attachEvents();
+    browserFacade.attachDragDrop();
   }
 
   if (panelDom.newSection) {
@@ -4345,10 +3848,8 @@ export function initWorkspaceRuntime(context = {}) {
       workspaceObserver.disconnect();
       workspaceObserver = null;
     }
-    browserEventsHandle?.detach?.();
-    browserEventsHandle = null;
-    browserDragDropHandle?.detach();
-    browserDragDropHandle = null;
+    browserFacade?.teardown?.();
+    browserFacade = null;
     storage.flush();
   };
 
@@ -4373,6 +3874,7 @@ export function initWorkspaceRuntime(context = {}) {
     getPanelDomRegistry: () => panelDomRegistry
   };
 }
+
 
 
 
