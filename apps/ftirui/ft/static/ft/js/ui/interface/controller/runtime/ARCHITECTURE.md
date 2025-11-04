@@ -15,6 +15,10 @@ The workspace runtime is intentionally organised as a collection of small facade
 * `preferences/facade.js` encapsulates UI preference storage (panel pin/collapse) so the runtime never touches `localStorage`/`sessionStorage` directly.
 * `browser/facade.js` renders the folder tree and attaches tree interactions.
 * `panels/panelDomFacade.js` builds panel shells, header controls, and popovers. It accepts runtime actions and callbacks so panel wiring lives outside of `registerPanel`.
+* `panels/headerActions.js` owns the header action dispatcher, mapping UI intents to Plotly layout and trace mutations while handling history/persistence side effects.
+* `panels/panelInteractions.js` wires drag/resize behaviour through `interact.js`, normalising geometry updates and persistence outside of the runtime orchestrator.
+* `state/historyHelpers.js` provides a tiny API for queueing mutations and refreshing undo/redo/UI state, so call sites never hand-roll `pushHistory`/`persist`/`updateHistoryButtons` sequences.
+* `state/snapshotManager.js` encapsulates snapshot/restore/clear operations for panels, sections, and UI preferences, keeping persistence hooks declarative.
 
 Each facade exposes a minimal API back to the controller (`panelsFacade` returns `appendFilesToGraph`, `moveGraph`, etc.), allowing `workspaceRuntime.js` to orchestrate functionality without exposing raw models elsewhere.
 
@@ -36,5 +40,7 @@ Fast Node tests cover:
 * Persistence facade snapshot orchestration with stubbed DOM/storage elements.
 * Section manager invariants (default group, hierarchy, snapshot/load).
 * Panel DOM facade guard paths to ensure safe mounting when required data is missing.
+* Header action dispatch lifecycle (legend toggle) and interaction manager no-op mode when `interact` is unavailable.
+* History helper queue semantics and snapshot manager restore flows.
 
 These tests live in `runtime/__tests__` and exercise the new context contracts in isolation.

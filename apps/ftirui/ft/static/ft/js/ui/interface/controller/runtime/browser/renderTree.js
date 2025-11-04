@@ -1,6 +1,6 @@
 import { render as renderTreeView } from '../../../../workspace/browser/treeView.js';
-import { escapeHtml } from '../../../utils/dom.js';
-import { toHexColor } from '../../../utils/styling.js';
+import { escapeHtml } from '../../../../utils/dom.js';
+import { toHexColor } from '../../../../utils/styling.js';
 
 /**
  * Render the workspace browser DOM using the prepared tree state.

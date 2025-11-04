@@ -14,12 +14,16 @@ import * as storage from '../../../../core/storage.js';
 import { createHistory } from '../../../../core/history.js';
 import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.js';
 
-import * as Render from '../../../../workspace/canvas/plotting/render.js';
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
 import { createBrowserFacade } from './browser/facade.js';
 import { createPersistenceFacade } from './persistence/facade.js';
 import { createPanelsFacade } from './panels/facade.js';
 import { createPanelDomFacade } from './panels/panelDomFacade.js';
+import { createHeaderActions } from './panels/headerActions.js';
+import { createPlotFacade } from './panels/plotFacade.js';
+import { createSnapshotManager } from './state/snapshotManager.js';
+import { createHistoryHelpers } from './state/historyHelpers.js';
+import { createPanelInteractions } from './panels/panelInteractions.js';
 import { createIoFacade } from './io/facade.js';
 import { createRuntimeState } from './context/runtimeState.js';
 import { createUiPreferencesFacade } from './preferences/facade.js';
@@ -38,6 +42,27 @@ const PANEL_COLLAPSE_KEY = 'ftir.workspace.panelCollapsed.v1';
 const PANEL_PIN_KEY = 'ftir.workspace.panelPinned.v1';
 const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 
+const createHistoryHelpers = ({ pushHistory, updateHistoryButtons, persist } = {}) => ({
+  queueMutation(task, { persistChange = true } = {}) {
+    if (typeof task !== "function") return false;
+    pushHistory?.();
+    task();
+    if (persistChange) {
+      persist?.();
+    }
+    updateHistoryButtons?.();
+    return true;
+  },
+  push() {
+    pushHistory?.();
+  },
+  refresh() {
+    updateHistoryButtons?.();
+  },
+  persist() {
+    persist?.();
+  }
+});
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
 let colorCursor = 0;
@@ -218,59 +243,11 @@ export function initWorkspaceRuntime(context = {}) {
     panelDomRegistry.delete(panelId);
   };
 
-  function getPlotContainerEl(panelId) {
-    const refs = getPanelDom(panelId);
-    return refs?.plotEl;
-  }
-
-  function getFigureById(panelId) {
-    return getPanelFigure(panelId);
-  }
-
-  function setFigureById(panelId, nextFigure) {
-    panelsModel.updatePanelFigure(panelId, nextFigure);
-  }
-
-  // Plot facade: single entry point into the renderer.
-  const Plot = {
-    renderNow(panelId) {
-      const el = getPlotContainerEl(panelId);
-      if (!el) return;
-      const fig = getFigureById(panelId);
-      if (!Render.isRendered(el)) {
-        return Render.renderInitial(panelId, el, fig);
-      }
-      return Render.renderUpdate(panelId, el, fig);
-    },
-
-    scheduleRender(panelId) {
-      // If you already had throttling logic, call it here.
-      // Default: just render immediately.
-      return this.renderNow(panelId);
-    },
-
-    applyLayoutPatch(panelId, patch) {
-      // Route generic patches through the actions controller
-      Actions.applyLayout(panelId, patch);
-    },
-
-    exportFigure(panelId, opts) {
-      const el = getPlotContainerEl(panelId);
-      return Render.exportFigure(panelId, el, opts);
-    },
-
-    resize(panelId) {
-      const el = getPlotContainerEl(panelId);
-      return Render.resize(panelId, el);
-    }
-  };
-
-  // This gives actionsController.js access to the model read/write
-  // and render trigger, without importing your models directly.
-  Actions.__wire({
-    getFigureById,
-    setFigureById,
-    renderNow: (panelId) => Plot.renderNow(panelId)
+  const Plot = createPlotFacade({
+    getPanelDom,
+    getPanelFigure,
+    setPanelFigure: (panelId, figure) => panelsModel.updatePanelFigure(panelId, figure),
+    actionsController: Actions
   });
 
   const getPanelSnapshot = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
@@ -308,7 +285,28 @@ export function initWorkspaceRuntime(context = {}) {
 let searchTerm = '';
 const getSearchTerm = () => searchTerm;
 
-const interact = typeof window !== 'undefined' ? window.interact : null;
+  const historyHelpers = createHistoryHelpers({
+    pushHistory,
+    updateHistoryButtons,
+    persist
+  });
+  const snapshotManager = createSnapshotManager({
+    panelsModel,
+    sectionManager,
+    historyHelpers,
+    persistence: { persist },
+    dom: {
+      panelDomRegistry,
+      detachPanelDom
+    },
+    registerPanel,
+    updateCanvasState,
+    renderBrowser,
+    setActivePanel,
+    setColorCursor: (value) => { colorCursor = value; },
+    getColorCursor: () => colorCursor
+  });
+  const interact = typeof window !== 'undefined' ? window.interact : null;
   ensureDefaultSection();
   if (!chipPanelsInstance && typeof document !== 'undefined') {
     chipPanelsInstance = createChipPanels(document.body);
@@ -744,534 +742,6 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
   };
 
 
-  const hasOwn = Object.prototype.hasOwnProperty;
-  const isPrimaryAxis = (axisKey) => axisKey === 'xaxis' || axisKey === 'yaxis';
-
-  const getAxisState = (panelId, figure, axisKey) => {
-    const layout = figure?.layout;
-    const fromModel = layout && typeof layout === 'object' && typeof layout[axisKey] === 'object'
-      ? layout[axisKey]
-      : null;
-    if (fromModel) return fromModel;
-    const runtime = getPanelDom(panelId)?.plotEl?.layout?.[axisKey];
-    return typeof runtime === 'object' ? runtime : null;
-  };
-
-  const axisExists = (panelId, figure, axisKey) => {
-    if (isPrimaryAxis(axisKey)) return true;
-    return !!getAxisState(panelId, figure, axisKey);
-  };
-
-  const forEachAxis = (panelId, figure, axes, cb) => {
-    axes.forEach((axis) => {
-      if (!axisExists(panelId, figure, axis)) return;
-      const axisState = getAxisState(panelId, figure, axis) || {};
-      cb(axis, axisState);
-    });
-  };
-
-  const preserveAxisDecorations = (panelId, figure, axisKey, patch) => {
-    const axisState = getAxisState(panelId, figure, axisKey);
-    if (!axisState) return;
-    if (hasOwn.call(axisState, 'showgrid')) {
-      patch[`${axisKey}.showgrid`] = axisState.showgrid;
-    }
-    if (hasOwn.call(axisState, 'showline')) {
-      patch[`${axisKey}.showline`] = axisState.showline;
-    }
-  };
-
-  // === Header actions dispatcher (used by header buttons & popovers) ===========
-  function handleHeaderAction(panelId, act, payload = {}) {
-    if (!panelId) return;
-
-    const runLayoutMutations = (...mutations) => {
-      const tasks = mutations.filter((fn) => typeof fn === 'function');
-      if (!tasks.length) return false;
-      pushHistory();
-      tasks.forEach((fn) => fn());
-      persist();
-      updateHistoryButtons();
-      return true;
-    };
-
-    const commitLayoutPatch = (patch) => {
-      if (!patch || typeof patch !== 'object' || !Object.keys(patch).length) {
-        return false;
-      }
-      return runLayoutMutations(() => Actions.applyLayout(panelId, patch));
-    };
-
-    const dom = getPanelDom(panelId);
-    switch (act) {
-      // 1) MVP #1: Crosshair / cursor toggle
-      case 'cursor': {
-        const on = !!payload.on;
-
-        // Crosshair-like behavior with Plotly:
-        // - hovermode 'x' gives a vertical guide synced across traces
-        // - spikes add visible crosshair lines along axes
-        const patch = on
-          ? {
-              'xaxis.showspikes': true,
-              'yaxis.showspikes': true,
-              'xaxis.spikemode': 'across',
-              'yaxis.spikemode': 'across',
-              'xaxis.spikesnap': 'cursor',
-              'yaxis.spikesnap': 'cursor',
-              'xaxis.spikethickness': 1,
-              'yaxis.spikethickness': 1
-            }
-          : {
-              'xaxis.showspikes': false,
-              'yaxis.showspikes': false
-            };
-
-        runLayoutMutations(
-          () => Actions.setHoverMode(panelId, on ? 'x' : 'closest'),
-          () => Actions.applyLayout(panelId, patch)
-        );
-        break;
-      }
-
-      // 2) MVP #2a: Axes "thickness" (maps to axis line + grid widths)
-      case 'axes-thickness': {
-        const level = payload.level || 'medium';
-        const map = { thin: 1, medium: 2, thick: 3 };
-        const w = Number.isFinite(payload.value) ? payload.value : (map[level] ?? 2);
-
-        const figure = getPanelFigure(panelId);
-        const layout = figure.layout || {};
-        const xColor = layout?.xaxis?.linecolor || '#444';
-        const yColor = layout?.yaxis?.linecolor || '#444';
-
-        // Only touch linewidth/gridwidth/linecolor using dotted keys ╬ô├ç├╢ do NOT send xaxis:{...}
-        commitLayoutPatch({
-          'xaxis.linewidth': w,
-          'yaxis.linewidth': w,
-          'xaxis.gridwidth': Math.max(0, Math.round(w * 0.75)),
-          'yaxis.gridwidth': Math.max(0, Math.round(w * 0.75)),
-          'xaxis.linecolor': xColor,
-          'yaxis.linecolor': yColor
-        });
-        break;
-      }
-
-      case 'axes-thickness-custom': {
-        const w = Math.max(1, Math.round(Number(payload.value) || 2));
-        const figure = getPanelFigure(panelId);
-        const layout = figure.layout || {};
-        const xColor = layout?.xaxis?.linecolor || '#444';
-        const yColor = layout?.yaxis?.linecolor || '#444';
-
-        commitLayoutPatch({
-          'xaxis.linewidth': w,
-          'yaxis.linewidth': w,
-          'xaxis.linecolor': xColor,
-          'yaxis.linecolor': yColor
-        });
-        break;
-      }
-
-      // 3) MVP #2b: Axes visible sides (top/bottom/left/right)
-      //    Logic:
-      //    - Both x sides ON  -> mirror both top & bottom
-      //    - Only top ON      -> side='top', no mirror
-      //    - Only bottom ON   -> side='bottom', no mirror
-      //    - None ON          -> xaxis.visible=false
-      //    (Same pattern for y: left/right)
-      case 'axes-side': {
-        const s = payload || {};
-        const figure = getPanelFigure(panelId);
-        const layout = figure.layout || {};
-        const wx = Math.max(1, Number(layout?.xaxis?.linewidth) || 2);
-        const wy = Math.max(1, Number(layout?.yaxis?.linewidth) || 2);
-        const cx = layout?.xaxis?.linecolor || '#444';
-        const cy = layout?.yaxis?.linecolor || '#444';
-
-        const xTop = !!s.top, xBottom = !!s.bottom;
-        const yLeft = !!s.left, yRight = !!s.right;
-
-        const patch = {};
-
-        // X axis
-        if (!xTop && !xBottom) {
-          patch['xaxis.visible']  = false;
-          patch['xaxis.showline'] = false;
-        } else {
-          patch['xaxis.visible']   = true;
-          patch['xaxis.showline']  = true;
-          patch['xaxis.side']      = xTop && !xBottom ? 'top' : 'bottom';
-          patch['xaxis.mirror']    = xTop && xBottom ? true : false;
-          // Preserve thickness & color
-          patch['xaxis.linewidth'] = wx;
-          patch['xaxis.linecolor'] = cx;
-        }
-
-        // Y axis
-        if (!yLeft && !yRight) {
-          patch['yaxis.visible']        = false;
-          patch['yaxis.showline']       = false;
-        } else {
-          patch['yaxis.visible']        = true;
-          patch['yaxis.showline']       = true;
-
-          if (yLeft && yRight) {
-            patch['yaxis.mirror']       = true;          // draw line on both sides
-            patch['yaxis.side']         = 'left';        // keep labels on the LEFT
-            patch['yaxis.ticklabelposition'] = 'outside left';
-          } else if (yLeft) {
-            patch['yaxis.mirror']       = false;
-            patch['yaxis.side']         = 'left';
-            patch['yaxis.ticklabelposition'] = 'outside left';
-          } else { // right only
-            patch['yaxis.mirror']       = false;
-            patch['yaxis.side']         = 'right';
-            patch['yaxis.ticklabelposition'] = 'outside right';
-          }
-
-          // preserve thickness & color
-          patch['yaxis.linewidth']      = wy;
-          patch['yaxis.linecolor']      = cy;
-        }
-
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'legend': {
-        runLayoutMutations(() => Actions.toggleLegend(panelId));
-        break;
-      }
-
-      case 'yscale-log': {
-        runLayoutMutations(() => Actions.setAxisType(panelId, 'yaxis', 'log'));
-        break;
-      }
-
-      case 'yscale-linear': {
-        runLayoutMutations(() => Actions.setAxisType(panelId, 'yaxis', 'linear'));
-        break;
-      }
-
-      case 'xscale-log': {
-        runLayoutMutations(() => Actions.setAxisType(panelId, 'xaxis', 'log'));
-        break;
-      }
-
-      case 'xscale-linear': {
-        runLayoutMutations(() => Actions.setAxisType(panelId, 'xaxis', 'linear'));
-        break;
-      }
-
-      case 'grid-major': {
-        const on = !!payload.on;
-        const patch = {};
-        const axes = ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'];
-        const figure = getPanelFigure(panelId);
-        const layoutState = figure.layout || {};
-        const liveLayout = dom?.plotEl?.layout || {};
-        axes.forEach((axis, index) => {
-          const isPrimary = index < 2;
-          const axisExistsInState = layoutState[axis] && typeof layoutState[axis] === 'object';
-          const axisExistsLive = liveLayout[axis] && typeof liveLayout[axis] === 'object';
-          if (!isPrimary && !axisExistsInState && !axisExistsLive) return;
-          patch[`${axis}.showgrid`] = on;
-        });
-        if (Object.keys(patch).length) {
-          commitLayoutPatch(patch);
-        }
-        break;
-      }
-
-      case 'grid-minor': {
-        const on = !!payload.on;
-        // Use lighter lines for minor grid; only touch minor.*
-        const figure = getPanelFigure(panelId);
-        const patch = {};
-        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], (axis, axisState) => {
-          const baseColor = axisState.gridcolor || '#e0e0e0';
-          patch[`${axis}.minor.showgrid`] = on;
-          patch[`${axis}.minor.gridcolor`] = baseColor;
-          patch[`${axis}.minor.gridwidth`] = 1;
-        });
-        if (Object.keys(patch).length) {
-          commitLayoutPatch(patch);
-        }
-        break;
-      }
-
-      case 'grid-minor-subdiv': {
-        // Set minor dtick as (major dtick) / (subdiv+1), if we can infer major dtick
-        const N = Math.max(1, Math.min(10, Math.round(Number(payload.subdiv) || 2)));
-        const figure = getPanelFigure(panelId);
-        const patch = {};
-
-        // helper to compute dtick for an axis (x or y)
-        const setMinorDtick = (axis, axisState) => {
-          const a = axisState || {};
-          let major = Number(a.dtick);
-
-          // If dtick isn't numeric, estimate from range/nticks (fallback)
-          if (!Number.isFinite(major)) {
-            const rng = Array.isArray(a.range) && a.range.length === 2 ? a.range : null;
-            const span = rng ? Math.abs(rng[1] - rng[0]) : NaN;
-            const nt = Number(a.nticks) || 6;
-            if (Number.isFinite(span) && span > 0) {
-              major = span / nt;
-            }
-          }
-
-          if (Number.isFinite(major) && major > 0) {
-            patch[`${axis}.minor.dtick`] = major / (N + 1);
-            patch[`${axis}.minor.show`] = true;      // ensure minor system on
-          }
-        };
-
-        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinorDtick);
-
-        // Apply only if we have something to set; otherwise no-op
-        if (Object.keys(patch).length) {
-          commitLayoutPatch(patch);
-        }
-        break;
-      }
-
-      case 'ticklabels': {
-        const on = !!payload.on;
-        commitLayoutPatch({ 'xaxis.showticklabels': on, 'yaxis.showticklabels': on });
-        break;
-      }
-
-      case 'ticks-placement': {
-        const p = (payload.placement ?? 'outside'); // 'outside'|'inside'|''
-        const figure = getPanelFigure(panelId);
-        const layout = figure.layout || {};
-        const hasX2 = axisExists(panelId, figure, 'xaxis2');
-        const hasY2 = axisExists(panelId, figure, 'yaxis2');
-        const patch = {
-          'xaxis.ticks': p,
-          'yaxis.ticks': p
-        };
-        if (hasX2) patch['xaxis2.ticks'] = p;
-        if (hasY2) patch['yaxis2.ticks'] = p;
-
-        preserveAxisDecorations(panelId, figure, 'xaxis', patch);
-        preserveAxisDecorations(panelId, figure, 'yaxis', patch);
-        if (hasX2) preserveAxisDecorations(panelId, figure, 'xaxis2', patch);
-        if (hasY2) preserveAxisDecorations(panelId, figure, 'yaxis2', patch);
-
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'ticks-labels': {
-        const on = !!payload.on;
-        const figure = getPanelFigure(panelId);
-        const layout = figure.layout || {};
-        const patch = {
-          'xaxis.showticklabels': on,
-          'yaxis.showticklabels': on
-        };
-        if (axisExists(panelId, figure, 'xaxis2')) patch['xaxis2.showticklabels'] = on;
-        if (axisExists(panelId, figure, 'yaxis2')) patch['yaxis2.showticklabels'] = on;
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'ticks-major-offset': {
-        // null clears; number sets starting tick
-        const figure = getPanelFigure(panelId);
-        const hasX2 = axisExists(panelId, figure, 'xaxis2');
-        const hasY2 = axisExists(panelId, figure, 'yaxis2');
-        const patch = {};
-        if (payload.x0 === null || Number.isFinite(payload.x0)) {
-          patch['xaxis.tick0'] = payload.x0;
-          if (hasX2) patch['xaxis2.tick0'] = payload.x0;
-        }
-        if (payload.y0 === null || Number.isFinite(payload.y0)) {
-          patch['yaxis.tick0'] = payload.y0;
-          if (hasY2) patch['yaxis2.tick0'] = payload.y0;
-        }
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'ticks-major-dtick': {
-        // null ╬ô├Ñ├å auto; number ╬ô├Ñ├å fixed spacing
-        const figure = getPanelFigure(panelId);
-        const hasX2 = axisExists(panelId, figure, 'xaxis2');
-        const hasY2 = axisExists(panelId, figure, 'yaxis2');
-        const patch = {};
-        if (payload.dx === null || Number.isFinite(payload.dx)) {
-          patch['xaxis.dtick'] = payload.dx;
-          if (hasX2) patch['xaxis2.dtick'] = payload.dx;
-        }
-        if (payload.dy === null || Number.isFinite(payload.dy)) {
-          patch['yaxis.dtick'] = payload.dy;
-          if (hasY2) patch['yaxis2.dtick'] = payload.dy;
-        }
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'ticks-minor': {
-        const on = !!payload.on;
-        const figure = getPanelFigure(panelId);
-        const hasX2 = axisExists(panelId, figure, 'xaxis2');
-        const hasY2 = axisExists(panelId, figure, 'yaxis2');
-        const patch = {
-          'xaxis.minor.show': on,
-          'yaxis.minor.show': on
-        };
-        if (hasX2) patch['xaxis2.minor.show'] = on;
-        if (hasY2) patch['yaxis2.minor.show'] = on;
-        if (!on) {
-          // fully disable: no ticks or spacing
-          patch['xaxis.minor.ticks'] = '';
-          patch['yaxis.minor.ticks'] = '';
-          patch['xaxis.minor.dtick'] = null;
-          patch['yaxis.minor.dtick'] = null;
-          if (hasX2) {
-            patch['xaxis2.minor.ticks'] = '';
-            patch['xaxis2.minor.dtick'] = null;
-          }
-          if (hasY2) {
-            patch['yaxis2.minor.ticks'] = '';
-            patch['yaxis2.minor.dtick'] = null;
-          }
-        }
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'ticks-minor-placement': {
-        const p = (payload.placement ?? ''); // ''|'outside'|'inside'
-        const on = p !== '';
-
-        const figure = getPanelFigure(panelId);
-        const layout = figure.layout || {};
-        const hasX2 = axisExists(panelId, figure, 'xaxis2');
-        const hasY2 = axisExists(panelId, figure, 'yaxis2');
-
-        const patch = {
-          'xaxis.minor.ticks': p,
-          'yaxis.minor.ticks': p,
-          'xaxis.minor.show': on,
-          'yaxis.minor.show': on
-        };
-        if (hasX2) {
-          patch['xaxis2.minor.ticks'] = p;
-          patch['xaxis2.minor.show'] = on;
-        }
-        if (hasY2) {
-          patch['yaxis2.minor.ticks'] = p;
-          patch['yaxis2.minor.show'] = on;
-        }
-
-        // keep existing grid/line state only if explicitly configured
-        preserveAxisDecorations(panelId, figure, 'xaxis', patch);
-        preserveAxisDecorations(panelId, figure, 'yaxis', patch);
-        if (hasX2) preserveAxisDecorations(panelId, figure, 'xaxis2', patch);
-        if (hasY2) preserveAxisDecorations(panelId, figure, 'yaxis2', patch);
-
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'ticks-minor-subdiv': {
-        const N = Math.max(1, Math.min(10, Math.round(Number(payload.subdiv) || 2)));
-        const patch = {};
-
-        const figure = getPanelFigure(panelId);
-
-        const setMinor = (axis, axisState) => {
-          const a = axisState || {};
-          let major = Number(a.dtick);
-          if (!Number.isFinite(major)) {
-            const rng = Array.isArray(a.range) && a.range.length === 2 ? a.range : null;
-            const span = rng ? Math.abs(rng[1] - rng[0]) : NaN;
-            const nt = Number(a.nticks) || 6;
-            if (Number.isFinite(span) && span > 0) major = span / nt;
-          }
-
-          if (Number.isFinite(major) && major > 0) {
-            patch[`${axis}.minor.dtick`] = major / (N + 1);
-            patch[`${axis}.minor.show`]  = true;          // enable minor ticks
-            // do NOT touch `${axis}.minor.showgrid` here
-          }
-        };
-
-        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinor);
-
-        commitLayoutPatch(patch);
-        break;
-      }
-
-      case 'smooth': {
-        const figure = getPanelFigure(panelId);
-        const data = Array.isArray(figure.data) ? figure.data.slice() : [];
-        const on = !!payload.on;
-        pushHistory();
-        const updatedData = data.map((trace) => {
-          const next = { ...trace };
-          next.line = { ...(trace?.line || {}) };
-          next.line.shape = on ? 'spline' : 'linear';
-          if (on) {
-            next.line.smoothing = 1.15;
-          } else {
-            delete next.line.smoothing;
-          }
-          return next;
-        });
-        figure.data = updatedData;
-        normalizePanelTraces(panelId, figure);
-        renderPlot(panelId);
-        persist();
-        updateHistoryButtons();
-        break;
-      }
-
-      case 'export': {
-        const dom = getPanelDom(panelId);
-        if (!dom?.plotEl) return;
-        Plot.exportFigure(panelId, { format: 'png', scale: 2 }).then((url) => {
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'plot.png';
-          a.click();
-        });
-        break;
-      }
-
-      default: {
-        // Safe dev-time notice for unhandled actions
-        console.warn('Unhandled header action:', act, payload);
-        break;
-      }
-    }
-
-    if (simpleIntent) {
-      persist();
-      updateHistoryButtons();
-    }
-  }
-
-  const panelDomFacade = createPanelDomFacade({
-    canvas,
-    registerPanelDom,
-    updatePanelRuntime,
-    actions: {
-      handleHeaderAction,
-      removePanel: (panelId) => removePanel(panelId),
-      bringPanelToFront,
-      updateToolbarMetrics
-    },
-    selectors: {
-      getPanelFigure
-    }
-  });
-
   const updatePanelEmpty = () => {
     if (!panelDom.empty) return;
     if (panelDom.empty.dataset.mode === 'search-empty') {
@@ -1384,16 +854,6 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
     };
   };
 
-  const snapshotState = () => ({
-    sections: sectionsModel.snapshot(),
-    panels: typeof panelsModel.snapshot === 'function'
-      ? panelsModel.snapshot()
-      : { counter: 0, items: [] },
-    uiPrefs: {
-      colorCursor
-    }
-  });
-
   const bringPanelToFront = (panelId, { persistChange = true, scrollBrowser = false } = {}) => {
     if (!panelId) return;
     const dom = getPanelDom(panelId);
@@ -1402,58 +862,40 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
     if (updated) {
       applyPanelZIndex(panelId);
       if (persistChange) {
-        persist();
+        historyHelpers.persist();
       }
     }
     setActivePanel(panelId, { scrollBrowser });
   };
 
+  const panelInteractions = createPanelInteractions({
+    interact,
+    canvas,
+    registry: {
+      getPanelDom,
+      ensurePanelRuntime,
+      updatePanelRuntime
+    },
+    geometry: {
+      getPanelGeometry,
+      clampGeometryToCanvas,
+      applyPanelGeometry,
+      coerceNumber
+    },
+    models: { panelsModel },
+    history: historyHelpers,
+    persistence: { persist },
+    plot: { resize: (panelId) => Plot.resize(panelId) },
+    utils: { bringPanelToFront },
+    dimensions: {
+      minWidth: MIN_WIDTH,
+      minHeight: MIN_HEIGHT
+    }
+  });
+
   const focusPanelById = (panelId, { scrollBrowser = true } = {}) => {
     if (!panelId) return;
     bringPanelToFront(panelId, { scrollBrowser });
-  };
-
-  const clearPanels = () => {
-    Array.from(panelDomRegistry.entries()).forEach(([panelId, dom]) => {
-      dom?.rootEl?.remove();
-      detachPanelDom(panelId);
-    });
-    panelsModel.load({ counter: 0, items: [] });
-    setActivePanel(null);
-  };
-
-  const restoreSnapshot = (snapshot, { skipHistory = false } = {}) => {
-    clearPanels();
-    const basePrefs = snapshot?.uiPrefs && typeof snapshot.uiPrefs === 'object'
-      ? { ...snapshot.uiPrefs }
-      : {};
-    if (Object.prototype.hasOwnProperty.call(snapshot || {}, 'colorCursor') && !('colorCursor' in basePrefs)) {
-      basePrefs.colorCursor = snapshot.colorCursor;
-    }
-    colorCursor = Number(basePrefs.colorCursor) || 0;
-    sectionsModel.load(snapshot?.sections);
-
-    const panelSnapshot = snapshot?.panels || { counter: 0, items: [] };
-    panelsModel.load(panelSnapshot);
-
-    panelsModel
-      .getPanelsInIndexOrder()
-      .forEach((state) => {
-        registerPanel(state, {
-          skipHistory: true,
-          skipPersist: true,
-          preserveIndex: true,
-          useModelState: true
-        });
-      });
-
-    updateCanvasState();
-    renderBrowser();
-    persist();
-
-    if (!skipHistory) {
-      updateHistoryButtons();
-    }
   };
 
   persistence = createPersistenceFacade({
@@ -1472,8 +914,8 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
     },
     storage,
     hooks: {
-      buildSnapshot: snapshotState,
-      restoreSnapshot,
+      buildSnapshot: () => snapshotManager.snapshot(),
+      restoreSnapshot: (snapshot, opts) => snapshotManager.restore(snapshot, opts),
       closeMenu: closeWorkspaceMenu
     },
     helpers: {
@@ -1830,7 +1272,7 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
     applyPanelGeometry(panelId, initialVisual, { persistNormalized: true });
     applyPanelZIndex(panelId);
     renderPlot(panelId);
-    configureInteractivity(panelId);
+    panelInteractions.attach(panelId);
     updateCanvasState();
     updateToolbarMetrics();
     renderBrowser();
@@ -1859,8 +1301,8 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
 
   const panelsFacade = createPanelsFacade({
     models: { panelsModel },
-    plot: { renderNow: (panelId) => Plot.renderNow(panelId) },
-    history: { history, pushHistory, updateHistoryButtons },
+    plot: { renderNow: Plot.renderNow },
+    history: historyHelpers,
     persistence: { persist },
     browser: { renderBrowser, refreshPanelVisibility, updateCanvasState },
     dom: {
@@ -1892,6 +1334,37 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
     moveGraph,
     removePanel
   } = panelsFacade);
+
+  const { handleHeaderAction } = createHeaderActions({
+    actionsController: Actions,
+    history: historyHelpers,
+    selectors: {
+      getPanelDom,
+      getPanelFigure
+    },
+    traces: {
+      normalizePanelTraces,
+      renderPlot
+    },
+    plot: {
+      exportFigure: (panelId, opts) => Plot.exportFigure(panelId, opts)
+    }
+  });
+
+  const panelDomFacade = createPanelDomFacade({
+    canvas,
+    registerPanelDom,
+    updatePanelRuntime,
+    actions: {
+      handleHeaderAction,
+      removePanel: (panelId) => removePanel(panelId),
+      bringPanelToFront,
+      updateToolbarMetrics
+    },
+    selectors: {
+      getPanelFigure
+    }
+  });
 
   const ioFacade = createIoFacade({
     dom: {
@@ -1930,147 +1403,6 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
     utils: { decodeName }
   });
   ioFacade.attach();
-
-  const configureInteractivity = (panelId) => {
-    if (!interact) return;
-    const dom = getPanelDom(panelId);
-    const rootEl = dom?.rootEl;
-    const plotHost = dom?.plotEl;
-    if (!rootEl) return;
-    const runtime = ensurePanelRuntime(panelId);
-
-    const beginInteraction = (mode) => {
-      bringPanelToFront(panelId, { persistChange: false });
-      if (!runtime?.dragSnapshot) {
-        pushHistory();
-      }
-      const modelGeometry = getPanelGeometry(panelId);
-      const sourceGeometry = modelGeometry
-        || runtime?.visual
-        || { x: 0, y: 0, width: MIN_WIDTH, height: MIN_HEIGHT };
-      const baseGeometry = clampGeometryToCanvas(sourceGeometry);
-      updatePanelRuntime(panelId, {
-        dragSnapshot: {
-          mode,
-          initial: { ...baseGeometry },
-          current: { ...baseGeometry }
-        }
-      });
-      rootEl.classList.add('is-active');
-      canvas.classList.add('is-active');
-    };
-
-    const finalizeInteraction = (mode) => {
-      const snapshot = runtime?.dragSnapshot;
-      const fallback = runtime?.visual
-        || getPanelGeometry(panelId)
-        || { x: 0, y: 0, width: MIN_WIDTH, height: MIN_HEIGHT };
-      const base = snapshot?.current || snapshot?.initial || fallback;
-      const normalized = clampGeometryToCanvas(base);
-
-      if (mode === 'resize') {
-        panelsModel.setPanelSize(panelId, {
-          width: normalized.width,
-          height: normalized.height
-        });
-        panelsModel.setPanelPosition(panelId, {
-          x: normalized.x,
-          y: normalized.y
-        });
-      } else {
-        panelsModel.setPanelPosition(panelId, {
-          x: normalized.x,
-          y: normalized.y
-        });
-      }
-
-      const latest = panelsModel.getPanel(panelId);
-      applyPanelGeometry(panelId, latest || normalized);
-      dom?.runtime?.refreshActionOverflow?.();
-      if (plotHost) {
-        Plot.resize(panelId);;
-      }
-
-      updatePanelRuntime(panelId, { dragSnapshot: null });
-      rootEl.classList.remove('is-active');
-      canvas.classList.remove('is-active');
-      persist();
-      updateHistoryButtons();
-    };
-
-    interact(rootEl)
-      .draggable({
-        inertia: false,
-        allowFrom: '.workspace-panel-header',
-        ignoreFrom: '.workspace-panel-body',
-        modifiers: [
-          interact.modifiers.restrictRect({
-            restriction: canvas,
-            endOnly: false
-          })
-        ],
-        listeners: {
-          start: () => {
-            beginInteraction('drag');
-          },
-          move: (event) => {
-            if (!runtime?.dragSnapshot) return;
-            const snapshot = runtime.dragSnapshot;
-            const previous = snapshot.current || snapshot.initial;
-            const next = clampGeometryToCanvas({
-              ...previous,
-              x: previous.x + coerceNumber(event.dx, 0),
-              y: previous.y + coerceNumber(event.dy, 0)
-            });
-            snapshot.current = next;
-            applyPanelGeometry(panelId, next);
-            dom?.runtime?.refreshActionOverflow?.();
-          },
-          end: () => {
-            finalizeInteraction('drag');
-          }
-        }
-      })
-      .resizable({
-        edges: { left: true, right: true, bottom: true, top: true },
-        inertia: false,
-        margin: 6,
-        modifiers: [
-          interact.modifiers.restrictEdges({
-            outer: canvas,
-            endOnly: true
-          }),
-          interact.modifiers.restrictSize({
-            min: { width: MIN_WIDTH, height: MIN_HEIGHT }
-          })
-        ],
-        listeners: {
-          start: () => {
-            beginInteraction('resize');
-          },
-          move: (event) => {
-            if (!runtime?.dragSnapshot) return;
-            const snapshot = runtime.dragSnapshot;
-            const previous = snapshot.current || snapshot.initial;
-            const next = clampGeometryToCanvas({
-              x: previous.x + coerceNumber(event.deltaRect?.left, 0),
-              y: previous.y + coerceNumber(event.deltaRect?.top, 0),
-              width: coerceNumber(event.rect?.width, previous.width),
-              height: coerceNumber(event.rect?.height, previous.height)
-            });
-            snapshot.current = next;
-            applyPanelGeometry(panelId, next);
-            dom?.runtime?.refreshActionOverflow?.();
-            if (plotHost) {
-              Plot.resize(panelId);;
-            }
-          },
-          end: () => {
-            finalizeInteraction('resize');
-          }
-        }
-      });
-  };
 
   // --- UI event bindings ---
 
@@ -2311,6 +1643,13 @@ const interact = typeof window !== 'undefined' ? window.interact : null;
     getPanelDomRegistry: () => panelDomRegistry
   };
 }
+
+
+
+
+
+
+
 
 
 
