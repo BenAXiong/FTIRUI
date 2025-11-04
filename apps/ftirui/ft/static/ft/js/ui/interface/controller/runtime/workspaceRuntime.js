@@ -17,6 +17,13 @@ import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.j
 import * as Render from '../../../../workspace/canvas/plotting/render.js';
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
 import { createBrowserFacade } from './browser/facade.js';
+import { createPersistenceFacade } from './persistence/facade.js';
+import { createPanelsFacade } from './panels/facade.js';
+import { createPanelDomFacade } from './panels/panelDomFacade.js';
+import { createIoFacade } from './io/facade.js';
+import { createRuntimeState } from './context/runtimeState.js';
+import { createUiPreferencesFacade } from './preferences/facade.js';
+import { createSectionManager } from './sections/manager.js';
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -34,16 +41,27 @@ const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
 let colorCursor = 0;
-let sectionCounter = 0;
 
-const sections = new Map();
-let sectionOrder = [];
+const sectionManager = createSectionManager({ defaultSectionId: DEFAULT_SECTION_ID });
+const sections = sectionManager.getMap();
 let chipPanelsInstance = null;
 let dragState = null;
 let currentDropTarget = null;
 let pendingRenameSectionId = null;
 let activePanelId = null;
 let browserFacade = null;
+let persistence = null;
+let history = null;
+let persist = () => {};
+let pushHistory = () => {};
+let undo = () => {};
+let redo = () => {};
+let updateHistoryButtons = () => {};
+let updateStorageButtons = () => {};
+let saveWorkspaceSnapshot = () => {};
+let loadWorkspaceSnapshot = () => {};
+let clearWorkspaceSnapshot = () => {};
+let preferencesFacade = null;
 
 const setDropTarget = (element) => {
   if (currentDropTarget === element) return;
@@ -72,6 +90,19 @@ const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
+const showToast = (message, variant = 'info', delay = 2400) => {
+  if (typeof window?.showAppToast === 'function') {
+    window.showAppToast({ message, variant, delay });
+  }
+};
+
+let normalizePanelTraces = () => null;
+let ingestPayloadAsPanel = () => null;
+let appendFilesToGraph = async () => {};
+let moveTrace = () => false;
+let moveGraph = () => false;
+let removePanel = () => {};
+
 const randomPanelId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `canvas_${crypto.randomUUID()}`;
@@ -97,287 +128,38 @@ const ensureTraceId = (trace) => {
 };
 
 const ensureDefaultSection = () => {
-  if (!sections.has(DEFAULT_SECTION_ID)) {
-    sections.set(DEFAULT_SECTION_ID, {
-      id: DEFAULT_SECTION_ID,
-      name: 'Group 1',
-      collapsed: false,
-      locked: true,
-      parentId: null,
-      children: [],
-      visible: true
-    });
-  } else {
-    const base = sections.get(DEFAULT_SECTION_ID);
-    if (base) {
-      base.name = base.name && base.name !== 'All' ? base.name : 'Group 1';
-      base.parentId = null;
-      base.children = Array.isArray(base.children) ? base.children : [];
-      base.visible = base.visible !== false;
-    }
-  }
-  if (!sectionOrder.includes(DEFAULT_SECTION_ID)) {
-    sectionOrder.unshift(DEFAULT_SECTION_ID);
-  }
+  sectionManager.ensureDefaultSection();
 };
 
-const createSection = (name, { parentId = null } = {}) => {
-  ensureDefaultSection();
-  sectionCounter += 1;
-  const id = `section_${Math.random().toString(36).slice(2, 8)}${sectionCounter}`;
-  const parent = parentId ? sections.get(parentId) : null;
-  const isSubgroup = !!parent;
-  if (isSubgroup && parent && !Array.isArray(parent.children)) {
-    parent.children = [];
-  }
-  const defaultName = name?.trim()
-    || (isSubgroup
-      ? `Subgroup ${(parent?.children?.length || 0) + 1}`
-      : `Group ${sectionOrder.length + 1}`);
-  const section = {
-    id,
-    name: defaultName,
-    collapsed: false,
-    locked: false,
-    parentId: parentId && sections.has(parentId) ? parentId : null,
-    children: [],
-    visible: true
-  };
-  sections.set(id, section);
-  if (section.parentId) {
-    const host = sections.get(section.parentId);
-    if (host) {
-      if (!Array.isArray(host.children)) host.children = [];
-      host.children.push(id);
-    }
-  } else {
-    sectionOrder.push(id);
-  }
-  return section;
-};
+const createSection = (name, options = {}) => sectionManager.createSection(name, options);
 
 const deleteSection = (sectionId) => {
-  if (!sectionId || sectionId === DEFAULT_SECTION_ID) return;
-  const section = sections.get(sectionId);
-  if (!section) return;
-  const children = Array.isArray(section.children) ? section.children.slice() : [];
-  children.forEach((childId) => deleteSection(childId));
-  if (section.parentId) {
-    const parent = sections.get(section.parentId);
-    if (parent && Array.isArray(parent.children)) {
-      parent.children = parent.children.filter((id) => id !== sectionId);
-    }
-  } else {
-    sectionOrder = sectionOrder.filter((id) => id !== sectionId);
-  }
-  sections.delete(sectionId);
+  sectionManager.deleteSection(sectionId);
 };
 
 const renameSection = (sectionId, name) => {
-  const section = sections.get(sectionId);
-  if (!section) return;
-  const trimmed = name?.trim();
-  if (!trimmed) return;
-  section.name = trimmed;
+  sectionManager.renameSection(sectionId, name);
 };
 
 const setSectionCollapsed = (sectionId, collapsed) => {
-  const section = sections.get(sectionId);
-  if (!section) return;
-  section.collapsed = !!collapsed;
+  sectionManager.setSectionCollapsed(sectionId, collapsed);
 };
 
-const isSectionAncestor = (ancestorId, sectionId) => {
-  if (!ancestorId || !sectionId) return false;
-  let current = sections.get(sectionId)?.parentId || null;
-  const guard = new Set();
-  while (current) {
-    if (current === ancestorId) return true;
-    if (guard.has(current)) break;
-    guard.add(current);
-    current = sections.get(current)?.parentId || null;
-  }
-  return false;
-};
+const moveSection = (sectionId, options = {}) => sectionManager.moveSection(sectionId, options);
 
-const detachSectionFromParent = (sectionId) => {
-  const section = sections.get(sectionId);
-  if (!section) return;
-  const parentId = section.parentId || null;
-  if (parentId) {
-    const parent = sections.get(parentId);
-    if (parent && Array.isArray(parent.children)) {
-      parent.children = parent.children.filter((childId) => childId !== sectionId);
-    }
-  } else {
-    sectionOrder = sectionOrder.filter((id) => id !== sectionId);
-  }
-};
-
-const insertSectionIntoParent = (sectionId, parentId, beforeSectionId) => {
-  if (parentId) {
-    const parent = sections.get(parentId);
-    if (!parent) return false;
-    if (!Array.isArray(parent.children)) parent.children = [];
-    const normalized = parent.children.filter((childId) => childId !== sectionId);
-    let insertIdx = normalized.length;
-    if (beforeSectionId && normalized.includes(beforeSectionId)) {
-      insertIdx = normalized.indexOf(beforeSectionId);
-    }
-    normalized.splice(insertIdx, 0, sectionId);
-    parent.children = normalized;
-    return true;
-  }
-  const normalized = sectionOrder.filter((id) => id !== sectionId);
-  let insertIdx = normalized.length;
-  if (beforeSectionId && normalized.includes(beforeSectionId)) {
-    insertIdx = normalized.indexOf(beforeSectionId);
-  }
-  normalized.splice(insertIdx, 0, sectionId);
-  sectionOrder = normalized;
-  return true;
-};
-
-const moveSection = (sectionId, { parentId = null, beforeSectionId = null } = {}) => {
-  if (!sectionId || sectionId === DEFAULT_SECTION_ID) return false;
-  const section = sections.get(sectionId);
-  if (!section || section.locked) return false;
-
-  const targetParentId = parentId && sections.has(parentId) ? parentId : null;
-  const currentParentId = section.parentId || null;
-
-  if (beforeSectionId === sectionId) return false;
-
-  if (!currentParentId && targetParentId) {
-    return false;
-  }
-
-  if (targetParentId && (targetParentId === sectionId || isSectionAncestor(sectionId, targetParentId))) {
-    return false;
-  }
-
-  if (targetParentId && sections.get(targetParentId)?.locked) {
-    return false;
-  }
-
-  let normalizedBefore = beforeSectionId && beforeSectionId !== sectionId && sections.has(beforeSectionId)
-    ? beforeSectionId
-    : null;
-
-  if (normalizedBefore) {
-    const beforeParentId = sections.get(normalizedBefore)?.parentId || null;
-    if (beforeParentId !== targetParentId) {
-      normalizedBefore = null;
-    }
-  }
-
-  if (currentParentId === targetParentId) {
-    if (targetParentId) {
-      const parent = sections.get(targetParentId);
-      if (!parent) return false;
-      const children = Array.isArray(parent.children) ? parent.children.slice() : [];
-      const currentIdx = children.indexOf(sectionId);
-      if (currentIdx === -1) return false;
-      let targetIdx = children.length - 1;
-      if (normalizedBefore) {
-        targetIdx = children.indexOf(normalizedBefore);
-        if (targetIdx === -1) {
-          normalizedBefore = null;
-        }
-      }
-      if (!normalizedBefore) {
-        targetIdx = children.length;
-      }
-      if (currentIdx === targetIdx || currentIdx + 1 === targetIdx) {
-        return false;
-      }
-    } else {
-      const currentIdx = sectionOrder.indexOf(sectionId);
-      if (currentIdx === -1) return false;
-      let targetIdx = sectionOrder.length - 1;
-      if (normalizedBefore) {
-        targetIdx = sectionOrder.indexOf(normalizedBefore);
-        if (targetIdx === -1) {
-          normalizedBefore = null;
-        }
-      }
-      if (!normalizedBefore) {
-        targetIdx = sectionOrder.length;
-      }
-      if (currentIdx === targetIdx || currentIdx + 1 === targetIdx) {
-        return false;
-      }
-    }
-  }
-
-  detachSectionFromParent(sectionId);
-  section.parentId = targetParentId;
-  insertSectionIntoParent(sectionId, targetParentId, normalizedBefore);
-  return true;
-};
-
-const serializeSections = () => ({
-  counter: sectionCounter,
-  order: sectionOrder.slice(),
-  items: Array.from(sections.values()).map((section) => ({
-    id: section.id,
-    name: section.name,
-    collapsed: !!section.collapsed,
-    locked: !!section.locked,
-    parentId: section.parentId || null,
-    children: Array.isArray(section.children) ? section.children.slice() : [],
-    visible: section.visible !== false
-  }))
-});
-
-const restoreSections = (snapshot) => {
-  sections.clear();
-  sectionOrder = [];
-  sectionCounter = Math.max(0, Number(snapshot?.counter) || 0);
-  const items = Array.isArray(snapshot?.items) ? snapshot.items : [];
-  items.forEach((item) => {
-    sections.set(item.id, {
-      id: item.id,
-      name: item.name || 'Group',
-      collapsed: !!item.collapsed,
-      locked: !!item.locked,
-      parentId: item.parentId || null,
-      children: Array.isArray(item.children) ? item.children.slice() : [],
-      visible: item.visible !== false
-    });
-  });
-  sectionOrder = Array.isArray(snapshot?.order)
-    ? snapshot.order.slice().filter((id) => sections.has(id))
-    : Array.from(sections.values())
-        .filter((section) => !section.parentId)
-        .map((section) => section.id);
-  sections.forEach((section) => {
-    if (section.parentId && !sections.has(section.parentId)) {
-      section.parentId = null;
-      section.children = Array.isArray(section.children) ? section.children.slice() : [];
-      if (!sectionOrder.includes(section.id)) sectionOrder.push(section.id);
-    }
-    if (Array.isArray(section.children)) {
-      section.children = section.children.filter((childId) => sections.has(childId));
-    } else {
-      section.children = [];
-    }
-  });
-  ensureDefaultSection();
-};
+const collectSectionDescendants = (sectionId) => sectionManager.collectDescendants(sectionId);
 
 const sectionsModel = {
-  snapshot: () => serializeSections(),
+  snapshot: () => sectionManager.snapshot(),
   load: (snapshot) => {
-    restoreSections(snapshot);
+    sectionManager.load(snapshot);
   }
 };
+
 
 export function initWorkspaceRuntime(context = {}) {
   colorCursor = 0;
-  sectionCounter = 0;
-  sections.clear();
-  sectionOrder = [];
+  sectionManager.reset();
   chipPanelsInstance = null;
   dragState = null;
   currentDropTarget = null;
@@ -523,16 +305,10 @@ export function initWorkspaceRuntime(context = {}) {
     return runtime;
   };
 
-  const history = createHistory({
-    limit: HISTORY_LIMIT,
-    tolerance: HISTORY_GEOMETRY_TOLERANCE
-  });
-  let searchTerm = '';
-  const getSearchTerm = () => searchTerm;
-  let pendingGraphFileTarget = null;
-  let storageQueueWarningShown = false;
+let searchTerm = '';
+const getSearchTerm = () => searchTerm;
 
-  const interact = typeof window !== 'undefined' ? window.interact : null;
+const interact = typeof window !== 'undefined' ? window.interact : null;
   ensureDefaultSection();
   if (!chipPanelsInstance && typeof document !== 'undefined') {
     chipPanelsInstance = createChipPanels(document.body);
@@ -551,6 +327,11 @@ export function initWorkspaceRuntime(context = {}) {
     undo: document.getElementById('c_history_undo'),
     redo: document.getElementById('c_history_redo')
   };
+
+  preferencesFacade = createUiPreferencesFacade({
+    collapseKey: PANEL_COLLAPSE_KEY,
+    pinKey: PANEL_PIN_KEY
+  });
 
   const workspaceMenu = (() => {
     const toggle = document.getElementById('c_canvas_more_btn');
@@ -604,33 +385,6 @@ export function initWorkspaceRuntime(context = {}) {
       workspaceMenu.root?.classList.remove('show');
     }
   };
-
-  const updateStorageButtons = () => {
-    const hasSnapshot = storage.hasSnapshot();
-    if (workspaceMenu.save) {
-      workspaceMenu.save.disabled = false;
-      workspaceMenu.save.setAttribute('title', 'Save workspace snapshot');
-      workspaceMenu.save.setAttribute('aria-disabled', 'false');
-    }
-    if (workspaceMenu.load) {
-      workspaceMenu.load.disabled = !hasSnapshot;
-      workspaceMenu.load.setAttribute('aria-disabled', String(!hasSnapshot));
-      workspaceMenu.load.setAttribute(
-        'title',
-        hasSnapshot ? 'Load saved workspace snapshot' : 'No saved workspace available'
-      );
-    }
-    if (workspaceMenu.clear) {
-      workspaceMenu.clear.disabled = !hasSnapshot;
-      workspaceMenu.clear.setAttribute('aria-disabled', String(!hasSnapshot));
-      workspaceMenu.clear.setAttribute(
-        'title',
-        hasSnapshot ? 'Remove saved workspace snapshot' : 'No saved workspace to clear'
-      );
-    }
-  };
-
-  updateStorageButtons();
 
   const getBrowserRootEl = () => panelDom.tree || null;
 
@@ -835,16 +589,8 @@ export function initWorkspaceRuntime(context = {}) {
       panelDom.root.classList.remove('peeking');
     }
     updatePanelToggleUI(!collapsed);
-    if (persist && typeof sessionStorage !== 'undefined') {
-      try {
-        if (collapsed) {
-          sessionStorage.setItem(PANEL_COLLAPSE_KEY, '1');
-        } else {
-          sessionStorage.removeItem(PANEL_COLLAPSE_KEY);
-        }
-      } catch {
-        /* ignore storage failures */
-      }
+    if (persist) {
+      preferencesFacade?.setCollapsed(collapsed);
     }
     if (!silent) {
       updateCanvasOffset();
@@ -882,51 +628,25 @@ export function initWorkspaceRuntime(context = {}) {
     if (!panelPinned) {
       panelDom.root?.classList.add('peeking');
       setPanelCollapsed(false, { persist: false, silent: true });
-      if (typeof sessionStorage !== 'undefined') {
-        try {
-          sessionStorage.removeItem(PANEL_COLLAPSE_KEY);
-        } catch {
-          /* ignore storage failures */
-        }
-      }
+      preferencesFacade?.clearCollapsed();
     } else {
       panelDom.root?.classList.remove('peeking');
     }
     updatePanelPinUI();
     updateCanvasOffset();
     updatePanelToggleUI(!panelDom.root?.classList.contains('collapsed'));
-    if (persist && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(PANEL_PIN_KEY, panelPinned ? '1' : '0');
-      } catch {
-        /* ignore storage failures */
-      }
+    if (persist) {
+      preferencesFacade?.setPinned(panelPinned);
     }
   };
 
   const restorePanelCollapsed = () => {
-    let collapsed = false;
-    if (typeof sessionStorage !== 'undefined') {
-      try {
-        collapsed = sessionStorage.getItem(PANEL_COLLAPSE_KEY) === '1';
-      } catch {
-        collapsed = false;
-      }
-    }
+    const collapsed = preferencesFacade?.readCollapsed?.() ?? false;
     setPanelCollapsed(collapsed, { persist: false });
   };
 
   const restorePanelPinned = () => {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(PANEL_PIN_KEY);
-        if (stored !== null) {
-          panelPinned = stored === '1';
-        }
-      } catch {
-        panelPinned = false;
-      }
-    }
+    panelPinned = preferencesFacade?.readPinned?.(panelPinned) ?? panelPinned;
     setPanelPinned(panelPinned, { persist: false });
   };
 
@@ -1023,22 +743,6 @@ export function initWorkspaceRuntime(context = {}) {
     panelDom.tree.dataset.chipPanelsMounted = '1';
   };
 
-  const updateHistoryButtons = () => {
-    if (panelDom.undo) {
-      const canUndo = history.canUndo();
-      panelDom.undo.disabled = !canUndo;
-      panelDom.undo.setAttribute('aria-disabled', String(!canUndo));
-      panelDom.undo.setAttribute('title', canUndo ? 'Undo last action' : 'Nothing to undo');
-    }
-    if (panelDom.redo) {
-      const canRedo = history.canRedo();
-      panelDom.redo.disabled = !canRedo;
-      panelDom.redo.setAttribute('aria-disabled', String(!canRedo));
-      panelDom.redo.setAttribute('title', canRedo ? 'Redo last undone action' : 'Nothing to redo');
-    }
-  };
-
-  history.setOnChange(updateHistoryButtons);
 
   const hasOwn = Object.prototype.hasOwnProperty;
   const isPrimaryAxis = (axisKey) => axisKey === 'xaxis' || axisKey === 'yaxis';
@@ -1553,6 +1257,21 @@ export function initWorkspaceRuntime(context = {}) {
     }
   }
 
+  const panelDomFacade = createPanelDomFacade({
+    canvas,
+    registerPanelDom,
+    updatePanelRuntime,
+    actions: {
+      handleHeaderAction,
+      removePanel: (panelId) => removePanel(panelId),
+      bringPanelToFront,
+      updateToolbarMetrics
+    },
+    selectors: {
+      getPanelFigure
+    }
+  });
+
   const updatePanelEmpty = () => {
     if (!panelDom.empty) return;
     if (panelDom.empty.dataset.mode === 'search-empty') {
@@ -1675,90 +1394,6 @@ export function initWorkspaceRuntime(context = {}) {
     }
   });
 
-  const collectFigureSnapshots = () => {
-    if (typeof panelsModel.getPanelsInIndexOrder !== 'function') {
-      return {};
-    }
-    return panelsModel
-      .getPanelsInIndexOrder()
-      .reduce((acc, panel) => {
-        if (!panel?.id) return acc;
-        acc[panel.id] = panel.figure ? deepClone(panel.figure) : { data: [], layout: {} };
-        return acc;
-      }, {});
-  };
-
-  const buildStorageSnapshot = () => {
-    const figures = collectFigureSnapshots();
-    return {
-      ...snapshotState(),
-      figures: Object.keys(figures).length ? figures : null
-    };
-  };
-
-  const persist = () => {
-    const queued = storage.queueSave(buildStorageSnapshot());
-    if (!queued) {
-      if (!storageQueueWarningShown) {
-        storageQueueWarningShown = true;
-        console.warn('[workspaceCanvas] Failed to queue workspace autosave');
-        window.showAppToast?.({ message: 'Autosave is unavailable; workspace changes will not be saved.', variant: 'danger' });
-      }
-    } else if (storageQueueWarningShown) {
-      storageQueueWarningShown = false;
-    }
-    updateStorageButtons();
-  };
-
-  const saveWorkspaceSnapshot = () => {
-    closeWorkspaceMenu();
-    const success = storage.save(buildStorageSnapshot());
-    if (success) {
-      storageQueueWarningShown = false;
-      showToast('Workspace snapshot saved locally.', 'success');
-    } else {
-      storageQueueWarningShown = true;
-      showToast('Unable to save workspace snapshot locally.', 'danger');
-    }
-    updateStorageButtons();
-  };
-
-  const loadWorkspaceSnapshot = () => {
-    closeWorkspaceMenu();
-    const hadSnapshot = storage.hasSnapshot();
-    if (!hadSnapshot) {
-      showToast('No saved workspace snapshot found.', 'info');
-      return;
-    }
-    const beforeState = snapshotState();
-    const snapshot = storage.load();
-    if (snapshot) {
-      storageQueueWarningShown = false;
-      history.push(beforeState, 'Before manual load');
-      restoreSnapshot(snapshot, { skipHistory: true });
-      showToast('Workspace snapshot loaded.', 'success');
-      updateHistoryButtons();
-    } else {
-      showToast('Saved workspace snapshot could not be loaded. Using current workspace.', 'warning');
-    }
-    updateStorageButtons();
-  };
-
-  const clearWorkspaceSnapshot = () => {
-    closeWorkspaceMenu();
-    const hadSnapshot = storage.hasSnapshot();
-    const cleared = storage.clear();
-    if (hadSnapshot && cleared) {
-      storageQueueWarningShown = false;
-      showToast('Saved workspace snapshot cleared.', 'info');
-    } else if (!hadSnapshot) {
-      showToast('No saved workspace snapshot to clear.', 'info');
-    } else {
-      showToast('Unable to clear saved workspace snapshot.', 'danger');
-    }
-    updateStorageButtons();
-  };
-
   const bringPanelToFront = (panelId, { persistChange = true, scrollBrowser = false } = {}) => {
     if (!panelId) return;
     const dom = getPanelDom(panelId);
@@ -1776,10 +1411,6 @@ export function initWorkspaceRuntime(context = {}) {
   const focusPanelById = (panelId, { scrollBrowser = true } = {}) => {
     if (!panelId) return;
     bringPanelToFront(panelId, { scrollBrowser });
-  };
-
-  const pushHistory = (label) => {
-    history.push(snapshotState(), label);
   };
 
   const clearPanels = () => {
@@ -1825,17 +1456,49 @@ export function initWorkspaceRuntime(context = {}) {
     }
   };
 
-  const undo = () => {
-    const snapshot = history.undo(snapshotState());
-    if (!snapshot) return;
-    restoreSnapshot(snapshot, { skipHistory: true });
-  };
+  persistence = createPersistenceFacade({
+    dom: {
+      undo: panelDom.undo,
+      redo: panelDom.redo
+    },
+    menu: workspaceMenu,
+    historyFactory: createHistory,
+    historyConfig: {
+      limit: HISTORY_LIMIT,
+      tolerance: HISTORY_GEOMETRY_TOLERANCE
+    },
+    models: {
+      panelsModel
+    },
+    storage,
+    hooks: {
+      buildSnapshot: snapshotState,
+      restoreSnapshot,
+      closeMenu: closeWorkspaceMenu
+    },
+    helpers: {
+      deepClone
+    },
+    notifications: {
+      showToast
+    }
+  }) || null;
 
-  const redo = () => {
-    const snapshot = history.redo(snapshotState());
-    if (!snapshot) return;
-    restoreSnapshot(snapshot, { skipHistory: true });
-  };
+  if (persistence) {
+    ({
+      history,
+      persist,
+      pushHistory,
+      undo,
+      redo,
+      updateHistoryButtons,
+      updateStorageButtons,
+      saveSnapshot: saveWorkspaceSnapshot,
+      loadSnapshot: loadWorkspaceSnapshot,
+      clearSnapshot: clearWorkspaceSnapshot
+    } = persistence);
+    persistence.attachEvents();
+  }
 
   const renderPlot = (panelId) => {
     if (!panelId) return;
@@ -1881,47 +1544,7 @@ export function initWorkspaceRuntime(context = {}) {
     return trace;
   };
 
-  const normalizePanelTraces = (panelId, figureOverride = null) => {
-    if (!panelId) return null;
-    const figure = figureOverride || getPanelFigure(panelId);
-    const traces = ensureArray(figure.data).map((original) => {
-      if (!original) return original;
-      const trace = deepClone(original);
-      syncTraceAppearance(trace);
-      if (typeof trace.name === 'string') trace.name = decodeName(trace.name);
-      if (typeof trace.filename === 'string') trace.filename = decodeName(trace.filename);
-      if (trace.meta) {
-        if (typeof trace.meta.name === 'string') trace.meta.name = decodeName(trace.meta.name);
-        if (typeof trace.meta.filename === 'string') trace.meta.filename = decodeName(trace.meta.filename);
-      }
-      ensureTraceId(trace);
-      trace.opacity = Number.isFinite(trace.opacity) ? trace.opacity : 1;
-      trace.visible = trace.visible !== false;
-      trace.line = trace.line || {};
-      trace.line.color = toHexColor(trace.line.color || FALLBACK_COLOR);
-      trace.line.width = Number.isFinite(trace.line.width) ? trace.line.width : 2;
-      trace.line.dash = trace.line.dash || 'solid';
-      trace.color = trace.line.color;
-      trace.width = trace.line.width;
-      trace.dash = trace.line.dash;
-      return trace;
-    });
-    const nextFigure = {
-      ...figure,
-      data: traces
-    };
-    panelsModel.updatePanelFigure(panelId, nextFigure);
-    return nextFigure;
-  };
-
-  const isSectionVisible = (sectionId) => {
-    let current = sections.get(sectionId);
-    while (current) {
-      if (current.visible === false) return false;
-      current = current.parentId ? sections.get(current.parentId) : null;
-    }
-    return true;
-  };
+  const isSectionVisible = (sectionId) => sectionManager.isSectionVisible(sectionId);
 
   const refreshPanelVisibility = () => {
     panelDomRegistry.forEach((dom, panelId) => {
@@ -2005,10 +1628,9 @@ export function initWorkspaceRuntime(context = {}) {
   };
 
   const toggleSectionVisibility = (sectionId) => {
-    const section = sections.get(sectionId);
-    if (!section) return;
+    if (!sectionManager.has(sectionId)) return;
     pushHistory();
-    section.visible = section.visible === false ? true : false;
+    sectionManager.toggleSectionVisibility(sectionId);
     persist();
     refreshPanelVisibility();
     renderBrowser();
@@ -2049,7 +1671,7 @@ export function initWorkspaceRuntime(context = {}) {
   };
 
   const addGraphToSection = (sectionId) => {
-    if (!sections.has(sectionId)) return;
+    if (!sectionManager.has(sectionId)) return;
     const panelId = ingestPayloadAsPanel({
       name: `Sample ${getNextPanelSequence()}`
     }, { sectionId });
@@ -2064,18 +1686,6 @@ export function initWorkspaceRuntime(context = {}) {
   const renderBrowser = () => {
     if (!browserFacade) return;
     browserFacade.render();
-  };
-
-  const collectSectionDescendants = (sectionId) => {
-    const result = [];
-    const visit = (id) => {
-      if (!sections.has(id)) return;
-      result.push(id);
-      const node = sections.get(id);
-      ensureArray(node.children).forEach(visit);
-    };
-    visit(sectionId);
-    return result;
   };
 
   const focusSectionById = (sectionId, { scrollBrowser = true } = {}) => {
@@ -2143,123 +1753,6 @@ export function initWorkspaceRuntime(context = {}) {
     removePanel(panelId);
   };
 
-  const moveTrace = (source, target) => {
-    const sourcePanelId = source?.panelId;
-    const targetPanelId = target?.panelId;
-    if (!sourcePanelId || !targetPanelId) return false;
-
-    const moved = panelsModel.moveTrace(source, target);
-    if (!moved) return false;
-
-    normalizePanelTraces(sourcePanelId);
-    if (sourcePanelId !== targetPanelId) {
-      normalizePanelTraces(targetPanelId);
-    }
-
-    renderPlot(sourcePanelId);
-    if (sourcePanelId !== targetPanelId) {
-      renderPlot(targetPanelId);
-    }
-
-    const remaining = getPanelTraces(sourcePanelId);
-    if (!remaining.length) {
-      removePanel(sourcePanelId, { pushToHistory: false });
-    }
-
-    renderBrowser();
-    persist();
-    updateHistoryButtons();
-    return true;
-  };
-
-  const moveGraph = (panelId, { sectionId, beforePanelId } = {}) => {
-    const record = getPanelRecord(panelId);
-    if (!record) return false;
-
-    const currentSectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
-    const targetSectionId = sectionId && sections.has(sectionId) ? sectionId : currentSectionId;
-
-    let normalizedBeforeId = beforePanelId && beforePanelId !== panelId ? beforePanelId : null;
-    if (normalizedBeforeId) {
-      const beforeRecord = getPanelRecord(normalizedBeforeId);
-      const beforeSectionId = sections.has(beforeRecord?.sectionId) ? beforeRecord.sectionId : DEFAULT_SECTION_ID;
-      if (!beforeRecord || beforeSectionId !== targetSectionId) {
-        normalizedBeforeId = null;
-      }
-    }
-
-    if (targetSectionId !== currentSectionId) {
-      panelsModel.attachToSection(panelId, targetSectionId);
-    }
-
-    let orderedRecords = panelsModel.getPanelsInIndexOrder();
-    let currentIdx = orderedRecords.findIndex((item) => item.id === panelId);
-    if (currentIdx === -1) return false;
-
-    const working = orderedRecords.slice();
-    const [current] = working.splice(currentIdx, 1);
-
-    let targetIdx = working.length;
-    if (normalizedBeforeId) {
-      targetIdx = working.findIndex((item) => item.id === normalizedBeforeId);
-      if (targetIdx === -1) {
-        normalizedBeforeId = null;
-        targetIdx = working.length;
-      }
-    }
-
-    if (!normalizedBeforeId) {
-      const lastIdx = working.reduce(
-        (acc, item, idx) => (item.sectionId === targetSectionId ? idx : acc),
-        -1
-      );
-      targetIdx = lastIdx >= 0 ? lastIdx + 1 : working.length;
-    }
-
-    if (targetSectionId === currentSectionId && targetIdx === currentIdx) {
-      return false;
-    }
-
-    working.splice(targetIdx, 0, current);
-
-    working.forEach((panel, idx) => {
-      panelsModel.setPanelIndex(panel.id, idx + 1);
-    });
-
-    renderBrowser();
-    persist();
-    updateHistoryButtons();
-    return true;
-  };
-
-  const removePanel = (id, { pushToHistory = true } = {}) => {
-    const record = getPanelRecord(id);
-    if (!record) return;
-    if (pushToHistory) {
-      pushHistory();
-    }
-    const wasActive = activePanelId === id;
-    panelsModel.removePanel(id);
-    const dom = getPanelDom(id);
-    dom?.rootEl?.remove();
-    detachPanelDom(id);
-    if (wasActive) {
-      const fallbackRecord = getPanelsOrdered().reduce((best, candidate) => {
-        if (!candidate) return best;
-        if (candidate.hidden === true) return best;
-        if (!best || (candidate.zIndex || 0) > (best.zIndex || 0)) {
-          return candidate;
-        }
-        return best;
-      }, null);
-      setActivePanel(fallbackRecord ? fallbackRecord.id : null);
-    }
-    renderBrowser();
-    refreshPanelVisibility();
-    updateCanvasState();
-    persist();
-    updateHistoryButtons();
-  };
 
   const registerPanel = (incomingState, {
     skipHistory = false,
@@ -2326,920 +1819,12 @@ export function initWorkspaceRuntime(context = {}) {
       refreshActionOverflow: null
     };
 
-    const panelEl = document.createElement('div');
-    panelEl.className = 'workspace-panel';
-    panelEl.dataset.panelId = panelId;
-    panelEl.dataset.graphIndex = String(baseState.index);
-
-    const header = document.createElement('div');
-    header.className = 'workspace-panel-header';
-
-    const title = document.createElement('div');
-    title.className = 'workspace-panel-title';
-    title.textContent = `Graph ${baseState.index}`;
-
-    const actions = document.createElement('div');
-    actions.className = 'workspace-panel-actions';
-
-    const popoverClosers = [];
-    const registerPopoverCloser = (fn) => {
-      if (typeof fn !== 'function') return;
-      if (!popoverClosers.includes(fn)) {
-        popoverClosers.push(fn);
-      }
-    };
-
-    const closeAllPopovers = (ignore) => {
-      popoverClosers.forEach((closeFn) => {
-        if (closeFn && closeFn !== ignore) {
-          closeFn();
-        }
-      });
-    };
-
-    const createToggleButton = ({
-      icon,
-      title,
-      pressed = false,
-      onClick = null
-    }) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-      btn.innerHTML = `<i class="bi ${icon}"></i>`;
-      btn.title = title;
-      btn.setAttribute('aria-pressed', String(pressed));
-      btn.classList.toggle('is-active', pressed);
-      btn.addEventListener('click', () => {
-        const next = btn.getAttribute('aria-pressed') !== 'true';
-        btn.setAttribute('aria-pressed', String(next));
-        btn.classList.toggle('is-active', next);
-        if (typeof onClick === 'function') {
-          onClick(next, btn);
-        }
-      });
-      return btn;
-    };
-
-    const controlsWrapper = document.createElement('div');
-    controlsWrapper.className = 'workspace-panel-actions-collection';
-    controlsWrapper.setAttribute('aria-hidden', 'false');
-
-    const appendPopoverControl = (buttonEl, popoverEl) => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'workspace-panel-action-wrapper';
-      wrapper.appendChild(buttonEl);
-      wrapper.appendChild(popoverEl);
-      controlsWrapper.appendChild(wrapper);
-
-      // generic portal wiring for all popovers
-      registerPopoverButton(buttonEl, popoverEl);
-    };
-
-    const cursorBtn = createToggleButton({
-      icon: 'bi-crosshair',
-      title: 'Toggle crosshair cursor',
-      onClick: (isOn) => handleHeaderAction(panelId, 'cursor', { on: isOn })
-    });
-    controlsWrapper.appendChild(cursorBtn);
-
-    const axesBtn = document.createElement('button');
-    axesBtn.type = 'button';
-    axesBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-    axesBtn.innerHTML = '<i class="bi bi-diagram-3"></i>';
-    axesBtn.title = 'Axes options';
-    axesBtn.setAttribute('aria-expanded', 'false');
-
-    const axesPopover = document.createElement('div');
-    axesPopover.className = 'workspace-panel-popover';
-    axesPopover.innerHTML = `
-      <div class="workspace-panel-popover-section">
-        <div class="workspace-panel-popover-label">Thickness</div>
-        <div class="workspace-panel-popover-items" data-role="axes-thickness">
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-thickness="thin">Thin</button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-thickness="medium">Medium</button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-thickness="thick">Thick</button>
-          <div class="ms-2 d-flex align-items-center gap-2" data-role="axes-thickness-custom">
-            <input type="range" min="1" max="6" step="1"
-                  class="form-range" style="width:140px" />
-            <span class="small text-muted" data-readout>2px</span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-apply>Apply</button>
-          </div>
-        </div>
-      </div>
-      <div class="workspace-panel-popover-section">
-        <div class="workspace-panel-popover-label">Visible sides</div>
-        <div class="workspace-panel-popover-items workspace-panel-popover-axes-visibility">
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Top axis" data-side="top" aria-pressed="true"><i class="bi bi-arrow-up"></i></button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Bottom axis" data-side="bottom" aria-pressed="true"><i class="bi bi-arrow-down"></i></button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Left axis" data-side="left" aria-pressed="true"><i class="bi bi-arrow-left"></i></button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Right axis" data-side="right" aria-pressed="true"><i class="bi bi-arrow-right"></i></button>
-        </div>
-      </div>
-      <div class="workspace-panel-popover-section">
-        <div class="workspace-panel-popover-label">Presets</div>
-        <div class="workspace-panel-popover-items" data-role="axes-presets">
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="all">All</button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="none">None</button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="xy">X + Y</button>
-          <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="upright">Up + Right</button>
-        </div>
-      </div>
-    `;
-
-    axesPopover.onOpen = () => {
-      const figure = getPanelFigure(panelId);
-      const L = figure.layout || {};
-      const X = L.xaxis || {};
-      const Y = L.yaxis || {};
-
-      // Resolve which sides are ON from Plotly state
-      const xOn = { top:false, bottom:false };
-      const yOn = { left:false, right:false };
-      if (X.visible === false) {
-        // none
-      } else if (X.mirror) {
-        xOn.top = xOn.bottom = true;
-      } else {
-        xOn[(X.side || 'bottom')] = true; // 'top'|'bottom'
-      }
-      if (Y.visible === false) {
-        // none
-      } else if (Y.mirror) {
-        yOn.left = yOn.right = true;
-      } else {
-        yOn[(Y.side || 'left')] = true; // 'left'|'right'
-      }
-
-      const cont = axesPopover.querySelector('.workspace-panel-popover-axes-visibility');
-      const set = (side, on) => {
-        const b = cont.querySelector(`[data-side="${side}"]`);
-        if (!b) return;
-        b.setAttribute('aria-pressed', String(on));
-        b.classList.toggle('is-active', on);
-      };
-      ['top','bottom','left','right'].forEach(s => set(s, false));
-      set('top', xOn.top);
-      set('bottom', xOn.bottom);
-      set('left', yOn.left);
-      set('right', yOn.right);
-
-      // Thickness pills ╬ô├ç├╢ infer from linewidth
-      const w = Number(X.linewidth ?? Y.linewidth ?? 1);
-      const level = w >= 1.75 ? 'thick' : w <= 0.75 ? 'thin' : 'medium';
-      axesPopover
-        .querySelectorAll('[data-role="axes-thickness"] .workspace-panel-popover-btn')
-        .forEach((b) => b.classList.toggle('is-active', b.dataset.thickness === level));
-
-      const sliderWrap = axesPopover.querySelector('[data-role="axes-thickness-custom"]');
-      if (sliderWrap) {
-        const slider = sliderWrap.querySelector('input[type="range"]');
-        const readout = sliderWrap.querySelector('[data-readout]');
-        const px = Math.max(1, Math.round(Number(X.linewidth ?? Y.linewidth ?? 2)));
-        slider.value = String(px);
-        if (readout) readout.textContent = `${px}px`;
-      }
-    };
-
-    axesPopover.addEventListener('input', (e) => {
-      const slider = e.target.closest('[data-role="axes-thickness-custom"] input[type="range"]');
-      if (!slider) return;
-      const wrap = slider.closest('[data-role="axes-thickness-custom"]');
-      const r = wrap.querySelector('[data-readout]');
-      if (r) r.textContent = `${slider.value}px`;
-    });
-
-    let axesOutsideActive = false;
-    const closeAxesPopover = () => {
-      if (!axesPopover.classList.contains('is-open')) return;
-      axesPopover.classList.remove('is-open');
-      axesBtn.setAttribute('aria-expanded', 'false');
-      controlsWrapper.classList.remove('allow-popover');
-      if (axesOutsideActive) {
-        document.removeEventListener('click', handleAxesOutsideClick);
-        axesOutsideActive = false;
-      }
-    };
-    registerPopoverCloser(closeAxesPopover);
-    const handleAxesOutsideClick = (event) => {
-      if (axesPopover.contains(event.target) || axesBtn.contains(event.target)) return;
-      closeAxesPopover();
-    };
-
-      axesPopover.addEventListener('click', (event) => event.stopPropagation());
-
-      axesPopover.addEventListener('click', (e) => {
-        const t = e.target.closest('[data-thickness],[data-side],[data-preset],[data-apply]');
-        if (!t) return;
-
-        // Helper to read/write individual side buttons
-        const cont = axesPopover.querySelector('.workspace-panel-popover-axes-visibility');
-        const setSide = (side, on) => {
-          const b = cont.querySelector(`[data-side="${side}"]`);
-          if (!b) return;
-          b.setAttribute('aria-pressed', String(on));
-          b.classList.toggle('is-active', on);
-        };
-        const isOn = (side) =>
-          cont.querySelector(`[data-side="${side}"]`).getAttribute('aria-pressed') === 'true';
-
-        // 1) Thickness pills
-        if (t.dataset.thickness) {
-          axesPopover
-            .querySelectorAll('[data-role="axes-thickness"] .workspace-panel-popover-btn[data-thickness]')
-            .forEach((b) => b.classList.toggle('is-active', b === t));
-
-          // Map to visible widths 1/2/3
-          const level = t.dataset.thickness;
-          const map = { thin: 1, medium: 2, thick: 3 };
-          handleHeaderAction(panelId, 'axes-thickness', { level, value: map[level] });
-
-          // keep slider readout in sync
-          const sliderWrap = axesPopover.querySelector('[data-role="axes-thickness-custom"]');
-          if (sliderWrap) {
-            const slider = sliderWrap.querySelector('input[type="range"]');
-            const readout = sliderWrap.querySelector('[data-readout]');
-            slider.value = String(map[level]);
-            if (readout) readout.textContent = `${map[level]}px`;
-          }
-
-          e.stopPropagation();
-          return;
-        }
-
-        // 2) Presets (apply sides)
-        if (t.dataset.preset) {
-          const preset = t.dataset.preset;
-          if (preset === 'all') {
-            setSide('top', true); setSide('bottom', true);
-            setSide('left', true); setSide('right', true);
-          } else if (preset === 'xy') {
-            setSide('top', false); setSide('bottom', true);
-            setSide('left', true); setSide('right', false);
-          } else if (preset === 'none') {
-            ['top','bottom','left','right'].forEach((s) => setSide(s, false));
-          } else if (preset === 'upright') {
-            setSide('top', true);  setSide('bottom', false);
-            setSide('left', false); setSide('right', true);
-          }
-
-          handleHeaderAction(panelId, 'axes-side', {
-            top: isOn('top'),
-            bottom: isOn('bottom'),
-            left: isOn('left'),
-            right: isOn('right')
-          });
-          e.stopPropagation();
-          return;
-        }
-
-        // 3) Independent side toggle
-        if (t.dataset.side) {
-          const pressed = t.getAttribute('aria-pressed') !== 'true';
-          t.setAttribute('aria-pressed', String(pressed));
-          t.classList.toggle('is-active', pressed);
-
-          handleHeaderAction(panelId, 'axes-side', {
-            top: isOn('top'),
-            bottom: isOn('bottom'),
-            left: isOn('left'),
-            right: isOn('right')
-          });
-          e.stopPropagation();
-          return;
-        }
-
-        // 4) Custom slider "Apply"
-        if (t.hasAttribute('data-apply')) {
-          const sliderWrap = axesPopover.querySelector('[data-role="axes-thickness-custom"]');
-          const slider = sliderWrap?.querySelector('input[type="range"]');
-          const readout = sliderWrap?.querySelector('[data-readout]');
-          const px = Math.max(1, Math.round(Number(slider?.value || 2)));
-          if (readout) readout.textContent = `${px}px`;
-
-          // deselect pills; this is a custom value
-          axesPopover
-            .querySelectorAll('[data-role="axes-thickness"] .workspace-panel-popover-btn[data-thickness]')
-            .forEach((b) => b.classList.remove('is-active'));
-
-          handleHeaderAction(panelId, 'axes-thickness-custom', { value: px });
-          e.stopPropagation();
-          return;
-        }
-      });
-
-      axesPopover.__close = closeAxesPopover;
-      appendPopoverControl(axesBtn, axesPopover);
-
-      // === Major Grid (header toggle) ==============================================
-      const figureForLayout = getPanelFigure(panelId);
-      const currentLayout = figureForLayout.layout || {};
-      const isMajorGridOn = Boolean(currentLayout?.xaxis?.showgrid || currentLayout?.yaxis?.showgrid);
-
-      const gridMajorBtn = createToggleButton({
-        icon: 'bi-grid-3x3-gap',
-        title: 'Toggle major grid',
-        pressed: isMajorGridOn,
-        onClick: (on) => handleHeaderAction(panelId, 'grid-major', { on })
-      });
-      controlsWrapper.appendChild(gridMajorBtn);
-
-      // === Grid (popover) : minor grid controls ===================================
-      const gridBtn = document.createElement('button');
-      gridBtn.type = 'button';
-      gridBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-      gridBtn.innerHTML = '<i class="bi bi-grid"></i>';
-      gridBtn.title = 'Minor grid options';
-      gridBtn.setAttribute('aria-expanded', 'false');
-
-      const gridPopover = document.createElement('div');
-      gridPopover.className = 'workspace-panel-popover';
-      gridPopover.innerHTML = `
-        <div class="workspace-panel-popover-section">
-          <div class="workspace-panel-popover-label">Minor grid</div>
-          <div class="workspace-panel-popover-items" data-role="minor-toggle">
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-minor="on">On</button>
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-minor="off">Off</button>
-          </div>
-        </div>
-        <div class="workspace-panel-popover-section">
-          <div class="workspace-panel-popover-label">Subdivisions per major</div>
-          <div class="workspace-panel-popover-items" data-role="minor-subdiv">
-            <input type="range" min="1" max="10" step="1" class="form-range" style="width:160px" />
-            <span class="small text-muted ms-2" data-readout>2</span>
-            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-apply>Apply</button>
-          </div>
-          <div class="form-text">Sets minor grid at 1/(N+1) of the major tick spacing.</div>
-        </div>
-      `;
-
-      // Sync UI to current layout on open
-      gridPopover.onOpen = () => {
-        const figure = getPanelFigure(panelId);
-        const L = figure.layout || {};
-        const isMinorOn = !!(L?.xaxis?.minor?.showgrid || L?.yaxis?.minor?.showgrid);
-        const minorToggle = gridPopover.querySelector('[data-role="minor-toggle"]');
-        minorToggle.querySelectorAll('.workspace-panel-popover-btn').forEach(b => {
-          const on = (b.dataset.minor === 'on');
-          b.classList.toggle('is-active', on === isMinorOn);
-        });
-
-        // Try to infer current subdivisions from dtick ratio (if numeric)
-        const xn = Number(L?.xaxis?.minor?.dtick);
-        const xd = Number(L?.xaxis?.dtick);
-        let sub = 2; // default
-        if (Number.isFinite(xn) && Number.isFinite(xd) && xn > 0) {
-          const est = Math.round(xd / xn - 1);
-          if (est >= 1 && est <= 10) sub = est;
-        }
-        const wrap = gridPopover.querySelector('[data-role="minor-subdiv"]');
-        wrap.querySelector('input[type="range"]').value = String(sub);
-        wrap.querySelector('[data-readout]').textContent = String(sub);
-      };
-
-      // Local click handlers ╬ô├Ñ├å central dispatcher
-      gridPopover.addEventListener('click', (e) => {
-        const t = e.target.closest('[data-minor],[data-apply]');
-        if (!t) return;
-
-        if (t.dataset.minor) {
-          const on = t.dataset.minor === 'on';
-          // toggle buttons UI
-          const group = gridPopover.querySelector('[data-role="minor-toggle"]');
-          group.querySelectorAll('.workspace-panel-popover-btn').forEach(b =>
-            b.classList.toggle('is-active', b === t)
-          );
-          handleHeaderAction(panelId, 'grid-minor', { on });
-          e.stopPropagation();
-          return;
-        }
-
-        if (t.hasAttribute('data-apply')) {
-          const wrap = gridPopover.querySelector('[data-role="minor-subdiv"]');
-          const val = Number(wrap.querySelector('input[type="range"]').value || 2);
-          wrap.querySelector('[data-readout]').textContent = String(val);
-          handleHeaderAction(panelId, 'grid-minor-subdiv', { subdiv: Math.max(1, Math.min(10, Math.round(val))) });
-          e.stopPropagation();
-          return;
-        }
-      });
-
-      // Live readout while sliding (optional)
-      gridPopover.addEventListener('input', (e) => {
-        const r = e.target.closest('[data-role="minor-subdiv"] input[type="range"]');
-        if (!r) return;
-        const wrap = gridPopover.querySelector('[data-role="minor-subdiv"]');
-        wrap.querySelector('[data-readout]').textContent = String(r.value);
-      });
-
-      // Add to header and auto-portal like other popovers
-      appendPopoverControl(gridBtn, gridPopover);
-
-    const ticksBtn = document.createElement('button');
-    ticksBtn.type = 'button';
-    ticksBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-    ticksBtn.innerHTML = '<i class="bi bi-distribute-vertical"></i>';
-    ticksBtn.title = 'Tick options';
-    ticksBtn.setAttribute('aria-expanded', 'false');
-
-    const ticksPopoverIds = {
-      between: `${baseState.id}_ticks_between`,
-      first: `${baseState.id}_ticks_first`,
-      last: `${baseState.id}_ticks_last`
-    };
-
-    const ticksPopover = document.createElement('div');
-    ticksPopover.className = 'workspace-panel-popover workspace-panel-popover-ticks';
-    ticksPopover.innerHTML = `
-      <div class="workspace-panel-popover-section">
-        <div class="workspace-panel-popover-label">Major</div>
-        <div class="workspace-panel-popover-items" data-role="ticks-major">
-          <div class="btn-group" role="group" aria-label="Major placement">
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-placement="outside">Outside</button>
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-placement="inside">Inside</button>
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-placement="none">None</button>
-          </div>
-          <button type="button" class="btn btn-outline-secondary ms-2 workspace-panel-popover-btn" data-labels="toggle">Labels</button>
-          <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-major-offset">
-            <span class="small text-muted">Tick start</span>
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="X╬ô├⌐├ç">
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Y╬ô├⌐├ç">
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-apply-offset>Apply</button>
-          </div>
-          <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-major-dtick">
-            <span class="small text-muted">Spacing</span>
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢X">
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢Y">
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-apply-dtick>Apply</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="workspace-panel-popover-section">
-        <div class="workspace-panel-popover-label">Minor</div>
-        <div class="workspace-panel-popover-items" data-role="ticks-minor">
-          <div class="btn-group" role="group" aria-label="Minor placement">
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-minor-placement="outside">Outside</button>
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-minor-placement="inside">Inside</button>
-            <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-minor-placement="none">None</button>
-          </div>
-          <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-subdiv">
-            <span class="small text-muted">Subdivisions</span>
-            <input type="range" min="1" max="10" step="1" class="form-range" style="width:120px" />
-            <span class="small text-muted" data-readout>2</span>
-          </div>
-        </div>
-        <div class="form-text">Minor ticks between majors (N per interval).</div>
-      </div>
-    `;
-
-    ticksPopover.onOpen = () => {
-      const figure = getPanelFigure(panelId);
-      const L = figure.layout || {};
-      const X = L.xaxis || {};
-      const Y = L.yaxis || {};
-
-      // Major placement (assume both axes share the same, pick X╬ô├ç├ûs as source of truth)
-      const majorPlacement = (X.ticks ?? 'outside');
-      ticksPopover.querySelectorAll('[data-role="ticks-major"] [data-placement]')
-        .forEach(b => b.classList.toggle('is-active', b.dataset.placement === majorPlacement || (majorPlacement === '' && b.dataset.placement === 'none')));
-
-      // Labels on/off (true if both axes show labels)
-      const labelsOn = (X.showticklabels !== false) && (Y.showticklabels !== false);
-      const labelsBtn = ticksPopover.querySelector('[data-role="ticks-major"] [data-labels="toggle"]');
-      labelsBtn.setAttribute('aria-pressed', String(labelsOn));
-      labelsBtn.classList.toggle('is-active', labelsOn);
-
-      const offWrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
-      if (offWrap) {
-        const xInput = offWrap.querySelector('input[placeholder="X╬ô├⌐├ç"]');
-        const yInput = offWrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]');
-        xInput.value = (X.tick0 != null && X.tick0 !== '') ? String(X.tick0) : '';
-        yInput.value = (Y.tick0 != null && Y.tick0 !== '') ? String(Y.tick0) : '';
-      }
-
-      // Subdivisions: infer from dtick ratio if numeric, else default 2
-      const xn = Number(X.minor?.dtick);
-      const xd = Number(X.dtick);
-      let sub = 2;
-      if (Number.isFinite(xn) && Number.isFinite(xd) && xn > 0) {
-        const est = Math.round(xd / xn - 1);
-        if (est >= 1 && est <= 10) sub = est;
-      }
-      const wrap = ticksPopover.querySelector('[data-role="ticks-subdiv"]');
-      wrap.querySelector('input[type="range"]').value = String(sub);
-      wrap.querySelector('[data-readout]').textContent = String(sub);
-
-      // major ticks spacing
-      const dtWrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
-      if (dtWrap) {
-        const dx = Number(X.dtick);
-        const dy = Number(Y.dtick);
-        dtWrap.querySelector('input[placeholder="Γò¼├╢X"]').value = Number.isFinite(dx) ? String(dx) : '';
-        dtWrap.querySelector('input[placeholder="Γò¼├╢Y"]').value = Number.isFinite(dy) ? String(dy) : '';
-      }
-
-      const mplace = (X.minor?.ticks ?? '');
-      ticksPopover.querySelectorAll('[data-role="ticks-minor"] [data-minor-placement]')
-        .forEach(b => {
-          const val = b.dataset.minorPlacement;   // ╬ô┬ú├á correct
-          const active = (mplace === '' && val === 'none') || (mplace === val);
-          b.classList.toggle('is-active', active);
-        });
-    };
-
-    ticksPopover.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-placement],[data-labels],[data-minor],[data-minor-placement]');
-      // const t = e.target.closest('[data-placement],[data-labels],[data-minor],[data-minor-placement],[data-apply],[data-apply-offset],[data-apply-dtick]');
-      if (!t) return;
-      // Major placement
-      if (t.dataset.placement) {
-        const val = t.dataset.placement; // 'outside'|'inside'|'none'
-        // toggle UI in the button group
-        const group = ticksPopover.querySelector('[data-role="ticks-major"]');
-        group.querySelectorAll('[data-placement]').forEach(b => b.classList.toggle('is-active', b === t));
-        handleHeaderAction(panelId, 'ticks-placement', { placement: (val === 'none' ? '' : val) });
-        e.stopPropagation();
-        return;
-      }
-
-      // Labels toggle
-      if (t.dataset.labels === 'toggle') {
-        const next = t.getAttribute('aria-pressed') !== 'true';
-        t.setAttribute('aria-pressed', String(next));
-        t.classList.toggle('is-active', next);
-        handleHeaderAction(panelId, 'ticks-labels', { on: next });
-        e.stopPropagation();
-        return;
-      }
-
-      // // Apply major offsets
-      // if (t.hasAttribute('data-apply-offset')) {
-      //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
-      //   const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
-      //   const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
-      //   const x0 = x0raw === '' ? null : Number(x0raw);
-      //   const y0 = y0raw === '' ? null : Number(y0raw);
-      //   handleHeaderAction(panelId, 'ticks-major-offset', { x0, y0 });
-      //   e.stopPropagation();
-      //   return;
-      // }
-
-      // // Major ticks spacing
-      // if (t.hasAttribute('data-apply-dtick')) {
-      //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
-      //   const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
-      //   const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
-      //   const dx = dxRaw === '' ? null : Number(dxRaw);
-      //   const dy = dyRaw === '' ? null : Number(dyRaw);
-      //   handleHeaderAction(panelId, 'ticks-major-dtick', { dx, dy });
-      //   e.stopPropagation();
-      //   return;
-      // }
-
-      // Minor on/off
-      if (t.dataset.minor) {
-        const on = t.dataset.minor === 'on';
-        const group = ticksPopover.querySelector('[data-role="ticks-minor"]');
-        group.querySelectorAll('[data-minor]').forEach(b => b.classList.toggle('is-active', b === t));
-        handleHeaderAction(panelId, 'ticks-minor', { on });
-        e.stopPropagation();
-        return;
-      }
-
-      // Minor placement
-      if (t.dataset.minorPlacement) {
-        const val = t.dataset.minorPlacement; // 'outside'|'inside'|'none'
-        const group = ticksPopover.querySelector('[data-role="ticks-minor"]');
-        group.querySelectorAll('[data-minor-placement]').forEach(b => b.classList.toggle('is-active', b === t));
-
-        handleHeaderAction(panelId, 'ticks-minor-placement', { placement: (val === 'none' ? '' : val) });
-        e.stopPropagation();
-        return;
-      }
-    });
-
-    // Live readout / auto-apply while sliding
-    ticksPopover.addEventListener('input', (e) => {
-      const slider = e.target.closest('[data-role="ticks-subdiv"] input[type="range"]');
-      if (slider) {
-        const wrap = ticksPopover.querySelector('[data-role="ticks-subdiv"]');
-        const val = Math.max(1, Math.min(10, Math.round(Number(slider.value) || 2)));
-        slider.value = String(val);
-        wrap.querySelector('[data-readout]').textContent = String(val);
-        autoApplyMinorSubdiv(val);
-      }
-
-      // auto-apply tick start / spacing
-      if (e.target.closest('[data-role="ticks-major-offset"] input')) {
-        autoApplyOffset();
-      }
-      if (e.target.closest('[data-role="ticks-major-dtick"] input')) {
-        autoApplyDtick();
-      }
-    });
-
-    // --- Debounced helpers for auto-apply ---
-    const debounce = (fn, ms=160) => {
-      let id; return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), ms); };
-    };
-
-    const autoApplyOffset = debounce(() => {
-      const wrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
-      if (!wrap) return;
-      const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
-      const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
-      const x0 = x0raw === '' ? null : Number(x0raw);
-      const y0 = y0raw === '' ? null : Number(y0raw);
-      handleHeaderAction(panelId, 'ticks-major-offset', { x0, y0 });
-    });
-
-    const autoApplyDtick = debounce(() => {
-      const wrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
-      if (!wrap) return;
-      const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
-      const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
-      const dx = dxRaw === '' ? null : Number(dxRaw);
-      const dy = dyRaw === '' ? null : Number(dyRaw);
-      handleHeaderAction(panelId, 'ticks-major-dtick', { dx, dy });
-    });
-
-    const autoApplyMinorSubdiv = debounce((val) => {
-      handleHeaderAction(panelId, 'ticks-minor-subdiv', { subdiv: val });
-    });
-
-    appendPopoverControl(ticksBtn, ticksPopover);
-
-    function getUIPortal(){
-      let n = document.querySelector('.ui-portal');
-      if(!n){ n = document.createElement('div'); n.className='ui-portal'; document.body.appendChild(n); }
-      return n;
-    }
-    function placePopoverAbove(btn, pop){
-      const r = btn.getBoundingClientRect();
-      pop.style.left = `${r.left + r.width/2}px`;
-      pop.style.top  = `${r.top}px`;        // top edge of button; CSS translate lifts it above
-    }
-    function openPortaledPopover(btn, pop){
-      const portal = getUIPortal();
-      pop.__origParent = pop.parentElement;
-      portal.appendChild(pop);
-      placePopoverAbove(btn, pop);
-      pop.classList.add('is-open');
-      btn.setAttribute('aria-expanded','true');
-
-      pop.__reflow = () => placePopoverAbove(btn, pop);
-      window.addEventListener('scroll', pop.__reflow, true);
-      window.addEventListener('resize', pop.__reflow, true);
-    }
-    function closePortaledPopover(btn, pop){
-      pop.classList.remove('is-open');
-      btn.setAttribute('aria-expanded','false');
-      if(pop.__origParent) pop.__origParent.appendChild(pop);
-      window.removeEventListener('scroll', pop.__reflow, true);
-      window.removeEventListener('resize', pop.__reflow, true);
-      delete pop.__reflow; delete pop.__origParent;
-    }
-
-    function readPopoverOpts(btn){
-      return {
-        side:  btn.dataset.popSide  || 'up',     // 'up' | 'down'
-        align: btn.dataset.popAlign || 'center', // 'center' | 'left' | 'right'
-        dx:    Number(btn.dataset.popDx || 0),
-        dy:    Number(btn.dataset.popDy || 10)
-      };
-    }
-
-    function registerPopoverButton(btn, pop){
-      // ensure aria state
-      btn.setAttribute('aria-expanded','false');
-
-      const open = () => {
-        if (typeof pop.onOpen === 'function') pop.onOpen();
-        openPortaledPopover(btn, pop);
-      };
-      const close = () => closePortaledPopover(btn, pop);
-
-      const onBtnClick = (e) => {
-        e.stopPropagation();
-        const isOpen = btn.getAttribute('aria-expanded') === 'true';
-        isOpen ? close() : open();
-      };
-      btn.addEventListener('click', onBtnClick);
-
-      // outside-click close
-      const onDocClick = (e) => {
-        const isOpen = btn.getAttribute('aria-expanded') === 'true';
-        if (!isOpen) return;
-        if (!pop.contains(e.target) && !btn.contains(e.target)) close();
-      };
-      document.addEventListener('click', onDocClick, { capture:true });
-
-      pop.__btn = btn;
-      pop.__close = close;
-    }
-
-    const labelsAxisBtn = createToggleButton({
-      icon: 'bi-type',
-      title: 'Toggle axis labels',
-      pressed: true,
-      onClick: (on) => handleHeaderAction(panelId, 'ticklabels', { on })
-    });
-    controlsWrapper.appendChild(labelsAxisBtn);
-
-    const labelsDataBtn = createToggleButton({
-      icon: 'bi-card-text',
-      title: 'Toggle data labels'
-    });
-    controlsWrapper.appendChild(labelsDataBtn);
-
-    const scaleBtn = document.createElement('button');
-    scaleBtn.type = 'button';
-    scaleBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-    scaleBtn.dataset.scaleMode = 'linear';
-    scaleBtn.setAttribute('aria-pressed', 'false');
-    scaleBtn.innerHTML = '<i class="bi bi-graph-up"></i>';
-    scaleBtn.title = 'Scale: Linear';
-    scaleBtn.addEventListener('click', () => {
-      const nextMode = scaleBtn.dataset.scaleMode === 'linear' ? 'log' : 'linear';
-      scaleBtn.dataset.scaleMode = nextMode;
-      const isLog = nextMode === 'log';
-      scaleBtn.classList.toggle('is-active', isLog);
-      scaleBtn.setAttribute('aria-pressed', String(isLog));
-      scaleBtn.innerHTML = isLog ? '<i class="bi bi-graph-down"></i>' : '<i class="bi bi-graph-up"></i>';
-      scaleBtn.title = isLog ? 'Scale: Log' : 'Scale: Linear';
-      handleHeaderAction(panelId, isLog ? 'yscale-log' : 'yscale-linear');
-    });
-    controlsWrapper.appendChild(scaleBtn);
-
-    const legendBtn = createToggleButton({
-      icon: 'bi-list-ul',
-      title: 'Toggle legend',
-      pressed: true,
-      onClick: () => handleHeaderAction(panelId, 'legend')
-    });
-    controlsWrapper.appendChild(legendBtn);
-
-    const annotationsBtn = createToggleButton({
-      icon: 'bi-chat-square-text',
-      title: 'Toggle annotations'
-    });
-    controlsWrapper.appendChild(annotationsBtn);
-
-    const smoothingBtn = createToggleButton({
-      icon: 'bi-graph-up-arrow',
-      title: 'Toggle smoothing presets',
-      onClick: (on) => handleHeaderAction(panelId, 'smooth', { on })
-    });
-    controlsWrapper.appendChild(smoothingBtn);
-
-    const exportBtn = document.createElement('button');
-    exportBtn.type = 'button';
-    exportBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-    exportBtn.innerHTML = '<i class="bi bi-camera"></i>';
-    exportBtn.title = 'Export image';
-    exportBtn.addEventListener('click', () => handleHeaderAction(panelId, 'export', {}));
-    controlsWrapper.appendChild(exportBtn);
-
-    const overflowBtn = document.createElement('button');
-    overflowBtn.type = 'button';
-    overflowBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-overflow';
-    overflowBtn.innerHTML = '<i class="bi bi-three-dots"></i>';
-    overflowBtn.title = 'More tools';
-    overflowBtn.setAttribute('aria-expanded', 'false');
-    overflowBtn.hidden = true;
-
-    let overflowOutsideActive = false;
-    let handleOverflowOutside = () => {};
-    const closeOverflowMenu = () => {
-      if (controlsWrapper.classList.contains('is-expanded')) {
-        controlsWrapper.classList.remove('is-expanded');
-      }
-      overflowBtn.classList.remove('is-active');
-      overflowBtn.setAttribute('aria-expanded', 'false');
-      if (overflowOutsideActive) {
-        document.removeEventListener('click', handleOverflowOutside);
-        overflowOutsideActive = false;
-      }
-    };
-    registerPopoverCloser(closeOverflowMenu);
-    controlsWrapper.__close = closeOverflowMenu;
-    handleOverflowOutside = (event) => {
-      if (controlsWrapper.contains(event.target) || overflowBtn.contains(event.target)) return;
-      closeOverflowMenu();
-    };
-
-    overflowBtn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const willOpen = !controlsWrapper.classList.contains('is-expanded');
-      closeAllPopovers(willOpen ? closeOverflowMenu : null);
-      if (willOpen) {
-        controlsWrapper.classList.add('is-expanded');
-        overflowBtn.classList.add('is-active');
-        overflowBtn.setAttribute('aria-expanded', 'true');
-        document.addEventListener('click', handleOverflowOutside);
-        overflowOutsideActive = true;
-      } else {
-        closeOverflowMenu();
-      }
-    });
-
-    const refreshActionOverflow = () => {
-      const collapsed = controlsWrapper.classList.contains('is-collapsed');
-      const expanded = controlsWrapper.classList.contains('is-expanded');
-      if (expanded) {
-        controlsWrapper.classList.remove('is-expanded');
-      }
-      let isOverflowing = false;
-      if (!collapsed) {
-        isOverflowing = controlsWrapper.scrollWidth - controlsWrapper.clientWidth > 1;
-      }
-      if (!isOverflowing) {
-        closeOverflowMenu();
-      } else if (expanded) {
-        controlsWrapper.classList.add('is-expanded');
-        overflowBtn.classList.add('is-active');
-        overflowBtn.setAttribute('aria-expanded', 'true');
-        if (!overflowOutsideActive) {
-          document.addEventListener('click', handleOverflowOutside);
-          overflowOutsideActive = true;
-        }
-      }
-      overflowBtn.hidden = !isOverflowing;
-      actions.classList.toggle('has-overflow', isOverflowing);
-    };
-
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'btn btn-outline-secondary';
-    closeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
-    closeBtn.title = 'Close graph';
-    closeBtn.addEventListener('click', () => {
-      closeAllPopovers();
-      removePanel(baseState.id);
-    });
-
-    const settingsBtn = document.createElement('button');
-    settingsBtn.type = 'button';
-    settingsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-toggle';
-    settingsBtn.innerHTML = '<i class="bi bi-gear-wide"></i>';
-    settingsBtn.title = 'Hide graph tools';
-    settingsBtn.setAttribute('aria-pressed', 'false');
-
-    const updateSettingsToggle = (collapsed) => {
-      settingsBtn.setAttribute('aria-pressed', String(collapsed));
-      settingsBtn.innerHTML = collapsed ? '<i class="bi bi-gear-fill"></i>' : '<i class="bi bi-gear-wide"></i>';
-      settingsBtn.title = collapsed ? 'Show graph tools' : 'Hide graph tools';
-    };
-
-    let toolsCollapsed = false;
-    updateSettingsToggle(toolsCollapsed);
-    settingsBtn.addEventListener('click', () => {
-      toolsCollapsed = !toolsCollapsed;
-      controlsWrapper.classList.toggle('is-collapsed', toolsCollapsed);
-      controlsWrapper.setAttribute('aria-hidden', String(toolsCollapsed));
-      updateSettingsToggle(toolsCollapsed);
-      closeAllPopovers();
-      refreshActionOverflow();
-      updateToolbarMetrics();
-    });
-
-    actions.appendChild(controlsWrapper);
-    actions.appendChild(overflowBtn);
-    actions.appendChild(settingsBtn);
-    actions.appendChild(closeBtn);
-    header.appendChild(title);
-    header.appendChild(actions);
-    refreshActionOverflow();
-    if (typeof queueMicrotask === 'function') {
-      queueMicrotask(refreshActionOverflow);
-    } else {
-      Promise.resolve().then(refreshActionOverflow);
-    }
-
-    const body = document.createElement('div');
-    body.className = 'workspace-panel-body';
-
-    const plotHost = document.createElement('div');
-    plotHost.className = 'workspace-panel-plot';
-    body.appendChild(plotHost);
-
-    panelEl.appendChild(header);
-    panelEl.appendChild(body);
-    canvas.appendChild(panelEl);
-
-    registerPanelDom(panelId, {
-      rootEl: panelEl,
-      headerEl: header,
-      plotEl: plotHost,
+    panelDomFacade.mountPanel({
+      panelId,
+      panelState: baseState,
       runtime
     });
-    updatePanelRuntime(panelId, { refreshActionOverflow });
-    panelEl.addEventListener('pointerdown', (evt) => {
-      if (typeof evt.button === 'number' && evt.button !== 0) return;
-      bringPanelToFront(panelId);
-    });
-    panelEl.addEventListener('focusin', () => bringPanelToFront(panelId));
+
     normalizePanelTraces(panelId);
 
     applyPanelGeometry(panelId, initialVisual, { persistNormalized: true });
@@ -3252,165 +1837,99 @@ export function initWorkspaceRuntime(context = {}) {
     setActivePanel(panelId);
     refreshPanelVisibility();
 
-    if (!skipPersist) {
-      persist();
-    }
-
-    updateHistoryButtons();
-    return panelId;
-  };
-
-  const createTraceFromPayload = (payload = {}, file = null) => {
-    const xValues = ensureArray(payload?.x).map(Number);
-    const yValues = ensureArray(payload?.y).map(Number);
-    const resolvedName = decodeName(payload?.name)
-      || decodeName(payload?.filename)
-      || (file ? decodeName(file.name) : '')
-      || 'Trace';
-    const baseLine = payload?.line || {};
-    const colorValue = baseLine.color || pickColor();
-
-    return {
-      type: payload?.type || 'scatter',
-      mode: payload?.mode || 'lines',
-      name: resolvedName,
-      x: xValues,
-      y: yValues,
-      line: {
-        color: toHexColor(colorValue),
-        width: Number.isFinite(baseLine.width) ? baseLine.width : 2,
-        dash: baseLine.dash || 'solid'
-      },
-      opacity: Number.isFinite(payload?.opacity) ? payload.opacity : 1,
-      visible: payload?.visible !== false,
-      meta: payload?.meta || {},
-      filename: decodeName(payload?.filename || payload?.name || (file ? file.name : ''))
-    };
-  };
-
-  const ingestPayloadAsPanel = (payload, {
-    width = 520,
-    height = 320,
-    skipHistory = false,
-    skipPersist = false,
-    sectionId = DEFAULT_SECTION_ID
-  } = {}) => {
-    const trace = createTraceFromPayload(payload);
-
-    return registerPanel({
-      type: 'plot',
-      width,
-      height,
-      hidden: payload?.hidden === true,
-      sectionId,
-      figure: {
-        data: [trace],
-        layout: defaultLayout(payload)
-      }
-    }, { skipHistory, skipPersist });
-  };
-
-  const appendFilesToGraph = async (panelId, fileList) => {
-    if (!panelId) return;
-    if (!getPanelRecord(panelId)) return;
-    const files = Array.from(fileList || []).filter(Boolean);
-    if (!files.length) return;
-
-    pushHistory();
-    let added = 0;
-
-    for (const file of files) {
-      try {
-        const payload = await uploadTraceFile(file, 'auto');
-        const trace = createTraceFromPayload(payload, file);
-        panelsModel.addTrace(panelId, trace);
-        added += 1;
-      } catch (err) {
-        console.warn('Failed to add file to graph', file?.name, err);
-      }
-    }
-
-    if (!added) {
-      history.rewind();
-      updateHistoryButtons();
-      showToast('No files were added to the graph.', 'warning');
-      return;
-    }
-
-    normalizePanelTraces(panelId);
-    renderPlot(panelId);
-    renderBrowser();
+  if (!skipPersist) {
     persist();
-    updateHistoryButtons();
-    showToast(`Added ${added} file${added === 1 ? '' : 's'} to graph.`, 'success');
-  };
+  }
 
-  const requestGraphFileBrowse = (panelId) => {
-    if (!fileInput || !getPanelRecord(panelId)) return;
-    pendingGraphFileTarget = panelId;
-    fileInput.value = '';
-    fileInput.click();
-  };
+  updateHistoryButtons();
+  return panelId;
+};
 
-  const handleFilesPayload = async (files, { origin } = {}) => {
-    if (!files.length) return;
-    pushHistory();
+  const runtimeState = createRuntimeState({
+    panelsModel,
+    sections,
+    sectionManager,
+    defaultSectionId: DEFAULT_SECTION_ID,
+    panelDomRegistry,
+    getPanelDom,
+    getActivePanelId,
+    setActivePanel,
+    getNextPanelSequence
+  });
 
-    for (const file of files) {
-      try {
-        const payload = await uploadTraceFile(file, 'auto');
-        ingestPayloadAsPanel({
-          ...payload,
-          name: decodeName(payload?.name) || decodeName(file?.name) || 'Trace',
-          filename: decodeName(payload?.filename || file?.name || '')
-        }, { skipHistory: true, skipPersist: true });
-      } catch (err) {
-        console.warn('Failed to ingest file', file?.name, err);
+  const panelsFacade = createPanelsFacade({
+    models: { panelsModel },
+    plot: { renderNow: (panelId) => Plot.renderNow(panelId) },
+    history: { history, pushHistory, updateHistoryButtons },
+    persistence: { persist },
+    browser: { renderBrowser, refreshPanelVisibility, updateCanvasState },
+    dom: {
+      detachPanelDom
+    },
+    state: runtimeState,
+    utils: {
+      ensureArray,
+      deepClone,
+      decodeName,
+      ensureTraceId,
+      toHexColor,
+      defaultLayout,
+      pickColor,
+      showToast,
+      clampGeometryToCanvas,
+      fallbackColor: FALLBACK_COLOR
+    },
+    services: { uploadTraceFile },
+    registry: { registerPanel }
+  });
+
+  ({
+    normalizePanelTraces,
+    createTraceFromPayload,
+    ingestPayloadAsPanel,
+    appendFilesToGraph,
+    moveTrace,
+    moveGraph,
+    removePanel
+  } = panelsFacade);
+
+  const ioFacade = createIoFacade({
+    dom: {
+      canvas,
+      emptyOverlay,
+      browseBtn,
+      fileInput,
+      demoBtn,
+      addPlotBtn,
+      resetBtn
+    },
+    services: {
+      uploadTraceFile,
+      fetchDemoFiles
+    },
+    actions: {
+      ingestPanel: ingestPayloadAsPanel,
+      appendFilesToGraph,
+      clearPanels,
+      renderBrowser,
+      updateCanvasState
+    },
+    history: {
+      history,
+      pushHistory,
+      updateHistoryButtons
+    },
+    persistence: { persist },
+    notifications: { showToast },
+    state: runtimeState,
+    helpers: {
+      resetColorCursor: () => {
+        colorCursor = 0;
       }
-    }
-
-    persist();
-    updateHistoryButtons();
-    const message =
-      origin === 'drop'
-        ? 'Files added from drop.'
-        : origin === 'demo'
-          ? 'Demo files added to workspace.'
-          : 'Files added to workspace.';
-    showToast(message, 'success');
-  };
-
-  const handleImportedFiles = async (fileList, { origin } = {}) => {
-    const files = Array.from(fileList || []).filter(Boolean);
-    if (!files.length) return;
-    await handleFilesPayload(files, { origin });
-  };
-
-  const loadDemoGraphs = async () => {
-    if (!demoBtn) return;
-    demoBtn.disabled = true;
-    demoBtn.classList.add('disabled');
-    try {
-      const files = await fetchDemoFiles(12);
-      if (!files.length) {
-        showToast('No demo files available right now.', 'warning');
-        return;
-      }
-      await handleFilesPayload(files, { origin: 'demo' });
-    } catch (err) {
-      console.warn('Failed to load demo files', err);
-      showToast('Unable to load demo files.', 'danger');
-    } finally {
-      demoBtn.disabled = false;
-      demoBtn.classList.remove('disabled');
-    }
-  };
-
-  const showToast = (message, variant = 'info', delay = 2400) => {
-    if (typeof window?.showAppToast === 'function') {
-      window.showAppToast({ message, variant, delay });
-    }
-  };
+    },
+    utils: { decodeName }
+  });
+  ioFacade.attach();
 
   const configureInteractivity = (panelId) => {
     if (!interact) return;
@@ -3605,17 +2124,11 @@ export function initWorkspaceRuntime(context = {}) {
     }
   });
 
-  panelDom.undo?.addEventListener('click', undo);
-  panelDom.redo?.addEventListener('click', redo);
-  workspaceMenu.save?.addEventListener('click', saveWorkspaceSnapshot);
-  workspaceMenu.load?.addEventListener('click', loadWorkspaceSnapshot);
-  workspaceMenu.clear?.addEventListener('click', clearWorkspaceSnapshot);
-
   browserFacade = createBrowserFacade({
     dom: { panelDom },
     state: {
       sections,
-      sectionOrder,
+      getSectionOrder: () => sectionManager.getOrder(),
       defaultSectionId: DEFAULT_SECTION_ID,
       getSearchTerm,
       getPanelsOrdered,
@@ -3648,7 +2161,7 @@ export function initWorkspaceRuntime(context = {}) {
       removePanel,
       deleteSectionInteractive,
       deleteGraphInteractive,
-      requestGraphFileBrowse,
+      requestGraphFileBrowse: ioFacade.requestGraphFileBrowse,
       showToast,
       queueSectionRename,
       startSectionRename,
@@ -3699,87 +2212,19 @@ export function initWorkspaceRuntime(context = {}) {
     });
   }
 
-  addPlotBtn?.addEventListener('click', () => {
-    ingestPayloadAsPanel({
-      name: `Sample ${getNextPanelSequence()}`
-    });
-    showToast('Sample graph added to workspace.', 'success');
-    updateHistoryButtons();
-  });
-
-  resetBtn?.addEventListener('click', () => {
-    if (!panelDomRegistry.size) return;
-    pushHistory();
-    clearPanels();
-    colorCursor = 0;
-    persist();
-    updateCanvasState();
-    renderBrowser();
-    showToast('Workspace canvas cleared.', 'warning');
-    updateHistoryButtons();
-  });
-
-  browseBtn?.addEventListener('click', () => {
-    pendingGraphFileTarget = null;
-    fileInput?.click();
-  });
-
-  fileInput?.addEventListener('change', async () => {
-    const targetGraphId = pendingGraphFileTarget;
-    const files = fileInput.files;
-    pendingGraphFileTarget = null;
-    if (targetGraphId) {
-      await appendFilesToGraph(targetGraphId, files);
-    } else {
-      await handleImportedFiles(files, { origin: 'browse' });
-    }
-    if (fileInput) fileInput.value = '';
-  });
-
-  demoBtn?.addEventListener('click', () => {
-    loadDemoGraphs();
-  });
-
-  if (canvas) {
-    const deactivate = () => canvas.classList.remove('is-active');
-    const onDrag = (event) => {
-      event.preventDefault();
-      canvas.classList.add('is-active');
-    };
-    const onDrop = async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      deactivate();
-      const files = event.dataTransfer?.files;
-      if (files?.length) {
-        await handleImportedFiles(files, { origin: 'drop' });
-      }
-    };
-    ['dragover', 'dragenter'].forEach((evt) => canvas.addEventListener(evt, onDrag));
-    ['dragleave', 'dragend'].forEach((evt) => canvas.addEventListener(evt, deactivate));
-    canvas.addEventListener('drop', onDrop);
-    if (emptyOverlay) {
-      ['dragover', 'dragenter'].forEach((evt) => emptyOverlay.addEventListener(evt, onDrag));
-      ['dragleave', 'dragend'].forEach((evt) => emptyOverlay.addEventListener(evt, deactivate));
-      emptyOverlay.addEventListener('drop', onDrop);
-    }
-  }
-
-  const hadSnapshotOnBoot = storage.hasSnapshot();
-  const saved = storage.load();
+  const hadSnapshotOnBoot = storage.hasSnapshot?.() ?? false;
+  const saved = storage.load?.();
 
   if (saved) {
     restoreSnapshot(saved, { skipHistory: true });
-    history.clear();
-    storageQueueWarningShown = false;
+    history?.clear?.();
   } else {
     updateCanvasState();
     renderBrowser();
-    history.clear();
+    history?.clear?.();
     if (hadSnapshotOnBoot) {
       showToast('Saved workspace snapshot could not be restored. Starting with defaults.', 'warning');
     }
-    storageQueueWarningShown = false;
   }
 
   updateHistoryButtons();
@@ -3800,16 +2245,6 @@ export function initWorkspaceRuntime(context = {}) {
 
   const handleWindowScroll = () => {
     requestLayoutSync();
-  };
-
-  const handleBeforeUnload = () => {
-    storage.flush();
-  };
-
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'hidden') {
-      storage.flush();
-    }
   };
 
   let workspaceObserver = null;
@@ -3850,7 +2285,9 @@ export function initWorkspaceRuntime(context = {}) {
     }
     browserFacade?.teardown?.();
     browserFacade = null;
-    storage.flush();
+    ioFacade?.detach?.();
+    preferencesFacade?.teardown?.();
+    persistence?.teardown?.();
   };
 
   return {
@@ -3864,10 +2301,10 @@ export function initWorkspaceRuntime(context = {}) {
       handleWindowScroll();
     },
     onBeforeUnload: () => {
-      handleBeforeUnload();
+      persistence?.handleBeforeUnload?.();
     },
     onVisibilityChange: () => {
-      handleVisibilityChange();
+      persistence?.handleVisibilityChange?.();
     },
     teardown,
     getModels: () => ({ panelsModel, sectionsModel }),

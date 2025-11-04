@@ -16,10 +16,14 @@ export function createBrowserFacade({
   let dragHandle = null;
 
   const render = () => {
+    const sectionOrder = typeof state.getSectionOrder === 'function'
+      ? state.getSectionOrder()
+      : state.sectionOrder;
+
     const treeState = createBrowserTreeState({
       searchTerm: state.getSearchTerm?.() ?? '',
       sections: state.sections,
-      sectionOrder: state.sectionOrder,
+      sectionOrder,
       defaultSectionId: state.defaultSectionId,
       getPanelsOrdered: state.getPanelsOrdered,
       coerceNumber: state.coerceNumber
@@ -28,7 +32,7 @@ export function createBrowserFacade({
     const renderContext = {
       panelDom: dom.panelDom,
       sections: state.sections,
-      sectionOrder: state.sectionOrder,
+      sectionOrder,
       defaultSectionId: state.defaultSectionId,
       ensureArray: selectors.ensureArray,
       getPanelTraces: selectors.getPanelTraces,
