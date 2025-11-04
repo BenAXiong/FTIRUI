@@ -47,6 +47,109 @@ const callGuarded = (fn, ...args) => {
   }
 };
 
+const resolveSectionDrop = (context, event) => {
+  const sectionNode = event.target.closest('.section-node');
+  if (!sectionNode) {
+    if (event.target !== context.rootEl) return null;
+    return {
+      element: context.rootEl,
+      parentId: null,
+      beforeSectionId: null,
+      mode: 'root'
+    };
+  }
+  const sectionId = sectionNode.dataset?.sectionId;
+  if (!sectionId) return null;
+
+  const children = sectionNode.querySelector(':scope > .folder-children');
+  if (children && children.contains(event.target)) {
+    return {
+      element: children,
+      parentId: sectionId,
+      beforeSectionId: null,
+      mode: 'into'
+    };
+  }
+
+  const header = sectionNode.querySelector(':scope > .section-header') || sectionNode;
+  const rect = header.getBoundingClientRect();
+  const midway = rect.top + rect.height / 2;
+  const isBefore = event.clientY < midway;
+  const parentId = sectionNode.dataset?.parentId || null;
+
+  if (isBefore) {
+    return {
+      element: sectionNode,
+      parentId: parentId || null,
+      beforeSectionId: sectionId,
+      mode: 'before'
+    };
+  }
+
+  let nextSectionId = null;
+  let pointer = sectionNode.nextElementSibling;
+  while (pointer) {
+    if (pointer.classList?.contains('section-node')) {
+      nextSectionId = pointer.dataset?.sectionId || null;
+      break;
+    }
+    pointer = pointer.nextElementSibling;
+  }
+
+  return {
+    element: sectionNode,
+    parentId: parentId || null,
+    beforeSectionId: nextSectionId,
+    mode: 'after'
+  };
+};
+
+const resolveGraphDrop = (context, event) => {
+  const graphNode = event.target.closest('.graph-node');
+  if (graphNode) {
+    const sectionId = graphNode.dataset?.sectionId || null;
+    if (!sectionId) return null;
+    const header = graphNode.querySelector(':scope > .graph-header') || graphNode;
+    const rect = header.getBoundingClientRect();
+    const midway = rect.top + rect.height / 2;
+    const isBefore = event.clientY < midway;
+    if (isBefore) {
+      return {
+        element: graphNode,
+        sectionId,
+        beforePanelId: graphNode.dataset?.panelId || null,
+        position: 'before'
+      };
+    }
+    let nextGraph = graphNode.nextElementSibling;
+    while (nextGraph) {
+      if (nextGraph.classList?.contains('graph-node')) break;
+      nextGraph = nextGraph.nextElementSibling;
+    }
+    return {
+      element: graphNode,
+      sectionId,
+      beforePanelId: nextGraph?.dataset?.panelId || null,
+      position: 'after'
+    };
+  }
+
+  const sectionNode = event.target.closest('.section-node');
+  if (sectionNode) {
+    const sectionId = sectionNode.dataset?.sectionId || null;
+    if (!sectionId) return null;
+    const children = sectionNode.querySelector(':scope > .folder-children');
+    return {
+      element: children || sectionNode,
+      sectionId,
+      beforePanelId: null,
+      position: 'into'
+    };
+  }
+
+  return null;
+};
+
 export function attach(rootEl, options = {}) {
   if (!rootEl || contexts.has(rootEl)) return;
 
@@ -54,8 +157,13 @@ export function attach(rootEl, options = {}) {
     rootEl,
     onStateChanged: options.onStateChanged ?? noop,
     onDropPanel: options.onDropPanel ?? noop,
+    onDropSection: options.onDropSection ?? noop,
     currentDropTarget: null,
-    draggingPanelId: null
+    draggingPanelId: null,
+    draggingSectionId: null,
+    draggingSectionParentId: null,
+    pendingSectionDrop: null,
+    pendingPanelDrop: null
   };
 
   const handleStatefulResult = (result) => {
@@ -64,53 +172,135 @@ export function attach(rootEl, options = {}) {
     }
   };
 
+  const resetDragState = () => {
+    context.draggingPanelId = null;
+    context.draggingSectionId = null;
+    context.draggingSectionParentId = null;
+    context.pendingSectionDrop = null;
+    context.pendingPanelDrop = null;
+    setDropTarget(context, null);
+  };
+
   const handleDragStart = (event) => {
-    const panelId = resolvePanelId(event.target);
-    if (!panelId) return;
     if (event.target?.closest('button')) {
       event.preventDefault();
       return;
     }
-    context.draggingPanelId = panelId;
+    const panelId = resolvePanelId(event.target);
+    if (panelId) {
+      context.draggingPanelId = panelId;
+      context.draggingSectionId = null;
+      context.draggingSectionParentId = null;
+      context.pendingPanelDrop = null;
+      context.pendingSectionDrop = null;
+    } else {
+      const sectionId = resolveSectionId(event.target);
+      const sectionNode = event.target.closest('.section-node');
+      const locked = sectionNode?.dataset?.locked === 'true';
+      if (!sectionId || locked) return;
+      context.draggingSectionId = sectionId;
+      context.draggingPanelId = null;
+      context.draggingSectionParentId = sectionNode?.dataset?.parentId || null;
+      context.pendingSectionDrop = null;
+      context.pendingPanelDrop = null;
+    }
+    if (!context.draggingPanelId && !context.draggingSectionId) return;
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', panelId);
+      const payload = context.draggingPanelId || context.draggingSectionId;
+      event.dataTransfer.setData('text/plain', payload);
     }
   };
 
   const handleDragOver = (event) => {
-    if (!context.draggingPanelId) return;
-    const sectionId = resolveSectionId(event.target);
-    if (!sectionId) return;
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
+    if (context.draggingPanelId) {
+      const drop = resolveGraphDrop(context, event);
+      if (!drop || !drop.sectionId) return;
+      const targetNode = drop.element?.closest('.section-node') || context.rootEl.querySelector(`[data-section-id="${drop.sectionId}"]`);
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+      setDropTarget(context, drop.element || targetNode || null);
+      context.pendingPanelDrop = drop;
+      context.pendingSectionDrop = null;
+      return;
     }
-    const node = event.target.closest('.section-node') || event.target.closest('.section-header');
-    setDropTarget(context, node || null);
+    if (context.draggingSectionId) {
+      const drop = resolveSectionDrop(context, event);
+      if (!drop) return;
+      if (!context.draggingSectionParentId && drop.parentId) {
+        return;
+      }
+      const targetNode = drop.element?.closest('.section-node') || (drop.parentId ? context.rootEl.querySelector(`[data-section-id="${drop.parentId}"]`) : null);
+      if (targetNode?.dataset?.locked === 'true') return;
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+      setDropTarget(context, drop.element || targetNode || null);
+      context.pendingSectionDrop = drop;
+    }
   };
 
   const handleDragLeave = (event) => {
-    if (!context.draggingPanelId) return;
+    if (!context.draggingPanelId && !context.draggingSectionId) return;
     if (context.rootEl.contains(event.relatedTarget)) return;
     setDropTarget(context, null);
+    context.pendingSectionDrop = null;
+    context.pendingPanelDrop = null;
   };
 
   const handleDrop = (event) => {
-    if (!context.draggingPanelId) return;
-    const sectionId = resolveSectionId(event.target);
-    setDropTarget(context, null);
-    if (!sectionId) return;
-    event.preventDefault();
-    const panelId = context.draggingPanelId;
-    context.draggingPanelId = null;
-    const result = callGuarded(context.onDropPanel, panelId, sectionId);
-    handleStatefulResult(result);
+    if (context.draggingPanelId) {
+      const drop = context.pendingPanelDrop || resolveGraphDrop(context, event);
+      setDropTarget(context, null);
+      context.pendingPanelDrop = null;
+      if (!drop || !drop.sectionId) {
+        resetDragState();
+        return;
+      }
+      event.preventDefault();
+      const panelId = context.draggingPanelId;
+      resetDragState();
+      const result = callGuarded(context.onDropPanel, panelId, drop);
+      handleStatefulResult(result);
+      return;
+    }
+    if (context.draggingSectionId) {
+      const drop = context.pendingSectionDrop || resolveSectionDrop(context, event);
+      setDropTarget(context, null);
+      context.pendingSectionDrop = null;
+      if (!drop) {
+        resetDragState();
+        return;
+      }
+      if (!context.draggingSectionParentId && drop.parentId) {
+        resetDragState();
+        return;
+      }
+      const targetNode = drop.element?.closest('.section-node') || (drop.parentId ? context.rootEl.querySelector(`[data-section-id="${drop.parentId}"]`) : null);
+      if (targetNode?.dataset?.locked === 'true') {
+        resetDragState();
+        return;
+      }
+      event.preventDefault();
+      const sectionId = context.draggingSectionId;
+      resetDragState();
+      const result = callGuarded(
+        context.onDropSection,
+        sectionId,
+        {
+          parentId: drop.parentId,
+          beforeSectionId: drop.beforeSectionId
+        }
+      );
+      handleStatefulResult(result);
+    }
   };
 
   const handleDragEnd = () => {
-    context.draggingPanelId = null;
-    setDropTarget(context, null);
+    resetDragState();
   };
 
   rootEl.addEventListener('dragstart', handleDragStart, true);
@@ -145,5 +335,8 @@ export function detach(rootEl) {
   if (ctx.currentDropTarget) {
     ctx.currentDropTarget.classList.remove('is-drop-target');
   }
+  ctx.pendingSectionDrop = null;
+  ctx.pendingPanelDrop = null;
+  ctx.draggingSectionParentId = null;
   contexts.delete(rootEl);
 }

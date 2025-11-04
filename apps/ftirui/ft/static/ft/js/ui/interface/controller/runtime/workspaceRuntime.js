@@ -183,6 +183,135 @@ const setSectionCollapsed = (sectionId, collapsed) => {
   section.collapsed = !!collapsed;
 };
 
+const isSectionAncestor = (ancestorId, sectionId) => {
+  if (!ancestorId || !sectionId) return false;
+  let current = sections.get(sectionId)?.parentId || null;
+  const guard = new Set();
+  while (current) {
+    if (current === ancestorId) return true;
+    if (guard.has(current)) break;
+    guard.add(current);
+    current = sections.get(current)?.parentId || null;
+  }
+  return false;
+};
+
+const detachSectionFromParent = (sectionId) => {
+  const section = sections.get(sectionId);
+  if (!section) return;
+  const parentId = section.parentId || null;
+  if (parentId) {
+    const parent = sections.get(parentId);
+    if (parent && Array.isArray(parent.children)) {
+      parent.children = parent.children.filter((childId) => childId !== sectionId);
+    }
+  } else {
+    sectionOrder = sectionOrder.filter((id) => id !== sectionId);
+  }
+};
+
+const insertSectionIntoParent = (sectionId, parentId, beforeSectionId) => {
+  if (parentId) {
+    const parent = sections.get(parentId);
+    if (!parent) return false;
+    if (!Array.isArray(parent.children)) parent.children = [];
+    const normalized = parent.children.filter((childId) => childId !== sectionId);
+    let insertIdx = normalized.length;
+    if (beforeSectionId && normalized.includes(beforeSectionId)) {
+      insertIdx = normalized.indexOf(beforeSectionId);
+    }
+    normalized.splice(insertIdx, 0, sectionId);
+    parent.children = normalized;
+    return true;
+  }
+  const normalized = sectionOrder.filter((id) => id !== sectionId);
+  let insertIdx = normalized.length;
+  if (beforeSectionId && normalized.includes(beforeSectionId)) {
+    insertIdx = normalized.indexOf(beforeSectionId);
+  }
+  normalized.splice(insertIdx, 0, sectionId);
+  sectionOrder = normalized;
+  return true;
+};
+
+const moveSection = (sectionId, { parentId = null, beforeSectionId = null } = {}) => {
+  if (!sectionId || sectionId === DEFAULT_SECTION_ID) return false;
+  const section = sections.get(sectionId);
+  if (!section || section.locked) return false;
+
+  const targetParentId = parentId && sections.has(parentId) ? parentId : null;
+  const currentParentId = section.parentId || null;
+
+  if (beforeSectionId === sectionId) return false;
+
+  if (!currentParentId && targetParentId) {
+    return false;
+  }
+
+  if (targetParentId && (targetParentId === sectionId || isSectionAncestor(sectionId, targetParentId))) {
+    return false;
+  }
+
+  if (targetParentId && sections.get(targetParentId)?.locked) {
+    return false;
+  }
+
+  let normalizedBefore = beforeSectionId && beforeSectionId !== sectionId && sections.has(beforeSectionId)
+    ? beforeSectionId
+    : null;
+
+  if (normalizedBefore) {
+    const beforeParentId = sections.get(normalizedBefore)?.parentId || null;
+    if (beforeParentId !== targetParentId) {
+      normalizedBefore = null;
+    }
+  }
+
+  if (currentParentId === targetParentId) {
+    if (targetParentId) {
+      const parent = sections.get(targetParentId);
+      if (!parent) return false;
+      const children = Array.isArray(parent.children) ? parent.children.slice() : [];
+      const currentIdx = children.indexOf(sectionId);
+      if (currentIdx === -1) return false;
+      let targetIdx = children.length - 1;
+      if (normalizedBefore) {
+        targetIdx = children.indexOf(normalizedBefore);
+        if (targetIdx === -1) {
+          normalizedBefore = null;
+        }
+      }
+      if (!normalizedBefore) {
+        targetIdx = children.length;
+      }
+      if (currentIdx === targetIdx || currentIdx + 1 === targetIdx) {
+        return false;
+      }
+    } else {
+      const currentIdx = sectionOrder.indexOf(sectionId);
+      if (currentIdx === -1) return false;
+      let targetIdx = sectionOrder.length - 1;
+      if (normalizedBefore) {
+        targetIdx = sectionOrder.indexOf(normalizedBefore);
+        if (targetIdx === -1) {
+          normalizedBefore = null;
+        }
+      }
+      if (!normalizedBefore) {
+        targetIdx = sectionOrder.length;
+      }
+      if (currentIdx === targetIdx || currentIdx + 1 === targetIdx) {
+        return false;
+      }
+    }
+  }
+
+  detachSectionFromParent(sectionId);
+  section.parentId = targetParentId;
+  insertSectionIntoParent(sectionId, targetParentId, normalizedBefore);
+  return true;
+};
+
 const serializeSections = () => ({
   counter: sectionCounter,
   order: sectionOrder.slice(),
@@ -2352,11 +2481,13 @@ export function initWorkspaceRuntime(context = {}) {
         return null;
       }
 
-      const node = document.createElement('div');
-      node.className = 'folder-node section-node';
-      node.dataset.type = 'section';
-      node.dataset.sectionId = sectionId;
-      node.dataset.depth = String(depth);
+  const node = document.createElement('div');
+  node.className = 'folder-node section-node';
+  node.dataset.type = 'section';
+  node.dataset.sectionId = sectionId;
+  node.dataset.depth = String(depth);
+  node.dataset.parentId = section.parentId || '';
+  node.dataset.locked = section.locked ? 'true' : 'false';
       node.dataset.visible = section.visible === false ? 'false' : 'true';
       if (!section.locked) {
         node.setAttribute('draggable', 'true');
@@ -2601,35 +2732,53 @@ export function initWorkspaceRuntime(context = {}) {
     const record = getPanelRecord(panelId);
     if (!record) return false;
 
-    const initialSectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
-    const targetSectionId = sectionId && sections.has(sectionId)
-      ? sectionId
-      : initialSectionId;
+    const currentSectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
+    const targetSectionId = sectionId && sections.has(sectionId) ? sectionId : currentSectionId;
 
-    if (targetSectionId && targetSectionId !== record.sectionId) {
+    let normalizedBeforeId = beforePanelId && beforePanelId !== panelId ? beforePanelId : null;
+    if (normalizedBeforeId) {
+      const beforeRecord = getPanelRecord(normalizedBeforeId);
+      const beforeSectionId = sections.has(beforeRecord?.sectionId) ? beforeRecord.sectionId : DEFAULT_SECTION_ID;
+      if (!beforeRecord || beforeSectionId !== targetSectionId) {
+        normalizedBeforeId = null;
+      }
+    }
+
+    if (targetSectionId !== currentSectionId) {
       panelsModel.attachToSection(panelId, targetSectionId);
     }
 
-    const orderedRecords = panelsModel.getPanelsInIndexOrder();
-    const currentIdx = orderedRecords.findIndex((item) => item.id === panelId);
+    let orderedRecords = panelsModel.getPanelsInIndexOrder();
+    let currentIdx = orderedRecords.findIndex((item) => item.id === panelId);
     if (currentIdx === -1) return false;
-    const [current] = orderedRecords.splice(currentIdx, 1);
 
-    let targetIdx = orderedRecords.length;
-    if (beforePanelId && beforePanelId !== panelId) {
-      targetIdx = orderedRecords.findIndex((item) => item.id === beforePanelId);
-      if (targetIdx === -1) targetIdx = orderedRecords.length;
-    } else if (targetSectionId && sections.has(targetSectionId)) {
-      const lastIdx = orderedRecords.reduce(
+    const working = orderedRecords.slice();
+    const [current] = working.splice(currentIdx, 1);
+
+    let targetIdx = working.length;
+    if (normalizedBeforeId) {
+      targetIdx = working.findIndex((item) => item.id === normalizedBeforeId);
+      if (targetIdx === -1) {
+        normalizedBeforeId = null;
+        targetIdx = working.length;
+      }
+    }
+
+    if (!normalizedBeforeId) {
+      const lastIdx = working.reduce(
         (acc, item, idx) => (item.sectionId === targetSectionId ? idx : acc),
         -1
       );
-      targetIdx = lastIdx >= 0 ? lastIdx + 1 : orderedRecords.length;
+      targetIdx = lastIdx >= 0 ? lastIdx + 1 : working.length;
     }
 
-    orderedRecords.splice(targetIdx, 0, current);
+    if (targetSectionId === currentSectionId && targetIdx === currentIdx) {
+      return false;
+    }
 
-    orderedRecords.forEach((panel, idx) => {
+    working.splice(targetIdx, 0, current);
+
+    working.forEach((panel, idx) => {
       panelsModel.setPanelIndex(panel.id, idx + 1);
     });
 
@@ -4168,19 +4317,52 @@ export function initWorkspaceRuntime(context = {}) {
     });
     dragDrop.attach(panelDom.tree, {
       onStateChanged: renderBrowser,
-      onDropPanel: (panelId, sectionId) => {
-        if (!panelId || !sectionId) return false;
+      onDropPanel: (panelId, dropContext = {}) => {
+        if (!panelId || !dropContext || !dropContext.sectionId) return false;
         const record = getPanelRecord(panelId);
         if (!record) return false;
-        const currentSection = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
-        if (currentSection === sectionId) {
-          return false;
-        }
+        const targetSectionId = sections.has(dropContext.sectionId) ? dropContext.sectionId : null;
+        if (!targetSectionId) return false;
+        if (sections.get(targetSectionId)?.locked) return false;
+        const beforeRecord = dropContext.beforePanelId && dropContext.beforePanelId !== panelId
+          ? getPanelRecord(dropContext.beforePanelId)
+          : null;
+        const beforeSectionId = sections.has(beforeRecord?.sectionId) ? beforeRecord.sectionId : DEFAULT_SECTION_ID;
+        const beforeId = beforeRecord && beforeSectionId === targetSectionId
+          ? dropContext.beforePanelId
+          : null;
         pushHistory();
-        const moved = moveGraph(panelId, { sectionId });
+        const moved = moveGraph(panelId, { sectionId: targetSectionId, beforePanelId: beforeId });
         if (!moved) {
           history.rewind();
         }
+        return false;
+      },
+      onDropSection: (sectionId, dropContext = {}) => {
+        if (!sectionId || sectionId === DEFAULT_SECTION_ID) return false;
+        const target = sections.get(sectionId);
+        if (!target || target.locked) return false;
+        const parentId = dropContext.parentId && sections.has(dropContext.parentId)
+          ? dropContext.parentId
+          : null;
+        const beforeId = dropContext.beforeSectionId && sections.has(dropContext.beforeSectionId)
+          ? dropContext.beforeSectionId
+          : null;
+        if (parentId === sectionId || beforeId === sectionId) {
+          return false;
+        }
+        pushHistory();
+        const moved = moveSection(sectionId, {
+          parentId,
+          beforeSectionId: beforeId
+        });
+        if (!moved) {
+          history.rewind();
+          return false;
+        }
+        renderBrowser();
+        persist();
+        updateHistoryButtons();
         return false;
       }
     });
