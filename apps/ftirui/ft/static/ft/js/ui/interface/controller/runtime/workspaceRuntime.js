@@ -14,12 +14,13 @@ import { escapeHtml } from '../../../utils/dom.js';
 import { render as renderTreeView } from '../../../workspace/browser/treeView.js';
 import * as storage from '../../../../core/storage.js';
 import { createHistory } from '../../../../core/history.js';
-import * as treeEvents from '../../../workspace/browser/treeEvents.js';
-import * as dragDrop from '../../../workspace/browser/dragDrop.js';
 import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.js';
 
 import * as Render from '../../../../workspace/canvas/plotting/render.js';
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
+import { attachBrowserDragDrop } from './browser/dragDrop.js';
+import { attachBrowserEvents } from './browser/events.js';
+import { createBrowserTreeState } from './browser/treeState.js';
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -46,6 +47,8 @@ let dragState = null;
 let currentDropTarget = null;
 let pendingRenameSectionId = null;
 let activePanelId = null;
+let browserDragDropHandle = null;
+let browserEventsHandle = null;
 
 const setDropTarget = (element) => {
   if (currentDropTarget === element) return;
@@ -56,6 +59,11 @@ const setDropTarget = (element) => {
   if (currentDropTarget) {
     currentDropTarget.classList.add('is-drop-target');
   }
+};
+
+const getDragState = () => dragState;
+const setDragState = (next) => {
+  dragState = next;
 };
 
 const pickColor = () => {
@@ -379,6 +387,8 @@ export function initWorkspaceRuntime(context = {}) {
   currentDropTarget = null;
   pendingRenameSectionId = null;
   activePanelId = null;
+  browserDragDropHandle?.detach?.();
+  browserDragDropHandle = null;
   const { roots = {} } = context;
   const canvas = roots.canvas ?? document.getElementById('c_canvas_root');
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
@@ -1134,7 +1144,7 @@ export function initWorkspaceRuntime(context = {}) {
         const xColor = layout?.xaxis?.linecolor || '#444';
         const yColor = layout?.yaxis?.linecolor || '#444';
 
-        // Only touch linewidth/gridwidth/linecolor using dotted keys ΓÇö do NOT send xaxis:{...}
+        // Only touch linewidth/gridwidth/linecolor using dotted keys ╬ô├ç├╢ do NOT send xaxis:{...}
         commitLayoutPatch({
           'xaxis.linewidth': w,
           'yaxis.linewidth': w,
@@ -1387,7 +1397,7 @@ export function initWorkspaceRuntime(context = {}) {
       }
 
       case 'ticks-major-dtick': {
-        // null ΓåÆ auto; number ΓåÆ fixed spacing
+        // null ╬ô├Ñ├å auto; number ╬ô├Ñ├å fixed spacing
         const figure = getPanelFigure(panelId);
         const hasX2 = axisExists(panelId, figure, 'xaxis2');
         const hasY2 = axisExists(panelId, figure, 'yaxis2');
@@ -2057,85 +2067,40 @@ export function initWorkspaceRuntime(context = {}) {
   const renderBrowser = () => {
     const tree = getBrowserRootEl();
     if (!tree) return;
-    tree.innerHTML = '';
     ensureDefaultSection();
 
-    const term = searchTerm.trim().toLowerCase();
-    const orderedRecords = getPanelsOrdered();
-    const sortedPanels = orderedRecords
-      .map((record, position) => {
-        const panelId = record?.id;
-        if (!panelId) return null;
-        const sectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
-        const rawIndex = coerceNumber(record.index, position + 1);
-        const index = Number.isFinite(rawIndex) && rawIndex > 0 ? rawIndex : 0;
-        return {
-          panelId,
-          record,
-          position,
-          meta: {
-            id: panelId,
-            sectionId,
-            hidden: record.hidden === true,
-            collapsed: record.collapsed === true,
-            index
-          }
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => {
-        const aIndex = a.meta.index || (a.position + 1);
-        const bIndex = b.meta.index || (b.position + 1);
-        return aIndex - bIndex;
-      });
-
-    sortedPanels.forEach((item, idx) => {
-      if (!item.meta.index || item.meta.index <= 0) {
-        item.meta.index = idx + 1;
-      }
+    const state = createBrowserTreeState({
+      searchTerm,
+      sections,
+      sectionOrder,
+      defaultSectionId: DEFAULT_SECTION_ID,
+      getPanelsOrdered,
+      coerceNumber
     });
 
-    const treeSections = sectionOrder
-      .map((sectionId) => sections.get(sectionId))
-      .filter(Boolean)
-      .map((section) => ({
-        id: section.id,
-        name: section.name || 'Group',
-        collapsed: section.collapsed === true,
-        locked: section.locked === true,
-        parentId: section.parentId || null
-      }));
+    const { term, sortedPanels, treeSections, treeViewPanels, panelsBySection, hasPanels } = state;
 
-    const treeViewPanels = new Map();
-    treeSections.forEach((section) => {
-      treeViewPanels.set(section.id, []);
-    });
+    tree.innerHTML = '';
 
-    sortedPanels.forEach((item) => {
-      const sectionId = sections.has(item.meta.sectionId) ? item.meta.sectionId : DEFAULT_SECTION_ID;
-      if (!treeViewPanels.has(sectionId)) {
-        treeViewPanels.set(sectionId, []);
-      }
-      treeViewPanels.get(sectionId).push({
-        id: item.panelId,
-        name: escapeHtml(item.record?.name || `Graph ${item.meta.index}`),
-        hidden: item.record?.hidden === true
-      });
+    const sanitizedPanelsBySection = new Map();
+    treeViewPanels.forEach((panelList, sectionId) => {
+      sanitizedPanelsBySection.set(
+        sectionId,
+        panelList.map((panel) => ({
+          ...panel,
+          name: escapeHtml(panel.name)
+        }))
+      );
     });
 
     renderTreeView({
       rootEl: tree,
       sections: treeSections,
-      panelsBySection: treeViewPanels,
+      panelsBySection: sanitizedPanelsBySection,
       activePanelId
     });
 
-    const panelsBySection = new Map();
-    sections.forEach((section, id) => {
-      panelsBySection.set(id, []);
-    });
-
-    if (!sortedPanels.length) {
+    if (!hasPanels) {
       if (panelDom.empty) {
         panelDom.empty.dataset.mode = 'search-empty';
         panelDom.empty.style.display = '';
@@ -2147,13 +2112,6 @@ export function initWorkspaceRuntime(context = {}) {
       refreshPanelVisibility();
       return;
     }
-
-    sortedPanels.forEach((item) => {
-      const sectionId = sections.has(item.meta.sectionId) ? item.meta.sectionId : DEFAULT_SECTION_ID;
-      item.meta.sectionId = sectionId;
-      if (!panelsBySection.has(sectionId)) panelsBySection.set(sectionId, []);
-      panelsBySection.get(sectionId).push(item);
-    });
 
     let renderedSomething = false;
 
@@ -2328,15 +2286,15 @@ export function initWorkspaceRuntime(context = {}) {
           setDragFromHandle(false);
           return;
         }
-        dragState = { type: 'trace', panelId, traceIndex: rowInfo.idx };
+        setDragState({ type: 'trace', panelId, traceIndex: rowInfo.idx });
         event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData(TRACE_DRAG_MIME, JSON.stringify(dragState));
+        event.dataTransfer.setData(TRACE_DRAG_MIME, JSON.stringify(getDragState()));
         event.dataTransfer.setData('text/plain', `${panelId}:${rowInfo.idx}`);
         row.classList.add('is-dragging');
       });
       row.addEventListener('dragend', () => {
         row.classList.remove('is-dragging');
-        dragState = null;
+        setDragState(null);
         setDropTarget(null);
         setDragFromHandle(false);
       });
@@ -2788,70 +2746,6 @@ export function initWorkspaceRuntime(context = {}) {
     return true;
   };
 
-  const resolveTraceTarget = (event) => {
-    const traceRow = event.target.closest('.folder-trace');
-    if (traceRow) {
-      return {
-        element: traceRow,
-        panelId: traceRow.dataset.panelId,
-        traceIndex: Number(traceRow.dataset.traceIndex) || 0
-      };
-    }
-    const tracesContainer = event.target.closest('.folder-traces');
-    if (tracesContainer) {
-      const graphNode = tracesContainer.closest('.graph-node');
-      const panelId = graphNode?.dataset?.panelId;
-      if (!panelId) return null;
-      const traces = getPanelTraces(panelId);
-      return {
-        element: tracesContainer,
-        panelId,
-        traceIndex: traces.length
-      };
-    }
-    const graphNode = event.target.closest('.graph-node');
-    if (graphNode) {
-      const panelId = graphNode.dataset.panelId;
-      const traces = getPanelTraces(panelId);
-      return {
-        element: graphNode,
-        panelId,
-        traceIndex: traces.length
-      };
-    }
-    return null;
-  };
-
-  const handleTreeDragOver = (event) => {
-    if (!dragState || dragState.type !== 'trace') return;
-    const target = resolveTraceTarget(event);
-    if (!target || !target.panelId) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    setDropTarget(target.element);
-  };
-
-  const handleTreeDrop = (event) => {
-    if (!dragState || dragState.type !== 'trace') return;
-    const target = resolveTraceTarget(event);
-    if (!target || !target.panelId) {
-      setDropTarget(null);
-      return;
-    }
-    event.preventDefault();
-    if (target.panelId === dragState.panelId && target.traceIndex === dragState.traceIndex) {
-      setDropTarget(null);
-      dragState = null;
-      return;
-    }
-    pushHistory();
-    if (!moveTrace(dragState, { panelId: target.panelId, traceIndex: target.traceIndex })) {
-      history.rewind();
-    }
-    setDropTarget(null);
-    dragState = null;
-  };
-
   const removePanel = (id, { pushToHistory = true } = {}) => {
     const record = getPanelRecord(id);
     if (!record) return;
@@ -3104,7 +2998,7 @@ export function initWorkspaceRuntime(context = {}) {
       set('left', yOn.left);
       set('right', yOn.right);
 
-      // Thickness pills ΓÇö infer from linewidth
+      // Thickness pills ╬ô├ç├╢ infer from linewidth
       const w = Number(X.linewidth ?? Y.linewidth ?? 1);
       const level = w >= 1.75 ? 'thick' : w <= 0.75 ? 'thin' : 'medium';
       axesPopover
@@ -3317,7 +3211,7 @@ export function initWorkspaceRuntime(context = {}) {
         wrap.querySelector('[data-readout]').textContent = String(sub);
       };
 
-      // Local click handlers ΓåÆ central dispatcher
+      // Local click handlers ╬ô├Ñ├å central dispatcher
       gridPopover.addEventListener('click', (e) => {
         const t = e.target.closest('[data-minor],[data-apply]');
         if (!t) return;
@@ -3382,14 +3276,14 @@ export function initWorkspaceRuntime(context = {}) {
           <button type="button" class="btn btn-outline-secondary ms-2 workspace-panel-popover-btn" data-labels="toggle">Labels</button>
           <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-major-offset">
             <span class="small text-muted">Tick start</span>
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="XΓéÇ">
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="YΓéÇ">
+            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="X╬ô├⌐├ç">
+            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Y╬ô├⌐├ç">
             <button type="button" class="btn btn-sm btn-outline-secondary" data-apply-offset>Apply</button>
           </div>
           <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-major-dtick">
             <span class="small text-muted">Spacing</span>
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="╬öX">
-            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="╬öY">
+            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢X">
+            <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢Y">
             <button type="button" class="btn btn-sm btn-outline-secondary" data-apply-dtick>Apply</button>
           </div>
         </div>
@@ -3419,7 +3313,7 @@ export function initWorkspaceRuntime(context = {}) {
       const X = L.xaxis || {};
       const Y = L.yaxis || {};
 
-      // Major placement (assume both axes share the same, pick XΓÇÖs as source of truth)
+      // Major placement (assume both axes share the same, pick X╬ô├ç├ûs as source of truth)
       const majorPlacement = (X.ticks ?? 'outside');
       ticksPopover.querySelectorAll('[data-role="ticks-major"] [data-placement]')
         .forEach(b => b.classList.toggle('is-active', b.dataset.placement === majorPlacement || (majorPlacement === '' && b.dataset.placement === 'none')));
@@ -3432,8 +3326,8 @@ export function initWorkspaceRuntime(context = {}) {
 
       const offWrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
       if (offWrap) {
-        const xInput = offWrap.querySelector('input[placeholder="XΓéÇ"]');
-        const yInput = offWrap.querySelector('input[placeholder="YΓéÇ"]');
+        const xInput = offWrap.querySelector('input[placeholder="X╬ô├⌐├ç"]');
+        const yInput = offWrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]');
         xInput.value = (X.tick0 != null && X.tick0 !== '') ? String(X.tick0) : '';
         yInput.value = (Y.tick0 != null && Y.tick0 !== '') ? String(Y.tick0) : '';
       }
@@ -3455,14 +3349,14 @@ export function initWorkspaceRuntime(context = {}) {
       if (dtWrap) {
         const dx = Number(X.dtick);
         const dy = Number(Y.dtick);
-        dtWrap.querySelector('input[placeholder="╬öX"]').value = Number.isFinite(dx) ? String(dx) : '';
-        dtWrap.querySelector('input[placeholder="╬öY"]').value = Number.isFinite(dy) ? String(dy) : '';
+        dtWrap.querySelector('input[placeholder="Γò¼├╢X"]').value = Number.isFinite(dx) ? String(dx) : '';
+        dtWrap.querySelector('input[placeholder="Γò¼├╢Y"]').value = Number.isFinite(dy) ? String(dy) : '';
       }
 
       const mplace = (X.minor?.ticks ?? '');
       ticksPopover.querySelectorAll('[data-role="ticks-minor"] [data-minor-placement]')
         .forEach(b => {
-          const val = b.dataset.minorPlacement;   // Γ£à correct
+          const val = b.dataset.minorPlacement;   // ╬ô┬ú├á correct
           const active = (mplace === '' && val === 'none') || (mplace === val);
           b.classList.toggle('is-active', active);
         });
@@ -3496,8 +3390,8 @@ export function initWorkspaceRuntime(context = {}) {
       // // Apply major offsets
       // if (t.hasAttribute('data-apply-offset')) {
       //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
-      //   const x0raw = wrap.querySelector('input[placeholder="XΓéÇ"]').value;
-      //   const y0raw = wrap.querySelector('input[placeholder="YΓéÇ"]').value;
+      //   const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
+      //   const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
       //   const x0 = x0raw === '' ? null : Number(x0raw);
       //   const y0 = y0raw === '' ? null : Number(y0raw);
       //   handleHeaderAction(panelId, 'ticks-major-offset', { x0, y0 });
@@ -3508,8 +3402,8 @@ export function initWorkspaceRuntime(context = {}) {
       // // Major ticks spacing
       // if (t.hasAttribute('data-apply-dtick')) {
       //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
-      //   const dxRaw = wrap.querySelector('input[placeholder="╬öX"]').value;
-      //   const dyRaw = wrap.querySelector('input[placeholder="╬öY"]').value;
+      //   const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
+      //   const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
       //   const dx = dxRaw === '' ? null : Number(dxRaw);
       //   const dy = dyRaw === '' ? null : Number(dyRaw);
       //   handleHeaderAction(panelId, 'ticks-major-dtick', { dx, dy });
@@ -3567,8 +3461,8 @@ export function initWorkspaceRuntime(context = {}) {
     const autoApplyOffset = debounce(() => {
       const wrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
       if (!wrap) return;
-      const x0raw = wrap.querySelector('input[placeholder="XΓéÇ"]').value;
-      const y0raw = wrap.querySelector('input[placeholder="YΓéÇ"]').value;
+      const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
+      const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
       const x0 = x0raw === '' ? null : Number(x0raw);
       const y0 = y0raw === '' ? null : Number(y0raw);
       handleHeaderAction(panelId, 'ticks-major-offset', { x0, y0 });
@@ -3577,8 +3471,8 @@ export function initWorkspaceRuntime(context = {}) {
     const autoApplyDtick = debounce(() => {
       const wrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
       if (!wrap) return;
-      const dxRaw = wrap.querySelector('input[placeholder="╬öX"]').value;
-      const dyRaw = wrap.querySelector('input[placeholder="╬öY"]').value;
+      const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
+      const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
       const dx = dxRaw === '' ? null : Number(dxRaw);
       const dy = dyRaw === '' ? null : Number(dyRaw);
       handleHeaderAction(panelId, 'ticks-major-dtick', { dx, dy });
@@ -4232,18 +4126,6 @@ export function initWorkspaceRuntime(context = {}) {
   workspaceMenu.clear?.addEventListener('click', clearWorkspaceSnapshot);
 
   if (panelDom.tree) {
-    panelDom.tree.addEventListener('dragover', handleTreeDragOver);
-    panelDom.tree.addEventListener('drop', handleTreeDrop);
-    panelDom.tree.addEventListener('dragleave', (event) => {
-      if (!dragState) return;
-      if (!panelDom.tree.contains(event.relatedTarget)) {
-        setDropTarget(null);
-      }
-    });
-    panelDom.tree.addEventListener('dragend', () => {
-      if (!dragState) return;
-      setDropTarget(null);
-    });
     panelDom.tree.addEventListener('focusin', () => {
       if (!panelPinned) {
         panelDom.root?.classList.add('peeking');
@@ -4256,115 +4138,49 @@ export function initWorkspaceRuntime(context = {}) {
         panelDom.root.classList.remove('peeking');
       }
     });
-    treeEvents.attach(panelDom.tree, {
-      onSelectPanel: (panelId) => {
-        focusPanelById(panelId, { scrollBrowser: false });
-        chipPanelsBridge.onPanelSelected(panelId);
-        return false;
-      },
-      onSelectSection: (sectionId) => {
-        focusSectionById(sectionId, { scrollBrowser: false });
-        return false;
-      },
-      onStateChanged: renderBrowser,
-      toggleSectionCollapsed: (sectionId) => {
-        toggleSectionCollapsedState(sectionId);
-        return false;
-      },
-      togglePanelCollapsed: (panelId) => {
-        togglePanelCollapsedState(panelId);
-        return false;
-      },
-      toggleSectionVisibility: (sectionId) => {
-        toggleSectionVisibility(sectionId);
-        return false;
-      },
-      togglePanelVisibility: (panelId) => {
-        toggleGraphVisibility(panelId);
-        return false;
-      },
-      addGraphToSection: (sectionId) => {
-        addGraphToSection(sectionId);
-        return false;
-      },
-      addSubSection: (sectionId) => {
-        pushHistory();
-        const section = createSection(null, { parentId: sectionId });
-        if (section?.id) {
-          queueSectionRename(section.id);
-        }
-        renderBrowser();
-        persist();
-        updateHistoryButtons();
-        return false;
-      },
-      deleteSection: (sectionId) => {
-        deleteSectionInteractive(sectionId);
-        return false;
-      },
-      deletePanel: (panelId) => {
-        deleteGraphInteractive(panelId);
-        return false;
-      },
-      browsePanel: (panelId) => {
-        requestGraphFileBrowse(panelId);
-        return false;
-      },
-      startSectionRename: (sectionId, nameEl, opts) => {
-        startSectionRename(sectionId, nameEl, opts);
-        return false;
-      }
+    const eventsHandle = attachBrowserEvents({
+      panelDom,
+      isPanelPinned: () => panelPinned,
+      setDropTarget,
+      focusPanelById,
+      focusSectionById,
+      renderBrowser,
+      toggleSectionCollapsedState,
+      togglePanelCollapsedState,
+      toggleSectionVisibility,
+      toggleGraphVisibility,
+      addGraphToSection,
+      pushHistory,
+      createSection,
+      queueSectionRename,
+      persist,
+      updateHistoryButtons,
+      deleteSectionInteractive,
+      deleteGraphInteractive,
+      requestGraphFileBrowse,
+      startSectionRename,
+      chipPanelsBridge
     });
-    dragDrop.attach(panelDom.tree, {
-      onStateChanged: renderBrowser,
-      onDropPanel: (panelId, dropContext = {}) => {
-        if (!panelId || !dropContext || !dropContext.sectionId) return false;
-        const record = getPanelRecord(panelId);
-        if (!record) return false;
-        const targetSectionId = sections.has(dropContext.sectionId) ? dropContext.sectionId : null;
-        if (!targetSectionId) return false;
-        if (sections.get(targetSectionId)?.locked) return false;
-        const beforeRecord = dropContext.beforePanelId && dropContext.beforePanelId !== panelId
-          ? getPanelRecord(dropContext.beforePanelId)
-          : null;
-        const beforeSectionId = sections.has(beforeRecord?.sectionId) ? beforeRecord.sectionId : DEFAULT_SECTION_ID;
-        const beforeId = beforeRecord && beforeSectionId === targetSectionId
-          ? dropContext.beforePanelId
-          : null;
-        pushHistory();
-        const moved = moveGraph(panelId, { sectionId: targetSectionId, beforePanelId: beforeId });
-        if (!moved) {
-          history.rewind();
-        }
-        return false;
-      },
-      onDropSection: (sectionId, dropContext = {}) => {
-        if (!sectionId || sectionId === DEFAULT_SECTION_ID) return false;
-        const target = sections.get(sectionId);
-        if (!target || target.locked) return false;
-        const parentId = dropContext.parentId && sections.has(dropContext.parentId)
-          ? dropContext.parentId
-          : null;
-        const beforeId = dropContext.beforeSectionId && sections.has(dropContext.beforeSectionId)
-          ? dropContext.beforeSectionId
-          : null;
-        if (parentId === sectionId || beforeId === sectionId) {
-          return false;
-        }
-        pushHistory();
-        const moved = moveSection(sectionId, {
-          parentId,
-          beforeSectionId: beforeId
-        });
-        if (!moved) {
-          history.rewind();
-          return false;
-        }
-        renderBrowser();
-        persist();
-        updateHistoryButtons();
-        return false;
-      }
+    browserEventsHandle?.detach?.();
+    browserEventsHandle = eventsHandle;
+    browserDragDropHandle?.detach();
+    browserDragDropHandle = attachBrowserDragDrop({
+      panelDom,
+      getPanelTraces,
+      setDropTarget,
+      getDragState,
+      setDragState,
+      pushHistory,
+      moveTrace,
+      history,
+      sections,
+      getPanelRecord,
+      moveGraph,
+      moveSection,
+      defaultSectionId: DEFAULT_SECTION_ID,
+      renderBrowser,
+      persist,
+      updateHistoryButtons
     });
   }
 
@@ -4529,10 +4345,10 @@ export function initWorkspaceRuntime(context = {}) {
       workspaceObserver.disconnect();
       workspaceObserver = null;
     }
-    if (panelDom.tree) {
-      treeEvents.detach(panelDom.tree);
-      dragDrop.detach(panelDom.tree);
-    }
+    browserEventsHandle?.detach?.();
+    browserEventsHandle = null;
+    browserDragDropHandle?.detach();
+    browserDragDropHandle = null;
     storage.flush();
   };
 
@@ -4557,3 +4373,8 @@ export function initWorkspaceRuntime(context = {}) {
     getPanelDomRegistry: () => panelDomRegistry
   };
 }
+
+
+
+
+
