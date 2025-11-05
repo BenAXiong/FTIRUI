@@ -1,4 +1,4 @@
-import * as Render from '../../../../workspace/canvas/plotting/render.js';
+import * as Render from '../../../../../workspace/canvas/plotting/render.js';
 
 export function createPlotFacade({
   getPanelDom = () => null,

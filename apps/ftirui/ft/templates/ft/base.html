@@ -1,4 +1,5 @@
 {% extends 'ft/layouts/app_shell.html' %}
+{% load static %}
 
 {% block page_header %}
   {% include 'ft/partials/header_nav.html' %}
@@ -14,4 +15,9 @@
       {% include 'ft/workspace/panes/about.html' %}
     </div>
   </div>
+{% endblock %}
+
+{% block body_scripts %}
+  {{ block.super }}
+  <script type="module" src="{% static 'ft/js/ui/workspace/initControls.js' %}"></script>
 {% endblock %}

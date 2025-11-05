@@ -73,6 +73,12 @@ export function createPanelPreferencesManager({
       preferences?.clearCollapsed?.();
     } else {
       panelDom.root?.classList.remove('peeking');
+      if (isPanelCollapsed()) {
+        setCollapsed(false, { persist: false });
+      }
+      if (persist) {
+        preferences?.setCollapsed?.(false);
+      }
     }
     updatePanelPinUI();
     updateCanvasOffset();

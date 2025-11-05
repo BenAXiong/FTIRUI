@@ -116,19 +116,36 @@ export function createIoFacade({
     const safeFiles = Array.from(files || []).filter(Boolean);
     if (!safeFiles.length) return;
 
-    pushHistory();
-
+    let historyPushed = false;
+    let ingestedCount = 0;
+    const failures = [];
     for (const file of safeFiles) {
       try {
         const payload = await uploadTraceFile(file, 'auto');
+        if (!historyPushed) {
+          pushHistory();
+          historyPushed = true;
+        }
         ingestPanel({
           ...payload,
           name: decodeName(payload?.name) || decodeName(file?.name) || 'Trace',
           filename: decodeName(payload?.filename || file?.name || '')
         }, { skipHistory: true, skipPersist: true });
+        ingestedCount += 1;
       } catch (err) {
-        console.warn('Failed to ingest file', file?.name, err);
+        console.info('Skipping file that could not be ingested', file?.name || file, err);
+        failures.push({
+          name: decodeName(file?.name || ''),
+          error: err?.message || String(err)
+        });
       }
+    }
+
+    if (!ingestedCount) {
+      if (failures.length) {
+        showToast('No files were added. Some files could not be parsed.', 'warning');
+      }
+      return;
     }
 
     persist();
@@ -141,6 +158,13 @@ export function createIoFacade({
           ? 'Demo files added to workspace.'
           : 'Files added to workspace.';
     showToast(message, 'success');
+
+    if (failures.length) {
+      const label = failures.length === 1
+        ? (failures[0].name || '1 file')
+        : `${failures.length} files`;
+      showToast(`Skipped ${label} that could not be parsed.`, 'warning');
+    }
   };
 
   const handleImportedFiles = async (fileList, options = {}) => {

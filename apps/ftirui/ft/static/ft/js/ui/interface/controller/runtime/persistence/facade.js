@@ -277,6 +277,7 @@ export function createPersistenceFacade({
     saveSnapshot,
     loadSnapshot,
     clearSnapshot,
+    restoreSnapshot,
     updateHistoryButtons,
     updateStorageButtons,
     attachEvents,

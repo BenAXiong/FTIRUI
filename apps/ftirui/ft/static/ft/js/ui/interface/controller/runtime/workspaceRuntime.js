@@ -105,11 +105,14 @@ const showToast = (message, variant = 'info', delay = 2400) => {
 };
 
 let normalizePanelTraces = () => null;
+let createTraceFromPayload = () => null;
 let ingestPayloadAsPanel = () => null;
 let appendFilesToGraph = async () => {};
 let moveTrace = () => false;
 let moveGraph = () => false;
 let removePanel = () => {};
+let clearPanels = () => {};
+let restoreSnapshot = () => {};
 
 const randomPanelId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -226,6 +229,8 @@ export function initWorkspaceRuntime(context = {}) {
     panelDomRegistry.delete(panelId);
   };
 
+  const getPanelFigure = (panelId) => panelsModel.getPanelFigure(panelId) || { data: [], layout: {} };
+
   const Plot = createPlotFacade({
     getPanelDom,
     getPanelFigure,
@@ -237,8 +242,6 @@ export function initWorkspaceRuntime(context = {}) {
   const getPanelRecord = getPanelSnapshot;
 
   const getPanelsOrdered = () => panelsModel.getPanelsInIndexOrder();
-
-  const getPanelFigure = (panelId) => panelsModel.getPanelFigure(panelId) || { data: [], layout: {} };
 
   const getPanelTraces = (panelId) => panelsModel.getPanelTraces(panelId) || [];
 
@@ -267,6 +270,12 @@ export function initWorkspaceRuntime(context = {}) {
 
 let searchTerm = '';
 const getSearchTerm = () => searchTerm;
+
+let registerPanel = () => null;
+let panelDomFacade = null;
+let renderBrowser = () => {};
+let setActivePanel = () => {};
+let updateCanvasState = () => {};
 
   const historyHelpers = createHistoryHelpers({
     pushHistory,
@@ -555,7 +564,7 @@ const getSearchTerm = () => searchTerm;
     }
   };
 
-  const setActivePanel = (panelId, options = {}) => {
+  setActivePanel = (panelId, options = {}) => {
     activePanelId = panelId || null;
     chipPanelsBridge.onPanelSelected(activePanelId);
     applyActivePanelState(options);
@@ -662,7 +671,7 @@ const getSearchTerm = () => searchTerm;
     panelDom.empty.style.display = panelDomRegistry.size ? 'none' : '';
   };
 
-  const updateCanvasState = () => {
+  updateCanvasState = () => {
     canvas.classList.toggle('has-panels', panelDomRegistry.size > 0);
     updatePanelEmpty();
     if (emptyOverlay) {
@@ -847,17 +856,11 @@ const getSearchTerm = () => searchTerm;
       updateStorageButtons,
       saveSnapshot: saveWorkspaceSnapshot,
       loadSnapshot: loadWorkspaceSnapshot,
-      clearSnapshot: clearWorkspaceSnapshot
+      clearSnapshot: clearWorkspaceSnapshot,
+      restoreSnapshot
     } = persistence);
     persistence.attachEvents();
   }
-  runtimeState.services = runtimeState.services || {};
-  runtimeState.services.history = historyHelpers;
-  runtimeState.services.persistence = persistence;
-  runtimeState.services.snapshot = snapshotManager;
-  runtimeState.managers = runtimeState.managers || {};
-  runtimeState.managers.snapshot = snapshotManager;
-
   const renderPlot = (panelId) => {
     if (!panelId) return;
     Plot.renderNow(panelId);
@@ -1041,7 +1044,7 @@ const getSearchTerm = () => searchTerm;
     }
   };
 
-  const renderBrowser = () => {
+  renderBrowser = () => {
     if (!browserFacade) return;
     browserFacade.render();
   };
@@ -1112,7 +1115,7 @@ const getSearchTerm = () => searchTerm;
   };
 
 
-  const registerPanel = (incomingState, {
+  registerPanel = (incomingState, {
     skipHistory = false,
     skipPersist = false,
     preserveIndex = false,
@@ -1177,7 +1180,7 @@ const getSearchTerm = () => searchTerm;
       refreshActionOverflow: null
     };
 
-    panelDomFacade.mountPanel({
+    panelDomFacade?.mountPanel({
       panelId,
       panelState: baseState,
       runtime
@@ -1195,13 +1198,13 @@ const getSearchTerm = () => searchTerm;
     setActivePanel(panelId);
     refreshPanelVisibility();
 
-  if (!skipPersist) {
-    persist();
-  }
+    if (!skipPersist) {
+      persist();
+    }
 
-  updateHistoryButtons();
-  return panelId;
-};
+    updateHistoryButtons();
+    return panelId;
+  };
 
   const runtimeState = createRuntimeState({
     panelsModel,
@@ -1225,6 +1228,13 @@ const getSearchTerm = () => searchTerm;
       colorCursor: colorCursorManager
     }
   });
+
+  runtimeState.services = runtimeState.services || {};
+  runtimeState.services.history = historyHelpers;
+  runtimeState.services.persistence = persistence;
+  runtimeState.services.snapshot = snapshotManager;
+  runtimeState.managers = runtimeState.managers || {};
+  runtimeState.managers.snapshot = snapshotManager;
 
   const panelsFacade = createPanelsFacade({
     models: { panelsModel },
@@ -1262,6 +1272,36 @@ const getSearchTerm = () => searchTerm;
     removePanel
   } = panelsFacade);
 
+  clearPanels = ({ skipHistory = false } = {}) => {
+    const hasAnyPanels = panelDomRegistry.size > 0 || panelsModel.getPanelsInIndexOrder().length > 0;
+    if (!hasAnyPanels) {
+      if (!skipHistory) {
+        updateHistoryButtons();
+      }
+      return;
+    }
+
+    if (!skipHistory) {
+      pushHistory();
+    }
+
+    panelDomRegistry.forEach((handles) => {
+      handles?.rootEl?.remove();
+    });
+    panelDomRegistry.clear();
+    panelsModel.load({ counter: 0, items: [] });
+
+    setActivePanel(null);
+    colorCursorManager.reset();
+    ensureDefaultSection();
+    refreshPanelVisibility();
+    updateToolbarMetrics();
+    updateCanvasState();
+    renderBrowser();
+    persist();
+    updateHistoryButtons();
+  };
+
   const { handleHeaderAction } = createHeaderActions({
     actionsController: Actions,
     history: historyHelpers,
@@ -1278,7 +1318,7 @@ const getSearchTerm = () => searchTerm;
     }
   });
 
-  const panelDomFacade = createPanelDomFacade({
+  panelDomFacade = createPanelDomFacade({
     canvas,
     registerPanelDom,
     updatePanelRuntime,
@@ -1465,6 +1505,8 @@ const getSearchTerm = () => searchTerm;
     browserFacade.attachEvents();
     browserFacade.attachDragDrop();
   }
+
+  renderBrowser();
 
   if (panelDom.newSection) {
     panelDom.newSection.disabled = false;
