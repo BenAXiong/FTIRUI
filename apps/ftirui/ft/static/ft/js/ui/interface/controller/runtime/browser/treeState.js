@@ -31,7 +31,8 @@ export function createBrowserTreeState({
           sectionId,
           hidden: record.hidden === true,
           collapsed: record.collapsed === true,
-          index
+          index,
+          title: typeof record?.title === 'string' ? record.title.trim() : ''
         }
       };
     })
@@ -69,9 +70,11 @@ export function createBrowserTreeState({
     if (!treeViewPanels.has(sectionId)) {
       treeViewPanels.set(sectionId, []);
     }
+    const rawTitle = typeof item.record?.title === 'string' ? item.record.title.trim() : '';
+    const displayTitle = rawTitle || (item.meta.index ? Graph  : 'Graph');
     treeViewPanels.get(sectionId).push({
       id: item.panelId,
-      name: (item.record?.name || `Graph ${item.meta.index}`),
+      name: displayTitle,
       hidden: item.record?.hidden === true
     });
   });
@@ -100,3 +103,6 @@ export function createBrowserTreeState({
     searchTerm // retain original casing for consumers that need raw value
   };
 }
+
+
+

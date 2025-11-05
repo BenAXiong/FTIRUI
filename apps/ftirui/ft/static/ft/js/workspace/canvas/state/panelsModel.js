@@ -27,6 +27,7 @@ const clonePanel = (panel) => {
     id: panel.id,
     type: panel.type,
     index: panel.index,
+    title: typeof panel.title === 'string' ? panel.title : '',
     x: panel.x,
     y: panel.y,
     width: panel.width,
@@ -112,6 +113,7 @@ export const createPanelsModel = (snapshot) => {
       id,
       type: incomingState.type || 'plot',
       index,
+      title: typeof incomingState.title === 'string' ? incomingState.title : '',
       x,
       y,
       width,
@@ -169,12 +171,22 @@ export const createPanelsModel = (snapshot) => {
     return clonePanel(panel);
   };
 
+  const setPanelTitle = (panelId, title) => {
+    const panel = getPanelInternal(panelId);
+    if (!panel) return null;
+    if (typeof title !== 'string') return clonePanel(panel);
+    panel.title = title.trim();
+    return clonePanel(panel);
+  };
+
   const setPanelSection = (panelId, sectionId) => {
     const panel = getPanelInternal(panelId);
     if (!panel) return null;
     panel.sectionId = sectionId || DEFAULT_SECTION_ID;
     return clonePanel(panel);
   };
+
+  const attachToSection = (panelId, sectionId) => setPanelSection(panelId, sectionId);
 
   const setPanelIndex = (panelId, index) => {
     const panel = getPanelInternal(panelId);
@@ -299,6 +311,7 @@ export const createPanelsModel = (snapshot) => {
     setPanelSection,
     setPanelIndex,
     setPanelZIndex,
+    setPanelTitle,
     bringPanelToFront,
     updatePanelFigure,
     addTrace,
@@ -310,6 +323,7 @@ export const createPanelsModel = (snapshot) => {
     getPanelsInIndexOrder,
     getPanelsInSection,
     getPanelFigure,
-    getPanelTraces
+    getPanelTraces,
+    attachToSection
   };
 };

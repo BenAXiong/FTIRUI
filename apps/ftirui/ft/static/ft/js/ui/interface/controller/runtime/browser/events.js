@@ -27,6 +27,7 @@ export function attachBrowserEvents(ctx = {}) {
     deleteGraphInteractive,
     requestGraphFileBrowse,
     startSectionRename,
+    startPanelRename = () => {},
     chipPanelsBridge
   } = ctx;
 
@@ -108,6 +109,10 @@ export function attachBrowserEvents(ctx = {}) {
     },
     startSectionRename: (sectionId, nameEl, opts) => {
       startSectionRename(sectionId, nameEl, opts);
+      return false;
+    },
+    startPanelRename: (panelId, nameEl, opts) => {
+      startPanelRename(panelId, nameEl, opts);
       return false;
     }
   });

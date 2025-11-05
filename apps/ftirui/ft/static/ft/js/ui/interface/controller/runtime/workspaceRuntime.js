@@ -167,6 +167,17 @@ const sectionsModel = {
   }
 };
 
+const defaultPanelTitle = (index) => {
+  const numeric = Number(index);
+  return Number.isFinite(numeric) && numeric > 0 ? `Graph ${numeric}` : 'Graph';
+};
+
+const resolvePanelTitle = (record) => {
+  const raw = typeof record?.title === 'string' ? record.title.trim() : '';
+  const index = Number(record?.index);
+  return raw || defaultPanelTitle(index);
+};
+
 
 export function initWorkspaceRuntime(context = {}) {
   colorCursorManager.reset();
@@ -212,6 +223,7 @@ export function initWorkspaceRuntime(context = {}) {
       ...existing,
       rootEl: handles.rootEl ?? existing.rootEl ?? null,
       headerEl: handles.headerEl ?? existing.headerEl ?? null,
+      titleEl: handles.titleEl ?? existing.titleEl ?? null,
       plotEl: handles.plotEl ?? existing.plotEl ?? null,
       runtime
     };
@@ -243,6 +255,24 @@ export function initWorkspaceRuntime(context = {}) {
 
   const getPanelsOrdered = () => panelsModel.getPanelsInIndexOrder();
 
+  const allocatePanelIndex = (preferredIndex) => {
+    if (Number.isInteger(preferredIndex) && preferredIndex > 0) {
+      return preferredIndex;
+    }
+    const used = new Set();
+    getPanelsOrdered().forEach((record) => {
+      const idx = Number(record?.index);
+      if (Number.isInteger(idx) && idx > 0) {
+        used.add(idx);
+      }
+    });
+    let cursor = 1;
+    while (used.has(cursor)) {
+      cursor += 1;
+    }
+    return cursor;
+  };
+
   const getPanelTraces = (panelId) => panelsModel.getPanelTraces(panelId) || [];
 
   const ensurePanelRuntime = (panelId) => {
@@ -255,11 +285,7 @@ export function initWorkspaceRuntime(context = {}) {
     return dom.runtime;
   };
 
-  const getNextPanelSequence = () => {
-    const snapshot = typeof panelsModel.snapshot === 'function' ? panelsModel.snapshot() : null;
-    const counter = Number(snapshot?.counter) || 0;
-    return counter + 1;
-  };
+  const getNextPanelSequence = () => allocatePanelIndex();
 
   const updatePanelRuntime = (panelId, patch = {}) => {
     const runtime = ensurePanelRuntime(panelId);
@@ -282,6 +308,8 @@ let updateCanvasState = () => {};
     updateHistoryButtons,
     persist
   });
+  const registerPanelProxy = (...args) => registerPanel(...args);
+
   const snapshotManager = createSnapshotManager({
     panelsModel,
     sectionManager,
@@ -291,7 +319,7 @@ let updateCanvasState = () => {};
       panelDomRegistry,
       detachPanelDom
     },
-    registerPanel,
+    registerPanel: registerPanelProxy,
     updateCanvasState,
     renderBrowser,
     setActivePanel,
@@ -928,6 +956,44 @@ let updateCanvasState = () => {};
     });
   };
 
+  const applyAllPanelZIndices = () => {
+    if (!panelsModel?.getPanels) return;
+    const panels = panelsModel.getPanels();
+    if (!Array.isArray(panels)) return;
+    panels.forEach((panel) => {
+      if (!panel || !panel.id) return;
+      applyPanelZIndex(panel.id);
+    });
+  };
+
+  const reorderPanelsByZIndex = () => {
+    if (!panelsModel?.getPanels || !canvas) return;
+    const panels = panelsModel.getPanels();
+    if (!Array.isArray(panels) || !panels.length) return;
+    const sorted = panels
+      .map((panel) => ({
+        id: panel?.id,
+        z: Number(panel?.zIndex) || 0,
+        dom: getPanelDom(panel?.id)
+      }))
+      .filter((entry) => entry.id && entry.dom?.rootEl)
+      .sort((a, b) => (a.z - b.z));
+    sorted.forEach(({ dom }) => {
+      canvas.appendChild(dom.rootEl);
+    });
+  };
+
+  const updatePanelTitleDom = (panelId, title) => {
+    const dom = getPanelDom(panelId);
+    if (!dom) return;
+    if (dom.titleEl) {
+      dom.titleEl.textContent = title;
+    }
+    if (dom.rootEl) {
+      dom.rootEl.dataset.graphTitle = title;
+    }
+  };
+
   const queueSectionRename = (sectionId) => {
     pendingRenameSectionId = sectionId;
   };
@@ -984,6 +1050,66 @@ let updateCanvasState = () => {};
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
+  } catch {}
+  }
+  };
+
+  const startPanelRename = (panelId, nameEl, { selectAll = false } = {}) => {
+    const record = getPanelRecord(panelId);
+    if (!record || !nameEl) return;
+    if (nameEl.dataset.editing === '1') return;
+    const original = resolvePanelTitle(record);
+    nameEl.dataset.editing = '1';
+    const finish = (commit, value) => {
+      nameEl.dataset.editing = '0';
+      nameEl.contentEditable = 'false';
+      nameEl.classList.remove('is-editing');
+      nameEl.removeEventListener('blur', onBlur);
+      nameEl.removeEventListener('keydown', onKey);
+      if (!commit) {
+        nameEl.textContent = original;
+        return;
+      }
+      const nextRaw = value ?? nameEl.textContent;
+      const nextCandidate = (nextRaw ?? '').trim();
+      const nextTitle = nextCandidate || defaultPanelTitle(record.index);
+      if (nextTitle === original) {
+        nameEl.textContent = original;
+        return;
+      }
+      const appliedTitle = nextTitle;
+      nameEl.textContent = appliedTitle;
+      pushHistory();
+      panelsModel.setPanelTitle(panelId, appliedTitle);
+      updatePanelTitleDom(panelId, appliedTitle);
+      persist();
+      renderBrowser();
+      updateHistoryButtons();
+    };
+    const onBlur = () => finish(true);
+    const onKey = (evt) => {
+      if (evt.key === 'Enter') {
+        evt.preventDefault();
+        finish(true);
+      } else if (evt.key === 'Escape') {
+        evt.preventDefault();
+        finish(false, original);
+      }
+    };
+    nameEl.contentEditable = 'true';
+    nameEl.spellcheck = false;
+    nameEl.classList.add('is-editing');
+    nameEl.textContent = original;
+    nameEl.addEventListener('blur', onBlur);
+    nameEl.addEventListener('keydown', onKey);
+    nameEl.focus();
+    if (selectAll && typeof window !== 'undefined') {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(nameEl);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
       } catch {}
     }
   };
@@ -1004,8 +1130,9 @@ let updateCanvasState = () => {};
     if (!record) return;
     pushHistory();
     const nextHidden = record.hidden !== true;
-    panelsModel.setHidden(panelId, nextHidden);
+    panelsModel.setPanelHidden(panelId, nextHidden);
     persist();
+    refreshPanelVisibility();
     renderBrowser();
     updateHistoryButtons();
   };
@@ -1038,8 +1165,7 @@ let updateCanvasState = () => {};
     }, { sectionId });
     if (panelId) {
       const record = getPanelRecord(panelId);
-      const labelIndex = record?.index || 0;
-      const label = labelIndex ? `Graph ${labelIndex}` : 'Graph';
+      const label = resolvePanelTitle(record);
       showToast(`${label} added to group.`, 'success');
     }
   };
@@ -1047,6 +1173,14 @@ let updateCanvasState = () => {};
   renderBrowser = () => {
     if (!browserFacade) return;
     browserFacade.render();
+    panelDomRegistry.forEach((_, panelId) => {
+      const record = getPanelRecord(panelId);
+      if (record) {
+        updatePanelTitleDom(panelId, resolvePanelTitle(record));
+      }
+    });
+    applyAllPanelZIndices();
+    reorderPanelsByZIndex();
   };
 
   const focusSectionById = (sectionId, { scrollBrowser = true } = {}) => {
@@ -1082,17 +1216,13 @@ let updateCanvasState = () => {};
   const deleteSectionInteractive = (sectionId) => {
     const section = sections.get(sectionId);
     if (!section || section.locked) return;
-    if (typeof window !== 'undefined') {
-      const confirmed = window.confirm(`Delete group "${section.name || 'Group'}"? Graphs will move to Group 1.`);
-      if (!confirmed) return;
-    }
     pushHistory();
     const descendants = collectSectionDescendants(sectionId);
     getPanelsOrdered().forEach((record) => {
       const panelId = record?.id;
       if (!panelId) return;
       if (descendants.includes(record.sectionId)) {
-        panelsModel.attachToSection(panelId, DEFAULT_SECTION_ID);
+        removePanel(panelId, { pushToHistory: false });
       }
     });
     deleteSection(sectionId);
@@ -1105,12 +1235,6 @@ let updateCanvasState = () => {};
   const deleteGraphInteractive = (panelId) => {
     const record = getPanelRecord(panelId);
     if (!record) return;
-    const labelIndex = record?.index || 0;
-    const label = labelIndex ? `Graph ${labelIndex}` : 'this graph';
-    if (typeof window !== 'undefined') {
-      const confirmed = window.confirm(`Delete ${label}?`);
-      if (!confirmed) return;
-    }
     removePanel(panelId);
   };
 
@@ -1127,14 +1251,51 @@ let updateCanvasState = () => {};
 
     const candidateId = incomingState.id || randomPanelId();
     const incomingIndex = Number.isFinite(incomingState.index) ? incomingState.index : undefined;
+    const resolvedIndex = (useModelState && Number.isInteger(incomingIndex) && incomingIndex > 0)
+      ? incomingIndex
+      : allocatePanelIndex(incomingIndex);
+    const defaultTitle = defaultPanelTitle(resolvedIndex);
+    const incomingTitleCandidate = typeof incomingState.title === 'string'
+      ? incomingState.title
+      : '';
+    const normalizedTitleBase = incomingTitleCandidate.trim();
+    const normalizedTitle = normalizedTitleBase || defaultTitle;
+    const sequenceOffset = panelDomRegistry.size * 24;
+    const gutter = 36;
+    const defaultWidth = Number.isFinite(incomingState.width) ? incomingState.width : 440;
+    const defaultHeight = Number.isFinite(incomingState.height) ? incomingState.height : 300;
+    const resolveAutoX = () => {
+      if (useModelState && Number.isFinite(incomingState.x)) {
+        return incomingState.x;
+      }
+      const rect = typeof canvas?.getBoundingClientRect === 'function'
+        ? canvas.getBoundingClientRect()
+        : null;
+      const canvasWidth = Math.round(rect?.width || canvas?.clientWidth || 0);
+      if (canvasWidth > 0) {
+        const rightAligned = canvasWidth - defaultWidth - gutter;
+        if (rightAligned >= 0) {
+          return rightAligned;
+        }
+        return Math.max(0, canvasWidth - defaultWidth);
+      }
+      return gutter + sequenceOffset;
+    };
+    const resolveAutoY = () => {
+      if (useModelState && Number.isFinite(incomingState.y)) {
+        return incomingState.y;
+      }
+      return gutter + sequenceOffset;
+    };
     const candidateState = {
       id: candidateId,
       type: incomingState.type || 'plot',
-      index: incomingIndex,
-      x: Number.isFinite(incomingState.x) ? incomingState.x : 36 + panelDomRegistry.size * 24,
-      y: Number.isFinite(incomingState.y) ? incomingState.y : 36 + panelDomRegistry.size * 24,
-      width: Number.isFinite(incomingState.width) ? incomingState.width : 440,
-      height: Number.isFinite(incomingState.height) ? incomingState.height : 300,
+      index: resolvedIndex,
+      title: normalizedTitle,
+      x: resolveAutoX(),
+      y: resolveAutoY(),
+      width: defaultWidth,
+      height: defaultHeight,
       collapsed: !!incomingState.collapsed,
       hidden: incomingState.hidden === true,
       sectionId: sections.has(incomingState.sectionId) ? incomingState.sectionId : DEFAULT_SECTION_ID,
@@ -1185,6 +1346,8 @@ let updateCanvasState = () => {};
       panelState: baseState,
       runtime
     });
+
+    updatePanelTitleDom(panelId, resolvePanelTitle(baseState));
 
     normalizePanelTraces(panelId);
 
@@ -1290,10 +1453,12 @@ let updateCanvasState = () => {};
     });
     panelDomRegistry.clear();
     panelsModel.load({ counter: 0, items: [] });
+    sectionManager.reset();
+    ensureDefaultSection();
+    pendingRenameSectionId = null;
 
     setActivePanel(null);
     colorCursorManager.reset();
-    ensureDefaultSection();
     refreshPanelVisibility();
     updateToolbarMetrics();
     updateCanvasState();
@@ -1326,7 +1491,8 @@ let updateCanvasState = () => {};
       handleHeaderAction,
       removePanel: (panelId) => removePanel(panelId),
       bringPanelToFront,
-      updateToolbarMetrics
+      updateToolbarMetrics,
+      startPanelRename
     },
     selectors: {
       getPanelFigure
@@ -1471,6 +1637,7 @@ let updateCanvasState = () => {};
       showToast,
       queueSectionRename,
       startSectionRename,
+      startPanelRename,
       getPendingRenameSectionId: () => pendingRenameSectionId,
       clearPendingRenameSectionId: () => {
         pendingRenameSectionId = null;
@@ -1619,3 +1786,6 @@ let updateCanvasState = () => {};
     getPanelDomRegistry: () => panelDomRegistry
   };
 }
+
+
+

@@ -119,6 +119,32 @@ export function createIoFacade({
     let historyPushed = false;
     let ingestedCount = 0;
     const failures = [];
+    const formatIngestError = (error) => {
+      if (!error) return 'Unknown error';
+      const raw = typeof error?.message === 'string' ? error.message : String(error);
+      const segments = raw.split('\n').filter(Boolean);
+      const headline = segments.shift() || 'Upload failed';
+      let detail = '';
+      for (const segment of segments) {
+        if (detail) break;
+        if (!segment.trim()) continue;
+        if (segment.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(segment);
+            if (parsed && typeof parsed.error === 'string') {
+              detail = parsed.error;
+              break;
+            }
+          } catch {
+            detail = segment.trim();
+          }
+        } else {
+          detail = segment.trim();
+        }
+      }
+      return detail ? `${headline} – ${detail}` : headline;
+    };
+
     for (const file of safeFiles) {
       try {
         const payload = await uploadTraceFile(file, 'auto');
@@ -133,10 +159,17 @@ export function createIoFacade({
         }, { skipHistory: true, skipPersist: true });
         ingestedCount += 1;
       } catch (err) {
-        console.info('Skipping file that could not be ingested', file?.name || file, err);
+        const friendlyName = decodeName(file?.name || '');
+        const summary = formatIngestError(err);
+        console.warn(
+          '[workspace:upload] Skipping %s: %s',
+          friendlyName || 'unnamed file',
+          summary
+        );
+        console.debug('[workspace:upload] Full ingest error details', err);
         failures.push({
           name: decodeName(file?.name || ''),
-          error: err?.message || String(err)
+          error: summary
         });
       }
     }

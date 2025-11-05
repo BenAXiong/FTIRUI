@@ -106,6 +106,7 @@ export function createBrowserFacade({
       deleteGraphInteractive: actions.deleteGraphInteractive,
       requestGraphFileBrowse: actions.requestGraphFileBrowse,
       startSectionRename: actions.startSectionRename,
+      startPanelRename: actions.startPanelRename,
       chipPanelsBridge: services.chipPanelsBridge
     });
   };

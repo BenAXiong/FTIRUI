@@ -1,0 +1,34 @@
+*** Begin Patch
+*** Update File: apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/workspaceRuntime.js
+@@
+   const refreshPanelVisibility = () => {
+     panelDomRegistry.forEach((dom, panelId) => {
+       const record = getPanelRecord(panelId) || {};
+       const sectionId = sections.has(record.sectionId) ? record.sectionId : DEFAULT_SECTION_ID;
+       const sectionVisible = isSectionVisible(sectionId);
+       const graphVisible = record.hidden !== true;
+       const shouldShow = sectionVisible && graphVisible;
+       const rootEl = dom?.rootEl;
+       if (rootEl) {
+         rootEl.style.display = shouldShow ? '' : 'none';
+         rootEl.classList.toggle('is-hidden-by-group', !sectionVisible);
+         rootEl.classList.toggle('is-hidden-by-graph', !graphVisible);
+         rootEl.classList.toggle('is-collapsed', record.collapsed === true);
+       }
+       const plotHost = dom?.plotEl;
+       if (shouldShow) {
+         Plot.resize(panelId);
+       }
+     });
+   };
++
++  const applyAllPanelZIndices = () => {
++    if (!panelsModel?.getPanels) return;
++    const panels = panelsModel.getPanels();
++    if (!Array.isArray(panels)) return;
++    panels.forEach((panel) => {
++      if (!panel || !panel.id) return;
++      applyPanelZIndex(panel.id);
++    });
++  };
+*** End Patch

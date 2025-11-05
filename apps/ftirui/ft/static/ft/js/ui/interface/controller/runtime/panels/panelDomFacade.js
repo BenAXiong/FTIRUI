@@ -9,7 +9,8 @@ export function createPanelDomFacade({
     handleHeaderAction = () => {},
     removePanel = () => {},
     bringPanelToFront = () => {},
-    updateToolbarMetrics = () => {}
+    updateToolbarMetrics = () => {},
+    startPanelRename = () => {}
   } = actions;
 
   const {
@@ -30,13 +31,23 @@ export function createPanelDomFacade({
         panelEl.className = 'workspace-panel';
         panelEl.dataset.panelId = panelId;
         panelEl.dataset.graphIndex = String(panelState.index);
+        const initialTitle = (typeof panelState.title === 'string' && panelState.title.trim())
+          ? panelState.title.trim()
+          : (Number.isInteger(panelState.index) && panelState.index > 0 ? `Graph ${panelState.index}` : 'Graph');
+        panelEl.dataset.graphTitle = initialTitle;
 
         const header = document.createElement('div');
         header.className = 'workspace-panel-header';
 
         const title = document.createElement('div');
         title.className = 'workspace-panel-title';
-        title.textContent = `Graph ${panelState.index}`;
+        title.dataset.panelId = panelId;
+        const resolvedTitle = initialTitle;
+        title.textContent = resolvedTitle;
+        title.addEventListener('dblclick', (evt) => {
+          evt.stopPropagation();
+          startPanelRename(panelId, title, { selectAll: true });
+        });
 
         const actions = document.createElement('div');
         actions.className = 'workspace-panel-actions';
@@ -933,6 +944,7 @@ export function createPanelDomFacade({
         safeRegisterPanelDom(panelId, {
           rootEl: panelEl,
           headerEl: header,
+          titleEl: title,
           plotEl: plotHost,
           runtime
         });

@@ -132,7 +132,8 @@ export function renderBrowserTree(ctx, state) {
     const resolvedPanelId = meta.id || panelId;
     const traces = getPanelTraces(resolvedPanelId);
     const labelIndex = meta.index || record?.index || 0;
-    const label = labelIndex ? `Graph ${labelIndex}` : 'Graph';
+    const rawTitle = typeof record?.title === 'string' ? record.title.trim() : '';
+    const label = rawTitle || (labelIndex ? `Graph ${labelIndex}` : 'Graph');
     const graphMatches = !term || label.toLowerCase().includes(term);
     const rows = traces.map((trace, idx) => {
       const name = trace?.name || `Trace ${idx + 1}`;
@@ -144,7 +145,8 @@ export function renderBrowserTree(ctx, state) {
       rows: visibleRows,
       graphMatches,
       hasVisible: visibleRows.length > 0,
-      panelId: resolvedPanelId
+      panelId: resolvedPanelId,
+      title: label
     };
   };
 
@@ -314,9 +316,10 @@ export function renderBrowserTree(ctx, state) {
     const { meta, panelId, record } = panelItem;
     const resolvedPanelId = meta.id || panelId;
     const traceInfo = makeTraceRows(panelItem);
-    if (!traceInfo.hasVisible) return null;
     const graphIndex = meta.index || record?.index || 0;
-    const graphLabel = graphIndex ? `Graph ${graphIndex}` : 'Graph';
+    const graphLabel = traceInfo.title
+      || (typeof record?.title === 'string' ? record.title.trim() : '')
+      || (graphIndex ? `Graph ${graphIndex}` : 'Graph');
     const collapsed = meta.collapsed === true;
     const hidden = meta.hidden === true;
     const sectionVisibility = isSectionVisible(sectionId);
@@ -328,6 +331,7 @@ export function renderBrowserTree(ctx, state) {
     node.dataset.panelId = resolvedPanelId;
     node.dataset.sectionId = sectionId;
     node.dataset.depth = String(depth + 1);
+    node.dataset.graphTitle = graphLabel;
     const fullyVisible = sectionVisibility && graphVisible;
     node.dataset.visible = fullyVisible ? 'true' : 'false';
     node.dataset.sectionVisible = sectionVisibility ? 'true' : 'false';
@@ -355,6 +359,7 @@ export function renderBrowserTree(ctx, state) {
     const name = document.createElement('span');
     name.className = 'folder-name graph-name';
     name.textContent = graphLabel;
+    name.dataset.panelId = resolvedPanelId;
     if (!graphVisible) {
       name.classList.add('is-muted');
     }
@@ -416,27 +421,6 @@ export function renderBrowserTree(ctx, state) {
 
     children.appendChild(tracesWrap);
     node.appendChild(children);
-
-    graphVisibilityBtn.addEventListener('click', () => {
-      toggleGraphVisibility(resolvedPanelId);
-    });
-
-    graphBrowseBtn.addEventListener('click', () => {
-      requestGraphFileBrowse?.(resolvedPanelId);
-    });
-
-    graphDeleteBtn.addEventListener('click', () => {
-      deleteGraphInteractive(resolvedPanelId);
-    });
-
-    toggle.addEventListener('click', () => {
-      togglePanelCollapsedState(resolvedPanelId);
-    });
-
-    header.addEventListener('click', (evt) => {
-      if (evt.target.closest('.btn-icon')) return;
-      bringPanelToFront(resolvedPanelId, { scrollBrowser: false });
-    });
 
     return node;
   };
@@ -563,40 +547,6 @@ export function renderBrowserTree(ctx, state) {
 
     node.appendChild(container);
     renderedSomething = true;
-
-    toggle.addEventListener('click', () => {
-      toggleSectionCollapsedState(sectionId);
-    });
-
-    visibilityBtn.addEventListener('click', () => {
-      toggleSectionVisibility(sectionId);
-    });
-
-    addGraphBtn.addEventListener('click', () => {
-      addGraphToSection(sectionId);
-      rerender();
-    });
-
-    addSubBtn?.addEventListener('click', () => {
-      pushHistory();
-      const section = createSection(null, { parentId: sectionId });
-      if (section?.id) {
-        queueSectionRename(section.id);
-      }
-      persist();
-      updateHistoryButtons();
-      rerender();
-    });
-
-    const deleteBtn = actions.querySelector('.section-delete');
-    deleteBtn?.addEventListener('click', () => {
-      deleteSectionInteractive(sectionId);
-    });
-
-    header.addEventListener('click', (evt) => {
-      if (evt.target.closest('.btn-icon')) return;
-      focusSectionById(sectionId, { scrollBrowser: false });
-    });
 
     return node;
   };

@@ -53,7 +53,8 @@ export function attach(rootEl, options = {}) {
     deleteSection: options.deleteSection ?? noop,
     deletePanel: options.deletePanel ?? noop,
     browsePanel: options.browsePanel ?? noop,
-    startSectionRename: options.startSectionRename ?? noop
+    startSectionRename: options.startSectionRename ?? noop,
+    startPanelRename: options.startPanelRename ?? noop
   };
 
   const handleStatefulResult = (result) => {
@@ -176,6 +177,14 @@ export function attach(rootEl, options = {}) {
   };
 
   const handleDoubleClick = (event) => {
+    const graphNameEl = event.target?.closest('.graph-name');
+    if (graphNameEl) {
+      const panelId = resolvePanelId(graphNameEl);
+      if (panelId) {
+        callGuarded(context.startPanelRename, panelId, graphNameEl, { selectAll: true });
+      }
+      return;
+    }
     const nameEl = event.target?.closest('.section-name');
     if (!nameEl) return;
     const sectionId = nameEl.dataset?.sectionId;
