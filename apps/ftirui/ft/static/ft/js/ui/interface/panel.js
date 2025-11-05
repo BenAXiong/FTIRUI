@@ -56,8 +56,8 @@ export function bindPanel(instance, { renderTree, onFiles, recordHistory, update
   }
 
   // Search UI
-  const searchBtn = panel.search || document.getElementById('b_panel_search');
-  const searchInput = panel.searchInput || document.getElementById('b_panel_search_input');
+  const searchBtn = panel.search || null;
+  const searchInput = panel.searchInput || null;
   if (searchBtn && searchInput) {
     panel.search = searchBtn; panel.searchInput = searchInput;
     const clearHighlights = () => {
@@ -123,7 +123,7 @@ export function bindPanel(instance, { renderTree, onFiles, recordHistory, update
   }
 
   // Sort A–Z
-  const sortBtn = panel.sort || document.getElementById('b_panel_sort');
+  const sortBtn = panel.sort || null;
   if (sortBtn) {
     panel.sort = sortBtn;
     sortBtn.addEventListener('click', () => {

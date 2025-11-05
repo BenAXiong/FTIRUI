@@ -15,7 +15,8 @@ export function createPersistenceFacade({
   storage,
   hooks = {},
   helpers = {},
-  notifications = {}
+  notifications = {},
+  snapshot: snapshotManager = null
 } = {}) {
   const {
     undo: undoButton = null,
@@ -32,9 +33,23 @@ export function createPersistenceFacade({
   const panelsModel = models.panelsModel || null;
   const deepClone = helpers.deepClone || defaultDeepClone;
 
-  const buildSnapshot = hooks.buildSnapshot || (() => ({}));
-  const restoreSnapshot = hooks.restoreSnapshot || (() => {});
-  const closeMenu = hooks.closeMenu || (() => {});
+  const {
+    buildSnapshot: buildSnapshotHook,
+    restoreSnapshot: restoreSnapshotHook,
+    closeMenu: closeMenuHook
+  } = hooks || {};
+
+  const snapshotApi = snapshotManager || {};
+  const buildSnapshot = typeof snapshotApi.snapshot === 'function'
+    ? () => snapshotApi.snapshot()
+    : (typeof buildSnapshotHook === 'function' ? buildSnapshotHook : () => ({}));
+  const restoreSnapshot = typeof snapshotApi.restore === 'function'
+    ? (value, options) => snapshotApi.restore(value, options)
+    : (typeof restoreSnapshotHook === 'function' ? restoreSnapshotHook : () => {});
+  const clearSnapshotState = typeof snapshotApi.clear === 'function'
+    ? () => snapshotApi.clear()
+    : () => {};
+  const closeMenu = typeof closeMenuHook === 'function' ? closeMenuHook : () => {};
 
   const showToast = notifications.showToast || (() => {});
 
@@ -194,6 +209,7 @@ export function createPersistenceFacade({
     const hadSnapshot = storage.hasSnapshot?.() ?? false;
     const cleared = storage.clear();
     if (hadSnapshot && cleared) {
+      clearSnapshotState();
       storageQueueWarningShown = false;
       showToast('Saved workspace snapshot cleared.', 'info');
     } else if (!hadSnapshot) {

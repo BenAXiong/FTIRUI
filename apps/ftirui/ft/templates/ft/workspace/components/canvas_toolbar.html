@@ -1,0 +1,68 @@
+<div class="workspace-toolbar" role="toolbar" aria-label="Workspace actions">
+  <div class="btn-group btn-group-sm" role="group" aria-label="Canvas actions">
+    <button id="c_canvas_add_plot" class="btn btn-primary workspace-toolbar-btn" type="button" title="Add plot" aria-label="Add plot">
+      <i class="bi bi-graph-up workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Add plot</span>
+    </button>
+    <button id="c_canvas_reset_layout" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Reset layout" aria-label="Reset layout">
+      <i class="bi bi-arrow-counterclockwise workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Reset layout</span>
+    </button>
+  </div>
+  <div class="btn-group btn-group-sm" role="group" aria-label="Canvas panel types">
+    <button id="c_canvas_add_markdown" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Markdown" aria-label="Markdown" disabled>
+      <i class="bi bi-markdown workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Markdown</span>
+    </button>
+    <button id="c_canvas_add_sheet" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Spreadsheet" aria-label="Spreadsheet" disabled>
+      <i class="bi bi-table workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Spreadsheet</span>
+    </button>
+    <button id="c_canvas_add_script" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Script" aria-label="Script" disabled>
+      <i class="bi bi-code-slash workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Script</span>
+    </button>
+    <button id="c_canvas_add_images" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Images" aria-label="Images" disabled>
+      <i class="bi bi-images workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Images</span>
+    </button>
+  </div>
+  <div class="btn-group btn-group-sm" role="group" aria-label="Canvas import">
+    <button id="c_canvas_demo_btn" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Load demo files" aria-label="Load demo files">
+      <i class="bi bi-collection-play workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Load demo files</span>
+    </button>
+    <button id="c_canvas_browse_btn" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Browse files" aria-label="Browse files">
+      <i class="bi bi-folder2-open workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Browse files</span>
+    </button>
+  </div>
+  <div class="dropdown workspace-toolbar-dropdown">
+    <button id="c_canvas_more_btn" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="More workspace tools" aria-label="More workspace tools" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-three-dots workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">More workspace tools</span>
+    </button>
+    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="c_canvas_more_btn">
+      <button class="dropdown-item" type="button">
+        <i class="bi bi-funnel"></i>
+        <span>ATR correction</span>
+      </button>
+      <button class="dropdown-item" type="button">
+        <i class="bi bi-graph-up-arrow"></i>
+        <span>Peak integration</span>
+      </button>
+      <button class="dropdown-item" type="button">
+        <i class="bi bi-collection"></i>
+        <span>Spectral library</span>
+      </button>
+      <button class="dropdown-item" type="button">
+        <i class="bi bi-bezier"></i>
+        <span>Derivatization</span>
+      </button>
+      <button class="dropdown-item" type="button">
+        <i class="bi bi-activity"></i>
+        <span>Smoothing</span>
+      </button>
+    </div>
+  </div>
+</div>

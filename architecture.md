@@ -72,16 +72,12 @@ mlirui/
 - `static/ft/js/core/state.js` initialises the global application state (folders, traces, global settings) and exports helpers (IDs, colour palette, root folder ID).
 - `static/ft/js/core/plot.js` builds Plotly traces/layouts based on the state and triggers re-renders.
 - `static/ft/js/core/parse.js` (legacy) contains preview parsing utilities (distinct from backend parsing).
-- `static/ft/js/ui/interfaceB.js` is the primary UI controller:
-  - Handles drag-and-drop uploads, file input submission, and demo preload.
-  - Calls `/api/xy/`, applies the backend’s `ingest_mode`, and normalises the displayed data via `applyDisplayUnits`.
-  - Manages folder tree UI, trace editing, and session save/load dialogs.
-  - Controls Input-mode toggles (Auto/A/T) that sync with backend detection.
+- Legacy Option B UI (`static/ft/js/ui/interfaceB.js`) has been retired. The active workspace experience now lives under `static/ft/js/ui/interface/controller/runtime/`, which orchestrates uploads, plotting, history, and persistence through modular facades.
 - `static/ft/app.js` bootstraps shared UI chrome (theme toggle, account widget, toast notifications). It consumes `/api/me/`, emits `ftir:user-status` events, and exposes `window.showAppToast` so feature modules can surface consistent feedback.
 - Additional UI helpers under `static/ft/js/lib/` provide CSRF handling, etc.
 
 ### 4.3 Data Flow
-1. User selects/drops a file in `interfaceB.js`.
+1. User selects/drops a file via the workspace IO facade (`static/ft/js/ui/interface/controller/runtime/io/facade.js`) orchestrated by `workspaceRuntime.js`.
 2. Front-end FormData posts to `/api/xy/`, passing the current input units preference (`auto|abs|tr`).
 3. Django endpoint reads the file, normalises the Y axis, infers the ingest mode, and returns `{x, y, meta, ingest_mode}`.
 4. Front-end state stores both raw (`trace.source.y`) and display data (`trace.data.y`); metadata is shown as tooltips in the folder tree.
@@ -105,14 +101,14 @@ mlirui/
 
 ### 5.3 Contributor Tips
 - Keep backend parsing deterministic; subtle differences in normalization cascade to the UI.
-- When touching `interfaceB.js`, be mindful of the global state mutations—multiple features depend on consistent keys (`inputAuto`, `inputMode`, folder structures).
+- When touching the workspace runtime stack (`workspaceRuntime.js` and its facades), be mindful of the global state mutations—multiple features depend on consistent keys (`inputAuto`, `inputMode`, folder structures).
 - For static assets, maintain ASCII unless existing file uses unicode (project policy).
 
 ---
 
 ## 6. Known Pain Points
 
-- **Large single-file JS controllers**: `interfaceB.js` exceeds 1.5k LOC, mixing DOM wiring, state mutation, and network calls with minimal modularisation.
+- **Large orchestration modules**: `workspaceRuntime.js` still coordinates many concerns; keep pushing logic into dedicated facades/managers to maintain separation of responsibilities.
 - **Limited automated verification**: Lack of tests increases regression risk for parsing and unit conversion logic.
 - **Synchronous/local session storage**: Session persistence uses filesystem JSON files, complicating multi-user or cloud deployment.
 - **Duplicate parsing logic**: Backend `_read_tabular_upload` and front-end `core/parse.js` are divergent, risking inconsistent behaviour in previews vs full ingestion.

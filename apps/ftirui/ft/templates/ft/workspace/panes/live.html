@@ -1,0 +1,30 @@
+<!-- Connect -->
+<div id="live" class="tab-pane fade" role="tabpanel">
+  <div class="plot-b-wrapper mt-2">
+    <aside class="plot-b-panel" aria-label="Instrument browser">
+      <div class="panel-toolbar">
+        <span class="panel-title flex-grow-1">Instrument</span>
+      </div>
+      <div class="panel-body d-flex align-items-center justify-content-center">
+        <div class="text-muted small">No live sources connected</div>
+      </div>
+    </aside>
+
+    <div class="plot-b-main">
+      <div class="card connect-card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-broadcast-pin text-primary"></i>
+          <span class="fw-semibold">Live acquisition</span>
+        </div>
+        <div class="card-body">
+          <div class="plot-panel idle rounded d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 320px;">
+            <p class="text-muted mb-3">Ready to connect to your FT-IR instrument.</p>
+            <button id="live_connect_btn" class="btn btn-primary btn-lg">
+              <i class="bi bi-plug me-2"></i>Connect to instrument
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

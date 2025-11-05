@@ -1,5 +1,3 @@
-import { createState }   from './js/core/state.js';
-import { initUI_IntB } from './js/ui/interfaceB.js';
 import { initWorkspaceCanvas } from './js/ui/interface/workspaceCanvas.js';
 import { getCsrfToken } from './js/lib/csrf.js';
 
@@ -521,32 +519,10 @@ btnClose?.addEventListener('click', closePreviewPopup);
 
 
 
-// Tabs M1
+// Workspace tab bootstrap
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Lazy init Option B when its tab is first shown
-  const plotBTab = document.getElementById('tab-plotB');
-  const plotCTab = document.getElementById('tab-plotC');
-  let initializedB = false;
   let initializedCanvas = false;
-
-  const initPlotB = () => {
-    if (initializedB) return;
-
-    const instanceB = {
-      dom: {
-        plot: document.getElementById('b_plot_el'),
-        dz:   document.getElementById('b_dropzone'),
-        inp:  document.getElementById('b_file_input'),
-        demoBtn: document.getElementById('b_demo_btn'),
-        browseBtn: document.getElementById('b_browse_btn')
-      },
-      state: createState(),   // fresh, independent state for Plot B
-    };
-
-    initUI_IntB(instanceB);   // sets up DnD + multi-file ingest + render
-    initializedB = true;
-  };
 
   const initCanvas = () => {
     if (initializedCanvas) return;
@@ -554,15 +530,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initializedCanvas = true;
   };
 
-  plotBTab?.addEventListener('shown.bs.tab', initPlotB);
-  plotCTab?.addEventListener('shown.bs.tab', initCanvas);
-
-  if (document.getElementById('pane-plotB')?.classList.contains('show')) {
-    initPlotB();
-  }
-  if (document.getElementById('pane-plotC')?.classList.contains('show')) {
-    initCanvas();
-  }
+  initCanvas();
+  document.getElementById('tab-plotC')?.addEventListener('shown.bs.tab', initCanvas);
 });
-
-

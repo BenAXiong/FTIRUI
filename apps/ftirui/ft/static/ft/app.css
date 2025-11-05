@@ -1,8 +1,14 @@
+/* ==========================================================================
+   Global Utilities & Resets
+   ========================================================================== */
 .toast-container{z-index:1080;}
 .tab-pane { padding-top: 1rem; }
 table.preview-table { font-variant-numeric: tabular-nums; }
 .toolbar .btn { white-space: nowrap; }
 .header-actions{ flex-wrap:wrap; }
+/* --------------------------------------------------------------------------
+   Header / User Profile Widget
+   -------------------------------------------------------------------------- */
 .user-status{
   background: var(--bs-body-bg);
   border-radius: .75rem;
@@ -77,6 +83,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 }
 .small-help { font-size: .825rem; color:#6c757d; }
 
+/* ==========================================================================
+   Layout Shell & Tab Container
+   ========================================================================== */
 .app-frame{
   min-height:100vh;
   display:flex;
@@ -100,6 +109,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   flex-direction:column;
   min-height:0;
 }
+/* ==========================================================================
+   Workspace Pane
+   ========================================================================== */
 #pane-plotC.workspace-pane{
   flex:1 1 auto;
   min-height: var(--workspace-pane-height, 0);
@@ -124,6 +136,10 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   min-width:0;
   overflow:hidden;
 }
+
+/* --------------------------------------------------------------------------
+   Workspace Browser Panel
+   -------------------------------------------------------------------------- */
 #pane-plotC .plot-b-panel{
   height:100%;
   display:flex;
@@ -162,6 +178,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   flex:1 1 auto;
   overflow:hidden;
 }
+/* --------------------------------------------------------------------------
+   Workspace Canvas & Toolbars
+   -------------------------------------------------------------------------- */
 #pane-plotC .workspace-canvas-wrapper{
   position:relative;
   display:flex;
@@ -890,6 +909,9 @@ pre, code, .pre-like {
 #btn_more_opts.collapsed .when-shown { display: none; }
 #btn_more_opts:not(.collapsed) .when-collapsed { display: none; }
 #btn_more_opts:not(.collapsed) .when-shown { display: inline; }
+/* --------------------------------------------------------------------------
+   Shared Panel Layout Helpers
+   -------------------------------------------------------------------------- */
 
 .plot-b-wrapper{
   display: flex;
@@ -1300,6 +1322,9 @@ pre, code, .pre-like {
   background:none;background-repeat:no-repeat;background-position:center;background-size:100% 100%;
 }
 
+/* --------------------------------------------------------------------------
+   Workspace Popovers & Chip Panels
+   -------------------------------------------------------------------------- */
 /* floating panels root */
 #chipPanels{
   position:fixed;
@@ -1354,6 +1379,9 @@ pre, code, .pre-like {
   width: 100%;                      /* fill the flex cell */
   display: block;                   /* avoid inline-gap quirks */
 }
+/* ==========================================================================
+   Tools Pane
+   ========================================================================== */
 
 .lab-tools-grid .lab-tool-card{
   display: flex;
@@ -1379,6 +1407,9 @@ pre, code, .pre-like {
 .lab-tool-card .card-body .btn.mt-auto{
   margin-top: 0 !important;
 }
+/* ==========================================================================
+   Live Pane
+   ========================================================================== */
 
 .connect-card .plot-panel{
   background: var(--bs-tertiary-bg);
@@ -1389,6 +1420,9 @@ pre, code, .pre-like {
   border-color: var(--bs-primary);
   transform: translateY(-2px);
 }
+/* ==========================================================================
+   Dashboard Pane
+   ========================================================================== */
 
 .dashboard-tile{
   display: flex;
@@ -1555,6 +1589,9 @@ pre, code, .pre-like {
     padding: .9rem;
   }
 }
+/* ==========================================================================
+   About Pane
+   ========================================================================== */
 
 .about-columns{
   display: grid;

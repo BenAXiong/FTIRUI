@@ -1,0 +1,18 @@
+<div class="plot-b-main">
+  <div class="card workspace-card workspace-canvas-card">
+    <div class="card-body workspace-card-body workspace-canvas-card-body">
+      <div class="workspace-canvas-wrapper">
+        {% include 'ft/workspace/components/canvas_toolbar.html' %}
+        <div id="c_canvas_root" class="workspace-canvas" role="region" aria-live="polite">
+          <div id="c_canvas_empty" class="workspace-empty">
+            <div class="workspace-empty-inner text-center">
+              <p class="mb-0 text-body-secondary">Drop files here or use the toolbar above to add graphs.</p>
+            </div>
+          </div>
+        </div>
+        <input id="c_canvas_file_input" type="file" multiple hidden>
+        {% include 'ft/workspace/components/canvas_toolbar_vertical.html' %}
+      </div>
+    </div>
+  </div>
+</div>

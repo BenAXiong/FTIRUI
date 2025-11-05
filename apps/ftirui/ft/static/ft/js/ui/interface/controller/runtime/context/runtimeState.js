@@ -7,7 +7,10 @@ export function createRuntimeState({
   getPanelDom,
   getActivePanelId,
   setActivePanel,
-  getNextPanelSequence
+  getNextPanelSequence,
+  managers: externalManagers = {},
+  services: externalServices = {},
+  helpers: externalHelpers = {}
 } = {}) {
   const safePanelsModel = panelsModel || null;
   const safeSectionManager = sectionManager || null;
@@ -83,7 +86,8 @@ export function createRuntimeState({
   };
 
   const managers = {
-    sections: safeSectionManager
+    sections: safeSectionManager,
+    ...externalManagers
   };
 
   const ui = {
@@ -100,11 +104,21 @@ export function createRuntimeState({
     hasPanels: () => ui.panelDomRegistry.size > 0
   };
 
+  const services = {
+    ...externalServices
+  };
+
+  const helpers = {
+    ...externalHelpers
+  };
+
   return {
     panels,
     sections: sectionsApi,
     ui,
     workspace,
-    managers
+    managers,
+    services,
+    helpers
   };
 }

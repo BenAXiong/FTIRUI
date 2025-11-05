@@ -23,6 +23,8 @@ import { createHeaderActions } from './panels/headerActions.js';
 import { createPlotFacade } from './panels/plotFacade.js';
 import { createSnapshotManager } from './state/snapshotManager.js';
 import { createHistoryHelpers } from './state/historyHelpers.js';
+import { createColorCursorManager } from './state/colorCursorManager.js';
+import { createPanelPreferencesManager } from './state/panelPreferencesManager.js';
 import { createPanelInteractions } from './panels/panelInteractions.js';
 import { createIoFacade } from './io/facade.js';
 import { createRuntimeState } from './context/runtimeState.js';
@@ -42,30 +44,10 @@ const PANEL_COLLAPSE_KEY = 'ftir.workspace.panelCollapsed.v1';
 const PANEL_PIN_KEY = 'ftir.workspace.panelPinned.v1';
 const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 
-const createHistoryHelpers = ({ pushHistory, updateHistoryButtons, persist } = {}) => ({
-  queueMutation(task, { persistChange = true } = {}) {
-    if (typeof task !== "function") return false;
-    pushHistory?.();
-    task();
-    if (persistChange) {
-      persist?.();
-    }
-    updateHistoryButtons?.();
-    return true;
-  },
-  push() {
-    pushHistory?.();
-  },
-  refresh() {
-    updateHistoryButtons?.();
-  },
-  persist() {
-    persist?.();
-  }
-});
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
-let colorCursor = 0;
+const colorCursorManager = createColorCursorManager();
+let panelPreferences = null;
 
 const sectionManager = createSectionManager({ defaultSectionId: DEFAULT_SECTION_ID });
 const sections = sectionManager.getMap();
@@ -106,8 +88,9 @@ const setDragState = (next) => {
 const getActivePanelId = () => activePanelId;
 
 const pickColor = () => {
-  const color = COLOR_PALETTE[colorCursor % COLOR_PALETTE.length];
-  colorCursor += 1;
+  const current = colorCursorManager.get();
+  const color = COLOR_PALETTE[current % COLOR_PALETTE.length];
+  colorCursorManager.increment();
   return color;
 };
 
@@ -183,7 +166,7 @@ const sectionsModel = {
 
 
 export function initWorkspaceRuntime(context = {}) {
-  colorCursor = 0;
+  colorCursorManager.reset();
   sectionManager.reset();
   chipPanelsInstance = null;
   dragState = null;
@@ -303,8 +286,7 @@ const getSearchTerm = () => searchTerm;
     updateCanvasState,
     renderBrowser,
     setActivePanel,
-    setColorCursor: (value) => { colorCursor = value; },
-    getColorCursor: () => colorCursor
+    colorCursor: colorCursorManager
   });
   const interact = typeof window !== 'undefined' ? window.interact : null;
   ensureDefaultSection();
@@ -438,7 +420,9 @@ const getSearchTerm = () => searchTerm;
     }
 
     if (browserHotspot) {
-      const showHotspot = (!panelPinned || panelDom.root?.classList.contains('collapsed')) && left > 0;
+      const pinned = panelPreferences?.isPanelPinned?.() ?? false;
+      const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root?.classList.contains('collapsed');
+      const showHotspot = (!pinned || collapsed) && left > 0;
       if (showHotspot) {
         browserHotspot.style.top = `${top}px`;
         browserHotspot.style.height = `${paneHeight}px`;
@@ -460,26 +444,29 @@ const getSearchTerm = () => searchTerm;
   };
 
   const chipContext = { lastRowId: null };
-  let panelPinned = false;
-
-  const isPanelCollapsed = () => !!panelDom.root?.classList.contains('collapsed');
+  
+  const isPanelCollapsed = () => panelPreferences?.isPanelCollapsed?.() ?? !!panelDom.root?.classList.contains('collapsed');
 
   const handlePanelHoverEnter = () => {
     if (!panelDom.root) return;
-    if (!panelPinned) {
+    const pinned = panelPreferences?.isPanelPinned?.() ?? false;
+    const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root?.classList.contains('collapsed');
+    if (!pinned) {
       panelDom.root.classList.add('peeking');
       panelDom.root.classList.add('is-active');
-    } else if (isPanelCollapsed()) {
+    } else if (collapsed) {
       panelDom.root.classList.add('peeking');
     }
   };
 
   const handlePanelHoverLeave = () => {
     if (!panelDom.root) return;
-    if (!panelPinned) {
+    const pinned = panelPreferences?.isPanelPinned?.() ?? false;
+    const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root?.classList.contains('collapsed');
+    if (!pinned) {
       panelDom.root.classList.remove('peeking');
       panelDom.root.classList.remove('is-active');
-    } else if (isPanelCollapsed()) {
+    } else if (collapsed) {
       panelDom.root.classList.remove('peeking');
     }
   };
@@ -498,12 +485,22 @@ const getSearchTerm = () => searchTerm;
 
   const updateCanvasOffset = () => {
     if (!canvasWrapper) return;
-    const collapsed = panelDom.root?.classList.contains('collapsed');
-    canvasWrapper.classList.toggle('browser-pinned', panelPinned);
-    canvasWrapper.classList.toggle('browser-floating', !panelPinned);
+    const pinned = panelPreferences?.isPanelPinned?.() ?? false;
+    const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root?.classList.contains('collapsed');
+    canvasWrapper.classList.toggle('browser-pinned', pinned);
+    canvasWrapper.classList.toggle('browser-floating', !pinned);
     canvasWrapper.classList.toggle('browser-collapsed', !!collapsed);
     requestLayoutSync();
   };
+
+  panelPreferences = createPanelPreferencesManager({
+    panelDom,
+    preferences: preferencesFacade,
+    updateCanvasOffset,
+    requestLayoutSync
+  });
+  panelPreferences.restorePinned();
+  panelPreferences.restoreCollapsed();
 
   const collectSectionAncestors = (sectionId) => {
     const result = [];
@@ -564,92 +561,6 @@ const getSearchTerm = () => searchTerm;
     applyActivePanelState(options);
   };
 
-  const updatePanelToggleUI = (expanded) => {
-    if (!panelDom.toggle) return;
-    const title = expanded ? 'Collapse browser' : 'Expand browser';
-    panelDom.toggle.setAttribute('aria-expanded', String(expanded));
-    panelDom.toggle.title = title;
-    const icon = panelDom.toggle.querySelector('i');
-    if (icon) {
-      icon.classList.toggle('bi-chevron-double-left', expanded);
-      icon.classList.toggle('bi-chevron-double-right', !expanded);
-    } else {
-      panelDom.toggle.innerHTML = expanded
-        ? '<i class="bi bi-chevron-double-left"></i>'
-        : '<i class="bi bi-chevron-double-right"></i>';
-    }
-  };
-
-  const setPanelCollapsed = (collapsed, { persist = true, silent = false } = {}) => {
-    if (!panelDom.root) return;
-    panelDom.root.classList.toggle('collapsed', collapsed);
-    if (!collapsed) {
-      panelDom.root.classList.remove('peeking');
-    }
-    updatePanelToggleUI(!collapsed);
-    if (persist) {
-      preferencesFacade?.setCollapsed(collapsed);
-    }
-    if (!silent) {
-      updateCanvasOffset();
-    }
-    requestLayoutSync();
-  };
-
-  const updatePanelPinUI = () => {
-    if (panelDom.pin) {
-      panelDom.pin.classList.toggle('is-active', panelPinned);
-      panelDom.pin.setAttribute('aria-pressed', String(panelPinned));
-      panelDom.pin.setAttribute('title', panelPinned ? 'Unpin browser' : 'Pin browser');
-      panelDom.pin.innerHTML = panelPinned
-        ? '<i class="bi bi-pin-angle-fill"></i>'
-        : '<i class="bi bi-pin-angle"></i>';
-    }
-    if (panelDom.root) {
-      panelDom.root.classList.toggle('is-floating', !panelPinned);
-      panelDom.root.classList.toggle('is-pinned', panelPinned);
-      if (panelPinned) {
-        panelDom.root.classList.remove('is-active');
-      }
-    }
-    requestLayoutSync();
-  };
-
-  const setPanelPinned = (value, { persist = true } = {}) => {
-    const next = !!value;
-    if (panelPinned === next) {
-      updatePanelPinUI();
-      updateCanvasOffset();
-      return;
-    }
-    panelPinned = next;
-    if (!panelPinned) {
-      panelDom.root?.classList.add('peeking');
-      setPanelCollapsed(false, { persist: false, silent: true });
-      preferencesFacade?.clearCollapsed();
-    } else {
-      panelDom.root?.classList.remove('peeking');
-    }
-    updatePanelPinUI();
-    updateCanvasOffset();
-    updatePanelToggleUI(!panelDom.root?.classList.contains('collapsed'));
-    if (persist) {
-      preferencesFacade?.setPinned(panelPinned);
-    }
-  };
-
-  const restorePanelCollapsed = () => {
-    const collapsed = preferencesFacade?.readCollapsed?.() ?? false;
-    setPanelCollapsed(collapsed, { persist: false });
-  };
-
-  const restorePanelPinned = () => {
-    panelPinned = preferencesFacade?.readPinned?.(panelPinned) ?? panelPinned;
-    setPanelPinned(panelPinned, { persist: false });
-  };
-
-  restorePanelPinned();
-  restorePanelCollapsed();
 
   const findTraceByRowId = (rowId) => {
     if (!rowId || typeof rowId !== 'string') return null;
@@ -914,10 +825,9 @@ const getSearchTerm = () => searchTerm;
     },
     storage,
     hooks: {
-      buildSnapshot: () => snapshotManager.snapshot(),
-      restoreSnapshot: (snapshot, opts) => snapshotManager.restore(snapshot, opts),
       closeMenu: closeWorkspaceMenu
     },
+    snapshot: snapshotManager,
     helpers: {
       deepClone
     },
@@ -941,6 +851,12 @@ const getSearchTerm = () => searchTerm;
     } = persistence);
     persistence.attachEvents();
   }
+  runtimeState.services = runtimeState.services || {};
+  runtimeState.services.history = historyHelpers;
+  runtimeState.services.persistence = persistence;
+  runtimeState.services.snapshot = snapshotManager;
+  runtimeState.managers = runtimeState.managers || {};
+  runtimeState.managers.snapshot = snapshotManager;
 
   const renderPlot = (panelId) => {
     if (!panelId) return;
@@ -1296,7 +1212,18 @@ const getSearchTerm = () => searchTerm;
     getPanelDom,
     getActivePanelId,
     setActivePanel,
-    getNextPanelSequence
+    getNextPanelSequence,
+    managers: {
+      panelPreferences,
+      colorCursor: colorCursorManager,
+      snapshot: snapshotManager
+    },
+    services: {
+      history: historyHelpers
+    },
+    helpers: {
+      colorCursor: colorCursorManager
+    }
   });
 
   const panelsFacade = createPanelsFacade({
@@ -1397,23 +1324,30 @@ const getSearchTerm = () => searchTerm;
     state: runtimeState,
     helpers: {
       resetColorCursor: () => {
-        colorCursor = 0;
+        colorCursorManager.reset();
       }
     },
     utils: { decodeName }
   });
   ioFacade.attach();
+  runtimeState.services.io = ioFacade;
+  runtimeState.helpers = runtimeState.helpers || {};
+  runtimeState.helpers.resetColorCursor = () => colorCursorManager.reset();
 
   // --- UI event bindings ---
 
   panelDom.pin?.addEventListener('click', () => {
-    setPanelPinned(!panelPinned);
+    const nextPinned = !(panelPreferences?.isPanelPinned?.() ?? false);
+    panelPreferences?.setPinned?.(nextPinned);
   });
 
   panelDom.toggle?.addEventListener('click', () => {
     if (!panelDom.root) return;
-    const nextCollapsed = !panelDom.root.classList.contains('collapsed');
-    setPanelCollapsed(nextCollapsed);
+    const currentCollapsed = panelPreferences?.isPanelCollapsed?.();
+    const resolved = typeof currentCollapsed === 'boolean'
+      ? currentCollapsed
+      : panelDom.root.classList.contains('collapsed');
+    panelPreferences?.setCollapsed?.(!resolved);
   });
 
   panelDom.root?.addEventListener('mouseenter', handlePanelHoverEnter);
@@ -1422,8 +1356,8 @@ const getSearchTerm = () => searchTerm;
   browserHotspot?.addEventListener('pointerleave', handleHotspotLeave);
   browserHotspot?.addEventListener('click', () => {
     if (!panelDom.root) return;
-    if (panelPinned && isPanelCollapsed()) {
-      setPanelCollapsed(false);
+    if (panelPreferences?.isPanelPinned?.() && isPanelCollapsed()) {
+      panelPreferences?.setCollapsed?.(false);
     }
   });
 
@@ -1523,7 +1457,7 @@ const getSearchTerm = () => searchTerm;
       chipPanelsBridge
     },
     flags: {
-      isPanelPinned: () => panelPinned
+      isPanelPinned: () => panelPreferences?.isPanelPinned?.() ?? false
     }
   });
 
@@ -1643,16 +1577,3 @@ const getSearchTerm = () => searchTerm;
     getPanelDomRegistry: () => panelDomRegistry
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

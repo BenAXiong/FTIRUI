@@ -1,0 +1,27 @@
+<aside id="c_panel" class="plot-b-panel workspace-browser" aria-label="Group browser">
+  <div class="panel-toolbar">
+    <span class="panel-title flex-grow-1">Project X</span>
+    <button id="c_panel_search" class="btn btn-sm btn-outline-secondary me-1" type="button" title="Search groups or graphs">
+      <i class="bi bi-search"></i>
+    </button>
+    <input id="c_panel_search_input" class="form-control form-control-sm panel-search-input me-2" type="text" placeholder="Find group or graph..." style="max-width: 160px; display: none;">
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="History">
+      <button id="c_history_undo" class="btn btn-outline-secondary" type="button" title="Undo" disabled>
+        <i class="bi bi-arrow-counterclockwise"></i>
+      </button>
+      <button id="c_history_redo" class="btn btn-outline-secondary" type="button" title="Redo" disabled>
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+    <button id="c_new_section" class="btn btn-sm btn-outline-secondary" type="button" title="New group">
+      <i class="bi bi-plus-lg"></i>
+    </button>
+    <button id="c_panel_toggle" class="btn btn-sm btn-outline-secondary panel-toggle ms-1" type="button" aria-expanded="true" title="Collapse groups">
+      <i class="bi bi-chevron-double-left"></i>
+    </button>
+  </div>
+  <div id="c_panel_dropzone" class="panel-body" tabindex="0">
+    <div class="panel-empty text-muted small">Drop files or use the toolbar to add graphs.</div>
+    <div id="c_folder_tree" class="folder-tree"></div>
+  </div>
+</aside>

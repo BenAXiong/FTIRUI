@@ -8,8 +8,7 @@ export function createSnapshotManager({
   updateCanvasState = () => {},
   renderBrowser = () => {},
   setActivePanel = () => {},
-  setColorCursor = () => {},
-  getColorCursor = () => 0
+  colorCursor
 } = {}) {
   if (!panelsModel) {
     throw new Error('snapshotManager requires panelsModel');
@@ -27,6 +26,7 @@ export function createSnapshotManager({
     });
     panelsModel.load({ counter: 0, items: [] });
     setActivePanel(null);
+    colorCursor?.reset?.();
   };
 
   const snapshot = () => ({
@@ -35,7 +35,7 @@ export function createSnapshotManager({
       ? panelsModel.snapshot()
       : { counter: 0, items: [] },
     uiPrefs: {
-      colorCursor: getColorCursor()
+      colorCursor: colorCursor?.get?.() ?? 0
     }
   });
 
@@ -48,7 +48,9 @@ export function createSnapshotManager({
       if (Object.prototype.hasOwnProperty.call(snapshotValue || {}, 'colorCursor') && !('colorCursor' in uiPrefs)) {
         uiPrefs.colorCursor = snapshotValue.colorCursor;
       }
-      setColorCursor(Number(uiPrefs.colorCursor) || 0);
+      if (colorCursor?.set) {
+        colorCursor.set(Number(uiPrefs.colorCursor) || 0);
+      }
       sectionManager?.load?.(snapshotValue?.sections);
       const panelSnapshot = snapshotValue?.panels || { counter: 0, items: [] };
       panelsModel.load(panelSnapshot);
@@ -72,7 +74,11 @@ export function createSnapshotManager({
       run();
       return;
     }
-    historyHelpers?.queueMutation?.(run, { persistChange: false });
+    if (historyHelpers?.queueMutation) {
+      historyHelpers.queueMutation(run, { persistChange: false });
+    } else {
+      run();
+    }
   };
 
   return {
@@ -81,4 +87,3 @@ export function createSnapshotManager({
     restore
   };
 }
-
