@@ -487,22 +487,24 @@ let updateCanvasState = () => {};
   const handlePanelHoverEnter = () => {
     if (!panelDom.root) return;
     const pinned = panelPreferences?.isPanelPinned?.() ?? false;
-    const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root?.classList.contains('collapsed');
+    const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root.classList.contains('collapsed');
     if (!pinned) {
       panelDom.root.classList.add('peeking');
       panelDom.root.classList.add('is-active');
+      panelPreferences?.setCollapsed?.(true, { persist: false, silent: true });
     } else if (collapsed) {
-      panelDom.root.classList.add('peeking');
+      panelPreferences?.setCollapsed?.(false, { persist: false });
     }
   };
 
   const handlePanelHoverLeave = () => {
     if (!panelDom.root) return;
     const pinned = panelPreferences?.isPanelPinned?.() ?? false;
-    const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root?.classList.contains('collapsed');
+    const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root.classList.contains('collapsed');
     if (!pinned) {
-      panelDom.root.classList.remove('peeking');
+      panelPreferences?.setCollapsed?.(true, { persist: false });
       panelDom.root.classList.remove('is-active');
+      panelDom.root.classList.remove('peeking');
     } else if (collapsed) {
       panelDom.root.classList.remove('peeking');
     }
@@ -1548,12 +1550,8 @@ let updateCanvasState = () => {};
   });
 
   panelDom.toggle?.addEventListener('click', () => {
-    if (!panelDom.root) return;
-    const currentCollapsed = panelPreferences?.isPanelCollapsed?.();
-    const resolved = typeof currentCollapsed === 'boolean'
-      ? currentCollapsed
-      : panelDom.root.classList.contains('collapsed');
-    panelPreferences?.setCollapsed?.(!resolved);
+    const nextPinned = !(panelPreferences?.isPanelPinned?.() ?? false);
+    panelPreferences?.setPinned?.(nextPinned);
   });
 
   panelDom.root?.addEventListener('mouseenter', handlePanelHoverEnter);

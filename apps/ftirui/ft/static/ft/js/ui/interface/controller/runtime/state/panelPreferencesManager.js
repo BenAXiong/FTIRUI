@@ -8,17 +8,28 @@ export function createPanelPreferencesManager({
 
   const isPanelCollapsed = () => !!panelDom.root?.classList.contains('collapsed');
 
-  const updatePanelToggleUI = (expanded) => {
+  const computeExpanded = () => {
+    if (!panelDom.root) return false;
+    if (!panelDom.root.classList.contains('collapsed')) return true;
+    return panelDom.root.classList.contains('peeking') || panelDom.root.classList.contains('is-active');
+  };
+
+  const updatePanelToggleUI = () => {
     if (!panelDom.toggle) return;
-    const title = expanded ? 'Collapse browser' : 'Expand browser';
+    const pinned = panelPinned;
+    const expanded = computeExpanded();
+    const title = pinned ? 'Unpin browser' : 'Pin browser';
     panelDom.toggle.setAttribute('aria-expanded', String(expanded));
+    panelDom.toggle.setAttribute('aria-pressed', String(pinned));
     panelDom.toggle.title = title;
+    panelDom.toggle.setAttribute('aria-label', title);
+    panelDom.toggle.classList.toggle('is-active', pinned);
     const icon = panelDom.toggle.querySelector('i');
     if (icon) {
-      icon.classList.toggle('bi-chevron-double-left', expanded);
-      icon.classList.toggle('bi-chevron-double-right', !expanded);
+      icon.classList.toggle('bi-chevron-double-left', pinned);
+      icon.classList.toggle('bi-chevron-double-right', !pinned);
     } else {
-      panelDom.toggle.innerHTML = expanded
+      panelDom.toggle.innerHTML = pinned
         ? '<i class="bi bi-chevron-double-left"></i>'
         : '<i class="bi bi-chevron-double-right"></i>';
     }
@@ -30,7 +41,7 @@ export function createPanelPreferencesManager({
     if (!collapsed) {
       panelDom.root.classList.remove('peeking');
     }
-    updatePanelToggleUI(!collapsed);
+    updatePanelToggleUI();
     if (persist) {
       preferences?.setCollapsed?.(collapsed);
     }
@@ -64,13 +75,16 @@ export function createPanelPreferencesManager({
     if (panelPinned === next) {
       updatePanelPinUI();
       updateCanvasOffset();
+      updatePanelToggleUI();
       return;
     }
     panelPinned = next;
     if (!panelPinned) {
       panelDom.root?.classList.add('peeking');
-      setCollapsed(false, { persist: false, silent: true });
-      preferences?.clearCollapsed?.();
+      setCollapsed(true, { persist: false, silent: true });
+      if (persist) {
+        preferences?.clearCollapsed?.();
+      }
     } else {
       panelDom.root?.classList.remove('peeking');
       if (isPanelCollapsed()) {
@@ -82,15 +96,19 @@ export function createPanelPreferencesManager({
     }
     updatePanelPinUI();
     updateCanvasOffset();
-    updatePanelToggleUI(!isPanelCollapsed());
+    updatePanelToggleUI();
     if (persist) {
       preferences?.setPinned?.(panelPinned);
     }
   };
 
   const restoreCollapsed = () => {
-    const collapsed = preferences?.readCollapsed?.() ?? false;
-    setCollapsed(collapsed, { persist: false });
+    const stored = preferences?.readCollapsed?.() ?? false;
+    if (panelPinned) {
+      setCollapsed(!!stored, { persist: false });
+    } else {
+      setCollapsed(true, { persist: false });
+    }
   };
 
   const restorePinned = () => {
