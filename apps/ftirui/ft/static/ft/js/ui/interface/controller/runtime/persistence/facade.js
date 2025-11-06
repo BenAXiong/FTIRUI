@@ -152,19 +152,21 @@ export function createPersistenceFacade({
   };
 
   const undo = () => {
-    if (!history?.undo) return;
+    if (!history?.undo) return false;
     const snapshot = history.undo(buildSnapshot());
-    if (!snapshot) return;
+    if (!snapshot) return false;
     restoreSnapshot(snapshot, { skipHistory: true });
     updateHistoryButtons();
+    return true;
   };
 
   const redo = () => {
-    if (!history?.redo) return;
+    if (!history?.redo) return false;
     const snapshot = history.redo(buildSnapshot());
-    if (!snapshot) return;
+    if (!snapshot) return false;
     restoreSnapshot(snapshot, { skipHistory: true });
     updateHistoryButtons();
+    return true;
   };
 
   const saveSnapshot = () => {
@@ -225,7 +227,11 @@ export function createPersistenceFacade({
   };
 
   const handleBeforeUnload = () => {
-    flush();
+    const flushed = storage?.flush?.();
+    if (flushed) return;
+    if (typeof storage?.save === 'function') {
+      storage.save(buildStorageSnapshot());
+    }
   };
 
   const handleVisibilityChange = () => {

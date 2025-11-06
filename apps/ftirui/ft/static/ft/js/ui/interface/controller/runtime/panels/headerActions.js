@@ -319,6 +319,10 @@ export function createHeaderActions(context = {}) {
       }
 
       case 'legend': {
+        if (hasOwn.call(payload, 'on')) {
+          commitLayoutPatch(panelId, { showlegend: !!payload.on });
+          break;
+        }
         const task = typeof toggleLegend === 'function'
           ? () => toggleLegend(panelId)
           : null;
@@ -717,25 +721,89 @@ export function createHeaderActions(context = {}) {
           : 'png';
         const scaleNumeric = Number(payload.scale);
         const resolvedScale = Number.isFinite(scaleNumeric) && scaleNumeric > 0 ? scaleNumeric : 2;
-        const widthNumeric = Number(payload.width);
-        const heightNumeric = Number(payload.height);
+        const figure = getPanelFigure(panelId);
         const options = {
           format,
           scale: resolvedScale
         };
-        if (Number.isFinite(widthNumeric) && widthNumeric > 0) {
-          options.width = Math.round(widthNumeric);
+        const figureLayout = figure?.layout || {};
+        const toPositiveInt = (value) => {
+          const numeric = Number(value);
+          if (!Number.isFinite(numeric) || numeric <= 0) return null;
+          return Math.round(numeric);
+        };
+        const container = panelDom.plotEl;
+        const rect = typeof container?.getBoundingClientRect === 'function'
+          ? container.getBoundingClientRect()
+          : null;
+        const widthCandidate = toPositiveInt(payload.width)
+          ?? toPositiveInt(rect?.width)
+          ?? toPositiveInt(container?.offsetWidth)
+          ?? toPositiveInt(container?.clientWidth)
+          ?? toPositiveInt(figureLayout.width);
+        const heightCandidate = toPositiveInt(payload.height)
+          ?? toPositiveInt(rect?.height)
+          ?? toPositiveInt(container?.offsetHeight)
+          ?? toPositiveInt(container?.clientHeight)
+          ?? toPositiveInt(figureLayout.height);
+        if (widthCandidate != null) {
+          options.width = widthCandidate;
         }
-        if (Number.isFinite(heightNumeric) && heightNumeric > 0) {
-          options.height = Math.round(heightNumeric);
+        if (heightCandidate != null) {
+          options.height = heightCandidate;
         }
+        if (options.width == null) {
+          options.width = 800; // fallback to sensible pixel width for Plotly export
+        }
+        if (options.height == null) {
+          options.height = 600; // fallback to sensible pixel height for Plotly export
+        }
+        const figureData = Array.isArray(figure?.data) ? figure.data : [];
+        const deriveGraphTitle = () => {
+          const datasetTitle = panelDom.rootEl?.dataset?.graphTitle;
+          if (typeof datasetTitle === 'string') {
+            const trimmed = datasetTitle.trim();
+            if (trimmed) return trimmed;
+          }
+          const layoutTitle = figureLayout?.title;
+          if (typeof layoutTitle === 'string' && layoutTitle.trim()) {
+            return layoutTitle.trim();
+          }
+          if (layoutTitle && typeof layoutTitle === 'object') {
+            const layoutText = typeof layoutTitle.text === 'string' ? layoutTitle.text.trim() : '';
+            if (layoutText) return layoutText;
+          }
+          const idxRaw = panelDom.rootEl?.dataset?.graphIndex;
+          const idx = Number(idxRaw);
+          if (Number.isInteger(idx) && idx > 0) {
+            return `Graph ${idx}`;
+          }
+          return 'Graph';
+        };
+
         exportFigure(panelId, options)
           .then((url) => {
             if (!url) return;
-            const baseFilename = typeof payload.filename === 'string' && payload.filename.trim()
-              ? payload.filename.trim()
-              : `plot-${panelId}`;
-            const safeName = baseFilename.replace(/[^a-z0-9_.-]+/gi, '_') || `plot-${panelId}`;
+            const provided = typeof payload.filename === 'string' ? payload.filename.trim() : '';
+            const defaultTitle = deriveGraphTitle();
+            let baseFilename = provided || defaultTitle;
+            if (!provided && figureData.length === 1) {
+              const traceName = typeof figureData[0]?.name === 'string' ? figureData[0].name.trim() : '';
+              if (traceName) {
+                baseFilename = `${baseFilename} - ${traceName}`;
+              }
+            }
+            const sanitizeFilename = (value) => {
+              if (!value) return '';
+              return value
+                .trim()
+                .replace(/[^a-z0-9_.\- ]+/gi, '_')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
+            };
+            const safeName = sanitizeFilename(baseFilename)
+              || sanitizeFilename(defaultTitle)
+              || 'Graph';
             const link = document.createElement('a');
             link.href = url;
             link.download = `${safeName}.${format}`;

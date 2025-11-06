@@ -1737,3 +1737,165 @@ pre, code, .pre-like {
 .workspace-panel-popover-btn[data-thickness="thin"]::after{ border-top-width:1px; }
 .workspace-panel-popover-btn[data-thickness="medium"]::after{ border-top-width:2px; }
 .workspace-panel-popover-btn[data-thickness="thick"]::after{ border-top-width:3px; }
+
+/* --------------------------------------------------------------------------
+   Workspace Operations Panel
+   -------------------------------------------------------------------------- */
+.workspace-operations-panel{
+  position:absolute;
+  top:1rem;
+  left:1rem;
+  width:clamp(260px, 24vw, 360px);
+  min-width:240px;
+  max-width:min(900px, 80vw);
+  max-height:calc(100% - 2rem);
+  display:flex;
+  flex-direction:column;
+  padding:0.75rem 0.85rem;
+  border-radius:0.9rem;
+  background:rgba(255,255,255,0.92);
+  box-shadow:0 18px 42px rgba(15,23,42,0.22);
+  border:1px solid rgba(15,23,42,0.08);
+  overflow:hidden;
+  z-index:1600;
+  backdrop-filter:blur(6px);
+  resize:horizontal;
+}
+.workspace-operations-panel__header{
+  font-size:.95rem;
+  font-weight:600;
+  color:#0f172a;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+  margin-bottom:.5rem;
+}
+.workspace-operations-panel__list{
+  overflow:auto;
+  padding-right:.3rem;
+}
+.workspace-operations-panel__list::-webkit-scrollbar{
+  width:.35rem;
+}
+.workspace-operations-panel__list::-webkit-scrollbar-thumb{
+  background:rgba(100,116,139,.35);
+  border-radius:1rem;
+}
+.workspace-operations-panel__empty{
+  font-size:.78rem;
+  color:#64748b;
+  padding:.35rem .4rem;
+  border-radius:.5rem;
+  background:rgba(226,232,240,0.45);
+  border:1px dashed rgba(148,163,184,0.3);
+  text-align:center;
+}
+
+.workspace-operations-panel__table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  font-size:.78rem;
+}
+.workspace-operations-panel__table thead th{
+  font-size:.72rem;
+  font-weight:600;
+  color:#475569;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  padding:.3rem .45rem;
+  border:none;
+}
+.workspace-operations-panel__table tbody td{
+  padding:.35rem .45rem;
+  border:none;
+  color:#0f172a;
+  vertical-align:middle;
+}
+.workspace-operations-panel__table tbody tr:nth-child(odd){
+  background:rgba(148,163,184,0.12);
+}
+.workspace-operations-panel__table tbody tr:nth-child(even){
+  background:rgba(148,163,184,0.06);
+}
+.workspace-operations-panel__table th:nth-child(1),
+.workspace-operations-panel__table td:nth-child(1){
+  width:7.5rem;
+  max-width:7.5rem;
+  min-width:7.5rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.workspace-operations-panel__table th:nth-child(2),
+.workspace-operations-panel__table td:nth-child(2){
+  width:6.25rem;
+  max-width:6.25rem;
+  min-width:6.25rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.workspace-operations-panel__table th:nth-child(3),
+.workspace-operations-panel__table td:nth-child(3){
+  width:auto;
+}
+.workspace-operations-panel__table td:nth-child(3){
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:0;
+}
+
+.workspace-operations-toggle{
+  position:absolute;
+  bottom:1rem;
+  right:1rem;
+  width:2.5rem;
+  height:2.5rem;
+  border-radius:999px;
+  border:none;
+  background:rgba(15,23,42,0.88);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:600;
+  font-size:.95rem;
+  line-height:1;
+  cursor:pointer;
+  box-shadow:0 14px 26px rgba(15,23,42,0.25);
+  transition:background .2s ease, transform .2s ease, box-shadow .2s ease;
+  z-index:1610;
+}
+.workspace-operations-toggle:hover{
+  background:rgba(37,99,235,0.95);
+  box-shadow:0 18px 32px rgba(15,23,42,0.28);
+}
+.workspace-operations-toggle:active{
+  transform:scale(0.94);
+}
+.workspace-operations-toggle:focus-visible{
+  outline:2px solid var(--bs-primary, #2563eb);
+  outline-offset:3px;
+}
+.workspace-operations-toggle.is-active{
+  background:rgba(37,99,235,0.85);
+}
+
+@media (max-width: 992px){
+  .workspace-operations-panel{
+    position:fixed;
+    top:4.5rem;
+    left:50%;
+    transform:translateX(-50%);
+    width:calc(100% - 2rem);
+    max-width:420px;
+    resize:none;
+  }
+  .workspace-operations-toggle{
+    bottom:.85rem;
+    right:.85rem;
+  }
+}

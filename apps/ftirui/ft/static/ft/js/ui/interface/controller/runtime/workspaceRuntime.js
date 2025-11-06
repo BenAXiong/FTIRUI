@@ -39,13 +39,19 @@ const COLOR_PALETTE = [
   '#bcbd22', '#17becf'
 ];
 const HISTORY_LIMIT = 25;
-const HISTORY_GEOMETRY_TOLERANCE = 6;
+const HISTORY_GEOMETRY_TOLERANCE = 2;
 const PANEL_COLLAPSE_KEY = 'ftir.workspace.panelCollapsed.v1';
 const PANEL_PIN_KEY = 'ftir.workspace.panelPinned.v1';
 const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
+const OPERATIONS_LOG_LIMIT = 100;
+const operationsLog = [];
+let operationsPanelHandles = null;
+let operationsToggleButton = null;
+let operationsVisible = true;
+let operationsRenderQueued = false;
 const colorCursorManager = createColorCursorManager();
 let panelPreferences = null;
 
@@ -189,6 +195,17 @@ export function initWorkspaceRuntime(context = {}) {
   activePanelId = null;
   browserFacade?.teardown?.();
   browserFacade = null;
+  operationsLog.length = 0;
+  operationsRenderQueued = false;
+  if (operationsPanelHandles?.root?.parentNode) {
+    operationsPanelHandles.root.parentNode.removeChild(operationsPanelHandles.root);
+  }
+  operationsPanelHandles = null;
+  operationsVisible = true;
+  if (operationsToggleButton?.parentNode) {
+    operationsToggleButton.parentNode.removeChild(operationsToggleButton);
+  }
+  operationsToggleButton = null;
   const { roots = {} } = context;
   const canvas = roots.canvas ?? document.getElementById('c_canvas_root');
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
@@ -209,8 +226,240 @@ export function initWorkspaceRuntime(context = {}) {
     canvasWrapper.style.setProperty('--workspace-toolbar-vertical-width', `${toolbarWidth}px`);
   };
 
+  function updateOperationsToggleState() {
+    if (!operationsToggleButton) return;
+    const labelText = operationsVisible ? 'Hide operations log' : 'Show operations log';
+    operationsToggleButton.textContent = operationsVisible ? '×' : 'Ops';
+    operationsToggleButton.setAttribute('aria-pressed', String(operationsVisible));
+    operationsToggleButton.setAttribute('aria-label', labelText);
+    operationsToggleButton.setAttribute('title', labelText);
+    operationsToggleButton.classList.toggle('is-active', operationsVisible);
+  }
+
+  function syncOperationsVisibility() {
+    if (operationsPanelHandles?.root) {
+      operationsPanelHandles.root.hidden = !operationsVisible;
+      operationsPanelHandles.root.setAttribute('aria-hidden', String(!operationsVisible));
+    }
+    updateOperationsToggleState();
+  }
+
+  function toggleOperationsVisibility(force = null) {
+    const next = typeof force === 'boolean' ? force : !operationsVisible;
+    operationsVisible = next;
+    ensureOperationsPanel();
+    syncOperationsVisibility();
+  }
+
+  function ensureOperationsToggle() {
+    if (!canvasWrapper) return null;
+    if (operationsToggleButton?.isConnected) {
+      updateOperationsToggleState();
+      return operationsToggleButton;
+    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'workspace-operations-toggle';
+    btn.addEventListener('click', () => toggleOperationsVisibility());
+    canvasWrapper.appendChild(btn);
+    operationsToggleButton = btn;
+    updateOperationsToggleState();
+    return operationsToggleButton;
+  }
+
+  function ensureOperationsPanel() {
+    if (!canvasWrapper) return null;
+    if (operationsPanelHandles?.root?.isConnected) {
+      ensureOperationsToggle();
+      if (operationsToggleButton && operationsPanelHandles.root.id) {
+        operationsToggleButton.setAttribute('aria-controls', operationsPanelHandles.root.id);
+      }
+      syncOperationsVisibility();
+      return operationsPanelHandles;
+    }
+    const panel = document.createElement('aside');
+    panel.className = 'workspace-operations-panel';
+    panel.id = 'c_workspace_operations';
+    const header = document.createElement('div');
+    header.className = 'workspace-operations-panel__header';
+    header.textContent = 'Operations';
+    const list = document.createElement('div');
+    list.className = 'workspace-operations-panel__list';
+    panel.append(header, list);
+    canvasWrapper.appendChild(panel);
+    operationsPanelHandles = { root: panel, header, list };
+    ensureOperationsToggle();
+    if (operationsToggleButton) {
+      operationsToggleButton.setAttribute('aria-controls', panel.id);
+    }
+    syncOperationsVisibility();
+    return operationsPanelHandles;
+  }
+
+  const shortenSource = (value) => {
+    if (!value) return '';
+    let text = value;
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        text = text.replace(window.location.origin, '');
+      }
+    } catch {
+      /* ignore */
+    }
+    if (text.length > 120) {
+      return `${text.slice(0, 117)}…`;
+    }
+    return text;
+  };
+
+  const renderOperationsLog = () => {
+    operationsRenderQueued = false;
+    const handles = ensureOperationsPanel();
+    if (!handles) return;
+    const listEl = handles.list;
+    listEl.innerHTML = '';
+    if (!operationsLog.length) {
+      const empty = document.createElement('div');
+      empty.className = 'workspace-operations-panel__empty';
+      empty.textContent = 'No operations yet.';
+      listEl.appendChild(empty);
+      syncOperationsVisibility();
+      return;
+    }
+    const table = document.createElement('table');
+    table.className = 'workspace-operations-panel__table';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['Time', 'Operation', 'Location'].forEach((label) => {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    operationsLog.forEach((entry) => {
+      const row = document.createElement('tr');
+
+      const timeCell = document.createElement('td');
+      const timeText = Number.isFinite(entry.timestamp)
+        ? new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        : '';
+      timeCell.textContent = timeText || '—';
+      timeCell.title = timeText || '—';
+
+      const opCell = document.createElement('td');
+      const operationLabel = entry.label || 'Operation';
+      const historyDelta = typeof entry?.meta?.historyDelta === 'number' ? entry.meta.historyDelta : null;
+      const deltaBadge = historyDelta === 0 ? ' (merged)' : historyDelta > 0 ? ' (added)' : historyDelta < 0 ? ' (rewind)' : '';
+      opCell.textContent = `${operationLabel}${deltaBadge}`;
+      const titleParts = [operationLabel];
+      if (historyDelta != null) {
+        const signedDelta = historyDelta > 0 ? `+${historyDelta}` : `${historyDelta}`;
+        titleParts.push(`Δhistory ${signedDelta}`);
+      }
+      if (typeof entry?.meta?.historySize === 'number') {
+        titleParts.push(`history size ${entry.meta.historySize}`);
+      }
+      if (typeof entry?.meta?.futureSize === 'number') {
+        titleParts.push(`future size ${entry.meta.futureSize}`);
+      }
+      opCell.title = titleParts.join(' • ');
+
+      const locationCell = document.createElement('td');
+      const sourceText = entry.source ? shortenSource(entry.source) : '—';
+      locationCell.textContent = sourceText;
+      locationCell.title = entry.source || '—';
+
+      row.append(timeCell, opCell, locationCell);
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    listEl.appendChild(table);
+    syncOperationsVisibility();
+  };
+
+  const scheduleOperationsRender = () => {
+    if (operationsRenderQueued) return;
+    operationsRenderQueued = true;
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(renderOperationsLog);
+    } else {
+      setTimeout(renderOperationsLog, 0);
+    }
+  };
+
+  const deriveLabelFromSource = (source) => {
+    if (!source) return null;
+    let head = source.trim();
+    if (!head) return null;
+    const parenIdx = head.indexOf('(');
+    if (parenIdx > 0) {
+      head = head.slice(0, parenIdx).trim();
+    }
+    if (!head) return null;
+    if (head.includes('/')) {
+      // stack frame without explicit function name (just path)
+      const parts = head.split('/');
+      head = parts[parts.length - 1];
+    }
+    if (head.includes('.')) {
+      const segments = head.split('.');
+      head = segments[segments.length - 1];
+    }
+    head = head.replace(/^Object\./, '').replace(/^Module\./, '');
+    if (!head) return null;
+    if (head === '<anonymous>' || head === 'anonymous') return null;
+    return head;
+  };
+
+  const recordOperation = (entry) => {
+    const payload = typeof entry === 'string' ? { label: entry } : (entry || {});
+    const source = typeof payload.source === 'string' ? payload.source : null;
+    let label = typeof payload.label === 'string' && payload.label.trim()
+      ? payload.label.trim()
+      : null;
+    if (!label) {
+      label = deriveLabelFromSource(source);
+    }
+    if (!label) {
+      label = 'Operation';
+    }
+    const timestamp = Number.isFinite(payload.timestamp) ? payload.timestamp : Date.now();
+    const meta = payload.meta && typeof payload.meta === 'object' ? { ...payload.meta } : null;
+    operationsLog.unshift({ label, source, timestamp, meta });
+    while (operationsLog.length > OPERATIONS_LOG_LIMIT) {
+      operationsLog.pop();
+    }
+    ensureOperationsPanel();
+    scheduleOperationsRender();
+  };
+
+  const captureOperationSource = () => {
+    try {
+      const err = new Error();
+      if (!err.stack) return null;
+      const lines = err.stack.split('\n');
+      for (let i = 2; i < lines.length; i += 1) {
+        const line = lines[i]?.trim();
+        if (!line) continue;
+        if (line.includes('workspaceRuntime.js')) continue;
+        if (line.includes('historyHelpers.js')) continue;
+        return line.replace(/^at\s+/, '');
+      }
+    } catch {
+      /* ignore stack parsing issues */
+    }
+    return null;
+  };
+
   if (!canvas || canvas.dataset.initialized === '1') return;
   canvas.dataset.initialized = '1';
+  ensureOperationsPanel();
 
   const panelsModel = createPanelsModel();
   const panelDomRegistry = new Map();
@@ -304,9 +553,9 @@ let setActivePanel = () => {};
 let updateCanvasState = () => {};
 
   const historyHelpers = createHistoryHelpers({
-    pushHistory,
-    updateHistoryButtons,
-    persist
+    pushHistory: (...args) => pushHistory(...args),
+    updateHistoryButtons: (...args) => updateHistoryButtons(...args),
+    persist: (...args) => persist(...args)
   });
   const registerPanelProxy = (...args) => registerPanel(...args);
 
@@ -344,6 +593,9 @@ let updateCanvasState = () => {};
     undo: document.getElementById('c_history_undo'),
     redo: document.getElementById('c_history_redo')
   };
+
+  ensureOperationsPanel();
+  renderOperationsLog();
 
   preferencesFacade = createUiPreferencesFacade({
     collapseKey: PANEL_COLLAPSE_KEY,
@@ -926,6 +1178,65 @@ let updateCanvasState = () => {};
       restoreSnapshot
     } = persistence);
     persistence.attachEvents();
+    const rawPushHistory = pushHistory || (() => false);
+    pushHistory = (label = null) => {
+      const beforeInspect = history?.inspect?.();
+      const beforePast = beforeInspect?.past?.length ?? null;
+      const result = rawPushHistory(label);
+      if (result !== false) {
+        const resolvedLabel = typeof label === 'string' && label.trim() ? label.trim() : null;
+        const afterInspect = history?.inspect?.();
+        const afterPast = afterInspect?.past?.length ?? beforePast;
+        const delta = beforePast != null && afterPast != null ? afterPast - beforePast : null;
+        recordOperation({
+          label: resolvedLabel,
+          source: captureOperationSource(),
+          timestamp: Date.now(),
+          meta: {
+            historyDelta: delta,
+            historySize: afterPast,
+            futureSize: afterInspect?.future?.length ?? null
+          }
+        });
+      }
+      return result;
+    };
+    const rawUndo = undo || (() => false);
+    undo = (...args) => {
+      const result = rawUndo(...args);
+      if (result) {
+        const snapshot = history?.inspect?.();
+        recordOperation({
+          label: 'Undo',
+          source: captureOperationSource(),
+          timestamp: Date.now(),
+          meta: {
+            historyDelta: -1,
+            historySize: snapshot?.past?.length ?? null,
+            futureSize: snapshot?.future?.length ?? null
+          }
+        });
+      }
+      return result;
+    };
+    const rawRedo = redo || (() => false);
+    redo = (...args) => {
+      const result = rawRedo(...args);
+      if (result) {
+        const snapshot = history?.inspect?.();
+        recordOperation({
+          label: 'Redo',
+          source: captureOperationSource(),
+          timestamp: Date.now(),
+          meta: {
+            historyDelta: 1,
+            historySize: snapshot?.past?.length ?? null,
+            futureSize: snapshot?.future?.length ?? null
+          }
+        });
+      }
+      return result;
+    };
   }
   const renderPlot = (panelId) => {
     if (!panelId) return;
@@ -1508,7 +1819,10 @@ let updateCanvasState = () => {};
   const { handleHeaderAction } = createHeaderActions({
     actionsController: Actions,
     history: historyHelpers,
-    historyApi: { undo, redo },
+    historyApi: {
+      undo: (...args) => undo(...args),
+      redo: (...args) => redo(...args)
+    },
     selectors: {
       getPanelDom,
       getPanelFigure
@@ -1799,6 +2113,17 @@ let updateCanvasState = () => {};
     ioFacade?.detach?.();
     preferencesFacade?.teardown?.();
     persistence?.teardown?.();
+    operationsLog.length = 0;
+    operationsRenderQueued = false;
+    if (operationsPanelHandles?.root?.parentNode) {
+      operationsPanelHandles.root.parentNode.removeChild(operationsPanelHandles.root);
+    }
+    operationsPanelHandles = null;
+    if (operationsToggleButton?.parentNode) {
+      operationsToggleButton.parentNode.removeChild(operationsToggleButton);
+    }
+    operationsToggleButton = null;
+    operationsVisible = true;
   };
 
   return {
@@ -1822,6 +2147,10 @@ let updateCanvasState = () => {};
     getPanelDomRegistry: () => panelDomRegistry
   };
 }
+
+
+
+
 
 
 

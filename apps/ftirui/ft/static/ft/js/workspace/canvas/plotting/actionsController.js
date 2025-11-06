@@ -54,7 +54,10 @@ export function setFigure(panelId, figure) {
 export function toggleLegend(panelId) {
   if (!_getFigureById) return;
   const cur = _getFigureById(panelId);
-  const current = !!cur?.layout?.showlegend;
+  const layout = cur?.layout || {};
+  const current = Object.prototype.hasOwnProperty.call(layout, 'showlegend')
+    ? !!layout.showlegend
+    : true;
   applyLayout(panelId, { showlegend: !current });
 }
 

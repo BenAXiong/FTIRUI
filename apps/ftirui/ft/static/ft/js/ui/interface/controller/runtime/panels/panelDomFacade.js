@@ -157,7 +157,7 @@ export function createPanelDomFacade({
             </div>
           </div>
           <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Scale</div>
+            <div class="workspace-panel-popover-label">Scale (linear vs log)</div>
             <div class="workspace-panel-popover-items d-flex flex-column gap-2" data-role="axes-scale">
               <div class="btn-group" role="group" data-axis="x">
                 <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="x" data-scale="linear">X Linear</button>
@@ -168,7 +168,6 @@ export function createPanelDomFacade({
                 <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="y" data-scale="log">Y Log</button>
               </div>
             </div>
-            <div class="form-text">Switch between linear and logarithmic scales per axis.</div>
           </div>
         `;
 
@@ -776,7 +775,7 @@ export function createPanelDomFacade({
         ticksPopover.className = 'workspace-panel-popover workspace-panel-popover-ticks';
         ticksPopover.innerHTML = `
           <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Major</div>
+            <div class="workspace-panel-popover-label text-uppercase small text-muted fw-semibold">Major ticks</div>
             <div class="workspace-panel-popover-items" data-role="ticks-major">
               <div class="btn-group" role="group" aria-label="Major placement">
                 <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-placement="outside">Outside</button>
@@ -786,19 +785,19 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary ms-2 workspace-panel-popover-btn" data-labels="toggle">Labels</button>
               <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-major-offset">
                 <span class="small text-muted">Tick start</span>
-                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="X╬ô├⌐├ç">
-                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Y╬ô├⌐├ç">
+                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="X0" data-axis="x">
+                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Y0" data-axis="y">
               </div>
               <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-major-dtick">
                 <span class="small text-muted">Spacing</span>
-                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢X">
-                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢Y">
+                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="dX" data-axis="x">
+                <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="dY" data-axis="y">
               </div>
             </div>
           </div>
 
           <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Minor</div>
+            <div class="workspace-panel-popover-label text-uppercase small text-muted fw-semibold">Minor ticks between major</div>
             <div class="workspace-panel-popover-items" data-role="ticks-minor">
               <div class="btn-group" role="group" aria-label="Minor placement">
                 <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-minor-placement="outside">Outside</button>
@@ -811,7 +810,6 @@ export function createPanelDomFacade({
                 <span class="small text-muted" data-readout>1</span>
               </div>
             </div>
-            <div class="form-text">Minor ticks between majors.</div>
           </div>
         `;
 
@@ -852,8 +850,8 @@ export function createPanelDomFacade({
 
           const offWrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
           if (offWrap) {
-            const xInput = offWrap.querySelector('input[placeholder="X╬ô├⌐├ç"]');
-            const yInput = offWrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]');
+            const xInput = offWrap.querySelector('input[data-axis="x"]');
+            const yInput = offWrap.querySelector('input[data-axis="y"]');
             xInput.value = (X.tick0 != null && X.tick0 !== '') ? String(X.tick0) : '';
             yInput.value = (Y.tick0 != null && Y.tick0 !== '') ? String(Y.tick0) : '';
           }
@@ -878,8 +876,8 @@ export function createPanelDomFacade({
           if (dtWrap) {
             const dx = Number(X.dtick);
             const dy = Number(Y.dtick);
-            dtWrap.querySelector('input[placeholder="Γò¼├╢X"]').value = Number.isFinite(dx) ? String(dx) : '';
-            dtWrap.querySelector('input[placeholder="Γò¼├╢Y"]').value = Number.isFinite(dy) ? String(dy) : '';
+            dtWrap.querySelector('input[data-axis="x"]').value = Number.isFinite(dx) ? String(dx) : '';
+            dtWrap.querySelector('input[data-axis="y"]').value = Number.isFinite(dy) ? String(dy) : '';
           }
 
           const mplace = X.minor?.ticks || 'outside';
@@ -917,8 +915,8 @@ export function createPanelDomFacade({
 
           // // Apply major offsets
           //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
-          //   const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
-          //   const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
+          //   const x0raw = wrap.querySelector('input[data-axis="x"]').value;
+          //   const y0raw = wrap.querySelector('input[data-axis="y"]').value;
           //   const x0 = x0raw === '' ? null : Number(x0raw);
           //   const y0 = y0raw === '' ? null : Number(y0raw);
           //   safeHandleHeaderAction(panelId, 'ticks-major-offset', { x0, y0 });
@@ -928,8 +926,8 @@ export function createPanelDomFacade({
 
           // // Major ticks spacing
           //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
-          //   const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
-          //   const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
+          //   const dxRaw = wrap.querySelector('input[data-axis="x"]').value;
+          //   const dyRaw = wrap.querySelector('input[data-axis="y"]').value;
           //   const dx = dxRaw === '' ? null : Number(dxRaw);
           //   const dy = dyRaw === '' ? null : Number(dyRaw);
           //   safeHandleHeaderAction(panelId, 'ticks-major-dtick', { dx, dy });
@@ -987,8 +985,8 @@ export function createPanelDomFacade({
         const autoApplyOffset = debounce(() => {
           const wrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
           if (!wrap) return;
-          const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
-          const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
+          const x0raw = wrap.querySelector('input[data-axis="x"]').value;
+          const y0raw = wrap.querySelector('input[data-axis="y"]').value;
           const x0Numeric = Number(x0raw);
           const y0Numeric = Number(y0raw);
           const x0 = x0raw === '' || !Number.isFinite(x0Numeric) ? null : x0Numeric;
@@ -999,8 +997,8 @@ export function createPanelDomFacade({
         const autoApplyDtick = debounce(() => {
           const wrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
           if (!wrap) return;
-          const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
-          const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
+          const dxRaw = wrap.querySelector('input[data-axis="x"]').value;
+          const dyRaw = wrap.querySelector('input[data-axis="y"]').value;
           const dxNumeric = Number(dxRaw);
           const dyNumeric = Number(dyRaw);
           const dx = dxRaw === '' || !Number.isFinite(dxNumeric) ? null : dxNumeric;
@@ -1089,11 +1087,16 @@ export function createPanelDomFacade({
         });
         controlsWrapper.appendChild(labelsDataBtn);
 
+        const figureForLegend = safeGetPanelFigure(panelId);
+        const figureLayoutForLegend = figureForLegend?.layout || {};
+        const legendInitiallyVisible = Object.prototype.hasOwnProperty.call(figureLayoutForLegend, 'showlegend')
+          ? !!figureLayoutForLegend.showlegend
+          : true;
         const legendBtn = createToggleButton({
           icon: 'bi-list-ul',
           title: 'Toggle legend',
-          pressed: true,
-          onClick: () => safeHandleHeaderAction(panelId, 'legend')
+          pressed: legendInitiallyVisible,
+          onClick: (isOn) => safeHandleHeaderAction(panelId, 'legend', { on: isOn })
         });
         controlsWrapper.appendChild(legendBtn);
 
@@ -1138,6 +1141,8 @@ export function createPanelDomFacade({
         snapshotBtn.setAttribute('aria-expanded', 'false');
         snapshotBtn.dataset.snapshotFormat = 'png';
         snapshotBtn.dataset.snapshotScale = '2';
+        snapshotBtn.dataset.snapshotResolution = 'native';
+        snapshotBtn.dataset.snapshotBackground = 'white';
 
         const snapshotPopover = document.createElement('div');
         snapshotPopover.className = 'workspace-panel-popover workspace-panel-popover-snapshot';
@@ -1156,14 +1161,10 @@ export function createPanelDomFacade({
           <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Size</div>
             <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
-              <label class="small text-muted mb-0">Filename</label>
-              <input type="text" class="form-control form-control-sm" data-snapshot-filename placeholder="plot-${panelId}" style="width: 140px" />
-            </div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
               <label class="small text-muted mb-0">Width</label>
-              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-width placeholder="Auto" style="width: 90px" />
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-width placeholder="Auto" style="width: 65px" />
               <label class="small text-muted mb-0">Height</label>
-              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-height placeholder="Auto" style="width: 90px" />
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-height placeholder="Auto" style="width: 65px" />
             </div>
             <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
               <span class="small text-muted">Scale</span>
@@ -1173,8 +1174,20 @@ export function createPanelDomFacade({
           </div>
           <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Quality</div>
-            <div class="workspace-panel-popover-items flex-column gap-1">
-              <div class="form-text">Advanced quality controls are coming soon. Current exports use Plotly defaults.</div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
+              <label class="small text-muted mb-0">Resolution</label>
+              <select class="form-select form-select-sm" data-snapshot-resolution style="width: 140px">
+                <option value="native">Native (default)</option>
+                <option value="2x">High (2x)</option>
+                <option value="4x">Ultra (4x)</option>
+              </select>
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
+              <span class="small text-muted">Background</span>
+              <div class="btn-group btn-group-sm" role="group" data-snapshot-background>
+                <button type="button" class="btn btn-outline-secondary is-active" data-bg="white">White</button>
+                <button type="button" class="btn btn-outline-secondary" data-bg="transparent">Transparent</button>
+              </div>
             </div>
           </div>
           <div class="workspace-panel-popover-section">
@@ -1189,10 +1202,6 @@ export function createPanelDomFacade({
           const formatSelect = snapshotPopover.querySelector('[data-snapshot-format]');
           if (formatSelect) {
             formatSelect.value = snapshotBtn.dataset.snapshotFormat || 'png';
-          }
-          const filenameInput = snapshotPopover.querySelector('[data-snapshot-filename]');
-          if (filenameInput) {
-            filenameInput.value = snapshotBtn.dataset.snapshotFilename || '';
           }
           const widthInput = snapshotPopover.querySelector('[data-snapshot-width]');
           if (widthInput) {
@@ -1209,15 +1218,24 @@ export function createPanelDomFacade({
             scaleInput.value = scaleValue;
             scaleReadout.textContent = `${scaleValue}x`;
           }
+          const resolutionSelect = snapshotPopover.querySelector('[data-snapshot-resolution]');
+          if (resolutionSelect) {
+            resolutionSelect.value = snapshotBtn.dataset.snapshotResolution || 'native';
+          }
+          const backgroundGroup = snapshotPopover.querySelector('[data-snapshot-background]');
+          if (backgroundGroup) {
+            const activeBg = snapshotBtn.dataset.snapshotBackground || 'white';
+            backgroundGroup.querySelectorAll('button[data-bg]').forEach((btn) => {
+              const isActive = btn.dataset.bg === activeBg;
+              btn.classList.toggle('is-active', isActive);
+              btn.setAttribute('aria-pressed', String(isActive));
+            });
+          }
         };
 
         snapshotPopover.addEventListener('change', (e) => {
           if (e.target.matches('[data-snapshot-format]')) {
             snapshotBtn.dataset.snapshotFormat = e.target.value;
-            e.stopPropagation();
-          }
-          if (e.target.matches('[data-snapshot-filename]')) {
-            snapshotBtn.dataset.snapshotFilename = e.target.value.trim();
             e.stopPropagation();
           }
           if (e.target.matches('[data-snapshot-width]')) {
@@ -1246,6 +1264,10 @@ export function createPanelDomFacade({
             }
             e.stopPropagation();
           }
+          if (e.target.matches('[data-snapshot-resolution]')) {
+            snapshotBtn.dataset.snapshotResolution = e.target.value;
+            e.stopPropagation();
+          }
         });
 
         snapshotPopover.addEventListener('input', (e) => {
@@ -1259,6 +1281,22 @@ export function createPanelDomFacade({
         });
 
         snapshotPopover.addEventListener('click', (e) => {
+          const backgroundButton = e.target.closest('[data-snapshot-background] button[data-bg]');
+          if (backgroundButton) {
+            const chosen = backgroundButton.dataset.bg || 'white';
+            const group = snapshotPopover.querySelector('[data-snapshot-background]');
+            if (group) {
+              group.querySelectorAll('button[data-bg]').forEach((btn) => {
+                const isActive = btn === backgroundButton;
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-pressed', String(isActive));
+              });
+            }
+            snapshotBtn.dataset.snapshotBackground = chosen;
+            e.stopPropagation();
+            return;
+          }
+
           if (e.target.matches('[data-snapshot-capture]')) {
             const format = snapshotBtn.dataset.snapshotFormat || 'png';
             const scaleNumeric = Number(snapshotBtn.dataset.snapshotScale);
@@ -1266,8 +1304,7 @@ export function createPanelDomFacade({
             const heightNumeric = Number(snapshotBtn.dataset.snapshotHeight);
             const payload = {
               format,
-              scale: Number.isFinite(scaleNumeric) && scaleNumeric > 0 ? scaleNumeric : 2,
-              filename: snapshotBtn.dataset.snapshotFilename
+              scale: Number.isFinite(scaleNumeric) && scaleNumeric > 0 ? scaleNumeric : 2
             };
             if (Number.isFinite(widthNumeric) && widthNumeric > 0) {
               payload.width = Math.round(widthNumeric);
@@ -1470,4 +1507,3 @@ export function createPanelDomFacade({
     mountPanel
   };
 }
-
