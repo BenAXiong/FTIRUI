@@ -156,13 +156,45 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="upright">Up + Right</button>
             </div>
           </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Scale</div>
+            <div class="workspace-panel-popover-items d-flex flex-column gap-2" data-role="axes-scale">
+              <div class="btn-group" role="group" data-axis="x">
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="x" data-scale="linear">X Linear</button>
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="x" data-scale="log">X Log</button>
+              </div>
+              <div class="btn-group" role="group" data-axis="y">
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="y" data-scale="linear">Y Linear</button>
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="y" data-scale="log">Y Log</button>
+              </div>
+            </div>
+            <div class="form-text">Switch between linear and logarithmic scales per axis.</div>
+          </div>
         `;
 
         axesPopover.onOpen = () => {
           const figure = safeGetPanelFigure(panelId);
-          const L = figure.layout || {};
-          const X = L.xaxis || {};
-          const Y = L.yaxis || {};
+          const layout = figure.layout || {};
+          const runtimeLayout = plotHost?.layout || {};
+          const fullRuntimeLayout = plotHost?._fullLayout || {};
+          const mergeAxis = (axisKey) => {
+            const runtimeAxis = {
+              ...(fullRuntimeLayout?.[axisKey] || {}),
+              ...(runtimeLayout?.[axisKey] || {})
+            };
+            const modelAxis = layout[axisKey] || {};
+            const minor = {
+              ...(runtimeAxis.minor || {}),
+              ...(modelAxis.minor || {})
+            };
+            return {
+              ...runtimeAxis,
+              ...modelAxis,
+              minor
+            };
+          };
+          const X = mergeAxis('xaxis');
+          const Y = mergeAxis('yaxis');
 
           // Resolve which sides are ON from Plotly state
           const xOn = { top:false, bottom:false };
@@ -210,14 +242,38 @@ export function createPanelDomFacade({
             slider.value = String(px);
             if (readout) readout.textContent = `${px}px`;
           }
+
+          const scaleWrap = axesPopover.querySelector('[data-role="axes-scale"]');
+          if (scaleWrap) {
+            const xType = (X.type || 'linear').toLowerCase();
+            scaleWrap.querySelectorAll('[data-scale-axis="x"]').forEach((btn) => {
+              const isLog = btn.dataset.scale === 'log';
+              const isActive = isLog ? xType === 'log' : xType !== 'log';
+              btn.classList.toggle('is-active', isActive);
+              btn.setAttribute('aria-pressed', String(isActive));
+            });
+            const yType = (Y.type || 'linear').toLowerCase();
+            scaleWrap.querySelectorAll('[data-scale-axis="y"]').forEach((btn) => {
+              const isLog = btn.dataset.scale === 'log';
+              const isActive = isLog ? yType === 'log' : yType !== 'log';
+              btn.classList.toggle('is-active', isActive);
+              btn.setAttribute('aria-pressed', String(isActive));
+            });
+          }
         };
 
         axesPopover.addEventListener('input', (e) => {
           const slider = e.target.closest('[data-role="axes-thickness-custom"] input[type="range"]');
           if (!slider) return;
           const wrap = slider.closest('[data-role="axes-thickness-custom"]');
-          const r = wrap.querySelector('[data-readout]');
-          if (r) r.textContent = `${slider.value}px`;
+          const resolved = Math.max(1, Math.min(6, Math.round(Number(slider.value) || 1)));
+          const readout = wrap.querySelector('[data-readout]');
+          if (readout) readout.textContent = `${resolved}px`;
+          axesPopover
+            .querySelectorAll('[data-role="axes-thickness"] .workspace-panel-popover-btn[data-thickness]')
+            .forEach((btn) => btn.classList.remove('is-active'));
+          safeHandleHeaderAction(panelId, 'axes-thickness-custom', { value: resolved });
+          e.stopPropagation();
         });
 
         let axesOutsideActive = false;
@@ -240,7 +296,7 @@ export function createPanelDomFacade({
           axesPopover.addEventListener('click', (event) => event.stopPropagation());
 
           axesPopover.addEventListener('click', (e) => {
-            const t = e.target.closest('[data-thickness],[data-side],[data-preset],[data-apply]');
+            const t = e.target.closest('[data-thickness],[data-side],[data-preset],[data-apply],[data-scale-axis]');
             if (!t) return;
 
             // Helper to read/write individual side buttons
@@ -337,35 +393,255 @@ export function createPanelDomFacade({
               e.stopPropagation();
               return;
             }
+
+            if (t.dataset.scaleAxis) {
+              const axis = t.dataset.scaleAxis;
+              const scale = t.dataset.scale || 'linear';
+              const group = t.closest('[data-axis]');
+              if (group) {
+                group.querySelectorAll('[data-scale-axis]').forEach((btn) => {
+                  const active = btn === t;
+                  btn.classList.toggle('is-active', active);
+                  btn.setAttribute('aria-pressed', String(active));
+                });
+              }
+              const action = `${axis}scale-${scale}`;
+              safeHandleHeaderAction(panelId, action);
+              e.stopPropagation();
+            }
           });
 
-          axesPopover.__close = closeAxesPopover;
-          appendPopoverControl(axesBtn, axesPopover);
+        axesPopover.__close = closeAxesPopover;
+        appendPopoverControl(axesBtn, axesPopover);
+
+        const axisLabelsBtn = document.createElement('button');
+        axisLabelsBtn.type = 'button';
+        axisLabelsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+        axisLabelsBtn.innerHTML = '<i class="bi bi-type"></i>';
+        axisLabelsBtn.title = 'Axis labels';
+        axisLabelsBtn.setAttribute('aria-expanded', 'false');
+
+        const axisLabelsPopover = document.createElement('div');
+        axisLabelsPopover.className = 'workspace-panel-popover workspace-panel-popover-axis-labels';
+        axisLabelsPopover.innerHTML = `
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Visibility</div>
+            <div class="workspace-panel-popover-items" data-role="axis-labels-toggle">
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-labels="show">Show labels</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-labels="hide">Hide labels</button>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Typography</div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap" data-role="axis-labels-font">
+              <label class="small text-muted mb-0">Font</label>
+              <select class="form-select form-select-sm" data-font-family style="min-width: 150px">
+                <option value="inherit">Workspace default</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times</option>
+                <option value="'Courier New', monospace">Courier</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+              </select>
+              <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" data-font-weight="bold">Bold</button>
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
+              <label class="small text-muted mb-0">Size</label>
+              <input type="number" min="6" max="36" step="1" value="12" class="form-control form-control-sm" data-font-size style="width: 72px" />
+              <label class="small text-muted mb-0">Color</label>
+              <input type="color" value="#000000" class="form-control form-control-color form-control-sm" data-font-color title="Axis title color" />
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Layout</div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
+              <span class="small text-muted">Angle</span>
+              <input type="range" min="-90" max="90" step="5" value="0" class="form-range" style="width:160px" data-angle />
+              <span class="small text-muted" data-readout-angle>0°</span>
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
+              <span class="small text-muted">Distance</span>
+              <input type="range" min="0" max="80" step="2" value="10" class="form-range" style="width:160px" data-distance />
+              <span class="small text-muted" data-readout-distance>10px</span>
+            </div>
+          </div>
+        `;
+
+        axisLabelsPopover.onOpen = () => {
+          const figure = safeGetPanelFigure(panelId);
+          const layout = figure.layout || {};
+          const runtimeLayout = plotHost?.layout || {};
+          const fullRuntimeLayout = plotHost?._fullLayout || {};
+          const mergeAxis = (axisKey) => {
+            const runtimeAxis = {
+              ...(fullRuntimeLayout?.[axisKey] || {}),
+              ...(runtimeLayout?.[axisKey] || {})
+            };
+            const modelAxis = layout[axisKey] || {};
+            const title = {
+              ...(runtimeAxis.title || {}),
+              ...(modelAxis.title || {})
+            };
+            return {
+              ...runtimeAxis,
+              ...modelAxis,
+              title
+            };
+          };
+          const X = mergeAxis('xaxis');
+          const Y = mergeAxis('yaxis');
+
+          const visibility = axisLabelsPopover.querySelector('[data-role="axis-labels-toggle"]');
+          if (visibility) {
+            const labelsOn = (X.showticklabels !== false) && (Y.showticklabels !== false);
+            visibility.querySelectorAll('[data-labels]').forEach((btn) => {
+              const isShow = btn.dataset.labels === 'show';
+              btn.classList.toggle('is-active', isShow === labelsOn);
+              btn.setAttribute('aria-pressed', String(isShow === labelsOn));
+            });
+          }
+
+          const fontSelect = axisLabelsPopover.querySelector('[data-font-family]');
+          if (fontSelect) {
+            const family = X.title?.font?.family || Y.title?.font?.family || 'inherit';
+            if (!Array.from(fontSelect.options).some((opt) => opt.value === family)) {
+              const option = document.createElement('option');
+              option.value = family;
+              option.textContent = family;
+              fontSelect.appendChild(option);
+            }
+            fontSelect.value = family;
+          }
+
+          const weightBtn = axisLabelsPopover.querySelector('[data-font-weight]');
+          if (weightBtn) {
+            const weight = X.title?.font?.weight ?? Y.title?.font?.weight ?? 400;
+            const normalized = typeof weight === 'string' ? weight.toLowerCase() : Number(weight);
+            const isBold = normalized === 'bold' || Number(normalized) >= 600;
+            weightBtn.classList.toggle('is-active', isBold);
+            weightBtn.setAttribute('aria-pressed', String(isBold));
+          }
+
+          const sizeInput = axisLabelsPopover.querySelector('[data-font-size]');
+          if (sizeInput) {
+            const size = Number(X.title?.font?.size ?? Y.title?.font?.size ?? 12);
+            sizeInput.value = Number.isFinite(size) ? size : 12;
+          }
+
+          const colorInput = axisLabelsPopover.querySelector('[data-font-color]');
+          if (colorInput) {
+            const color = X.title?.font?.color || Y.title?.font?.color || '#000000';
+            const hexPattern = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+            colorInput.value = hexPattern.test(color) ? color : '#000000';
+          }
+
+          const angleInput = axisLabelsPopover.querySelector('[data-angle]');
+          const angleReadout = axisLabelsPopover.querySelector('[data-readout-angle]');
+          if (angleInput && angleReadout) {
+            const angle = Number(X.title?.textangle ?? Y.title?.textangle ?? 0);
+            const resolved = Number.isFinite(angle) ? angle : 0;
+            angleInput.value = resolved;
+            angleReadout.textContent = `${resolved}°`;
+          }
+
+          const distanceInput = axisLabelsPopover.querySelector('[data-distance]');
+          const distanceReadout = axisLabelsPopover.querySelector('[data-readout-distance]');
+          if (distanceInput && distanceReadout) {
+            const dist = Number(X.title?.standoff ?? Y.title?.standoff ?? 10);
+            const resolved = Number.isFinite(dist) ? dist : 10;
+            distanceInput.value = resolved;
+            distanceReadout.textContent = `${resolved}px`;
+          }
+        };
+
+        axisLabelsPopover.addEventListener('click', (event) => event.stopPropagation());
+
+        axisLabelsPopover.addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-labels],[data-font-weight]');
+          if (!btn) return;
+          if (btn.dataset.labels) {
+            const show = btn.dataset.labels === 'show';
+            const group = btn.closest('[data-role="axis-labels-toggle"]');
+            group?.querySelectorAll('[data-labels]').forEach((el) => {
+              const active = el === btn;
+              el.classList.toggle('is-active', active);
+              el.setAttribute('aria-pressed', String(active));
+            });
+            safeHandleHeaderAction(panelId, 'axis-title-style', { toggleLabels: show });
+            e.stopPropagation();
+            return;
+          }
+          if (btn.dataset.fontWeight) {
+            const nextState = !btn.classList.contains('is-active');
+            btn.classList.toggle('is-active', nextState);
+            btn.setAttribute('aria-pressed', String(nextState));
+            safeHandleHeaderAction(panelId, 'axis-title-style', { fontWeight: nextState ? 'bold' : 'normal' });
+            e.stopPropagation();
+          }
+        });
+
+        axisLabelsPopover.addEventListener('change', (e) => {
+          if (e.target.matches('[data-font-family]')) {
+            safeHandleHeaderAction(panelId, 'axis-title-style', { fontFamily: e.target.value });
+            e.stopPropagation();
+          }
+          if (e.target.matches('[data-font-size]')) {
+            safeHandleHeaderAction(panelId, 'axis-title-style', { fontSize: e.target.value });
+            e.stopPropagation();
+          }
+          if (e.target.matches('[data-font-color]')) {
+            safeHandleHeaderAction(panelId, 'axis-title-style', { color: e.target.value });
+            e.stopPropagation();
+          }
+        });
+
+        axisLabelsPopover.addEventListener('input', (e) => {
+          if (e.target.matches('[data-angle]')) {
+            const value = Number(e.target.value);
+            const readout = axisLabelsPopover.querySelector('[data-readout-angle]');
+            if (readout) readout.textContent = `${value}°`;
+            safeHandleHeaderAction(panelId, 'axis-title-style', { angle: value });
+            e.stopPropagation();
+          }
+          if (e.target.matches('[data-distance]')) {
+            const value = Number(e.target.value);
+            const readout = axisLabelsPopover.querySelector('[data-readout-distance]');
+            if (readout) readout.textContent = `${value}px`;
+            safeHandleHeaderAction(panelId, 'axis-title-style', { distance: value });
+            e.stopPropagation();
+          }
+        });
+
+        appendPopoverControl(axisLabelsBtn, axisLabelsPopover);
 
           // === Major Grid (header toggle) ==============================================
-          const figureForLayout = safeGetPanelFigure(panelId);
-          const currentLayout = figureForLayout.layout || {};
+          const currentLayout = safeGetPanelFigure(panelId).layout || {};
           const isMajorGridOn = Boolean(currentLayout?.xaxis?.showgrid || currentLayout?.yaxis?.showgrid);
 
-          const gridMajorBtn = createToggleButton({
-            icon: 'bi-grid-3x3-gap',
-            title: 'Toggle major grid',
-            pressed: isMajorGridOn,
-            onClick: (on) => safeHandleHeaderAction(panelId, 'grid-major', { on })
-          });
-          controlsWrapper.appendChild(gridMajorBtn);
-
-          // === Grid (popover) : minor grid controls ===================================
+          // === Grid options (major + minor) ===========================================
           const gridBtn = document.createElement('button');
           gridBtn.type = 'button';
           gridBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-          gridBtn.innerHTML = '<i class="bi bi-grid"></i>';
-          gridBtn.title = 'Minor grid options';
+          gridBtn.innerHTML = '<i class="bi bi-grid-3x3-gap"></i>';
+          gridBtn.title = 'Grid options';
           gridBtn.setAttribute('aria-expanded', 'false');
+          gridBtn.setAttribute('aria-pressed', String(isMajorGridOn));
+          gridBtn.classList.toggle('is-active', isMajorGridOn);
 
           const gridPopover = document.createElement('div');
           gridPopover.className = 'workspace-panel-popover';
           gridPopover.innerHTML = `
+            <div class="workspace-panel-popover-section">
+              <div class="workspace-panel-popover-label">Major grid</div>
+              <div class="workspace-panel-popover-items" data-role="major-toggle">
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-major="on">On</button>
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-major="off">Off</button>
+              </div>
+              <div class="workspace-panel-popover-items d-flex align-items-center gap-2 mt-2" data-role="major-thickness">
+                <span class="small text-muted">Thickness</span>
+                <input type="range" min="1" max="6" step="1" class="form-range" style="width:160px" />
+                <span class="small text-muted" data-readout>1px</span>
+              </div>
+            </div>
             <div class="workspace-panel-popover-section">
               <div class="workspace-panel-popover-label">Minor grid</div>
               <div class="workspace-panel-popover-items" data-role="minor-toggle">
@@ -376,11 +652,9 @@ export function createPanelDomFacade({
             <div class="workspace-panel-popover-section">
               <div class="workspace-panel-popover-label">Subdivisions per major</div>
               <div class="workspace-panel-popover-items" data-role="minor-subdiv">
-                <input type="range" min="1" max="10" step="1" class="form-range" style="width:160px" />
-                <span class="small text-muted ms-2" data-readout>2</span>
-                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-apply>Apply</button>
+                <input type="range" min="1" max="10" step="1" value="1" class="form-range" style="width:160px" />
+                <span class="small text-muted ms-2" data-readout>1</span>
               </div>
-              <div class="form-text">Sets minor grid at 1/(N+1) of the major tick spacing.</div>
             </div>
           `;
 
@@ -388,6 +662,31 @@ export function createPanelDomFacade({
           gridPopover.onOpen = () => {
             const figure = safeGetPanelFigure(panelId);
             const L = figure.layout || {};
+            const majorOn = !!(L?.xaxis?.showgrid || L?.yaxis?.showgrid);
+            const majorToggle = gridPopover.querySelector('[data-role="major-toggle"]');
+            if (majorToggle) {
+              majorToggle.querySelectorAll('.workspace-panel-popover-btn').forEach((btn) => {
+                const on = btn.dataset.major === 'on';
+                btn.classList.toggle('is-active', on === majorOn);
+              });
+            }
+            const thicknessWrap = gridPopover.querySelector('[data-role="major-thickness"]');
+            if (thicknessWrap) {
+              const slider = thicknessWrap.querySelector('input[type="range"]');
+              const readout = thicknessWrap.querySelector('[data-readout]');
+              const width = Math.max(1, Math.round(
+                Number(L?.xaxis?.gridwidth)
+                || Number(L?.yaxis?.gridwidth)
+                || Number(L?.xaxis2?.gridwidth)
+                || Number(L?.yaxis2?.gridwidth)
+                || 1
+              ));
+              if (slider) slider.value = String(Math.max(1, Math.min(6, width)));
+              if (readout) readout.textContent = `${Math.max(1, Math.min(6, width))}px`;
+            }
+            gridBtn.setAttribute('aria-pressed', String(majorOn));
+            gridBtn.classList.toggle('is-active', majorOn);
+
             const isMinorOn = !!(L?.xaxis?.minor?.showgrid || L?.yaxis?.minor?.showgrid);
             const minorToggle = gridPopover.querySelector('[data-role="minor-toggle"]');
             minorToggle.querySelectorAll('.workspace-panel-popover-btn').forEach(b => {
@@ -398,7 +697,7 @@ export function createPanelDomFacade({
             // Try to infer current subdivisions from dtick ratio (if numeric)
             const xn = Number(L?.xaxis?.minor?.dtick);
             const xd = Number(L?.xaxis?.dtick);
-            let sub = 2; // default
+            let sub = 1; // default
             if (Number.isFinite(xn) && Number.isFinite(xd) && xn > 0) {
               const est = Math.round(xd / xn - 1);
               if (est >= 1 && est <= 10) sub = est;
@@ -408,14 +707,26 @@ export function createPanelDomFacade({
             wrap.querySelector('[data-readout]').textContent = String(sub);
           };
 
-          // Local click handlers ╬ô├Ñ├å central dispatcher
+          // Local click handlers - central dispatcher
           gridPopover.addEventListener('click', (e) => {
-            const t = e.target.closest('[data-minor],[data-apply]');
+            const t = e.target.closest('[data-major],[data-minor]');
             if (!t) return;
+
+            if (t.dataset.major) {
+              const on = t.dataset.major === 'on';
+              const group = gridPopover.querySelector('[data-role="major-toggle"]');
+              group.querySelectorAll('.workspace-panel-popover-btn').forEach((b) => {
+                b.classList.toggle('is-active', b === t);
+              });
+              safeHandleHeaderAction(panelId, 'grid-major', { on });
+              gridBtn.setAttribute('aria-pressed', String(on));
+              gridBtn.classList.toggle('is-active', on);
+              e.stopPropagation();
+              return;
+            }
 
             if (t.dataset.minor) {
               const on = t.dataset.minor === 'on';
-              // toggle buttons UI
               const group = gridPopover.querySelector('[data-role="minor-toggle"]');
               group.querySelectorAll('.workspace-panel-popover-btn').forEach(b =>
                 b.classList.toggle('is-active', b === t)
@@ -424,34 +735,36 @@ export function createPanelDomFacade({
               e.stopPropagation();
               return;
             }
-
-            if (t.hasAttribute('data-apply')) {
-              const wrap = gridPopover.querySelector('[data-role="minor-subdiv"]');
-              const val = Number(wrap.querySelector('input[type="range"]').value || 2);
-              wrap.querySelector('[data-readout]').textContent = String(val);
-              safeHandleHeaderAction(panelId, 'grid-minor-subdiv', { subdiv: Math.max(1, Math.min(10, Math.round(val))) });
-              e.stopPropagation();
-              return;
-            }
           });
 
           // Live readout while sliding (optional)
           gridPopover.addEventListener('input', (e) => {
+            const majorSlider = e.target.closest('[data-role="major-thickness"] input[type="range"]');
+            if (majorSlider) {
+              const wrap = gridPopover.querySelector('[data-role="major-thickness"]');
+              const resolved = Math.max(1, Math.min(6, Math.round(Number(majorSlider.value) || 1)));
+              wrap.querySelector('[data-readout]').textContent = `${resolved}px`;
+              safeHandleHeaderAction(panelId, 'grid-major-thickness', { value: resolved });
+              e.stopPropagation();
+              return;
+            }
             const r = e.target.closest('[data-role="minor-subdiv"] input[type="range"]');
             if (!r) return;
             const wrap = gridPopover.querySelector('[data-role="minor-subdiv"]');
-            wrap.querySelector('[data-readout]').textContent = String(r.value);
+            const resolved = Math.max(1, Math.min(10, Math.round(Number(r.value) || 1)));
+            wrap.querySelector('[data-readout]').textContent = String(resolved);
+            safeHandleHeaderAction(panelId, 'grid-minor-subdiv', { subdiv: resolved });
+            e.stopPropagation();
           });
 
           // Add to header and auto-portal like other popovers
           appendPopoverControl(gridBtn, gridPopover);
-
-        const ticksBtn = document.createElement('button');
-        ticksBtn.type = 'button';
-        ticksBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-        ticksBtn.innerHTML = '<i class="bi bi-distribute-vertical"></i>';
-        ticksBtn.title = 'Tick options';
-        ticksBtn.setAttribute('aria-expanded', 'false');
+          const ticksBtn = document.createElement('button');
+          ticksBtn.type = 'button';
+          ticksBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+          ticksBtn.innerHTML = '<i class="bi bi-distribute-vertical"></i>';
+          ticksBtn.title = 'Tick options';
+          ticksBtn.setAttribute('aria-expanded', 'false');
 
         const ticksPopoverIds = {
           between: `${panelState.id}_ticks_between`,
@@ -475,13 +788,11 @@ export function createPanelDomFacade({
                 <span class="small text-muted">Tick start</span>
                 <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="X╬ô├⌐├ç">
                 <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Y╬ô├⌐├ç">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-apply-offset>Apply</button>
               </div>
               <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-major-dtick">
                 <span class="small text-muted">Spacing</span>
                 <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢X">
                 <input type="number" step="any" class="form-control form-control-sm" style="width:90px" placeholder="Γò¼├╢Y">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-apply-dtick>Apply</button>
               </div>
             </div>
           </div>
@@ -490,25 +801,43 @@ export function createPanelDomFacade({
             <div class="workspace-panel-popover-label">Minor</div>
             <div class="workspace-panel-popover-items" data-role="ticks-minor">
               <div class="btn-group" role="group" aria-label="Minor placement">
-                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-minor-placement="outside">Outside</button>
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-minor-placement="outside">Outside</button>
                 <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-minor-placement="inside">Inside</button>
-                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-minor-placement="none">None</button>
+                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-minor-placement="none">None</button>
               </div>
               <div class="ms-3 d-flex align-items-center gap-2" data-role="ticks-subdiv">
                 <span class="small text-muted">Subdivisions</span>
-                <input type="range" min="1" max="10" step="1" class="form-range" style="width:120px" />
-                <span class="small text-muted" data-readout>2</span>
+                <input type="range" min="1" max="10" step="1" value="1" class="form-range" style="width:120px" />
+                <span class="small text-muted" data-readout>1</span>
               </div>
             </div>
-            <div class="form-text">Minor ticks between majors (N per interval).</div>
+            <div class="form-text">Minor ticks between majors.</div>
           </div>
         `;
 
         ticksPopover.onOpen = () => {
           const figure = safeGetPanelFigure(panelId);
           const L = figure.layout || {};
-          const X = L.xaxis || {};
-          const Y = L.yaxis || {};
+          const runtimeLayout = plotHost?.layout || {};
+          const fullRuntimeLayout = plotHost?._fullLayout || {};
+          const mergeAxisState = (axisKey) => {
+            const runtimeAxis = {
+              ...(fullRuntimeLayout?.[axisKey] || {}),
+              ...(runtimeLayout?.[axisKey] || {})
+            };
+            const modelAxis = L[axisKey] || {};
+            const mergedMinor = {
+              ...(runtimeAxis.minor || {}),
+              ...(modelAxis.minor || {})
+            };
+            return {
+              ...runtimeAxis,
+              ...modelAxis,
+              minor: mergedMinor
+            };
+          };
+          const X = mergeAxisState('xaxis');
+          const Y = mergeAxisState('yaxis');
 
           // Major placement (assume both axes share the same, pick X╬ô├ç├ûs as source of truth)
           const majorPlacement = (X.ticks ?? 'outside');
@@ -529,12 +858,15 @@ export function createPanelDomFacade({
             yInput.value = (Y.tick0 != null && Y.tick0 !== '') ? String(Y.tick0) : '';
           }
 
-          // Subdivisions: infer from dtick ratio if numeric, else default 2
-          const xn = Number(X.minor?.dtick);
-          const xd = Number(X.dtick);
-          let sub = 2;
-          if (Number.isFinite(xn) && Number.isFinite(xd) && xn > 0) {
-            const est = Math.round(xd / xn - 1);
+          // Subdivisions: infer from dtick ratio if numeric, else default 1
+          const minorDtick = Number(X.minor?.dtick);
+          const majorDtick = Number(X.dtick);
+          let sub = 1;
+          if (Number.isFinite(minorDtick) && Number.isFinite(majorDtick) && minorDtick > 0) {
+            const est = Math.round(majorDtick / minorDtick - 1);
+            if (est >= 1 && est <= 10) sub = est;
+          } else if (Number.isFinite(Number(X.minor?.nticks))) {
+            const est = Math.round(Number(X.minor.nticks));
             if (est >= 1 && est <= 10) sub = est;
           }
           const wrap = ticksPopover.querySelector('[data-role="ticks-subdiv"]');
@@ -550,7 +882,7 @@ export function createPanelDomFacade({
             dtWrap.querySelector('input[placeholder="Γò¼├╢Y"]').value = Number.isFinite(dy) ? String(dy) : '';
           }
 
-          const mplace = (X.minor?.ticks ?? '');
+          const mplace = X.minor?.ticks || 'outside';
           ticksPopover.querySelectorAll('[data-role="ticks-minor"] [data-minor-placement]')
             .forEach(b => {
               const val = b.dataset.minorPlacement;   // ╬ô┬ú├á correct
@@ -561,7 +893,6 @@ export function createPanelDomFacade({
 
         ticksPopover.addEventListener('click', (e) => {
           const t = e.target.closest('[data-placement],[data-labels],[data-minor],[data-minor-placement]');
-          // const t = e.target.closest('[data-placement],[data-labels],[data-minor],[data-minor-placement],[data-apply],[data-apply-offset],[data-apply-dtick]');
           if (!t) return;
           // Major placement
           if (t.dataset.placement) {
@@ -585,7 +916,6 @@ export function createPanelDomFacade({
           }
 
           // // Apply major offsets
-          // if (t.hasAttribute('data-apply-offset')) {
           //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-offset"]');
           //   const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
           //   const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
@@ -597,7 +927,6 @@ export function createPanelDomFacade({
           // }
 
           // // Major ticks spacing
-          // if (t.hasAttribute('data-apply-dtick')) {
           //   const wrap = ticksPopover.querySelector('[data-role="ticks-major-dtick"]');
           //   const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
           //   const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
@@ -635,7 +964,7 @@ export function createPanelDomFacade({
           const slider = e.target.closest('[data-role="ticks-subdiv"] input[type="range"]');
           if (slider) {
             const wrap = ticksPopover.querySelector('[data-role="ticks-subdiv"]');
-            const val = Math.max(1, Math.min(10, Math.round(Number(slider.value) || 2)));
+            const val = Math.max(1, Math.min(10, Math.round(Number(slider.value) || 1)));
             slider.value = String(val);
             wrap.querySelector('[data-readout]').textContent = String(val);
             autoApplyMinorSubdiv(val);
@@ -660,8 +989,10 @@ export function createPanelDomFacade({
           if (!wrap) return;
           const x0raw = wrap.querySelector('input[placeholder="X╬ô├⌐├ç"]').value;
           const y0raw = wrap.querySelector('input[placeholder="Y╬ô├⌐├ç"]').value;
-          const x0 = x0raw === '' ? null : Number(x0raw);
-          const y0 = y0raw === '' ? null : Number(y0raw);
+          const x0Numeric = Number(x0raw);
+          const y0Numeric = Number(y0raw);
+          const x0 = x0raw === '' || !Number.isFinite(x0Numeric) ? null : x0Numeric;
+          const y0 = y0raw === '' || !Number.isFinite(y0Numeric) ? null : y0Numeric;
           safeHandleHeaderAction(panelId, 'ticks-major-offset', { x0, y0 });
         });
 
@@ -670,8 +1001,10 @@ export function createPanelDomFacade({
           if (!wrap) return;
           const dxRaw = wrap.querySelector('input[placeholder="Γò¼├╢X"]').value;
           const dyRaw = wrap.querySelector('input[placeholder="Γò¼├╢Y"]').value;
-          const dx = dxRaw === '' ? null : Number(dxRaw);
-          const dy = dyRaw === '' ? null : Number(dyRaw);
+          const dxNumeric = Number(dxRaw);
+          const dyNumeric = Number(dyRaw);
+          const dx = dxRaw === '' || !Number.isFinite(dxNumeric) ? null : dxNumeric;
+          const dy = dyRaw === '' || !Number.isFinite(dyNumeric) ? null : dyNumeric;
           safeHandleHeaderAction(panelId, 'ticks-major-dtick', { dx, dy });
         });
 
@@ -750,38 +1083,11 @@ export function createPanelDomFacade({
           pop.__close = close;
         }
 
-        const labelsAxisBtn = createToggleButton({
-          icon: 'bi-type',
-          title: 'Toggle axis labels',
-          pressed: true,
-          onClick: (on) => safeHandleHeaderAction(panelId, 'ticklabels', { on })
-        });
-        controlsWrapper.appendChild(labelsAxisBtn);
-
         const labelsDataBtn = createToggleButton({
           icon: 'bi-card-text',
           title: 'Toggle data labels'
         });
         controlsWrapper.appendChild(labelsDataBtn);
-
-        const scaleBtn = document.createElement('button');
-        scaleBtn.type = 'button';
-        scaleBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-        scaleBtn.dataset.scaleMode = 'linear';
-        scaleBtn.setAttribute('aria-pressed', 'false');
-        scaleBtn.innerHTML = '<i class="bi bi-graph-up"></i>';
-        scaleBtn.title = 'Scale: Linear';
-        scaleBtn.addEventListener('click', () => {
-          const nextMode = scaleBtn.dataset.scaleMode === 'linear' ? 'log' : 'linear';
-          scaleBtn.dataset.scaleMode = nextMode;
-          const isLog = nextMode === 'log';
-          scaleBtn.classList.toggle('is-active', isLog);
-          scaleBtn.setAttribute('aria-pressed', String(isLog));
-          scaleBtn.innerHTML = isLog ? '<i class="bi bi-graph-down"></i>' : '<i class="bi bi-graph-up"></i>';
-          scaleBtn.title = isLog ? 'Scale: Log' : 'Scale: Linear';
-          safeHandleHeaderAction(panelId, isLog ? 'yscale-log' : 'yscale-linear');
-        });
-        controlsWrapper.appendChild(scaleBtn);
 
         const legendBtn = createToggleButton({
           icon: 'bi-list-ul',
@@ -791,26 +1097,223 @@ export function createPanelDomFacade({
         });
         controlsWrapper.appendChild(legendBtn);
 
-        const annotationsBtn = createToggleButton({
-          icon: 'bi-chat-square-text',
-          title: 'Toggle annotations'
-        });
-        controlsWrapper.appendChild(annotationsBtn);
+        const annotationsBtn = document.createElement('button');
+        annotationsBtn.type = 'button';
+        annotationsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+        annotationsBtn.innerHTML = '<i class="bi bi-chat-square-text"></i>';
+        annotationsBtn.title = 'Annotation tips';
+        annotationsBtn.setAttribute('aria-expanded', 'false');
 
-        const smoothingBtn = createToggleButton({
-          icon: 'bi-graph-up-arrow',
-          title: 'Toggle smoothing presets',
-          onClick: (on) => safeHandleHeaderAction(panelId, 'smooth', { on })
+        const annotationsPopover = document.createElement('div');
+        annotationsPopover.className = 'workspace-panel-popover workspace-panel-popover-annotations';
+        annotationsPopover.innerHTML = `
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Annotations</div>
+            <div class="workspace-panel-popover-items flex-column gap-2">
+              <p class="small mb-0">Use Plotly's drawing tools to add callouts:</p>
+              <ul class="small mb-1 ps-3">
+                <li>Hover the chart to reveal the mode bar and choose <strong>Draw text</strong> to drop notes.</li>
+                <li>Double-click an annotation to edit text or drag to reposition.</li>
+                <li>Hold <kbd>Shift</kbd> while dragging to keep annotations aligned.</li>
+              </ul>
+              <button type="button" class="btn btn-outline-secondary btn-sm align-self-start" data-annotation-guide>Plotly annotation guide</button>
+            </div>
+          </div>
+        `;
+        annotationsPopover.addEventListener('click', (event) => {
+          if (event.target.matches('[data-annotation-guide]')) {
+            if (typeof window !== 'undefined' && typeof window.open === 'function') {
+              window.open('https://plotly.com/javascript/text-and-annotations/', '_blank', 'noopener');
+            }
+            event.stopPropagation();
+          }
         });
-        controlsWrapper.appendChild(smoothingBtn);
+        appendPopoverControl(annotationsBtn, annotationsPopover);
 
-        const exportBtn = document.createElement('button');
-        exportBtn.type = 'button';
-        exportBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-        exportBtn.innerHTML = '<i class="bi bi-camera"></i>';
-        exportBtn.title = 'Export image';
-        exportBtn.addEventListener('click', () => safeHandleHeaderAction(panelId, 'export', {}));
-        controlsWrapper.appendChild(exportBtn);
+        const snapshotBtn = document.createElement('button');
+        snapshotBtn.type = 'button';
+        snapshotBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+        snapshotBtn.innerHTML = '<i class="bi bi-camera"></i>';
+        snapshotBtn.title = 'Snapshot options';
+        snapshotBtn.setAttribute('aria-expanded', 'false');
+        snapshotBtn.dataset.snapshotFormat = 'png';
+        snapshotBtn.dataset.snapshotScale = '2';
+
+        const snapshotPopover = document.createElement('div');
+        snapshotPopover.className = 'workspace-panel-popover workspace-panel-popover-snapshot';
+        snapshotPopover.innerHTML = `
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Format</div>
+            <div class="workspace-panel-popover-items">
+              <select class="form-select form-select-sm" data-snapshot-format>
+                <option value="png">PNG</option>
+                <option value="svg">SVG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WebP</option>
+              </select>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Size</div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
+              <label class="small text-muted mb-0">Filename</label>
+              <input type="text" class="form-control form-control-sm" data-snapshot-filename placeholder="plot-${panelId}" style="width: 140px" />
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
+              <label class="small text-muted mb-0">Width</label>
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-width placeholder="Auto" style="width: 90px" />
+              <label class="small text-muted mb-0">Height</label>
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-height placeholder="Auto" style="width: 90px" />
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
+              <span class="small text-muted">Scale</span>
+              <input type="range" min="1" max="4" step="1" value="2" class="form-range" style="width:160px" data-snapshot-scale />
+              <span class="small text-muted" data-snapshot-scale-readout>2x</span>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Quality</div>
+            <div class="workspace-panel-popover-items flex-column gap-1">
+              <div class="form-text">Advanced quality controls are coming soon. Current exports use Plotly defaults.</div>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-snapshot-cancel>Close</button>
+              <button type="button" class="btn btn-primary btn-sm" data-snapshot-capture>Capture</button>
+            </div>
+          </div>
+        `;
+
+        snapshotPopover.onOpen = () => {
+          const formatSelect = snapshotPopover.querySelector('[data-snapshot-format]');
+          if (formatSelect) {
+            formatSelect.value = snapshotBtn.dataset.snapshotFormat || 'png';
+          }
+          const filenameInput = snapshotPopover.querySelector('[data-snapshot-filename]');
+          if (filenameInput) {
+            filenameInput.value = snapshotBtn.dataset.snapshotFilename || '';
+          }
+          const widthInput = snapshotPopover.querySelector('[data-snapshot-width]');
+          if (widthInput) {
+            widthInput.value = snapshotBtn.dataset.snapshotWidth || '';
+          }
+          const heightInput = snapshotPopover.querySelector('[data-snapshot-height]');
+          if (heightInput) {
+            heightInput.value = snapshotBtn.dataset.snapshotHeight || '';
+          }
+          const scaleInput = snapshotPopover.querySelector('[data-snapshot-scale]');
+          const scaleReadout = snapshotPopover.querySelector('[data-snapshot-scale-readout]');
+          if (scaleInput && scaleReadout) {
+            const scaleValue = snapshotBtn.dataset.snapshotScale || '2';
+            scaleInput.value = scaleValue;
+            scaleReadout.textContent = `${scaleValue}x`;
+          }
+        };
+
+        snapshotPopover.addEventListener('change', (e) => {
+          if (e.target.matches('[data-snapshot-format]')) {
+            snapshotBtn.dataset.snapshotFormat = e.target.value;
+            e.stopPropagation();
+          }
+          if (e.target.matches('[data-snapshot-filename]')) {
+            snapshotBtn.dataset.snapshotFilename = e.target.value.trim();
+            e.stopPropagation();
+          }
+          if (e.target.matches('[data-snapshot-width]')) {
+            const raw = e.target.value.trim();
+            const numeric = Number(raw);
+            if (Number.isFinite(numeric) && numeric > 0) {
+              const rounded = Math.round(numeric);
+              snapshotBtn.dataset.snapshotWidth = String(rounded);
+              e.target.value = String(rounded);
+            } else {
+              delete snapshotBtn.dataset.snapshotWidth;
+              e.target.value = '';
+            }
+            e.stopPropagation();
+          }
+          if (e.target.matches('[data-snapshot-height]')) {
+            const raw = e.target.value.trim();
+            const numeric = Number(raw);
+            if (Number.isFinite(numeric) && numeric > 0) {
+              const rounded = Math.round(numeric);
+              snapshotBtn.dataset.snapshotHeight = String(rounded);
+              e.target.value = String(rounded);
+            } else {
+              delete snapshotBtn.dataset.snapshotHeight;
+              e.target.value = '';
+            }
+            e.stopPropagation();
+          }
+        });
+
+        snapshotPopover.addEventListener('input', (e) => {
+          if (e.target.matches('[data-snapshot-scale]')) {
+            const scaleReadout = snapshotPopover.querySelector('[data-snapshot-scale-readout]');
+            const value = e.target.value || '1';
+            if (scaleReadout) scaleReadout.textContent = `${value}x`;
+            snapshotBtn.dataset.snapshotScale = value;
+            e.stopPropagation();
+          }
+        });
+
+        snapshotPopover.addEventListener('click', (e) => {
+          if (e.target.matches('[data-snapshot-capture]')) {
+            const format = snapshotBtn.dataset.snapshotFormat || 'png';
+            const scaleNumeric = Number(snapshotBtn.dataset.snapshotScale);
+            const widthNumeric = Number(snapshotBtn.dataset.snapshotWidth);
+            const heightNumeric = Number(snapshotBtn.dataset.snapshotHeight);
+            const payload = {
+              format,
+              scale: Number.isFinite(scaleNumeric) && scaleNumeric > 0 ? scaleNumeric : 2,
+              filename: snapshotBtn.dataset.snapshotFilename
+            };
+            if (Number.isFinite(widthNumeric) && widthNumeric > 0) {
+              payload.width = Math.round(widthNumeric);
+            }
+            if (Number.isFinite(heightNumeric) && heightNumeric > 0) {
+              payload.height = Math.round(heightNumeric);
+            }
+            safeHandleHeaderAction(panelId, 'export', payload);
+            snapshotPopover.__close?.();
+            e.stopPropagation();
+            return;
+          }
+          if (e.target.matches('[data-snapshot-cancel]')) {
+            snapshotPopover.__close?.();
+            e.stopPropagation();
+          }
+        });
+
+        appendPopoverControl(snapshotBtn, snapshotPopover);
+
+        const fullscreenBtn = createToggleButton({
+          icon: 'bi-arrows-fullscreen',
+          title: 'Fullscreen panel',
+          onClick: (isOn, btn) => {
+            btn.innerHTML = isOn ? '<i class="bi bi-arrows-angle-contract"></i>' : '<i class="bi bi-arrows-fullscreen"></i>';
+            btn.title = isOn ? 'Exit fullscreen' : 'Fullscreen panel';
+            safeHandleHeaderAction(panelId, 'toggle-fullscreen', { on: isOn });
+          }
+        });
+        controlsWrapper.appendChild(fullscreenBtn);
+
+        const undoBtn = document.createElement('button');
+        undoBtn.type = 'button';
+        undoBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        undoBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i>';
+        undoBtn.title = 'Undo';
+        undoBtn.addEventListener('click', () => safeHandleHeaderAction(panelId, 'history-undo'));
+        controlsWrapper.appendChild(undoBtn);
+
+        const redoBtn = document.createElement('button');
+        redoBtn.type = 'button';
+        redoBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        redoBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
+        redoBtn.title = 'Redo';
+        redoBtn.addEventListener('click', () => safeHandleHeaderAction(panelId, 'history-redo'));
+        controlsWrapper.appendChild(redoBtn);
 
         const overflowBtn = document.createElement('button');
         overflowBtn.type = 'button';
@@ -967,3 +1470,4 @@ export function createPanelDomFacade({
     mountPanel
   };
 }
+

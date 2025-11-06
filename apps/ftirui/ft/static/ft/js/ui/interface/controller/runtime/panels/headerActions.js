@@ -24,6 +24,120 @@ export function createHeaderActions(context = {}) {
   const setAxisType = actionsController.setAxisType || (() => {});
 
   const exportFigure = plot.exportFigure || (() => Promise.resolve());
+  const resizePlot = plot.resize || (() => {});
+  const historyApi = context.historyApi || {};
+
+  const clampSubdivisions = (value) => Math.max(1, Math.min(10, Math.round(Number(value) || 1)));
+
+  const getRuntimeAxisState = (panelDom, axisKey) => {
+    const plotEl = panelDom?.plotEl;
+    if (!plotEl) return {};
+    return {
+      ...(plotEl._fullLayout?.[axisKey] || {}),
+      ...(plotEl.layout?.[axisKey] || {})
+    };
+  };
+
+  const mergeAxisContext = (panelDom, figure, axisKey) => {
+    const modelAxis = figure?.layout?.[axisKey] || {};
+    const runtimeAxis = getRuntimeAxisState(panelDom, axisKey);
+    const minor = {
+      ...(runtimeAxis.minor || {}),
+      ...(modelAxis.minor || {})
+    };
+    return {
+      model: modelAxis,
+      runtime: runtimeAxis,
+      combined: {
+        ...runtimeAxis,
+        ...modelAxis,
+        minor
+      }
+    };
+  };
+
+  const resolveMajorSpacing = (ctx) => {
+    const numericCandidates = [
+      Number(ctx.model?.dtick),
+      Number(ctx.runtime?.dtick)
+    ];
+    for (const candidate of numericCandidates) {
+      if (Number.isFinite(candidate) && candidate > 0) {
+        return Math.abs(candidate);
+      }
+    }
+
+    const runtimeTickvals = Array.isArray(ctx.runtime?.tickvals) ? ctx.runtime.tickvals : null;
+    const modelTickvals = Array.isArray(ctx.model?.tickvals) ? ctx.model.tickvals : null;
+    const tickvals = (runtimeTickvals && runtimeTickvals.length >= 2)
+      ? runtimeTickvals
+      : (modelTickvals && modelTickvals.length >= 2 ? modelTickvals : null);
+    if (tickvals) {
+      for (let i = 1; i < tickvals.length; i += 1) {
+        const diff = Number(tickvals[i]) - Number(tickvals[i - 1]);
+        if (Number.isFinite(diff) && diff !== 0) {
+          return Math.abs(diff);
+        }
+      }
+    }
+
+    const range = Array.isArray(ctx.runtime?.range) && ctx.runtime.range.length === 2
+      ? ctx.runtime.range
+      : (Array.isArray(ctx.model?.range) && ctx.model.range.length === 2 ? ctx.model.range : null);
+    const nticks = Number(ctx.runtime?.nticks ?? ctx.model?.nticks);
+    if (range && Number.isFinite(nticks) && nticks > 0) {
+      const span = Math.abs(Number(range[1]) - Number(range[0]));
+      if (Number.isFinite(span) && span > 0) {
+        return span / nticks;
+      }
+    }
+
+    return NaN;
+  };
+
+  const resolveSubdivisionCount = (ctx) => {
+    const minor = ctx.combined?.minor || {};
+    const candidates = [
+      Number(minor.nticks)
+    ];
+    for (const candidate of candidates) {
+      if (Number.isFinite(candidate) && candidate > 0) {
+        return clampSubdivisions(candidate);
+      }
+    }
+
+    const minorDtick = Number(minor.dtick);
+    const majorSpacing = resolveMajorSpacing(ctx);
+    if (Number.isFinite(majorSpacing) && Number.isFinite(minorDtick) && minorDtick > 0) {
+      const est = Math.round(majorSpacing / minorDtick - 1);
+      if (est >= 1 && est <= 10) {
+        return est;
+      }
+    }
+
+    return 1;
+  };
+
+  const buildMinorTickPatch = (axisKey, ctx, subdivisions, { ensureVisible = false } = {}) => {
+    const resolvedSubdivisions = clampSubdivisions(subdivisions);
+    const patch = {};
+    const placement = ctx.combined?.minor?.ticks;
+    patch[`${axisKey}.minor.ticks`] = placement == null ? 'outside' : placement;
+    patch[`${axisKey}.minor.nticks`] = resolvedSubdivisions;
+    patch[`${axisKey}.minor.tickmode`] = 'linear';
+    if (ensureVisible) {
+      patch[`${axisKey}.minor.show`] = true;
+    }
+    const majorSpacing = resolveMajorSpacing(ctx);
+    const fallbackMinorDtick = Number(ctx.combined?.minor?.dtick);
+    const minorDtick = Number.isFinite(majorSpacing) && majorSpacing > 0
+      ? majorSpacing / (resolvedSubdivisions + 1)
+      : (Number.isFinite(fallbackMinorDtick) && fallbackMinorDtick > 0 ? fallbackMinorDtick : NaN);
+    if (Number.isFinite(minorDtick) && minorDtick > 0) {
+      patch[`${axisKey}.minor.dtick`] = minorDtick;
+    }
+    return patch;
+  };
 
   const isPrimaryAxis = (axisKey) => axisKey === 'xaxis' || axisKey === 'yaxis';
 
@@ -127,8 +241,6 @@ export function createHeaderActions(context = {}) {
         commitLayoutPatch(panelId, {
           'xaxis.linewidth': w,
           'yaxis.linewidth': w,
-          'xaxis.gridwidth': Math.max(0, Math.round(w * 0.75)),
-          'yaxis.gridwidth': Math.max(0, Math.round(w * 0.75)),
           'xaxis.linecolor': xColor,
           'yaxis.linecolor': yColor
         });
@@ -248,15 +360,42 @@ export function createHeaderActions(context = {}) {
         break;
       }
 
+      case 'grid-major-thickness': {
+        const width = Math.max(1, Math.min(6, Math.round(Number(payload.value) || 1)));
+        const figure = getPanelFigure(panelId);
+        const layoutState = figure.layout || {};
+        const liveLayout = dom?.plotEl?.layout || {};
+        const patch = {};
+
+        ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'].forEach((axis) => {
+          const inState = layoutState[axis] && typeof layoutState[axis] === 'object';
+          const inLive = liveLayout[axis] && typeof liveLayout[axis] === 'object';
+          if (!inState && !inLive) return;
+          patch[`${axis}.gridwidth`] = width;
+        });
+
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch);
+        }
+        break;
+      }
+
       case 'grid-minor': {
         const on = !!payload.on;
         const figure = getPanelFigure(panelId);
         const patch = {};
-        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], (axis, axisState) => {
+        ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'].forEach((axis) => {
+          if (!axisExists(panelId, figure, axis)) return;
+          const axisState = getAxisState(panelId, figure, axis) || {};
           const baseColor = axisState.gridcolor || '#e0e0e0';
           patch[`${axis}.minor.showgrid`] = on;
           patch[`${axis}.minor.gridcolor`] = baseColor;
           patch[`${axis}.minor.gridwidth`] = 1;
+          if (on) {
+            const ctx = mergeAxisContext(dom, figure, axis);
+            const subdivisions = resolveSubdivisionCount(ctx);
+            Object.assign(patch, buildMinorTickPatch(axis, ctx, subdivisions, { ensureVisible: true }));
+          }
         });
         if (Object.keys(patch).length) {
           commitLayoutPatch(panelId, patch);
@@ -265,28 +404,22 @@ export function createHeaderActions(context = {}) {
       }
 
       case 'grid-minor-subdiv': {
-        const subdivisions = Math.max(1, Math.min(10, Math.round(Number(payload.subdiv) || 2)));
+        const subdivisions = clampSubdivisions(payload.subdiv);
         const figure = getPanelFigure(panelId);
         const patch = {};
-
-        const setMinor = (axis, axisState) => {
-          const state = axisState || {};
-          let major = Number(state.dtick);
-          if (!Number.isFinite(major)) {
-            const rng = Array.isArray(state.range) && state.range.length === 2 ? state.range : null;
-            const span = rng ? Math.abs(rng[1] - rng[0]) : NaN;
-            const nt = Number(state.nticks) || 6;
-            if (Number.isFinite(span) && span > 0) {
-              major = span / nt;
-            }
-          }
-          if (Number.isFinite(major) && major > 0) {
-            patch[`${axis}.minor.dtick`] = major / (subdivisions + 1);
-            patch[`${axis}.minor.show`] = true;
-          }
-        };
-
-        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], setMinor);
+        ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'].forEach((axis) => {
+          if (!axisExists(panelId, figure, axis)) return;
+          const axisState = getAxisState(panelId, figure, axis) || {};
+          const baseColor = axisState?.minor?.gridcolor || axisState.gridcolor || '#e0e0e0';
+          const baseWidth = Number.isFinite(axisState?.minor?.gridwidth)
+            ? Math.max(0.5, Number(axisState.minor.gridwidth))
+            : Math.max(1, Math.round(Number(axisState.gridwidth) || 1));
+          const ctx = mergeAxisContext(dom, figure, axis);
+          Object.assign(patch, buildMinorTickPatch(axis, ctx, subdivisions, { ensureVisible: true }));
+          patch[`${axis}.minor.showgrid`] = true;
+          patch[`${axis}.minor.gridcolor`] = baseColor;
+          patch[`${axis}.minor.gridwidth`] = baseWidth;
+        });
         if (Object.keys(patch).length) {
           commitLayoutPatch(panelId, patch);
         }
@@ -374,8 +507,15 @@ export function createHeaderActions(context = {}) {
         const on = payload.on === true;
         const figure = getPanelFigure(panelId);
         const patch = {};
-        forEachAxis(panelId, figure, ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'], (axis) => {
-          patch[`${axis}.minor.show`] = on;
+        ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'].forEach((axis) => {
+          if (!axisExists(panelId, figure, axis)) return;
+          if (on) {
+            const ctx = mergeAxisContext(dom, figure, axis);
+            const subdivisions = resolveSubdivisionCount(ctx);
+            Object.assign(patch, buildMinorTickPatch(axis, ctx, subdivisions, { ensureVisible: true }));
+          } else {
+            patch[`${axis}.minor.show`] = false;
+          }
         });
         if (Object.keys(patch).length) {
           commitLayoutPatch(panelId, patch);
@@ -392,6 +532,77 @@ export function createHeaderActions(context = {}) {
           if (!axisExists(panelId, figure, axis)) return;
           patch[`${axis}.minor.ticks`] = placement;
         });
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch);
+        }
+        break;
+      }
+
+      case 'ticks-minor-subdiv': {
+        const subdivisions = clampSubdivisions(payload.subdiv);
+        const figure = getPanelFigure(panelId);
+        const patch = {};
+        ['xaxis', 'yaxis', 'xaxis2', 'yaxis2'].forEach((axis) => {
+          if (!axisExists(panelId, figure, axis)) return;
+          const ctx = mergeAxisContext(dom, figure, axis);
+          Object.assign(patch, buildMinorTickPatch(axis, ctx, subdivisions, { ensureVisible: true }));
+        });
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch);
+        }
+        break;
+      }
+
+      case 'axis-title-style': {
+        const patch = {};
+        if (typeof payload.fontFamily === 'string') {
+          const family = payload.fontFamily === 'inherit' ? '' : payload.fontFamily;
+          if (family) {
+            patch['xaxis.title.font.family'] = family;
+            patch['yaxis.title.font.family'] = family;
+          } else {
+            patch['xaxis.title.font.family'] = null;
+            patch['yaxis.title.font.family'] = null;
+          }
+        }
+        if (payload.fontWeight) {
+          const weight = payload.fontWeight === 'bold' ? 700 : 400;
+          patch['xaxis.title.font.weight'] = weight;
+          patch['yaxis.title.font.weight'] = weight;
+        }
+        if (payload.fontSize !== undefined) {
+          const sizeNumeric = Number(payload.fontSize);
+          if (Number.isFinite(sizeNumeric) && sizeNumeric > 0) {
+            const size = Math.max(6, Math.round(sizeNumeric));
+            patch['xaxis.title.font.size'] = size;
+            patch['yaxis.title.font.size'] = size;
+          }
+        }
+        if (typeof payload.color === 'string' && payload.color) {
+          patch['xaxis.title.font.color'] = payload.color;
+          patch['yaxis.title.font.color'] = payload.color;
+        }
+        if (payload.angle !== undefined) {
+          const angleNumeric = Number(payload.angle);
+          if (Number.isFinite(angleNumeric)) {
+            const angle = Math.max(-180, Math.min(180, Math.round(angleNumeric)));
+            patch['xaxis.title.textangle'] = angle;
+            patch['yaxis.title.textangle'] = angle;
+          }
+        }
+        if (payload.distance !== undefined) {
+          const distanceNumeric = Number(payload.distance);
+          if (Number.isFinite(distanceNumeric) && distanceNumeric >= 0) {
+            const dist = Math.round(distanceNumeric);
+            patch['xaxis.title.standoff'] = dist;
+            patch['yaxis.title.standoff'] = dist;
+          }
+        }
+        if (payload.toggleLabels !== undefined) {
+          const on = !!payload.toggleLabels;
+          patch['xaxis.showticklabels'] = on;
+          patch['yaxis.showticklabels'] = on;
+        }
         if (Object.keys(patch).length) {
           commitLayoutPatch(panelId, patch);
         }
@@ -422,15 +633,117 @@ export function createHeaderActions(context = {}) {
         break;
       }
 
+      case 'history-undo': {
+        if (typeof historyApi.undo === 'function') {
+          historyApi.undo();
+        }
+        break;
+      }
+
+      case 'history-redo': {
+        if (typeof historyApi.redo === 'function') {
+          historyApi.redo();
+        }
+        break;
+      }
+
+      case 'toggle-fullscreen': {
+        const on = payload.on === true;
+        const panelDom = getPanelDom(panelId);
+        const rootEl = panelDom?.rootEl;
+        if (!rootEl) return;
+        const runtime = panelDom.runtime || {};
+        panelDom.runtime = runtime;
+        runtime.isFullscreen = on;
+        if (on) {
+          if (!rootEl.classList.contains('is-fullscreen')) {
+            rootEl.dataset.prevTransform = rootEl.style.transform || '';
+            rootEl.dataset.prevWidth = rootEl.style.width || '';
+            rootEl.dataset.prevHeight = rootEl.style.height || '';
+            rootEl.dataset.prevLeft = rootEl.style.left || '';
+            rootEl.dataset.prevTop = rootEl.style.top || '';
+            rootEl.dataset.prevRight = rootEl.style.right || '';
+            rootEl.dataset.prevBottom = rootEl.style.bottom || '';
+            rootEl.dataset.prevZindex = rootEl.style.zIndex || '';
+            rootEl.dataset.prevPosition = rootEl.style.position || '';
+          }
+          rootEl.classList.add('is-fullscreen');
+          rootEl.style.position = 'fixed';
+          rootEl.style.transform = 'none';
+          rootEl.style.left = '0';
+          rootEl.style.top = '0';
+          rootEl.style.right = '0';
+          rootEl.style.bottom = '0';
+          rootEl.style.width = '100%';
+          rootEl.style.height = '100%';
+          rootEl.style.zIndex = '1200';
+        } else {
+          rootEl.classList.remove('is-fullscreen');
+          rootEl.style.transform = rootEl.dataset.prevTransform || '';
+          rootEl.style.width = rootEl.dataset.prevWidth || '';
+          rootEl.style.height = rootEl.dataset.prevHeight || '';
+          rootEl.style.left = rootEl.dataset.prevLeft || '';
+          rootEl.style.top = rootEl.dataset.prevTop || '';
+          rootEl.style.right = rootEl.dataset.prevRight || '';
+          rootEl.style.bottom = rootEl.dataset.prevBottom || '';
+          rootEl.style.zIndex = rootEl.dataset.prevZindex || '';
+          rootEl.style.position = rootEl.dataset.prevPosition || '';
+          delete rootEl.dataset.prevTransform;
+          delete rootEl.dataset.prevWidth;
+          delete rootEl.dataset.prevHeight;
+          delete rootEl.dataset.prevLeft;
+          delete rootEl.dataset.prevTop;
+          delete rootEl.dataset.prevRight;
+          delete rootEl.dataset.prevBottom;
+          delete rootEl.dataset.prevZindex;
+          delete rootEl.dataset.prevPosition;
+        }
+        panelDom.runtime?.refreshActionOverflow?.();
+        renderPlot(panelId);
+        resizePlot(panelId);
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(() => resizePlot(panelId));
+        }
+        break;
+      }
+
       case 'export': {
         const panelDom = getPanelDom(panelId);
         if (!panelDom?.plotEl) return;
-        exportFigure(panelId, { format: 'png', scale: 2 }).then((url) => {
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'plot.png';
-          a.click();
-        });
+        const requestedFormat = typeof payload.format === 'string' ? payload.format.toLowerCase() : 'png';
+        const supportedFormats = ['png', 'jpeg', 'jpg', 'svg', 'webp'];
+        const format = supportedFormats.includes(requestedFormat)
+          ? (requestedFormat === 'jpg' ? 'jpeg' : requestedFormat)
+          : 'png';
+        const scaleNumeric = Number(payload.scale);
+        const resolvedScale = Number.isFinite(scaleNumeric) && scaleNumeric > 0 ? scaleNumeric : 2;
+        const widthNumeric = Number(payload.width);
+        const heightNumeric = Number(payload.height);
+        const options = {
+          format,
+          scale: resolvedScale
+        };
+        if (Number.isFinite(widthNumeric) && widthNumeric > 0) {
+          options.width = Math.round(widthNumeric);
+        }
+        if (Number.isFinite(heightNumeric) && heightNumeric > 0) {
+          options.height = Math.round(heightNumeric);
+        }
+        exportFigure(panelId, options)
+          .then((url) => {
+            if (!url) return;
+            const baseFilename = typeof payload.filename === 'string' && payload.filename.trim()
+              ? payload.filename.trim()
+              : `plot-${panelId}`;
+            const safeName = baseFilename.replace(/[^a-z0-9_.-]+/gi, '_') || `plot-${panelId}`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${safeName}.${format}`;
+            link.click();
+          })
+          .catch((error) => {
+            console.error('Export failed:', error);
+          });
         break;
       }
 

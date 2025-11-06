@@ -28,10 +28,25 @@ export function buildLayout(state) {
       ? 'Transmittance (%)'
       : 'Transmittance';
 
+  const axisDefaults = {
+    showgrid: false,
+    showline: true,
+    mirror: true,
+    ticks: 'outside',
+    linewidth: 1,
+    zeroline: false
+  };
+
   return {
     hovermode: state.global.hovermode,
-    xaxis: { autorange: state.global.xinvert ? 'reversed' : true, showgrid: true },
-    yaxis: { showgrid: true, zeroline: true, title: { text: yAxisTitle } },
+    xaxis: {
+      ...axisDefaults,
+      autorange: state.global.xinvert ? 'reversed' : true
+    },
+    yaxis: {
+      ...axisDefaults,
+      title: { text: yAxisTitle }
+    },
     legend: { orientation: 'h' },
     margin: { l: 50, r: 15, t: 20, b: 40 }
   };

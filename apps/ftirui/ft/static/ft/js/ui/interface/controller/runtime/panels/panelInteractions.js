@@ -132,6 +132,7 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
+            if (rootEl.classList.contains('is-fullscreen')) return;
             beginInteraction('drag');
           },
           move: (event) => {
@@ -167,6 +168,7 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
+            if (rootEl.classList.contains('is-fullscreen')) return;
             beginInteraction('resize');
           },
           move: (event) => {

@@ -102,7 +102,7 @@ export const createPanelsModel = (snapshot) => {
     const index = resolveIndex(incomingState.index, preserveIndex);
     const x = Number.isFinite(incomingState.x) ? incomingState.x : 36 + panels.size * 24;
     const y = Number.isFinite(incomingState.y) ? incomingState.y : 36 + panels.size * 24;
-    const width = Number.isFinite(incomingState.width) ? incomingState.width : 440;
+    const width = Number.isFinite(incomingState.width) ? incomingState.width : 1000;
     const height = Number.isFinite(incomingState.height) ? incomingState.height : 300;
     const collapsed = !!incomingState.collapsed;
     const hidden = incomingState.hidden === true;

@@ -331,7 +331,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 }
 .workspace-panel{
   position: absolute;
-  width: 420px;
+  width: 528px;
   min-width: 280px;
   min-height: 220px;
   display:flex;
@@ -349,6 +349,25 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .workspace-panel.is-active{
   box-shadow: 0 24px 40px rgba(13,110,253,.22);
   border-color: color-mix(in oklab, var(--bs-primary) 65%, transparent);
+}
+.workspace-panel.is-fullscreen{
+  position: fixed !important;
+  inset: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  z-index: 2000;
+  overflow: hidden;
+}
+.workspace-panel.is-fullscreen .workspace-panel-header{
+  border-radius: 0;
+}
+.workspace-panel.is-fullscreen .workspace-panel-body > div{
+  width: 100% !important;
+  height: 100% !important;
 }
 .workspace-panel-header{
   display: flex;

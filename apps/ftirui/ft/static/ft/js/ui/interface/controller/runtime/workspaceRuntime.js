@@ -727,16 +727,24 @@ let updateCanvasState = () => {};
   };
 
   const clampGeometryToCanvas = (geometry = {}) => {
-    const canvasWidth = canvas?.clientWidth || MIN_WIDTH;
-    const canvasHeight = canvas?.clientHeight || MIN_HEIGHT;
+    const requestedWidth = Math.max(MIN_WIDTH, coerceNumber(geometry.width, MIN_WIDTH));
+    const requestedHeight = Math.max(MIN_HEIGHT, coerceNumber(geometry.height, MIN_HEIGHT));
+    const measuredWidth = canvas?.clientWidth;
+    const measuredHeight = canvas?.clientHeight;
+    const canvasWidth = (Number.isFinite(measuredWidth) && measuredWidth > 0)
+      ? measuredWidth
+      : requestedWidth;
+    const canvasHeight = (Number.isFinite(measuredHeight) && measuredHeight > 0)
+      ? measuredHeight
+      : requestedHeight;
 
     const width = Math.max(
       MIN_WIDTH,
-      Math.min(coerceNumber(geometry.width, MIN_WIDTH), canvasWidth)
+      Math.min(requestedWidth, canvasWidth)
     );
     const height = Math.max(
       MIN_HEIGHT,
-      Math.min(coerceNumber(geometry.height, MIN_HEIGHT), canvasHeight)
+      Math.min(requestedHeight, canvasHeight)
     );
     const maxX = Math.max(0, canvasWidth - width);
     const maxY = Math.max(0, canvasHeight - height);
@@ -759,6 +767,11 @@ let updateCanvasState = () => {};
     if (!baseGeometry) return null;
 
     const normalized = clampGeometryToCanvas(baseGeometry);
+
+    if (rootEl.classList.contains('is-fullscreen')) {
+      updatePanelRuntime(panelId, { visual: normalized });
+      return normalized;
+    }
 
     rootEl.style.width = `${normalized.width}px`;
     rootEl.style.height = `${normalized.height}px`;
@@ -794,12 +807,35 @@ let updateCanvasState = () => {};
       || payload.meta?.Y_UNITS
       || 'Intensity';
     const xLabel = payload.meta?.X_UNITS || 'Wavenumber';
+  const axisDefaults = {
+    showgrid: false,
+    showline: true,
+    mirror: true,
+    ticks: 'outside',
+    linewidth: 1,
+    zeroline: false
+  };
 
     return {
       hovermode: 'x',
       margin: { l: 50, r: 15, t: 30, b: 40 },
-      xaxis: { title: { text: xLabel } },
-      yaxis: { title: { text: yLabel } },
+      xaxis: {
+        ...axisDefaults,
+        minor: {
+          ticks: 'outside',
+          showgrid: false
+        },
+        autorange: true,
+        title: { text: xLabel }
+      },
+      yaxis: {
+        ...axisDefaults,
+        minor: {
+          ticks: 'outside',
+          showgrid: false
+        },
+        title: { text: yLabel }
+      },
       legend: { orientation: 'h' }
     };
   };
@@ -1264,7 +1300,7 @@ let updateCanvasState = () => {};
     const normalizedTitle = normalizedTitleBase || defaultTitle;
     const sequenceOffset = panelDomRegistry.size * 24;
     const gutter = 36;
-    const defaultWidth = Number.isFinite(incomingState.width) ? incomingState.width : 440;
+    const defaultWidth = Number.isFinite(incomingState.width) ? incomingState.width : 1000;
     const defaultHeight = Number.isFinite(incomingState.height) ? incomingState.height : 300;
     const resolveAutoX = () => {
       if (useModelState && Number.isFinite(incomingState.x)) {
@@ -1472,6 +1508,7 @@ let updateCanvasState = () => {};
   const { handleHeaderAction } = createHeaderActions({
     actionsController: Actions,
     history: historyHelpers,
+    historyApi: { undo, redo },
     selectors: {
       getPanelDom,
       getPanelFigure
@@ -1481,7 +1518,8 @@ let updateCanvasState = () => {};
       renderPlot
     },
     plot: {
-      exportFigure: (panelId, opts) => Plot.exportFigure(panelId, opts)
+      exportFigure: (panelId, opts) => Plot.exportFigure(panelId, opts),
+      resize: (panelId) => Plot.resize(panelId)
     }
   });
 
