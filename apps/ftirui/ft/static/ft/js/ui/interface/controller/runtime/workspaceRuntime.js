@@ -691,6 +691,29 @@ let updateCanvasState = () => {};
     chipPanelsInstance = createChipPanels(document.body);
   }
 
+  const collectHistoryButtons = (action) => {
+    if (typeof document === 'undefined') return [];
+    const selectors = [`[data-history-action="${action}"]`];
+    if (action === 'undo') {
+      selectors.push('#c_history_undo');
+    } else if (action === 'redo') {
+      selectors.push('#c_history_redo');
+    }
+    const unique = new Set();
+    selectors.forEach((selector) => {
+      if (!selector) return;
+      document.querySelectorAll(selector).forEach((node) => {
+        if (node) {
+          unique.add(node);
+        }
+      });
+    });
+    return Array.from(unique);
+  };
+
+  const historyUndoButtons = collectHistoryButtons('undo');
+  const historyRedoButtons = collectHistoryButtons('redo');
+
   const panelDom = {
     root: document.getElementById('c_panel'),
     pin: document.getElementById('c_panel_pin'),
@@ -701,8 +724,8 @@ let updateCanvasState = () => {};
     searchBtn: document.getElementById('c_panel_search'),
     searchInput: document.getElementById('c_panel_search_input'),
     tree: document.getElementById('c_folder_tree'),
-    undo: document.getElementById('c_history_undo'),
-    redo: document.getElementById('c_history_redo')
+    undo: historyUndoButtons,
+    redo: historyRedoButtons
   };
 
   ensureOperationsPanel();
@@ -728,8 +751,15 @@ let updateCanvasState = () => {};
         <li><button id="c_workspace_clear" class="dropdown-item text-danger" type="button"><i class="bi bi-trash3 me-2"></i>Clear saved snapshot</button></li>
         <li><hr class="dropdown-divider"></li>
       `;
+      const hasActionButton = (node) => {
+        if (!node) return false;
+        if (node.tagName?.toLowerCase() === 'button') {
+          return true;
+        }
+        return typeof node.querySelector === 'function' && !!node.querySelector('button');
+      };
       preserved
-        .filter((node) => node.querySelector('button'))
+        .filter((node) => hasActionButton(node))
         .forEach((node) => menu.appendChild(node));
       menu.dataset.workspaceActions = '1';
     }
@@ -1199,7 +1229,16 @@ let updateCanvasState = () => {};
         },
         title: { text: yLabel }
       },
-      legend: { orientation: 'h' }
+      legend: {
+        orientation: 'h',
+        x: 0,
+        y: 0,
+        xanchor: 'left',
+        yanchor: 'bottom',
+        xref: 'paper',
+        yref: 'paper'
+      },
+      showlegend: true
     };
   };
 

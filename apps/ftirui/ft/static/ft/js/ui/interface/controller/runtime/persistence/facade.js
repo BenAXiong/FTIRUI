@@ -23,6 +23,22 @@ export function createPersistenceFacade({
     redo: redoButton = null
   } = dom;
 
+  const toButtonList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) {
+      return value.filter(Boolean);
+    }
+    const isNodeList = typeof NodeList !== 'undefined' && value instanceof NodeList;
+    const isHtmlCollection = typeof HTMLCollection !== 'undefined' && value instanceof HTMLCollection;
+    if (isNodeList || isHtmlCollection) {
+      return Array.from(value).filter(Boolean);
+    }
+    return [value].filter(Boolean);
+  };
+
+  const undoButtons = toButtonList(undoButton);
+  const redoButtons = toButtonList(redoButton);
+
   const history = historyFactory
     ? historyFactory({
         limit: historyConfig.limit,
@@ -92,24 +108,24 @@ export function createPersistenceFacade({
   };
 
   const updateHistoryButtons = () => {
-    if (undoButton) {
-      const canUndo = history?.canUndo?.() ?? false;
-      undoButton.disabled = !canUndo;
-      undoButton.setAttribute?.('aria-disabled', String(!canUndo));
-      undoButton.setAttribute?.(
+    const canUndo = history?.canUndo?.() ?? false;
+    undoButtons.forEach((btn) => {
+      btn.disabled = !canUndo;
+      btn.setAttribute?.('aria-disabled', String(!canUndo));
+      btn.setAttribute?.(
         'title',
         canUndo ? 'Undo last action' : 'Nothing to undo'
       );
-    }
-    if (redoButton) {
-      const canRedo = history?.canRedo?.() ?? false;
-      redoButton.disabled = !canRedo;
-      redoButton.setAttribute?.('aria-disabled', String(!canRedo));
-      redoButton.setAttribute?.(
+    });
+    const canRedo = history?.canRedo?.() ?? false;
+    redoButtons.forEach((btn) => {
+      btn.disabled = !canRedo;
+      btn.setAttribute?.('aria-disabled', String(!canRedo));
+      btn.setAttribute?.(
         'title',
         canRedo ? 'Redo last undone action' : 'Nothing to redo'
       );
-    }
+    });
   };
 
   const updateStorageButtons = () => {
@@ -270,8 +286,8 @@ export function createPersistenceFacade({
 
   const attachEvents = () => {
     detachEvents();
-    addListener(undoButton, 'click', undo);
-    addListener(redoButton, 'click', redo);
+    undoButtons.forEach((btn) => addListener(btn, 'click', undo));
+    redoButtons.forEach((btn) => addListener(btn, 'click', redo));
     addListener(menu.save, 'click', saveSnapshot);
     addListener(menu.load, 'click', loadSnapshot);
     addListener(menu.clear, 'click', clearSnapshot);
