@@ -569,7 +569,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   top: 0;
   right: auto;
   bottom: auto;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, calc(-100% - .6rem));
   pointer-events: auto;
   opacity: 1;
   visibility: visible;

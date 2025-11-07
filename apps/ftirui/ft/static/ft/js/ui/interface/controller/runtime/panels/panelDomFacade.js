@@ -1402,11 +1402,20 @@ export function createPanelDomFacade({
         let overflowMenuOpen = false;
 
         const isOverflowMenuOpen = () => overflowMenuOpen;
+        const closeOverflowItemPopovers = () => {
+          if (!overflowPanel) return;
+          overflowPanel.querySelectorAll('.workspace-panel-popover').forEach((pop) => {
+            pop?.__close?.();
+          });
+        };
+
         const closeOverflowMenu = () => {
           if (!overflowMenuOpen) return;
+          closeOverflowItemPopovers();
           closePortaledPopover(overflowBtn, overflowPanel);
           overflowPanel.hidden = true;
           overflowPanel.setAttribute('aria-hidden', 'true');
+          overflowPanel.classList.remove('is-open');
           overflowBtn.classList.remove('is-active');
           overflowMenuOpen = false;
           if (overflowOutsideActive) {
@@ -1424,8 +1433,10 @@ export function createPanelDomFacade({
         const openOverflowMenu = () => {
           if (overflowMenuOpen) return;
           if (!overflowPanel || !overflowPanel.childElementCount) return;
+          closeOverflowItemPopovers();
           overflowPanel.hidden = false;
           overflowPanel.setAttribute('aria-hidden', 'false');
+          overflowPanel.classList.add('is-open');
           openPortaledPopover(overflowBtn, overflowPanel);
           overflowPanel.focus({ preventScroll: true });
           overflowBtn.classList.add('is-active');
