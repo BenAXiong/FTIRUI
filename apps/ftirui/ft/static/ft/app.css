@@ -410,6 +410,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   gap: .35rem;
   position: relative;
   min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
 }
 .workspace-panel-action-btn{
   width: 2rem;
@@ -495,7 +498,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   gap: .35rem;
   flex: 1 1 auto;
   min-width: 0;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   overflow: hidden;
   position: relative;
 }
@@ -507,6 +510,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 }
 .workspace-panel-action-wrapper{
   position: relative;
+  display: inline-flex;
+}
+.workspace-panel-action-item{
   display: inline-flex;
 }
 .workspace-panel-actions-toggle i{
@@ -521,9 +527,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .workspace-panel-actions.has-overflow .workspace-panel-actions-overflow{
   display: inline-flex;
 }
-.workspace-panel-actions-collection.is-expanded{
+.workspace-panel-actions-overflow-panel{
   position: absolute;
-  right: 0;
+  left: 50%;
   bottom: calc(100% + .45rem);
   background: var(--bs-body-bg);
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent 20%);
@@ -534,12 +540,39 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   gap: .45rem;
   overflow: visible;
   width: max-content;
+  min-width: 180px;
   max-width: min(320px, 90vw);
-  z-index: 70;
+  z-index: 75;
+  display: flex;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 6px);
+  transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
+  pointer-events: none;
 }
-.workspace-panel-actions-collection.is-expanded .workspace-panel-action-btn{
+.workspace-panel-actions-overflow-panel.is-open{
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.workspace-panel-actions-overflow-panel .workspace-panel-action-item{
+  display: inline-flex;
+}
+.workspace-panel-actions-overflow-panel .workspace-panel-action-btn{
   width: 2.25rem;
   height: 2.25rem;
+}
+.ui-portal .workspace-panel-actions-overflow-panel{
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
 }
 .workspace-panel-popover{
   position: absolute;

@@ -96,12 +96,59 @@ export function createPanelDomFacade({
         controlsWrapper.className = 'workspace-panel-actions-collection';
         controlsWrapper.setAttribute('aria-hidden', 'false');
 
+        const ACTION_ORDER_ATTR = 'data-panel-action-order';
+        const actionItems = [];
+        let overflowPanel = null;
+
+        const toOrder = (node) => Number(node?.getAttribute(ACTION_ORDER_ATTR)) || 0;
+
+        const registerActionItem = (node) => {
+          if (!node) return null;
+          node.dataset.panelActionItem = '1';
+          node.classList.add('workspace-panel-action-item');
+          node.classList.remove('is-overflowed');
+          node.removeAttribute('data-panel-action-overflow');
+          return node;
+        };
+        const appendActionItem = (node) => {
+          if (!node) return null;
+          registerActionItem(node);
+          node.setAttribute(ACTION_ORDER_ATTR, String(actionItems.length));
+          actionItems.push(node);
+          controlsWrapper.appendChild(node);
+          return node;
+        };
+        const getOrderedInlineItems = () => actionItems
+          .filter((item) => item && item.parentElement === controlsWrapper)
+          .sort((a, b) => toOrder(a) - toOrder(b));
+        const moveItemToInline = (node) => {
+          if (!node || node.parentElement === controlsWrapper) return;
+          const nextSibling = getOrderedInlineItems()
+            .find((item) => toOrder(item) > toOrder(node)) || null;
+          if (nextSibling) {
+            controlsWrapper.insertBefore(node, nextSibling);
+          } else {
+            controlsWrapper.appendChild(node);
+          }
+          node.classList.remove('is-overflowed');
+          node.removeAttribute('data-panel-action-overflow');
+        };
+        const moveAllItemsInline = () => {
+          actionItems.forEach((item) => moveItemToInline(item));
+        };
+        const moveItemToOverflow = (node) => {
+          if (!node || !overflowPanel || node.parentElement === overflowPanel) return;
+          overflowPanel.appendChild(node);
+          node.classList.add('is-overflowed');
+          node.setAttribute('data-panel-action-overflow', '1');
+        };
+
         const appendPopoverControl = (buttonEl, popoverEl) => {
           const wrapper = document.createElement('div');
           wrapper.className = 'workspace-panel-action-wrapper';
           wrapper.appendChild(buttonEl);
           wrapper.appendChild(popoverEl);
-          controlsWrapper.appendChild(wrapper);
+          appendActionItem(wrapper);
 
           // generic portal wiring for all popovers
           registerPopoverButton(buttonEl, popoverEl);
@@ -112,7 +159,7 @@ export function createPanelDomFacade({
           title: 'Toggle crosshair cursor',
           onClick: (isOn) => safeHandleHeaderAction(panelId, 'cursor', { on: isOn })
         });
-        controlsWrapper.appendChild(cursorBtn);
+        appendActionItem(cursorBtn);
 
         const axesBtn = document.createElement('button');
         axesBtn.type = 'button';
@@ -1097,7 +1144,7 @@ export function createPanelDomFacade({
           pressed: legendInitiallyVisible,
           onClick: (isOn) => safeHandleHeaderAction(panelId, 'legend', { on: isOn })
         });
-        controlsWrapper.appendChild(legendBtn);
+        appendActionItem(legendBtn);
 
         const annotationsBtn = document.createElement('button');
         annotationsBtn.type = 'button';
@@ -1333,46 +1380,69 @@ export function createPanelDomFacade({
             safeHandleHeaderAction(panelId, 'toggle-fullscreen', { on: isOn });
           }
         });
-        controlsWrapper.appendChild(fullscreenBtn);
+        appendActionItem(fullscreenBtn);
 
         const overflowBtn = document.createElement('button');
         overflowBtn.type = 'button';
         overflowBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-overflow';
-        overflowBtn.innerHTML = '<i class="bi bi-three-dots"></i>';
+        overflowBtn.innerHTML = '<i class="bi bi-chevron-down"></i>';
         overflowBtn.title = 'More tools';
         overflowBtn.setAttribute('aria-expanded', 'false');
         overflowBtn.hidden = true;
 
+        overflowPanel = document.createElement('div');
+        overflowPanel.className = 'workspace-panel-actions-overflow-panel';
+        overflowPanel.hidden = true;
+        overflowPanel.tabIndex = -1;
+        overflowPanel.setAttribute('role', 'menu');
+        overflowPanel.setAttribute('aria-hidden', 'true');
+
         let overflowOutsideActive = false;
         let handleOverflowOutside = () => {};
+        let overflowMenuOpen = false;
+
+        const isOverflowMenuOpen = () => overflowMenuOpen;
         const closeOverflowMenu = () => {
-          if (controlsWrapper.classList.contains('is-expanded')) {
-            controlsWrapper.classList.remove('is-expanded');
-          }
+          if (!overflowMenuOpen) return;
+          closePortaledPopover(overflowBtn, overflowPanel);
+          overflowPanel.hidden = true;
+          overflowPanel.setAttribute('aria-hidden', 'true');
           overflowBtn.classList.remove('is-active');
-          overflowBtn.setAttribute('aria-expanded', 'false');
+          overflowMenuOpen = false;
           if (overflowOutsideActive) {
             document.removeEventListener('click', handleOverflowOutside);
             overflowOutsideActive = false;
           }
         };
         registerPopoverCloser(closeOverflowMenu);
-        controlsWrapper.__close = closeOverflowMenu;
         handleOverflowOutside = (event) => {
-          if (controlsWrapper.contains(event.target) || overflowBtn.contains(event.target)) return;
+          if (!isOverflowMenuOpen()) return;
+          if (overflowPanel.contains(event.target) || overflowBtn.contains(event.target)) return;
           closeOverflowMenu();
+        };
+
+        const openOverflowMenu = () => {
+          if (overflowMenuOpen) return;
+          if (!overflowPanel || !overflowPanel.childElementCount) return;
+          overflowPanel.hidden = false;
+          overflowPanel.setAttribute('aria-hidden', 'false');
+          openPortaledPopover(overflowBtn, overflowPanel);
+          overflowPanel.focus({ preventScroll: true });
+          overflowBtn.classList.add('is-active');
+          overflowMenuOpen = true;
+          if (!overflowOutsideActive) {
+            document.addEventListener('click', handleOverflowOutside);
+            overflowOutsideActive = true;
+          }
         };
 
         overflowBtn.addEventListener('click', (event) => {
           event.stopPropagation();
-          const willOpen = !controlsWrapper.classList.contains('is-expanded');
+          if (overflowBtn.hidden) return;
+          const willOpen = !isOverflowMenuOpen();
           closeAllPopovers(willOpen ? closeOverflowMenu : null);
           if (willOpen) {
-            controlsWrapper.classList.add('is-expanded');
-            overflowBtn.classList.add('is-active');
-            overflowBtn.setAttribute('aria-expanded', 'true');
-            document.addEventListener('click', handleOverflowOutside);
-            overflowOutsideActive = true;
+            openOverflowMenu();
           } else {
             closeOverflowMenu();
           }
@@ -1413,36 +1483,60 @@ export function createPanelDomFacade({
           safeUpdateToolbarMetrics();
         });
 
+        const detectInlineWrap = () => {
+          const inlineItems = getOrderedInlineItems();
+          if (inlineItems.length <= 1) return false;
+          const referenceRect = inlineItems[0]?.getBoundingClientRect();
+          if (!referenceRect || !Number.isFinite(referenceRect.top)) return false;
+          const baseTop = referenceRect.top;
+          return inlineItems.some((item) => {
+            const rect = item.getBoundingClientRect();
+            if (!rect || !Number.isFinite(rect.top)) return false;
+            return Math.abs(rect.top - baseTop) > 1.5;
+          });
+        };
+
+        const reconcileOverflowItems = ({ preserveMenuState = false } = {}) => {
+          const menuWasOpen = isOverflowMenuOpen();
+          if (menuWasOpen) {
+            closeOverflowMenu();
+          }
+          moveAllItemsInline();
+          if (!controlsWrapper || controlsWrapper.offsetParent === null) {
+            return overflowPanel && overflowPanel.childElementCount > 0;
+          }
+          let wrapped = detectInlineWrap();
+          let guard = 0;
+          while (wrapped && guard < actionItems.length) {
+            const inlineItems = getOrderedInlineItems();
+            if (!inlineItems.length) break;
+            const candidate = inlineItems[inlineItems.length - 1];
+            moveItemToOverflow(candidate);
+            wrapped = detectInlineWrap();
+            guard += 1;
+          }
+          const hasOverflow = overflowPanel && overflowPanel.childElementCount > 0;
+          if (preserveMenuState && menuWasOpen && hasOverflow) {
+            openOverflowMenu();
+          }
+          return hasOverflow;
+        };
+
         const refreshActionOverflow = () => {
           const collapsed = controlsWrapper.classList.contains('is-collapsed');
-          const expanded = controlsWrapper.classList.contains('is-expanded');
-          if (expanded) {
-            controlsWrapper.classList.remove('is-expanded');
-          }
-          const computeAvailableWidth = () => {
-            if (!actions) return controlsWrapper.clientWidth;
-            const staticButtons = (settingsBtn?.offsetWidth || 0) + (closeBtn?.offsetWidth || 0);
-            const overflowReserve = !overflowBtn.hidden ? (overflowBtn.offsetWidth || 0) : 0;
-            const gutter = 8;
-            const budget = actions.clientWidth - staticButtons - overflowReserve - gutter;
-            return Math.max(budget, controlsWrapper.clientWidth, 0);
-          };
-          const rawOverflow = controlsWrapper.scrollWidth - controlsWrapper.clientWidth > 1;
-          const budgetOverflow = controlsWrapper.scrollWidth - computeAvailableWidth() > 1;
-          const isOverflowing = !collapsed && (rawOverflow || budgetOverflow);
-          if (!isOverflowing) {
+          if (collapsed) {
+            moveAllItemsInline();
             closeOverflowMenu();
-          } else if (expanded) {
-            controlsWrapper.classList.add('is-expanded');
-            overflowBtn.classList.add('is-active');
-            overflowBtn.setAttribute('aria-expanded', 'true');
-            if (!overflowOutsideActive) {
-              document.addEventListener('click', handleOverflowOutside);
-              overflowOutsideActive = true;
-            }
+            overflowBtn.hidden = true;
+            actions.classList.remove('has-overflow');
+            return;
           }
-          overflowBtn.hidden = !isOverflowing;
-          actions.classList.toggle('has-overflow', isOverflowing);
+          const hasOverflow = reconcileOverflowItems({ preserveMenuState: true });
+          if (!hasOverflow) {
+            closeOverflowMenu();
+          }
+          overflowBtn.hidden = !hasOverflow;
+          actions.classList.toggle('has-overflow', hasOverflow);
         };
         if (typeof ResizeObserver === 'function') {
           const resizeObserver = new ResizeObserver(() => refreshActionOverflow());
@@ -1450,6 +1544,7 @@ export function createPanelDomFacade({
         }
 
         actions.appendChild(controlsWrapper);
+        actions.appendChild(overflowPanel);
         actions.appendChild(overflowBtn);
         actions.appendChild(settingsBtn);
         actions.appendChild(closeBtn);
