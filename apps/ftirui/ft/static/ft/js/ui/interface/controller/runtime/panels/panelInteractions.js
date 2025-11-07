@@ -8,7 +8,8 @@ export function createPanelInteractions({
   persistence = {},
   plot = {},
   utils = {},
-  dimensions = {}
+  dimensions = {},
+  operations = {}
 } = {}) {
   if (!interact) {
     return {
@@ -50,6 +51,10 @@ export function createPanelInteractions({
     bringPanelToFront = () => {}
   } = utils;
 
+  const {
+    annotateOperation = () => {}
+  } = operations;
+
   const minWidth = dimensions.minWidth ?? 0;
   const minHeight = dimensions.minHeight ?? 0;
 
@@ -63,8 +68,15 @@ export function createPanelInteractions({
 
     const beginInteraction = (mode) => {
       bringPanelToFront(panelId, { persistChange: false });
+      let operationId = runtime?.dragSnapshot?.operationId ?? null;
       if (!runtime?.dragSnapshot) {
-        pushHistory();
+        operationId = pushHistory({
+          label: mode === 'resize' ? 'Resize panel' : 'Move panel',
+          meta: {
+            action: `panel-${mode}`,
+            detail: mode === 'resize' ? 'Resizing panel' : 'Moving panel'
+          }
+        });
       }
       const modelGeometry = getPanelGeometry(panelId);
       const sourceGeometry = modelGeometry
@@ -74,6 +86,7 @@ export function createPanelInteractions({
       updatePanelRuntime(panelId, {
         dragSnapshot: {
           mode,
+          operationId: operationId || null,
           initial: { ...baseGeometry },
           current: { ...baseGeometry }
         }
@@ -117,6 +130,26 @@ export function createPanelInteractions({
       canvas?.classList.remove('is-active');
       persist();
       updateHistoryButtons();
+      const opId = snapshot?.operationId;
+      if (opId && snapshot?.initial) {
+        const dx = normalized.x - snapshot.initial.x;
+        const dy = normalized.y - snapshot.initial.y;
+        const dw = normalized.width - snapshot.initial.width;
+        const dh = normalized.height - snapshot.initial.height;
+        const detail = mode === 'resize'
+          ? `Size ${snapshot.initial.width}x${snapshot.initial.height} -> ${normalized.width}x${normalized.height}`
+          : `Position (${snapshot.initial.x}, ${snapshot.initial.y}) -> (${normalized.x}, ${normalized.y})`;
+        annotateOperation(opId, {
+          detail,
+          action: `panel-${mode}`,
+          deltas: {
+            x: dx,
+            y: dy,
+            width: dw,
+            height: dh
+          }
+        });
+      }
     };
 
     interact(rootEl)

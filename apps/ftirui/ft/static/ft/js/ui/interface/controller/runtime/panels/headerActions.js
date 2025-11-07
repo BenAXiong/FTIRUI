@@ -28,6 +28,8 @@ export function createHeaderActions(context = {}) {
   const historyApi = context.historyApi || {};
 
   const clampSubdivisions = (value) => Math.max(1, Math.min(10, Math.round(Number(value) || 1)));
+  const MUTATION_CONTEXT_KEY = '__mutationContext__';
+  const wrapMutationContext = (info = {}) => ({ [MUTATION_CONTEXT_KEY]: info });
 
   const getRuntimeAxisState = (panelDom, axisKey) => {
     const plotEl = panelDom?.plotEl;
@@ -175,23 +177,42 @@ export function createHeaderActions(context = {}) {
   };
 
   const runLayoutMutations = (panelId, ...mutations) => {
-    const tasks = mutations.filter((fn) => typeof fn === 'function');
+    if (!mutations.length) return false;
+    const queue = [...mutations];
+    let mutationContext = null;
+    const maybeContext = queue[queue.length - 1];
+    if (maybeContext && typeof maybeContext === 'object' && maybeContext[MUTATION_CONTEXT_KEY]) {
+      mutationContext = maybeContext[MUTATION_CONTEXT_KEY];
+      queue.pop();
+    }
+    const tasks = queue.filter((fn) => typeof fn === 'function');
     if (!tasks.length) return false;
-    pushHistory();
+    const pushPayload = mutationContext
+      ? {
+          label: mutationContext.label ?? null,
+          meta: mutationContext.meta ?? null
+        }
+      : null;
+    pushHistory(pushPayload);
     tasks.forEach((fn) => fn());
     persist();
     updateHistoryButtons();
     return true;
   };
 
-  const commitLayoutPatch = (panelId, patch) => {
+  const commitLayoutPatch = (panelId, patch, context = null) => {
     if (!patch || typeof patch !== 'object' || !Object.keys(patch).length) {
       return false;
     }
     if (typeof applyLayout !== 'function') {
       return false;
     }
-    return runLayoutMutations(panelId, () => applyLayout(panelId, patch));
+    const contextArg = context ? wrapMutationContext(context) : null;
+    const args = [() => applyLayout(panelId, patch)];
+    if (contextArg) {
+      args.push(contextArg);
+    }
+    return runLayoutMutations(panelId, ...args);
   };
 
   const handleHeaderAction = (panelId, act, payload = {}) => {
@@ -243,6 +264,12 @@ export function createHeaderActions(context = {}) {
           'yaxis.linewidth': w,
           'xaxis.linecolor': xColor,
           'yaxis.linecolor': yColor
+        }, {
+          label: 'Axes',
+          meta: {
+            action: 'axes-thickness',
+            detail: `Axis line width ${w}px`
+          }
         });
         break;
       }
@@ -259,6 +286,12 @@ export function createHeaderActions(context = {}) {
           'yaxis.linewidth': w,
           'xaxis.linecolor': xColor,
           'yaxis.linecolor': yColor
+        }, {
+          label: 'Axes',
+          meta: {
+            action: 'axes-thickness',
+            detail: `Custom axis width ${w}px`
+          }
         });
         break;
       }
@@ -314,19 +347,50 @@ export function createHeaderActions(context = {}) {
           patch['yaxis.linecolor'] = cy;
         }
 
-        commitLayoutPatch(panelId, patch);
+        const describeSide = (axis, primary, secondary) => {
+          if (!primary && !secondary) return `${axis} hidden`;
+          if (primary && secondary) return `${axis} both`;
+          return `${axis} ${primary ? 'top' : 'bottom'}`;
+        };
+        const describeY = (left, right) => {
+          if (!left && !right) return 'Y hidden';
+          if (left && right) return 'Y both';
+          return `Y ${left ? 'left' : 'right'}`;
+        };
+        const detail = `${describeSide('X', xTop, xBottom)} • ${describeY(yLeft, yRight)}`;
+
+        commitLayoutPatch(panelId, patch, {
+          label: 'Axes',
+          meta: {
+            action: 'axes-side',
+            detail
+          }
+        });
         break;
       }
 
       case 'legend': {
         if (hasOwn.call(payload, 'on')) {
-          commitLayoutPatch(panelId, { showlegend: !!payload.on });
+          const on = !!payload.on;
+          commitLayoutPatch(panelId, { showlegend: on }, {
+            label: 'Legend',
+            meta: {
+              action: 'legend',
+              detail: `Legend ${on ? 'shown' : 'hidden'}`
+            }
+          });
           break;
         }
         const task = typeof toggleLegend === 'function'
           ? () => toggleLegend(panelId)
           : null;
-        runLayoutMutations(panelId, task);
+        runLayoutMutations(panelId, task, wrapMutationContext({
+          label: 'Legend',
+          meta: {
+            action: 'legend',
+            detail: 'Legend toggled'
+          }
+        }));
         break;
       }
 
@@ -339,7 +403,13 @@ export function createHeaderActions(context = {}) {
         const task = typeof setAxisType === 'function'
           ? () => setAxisType(panelId, axisKey, mode)
           : null;
-        runLayoutMutations(panelId, task);
+        runLayoutMutations(panelId, task, wrapMutationContext({
+          label: 'Axes',
+          meta: {
+            action: 'axis-scale',
+            detail: `${axisKey === 'yaxis' ? 'Y axis' : 'X axis'} scale ${mode}`
+          }
+        }));
         break;
       }
 
@@ -359,7 +429,15 @@ export function createHeaderActions(context = {}) {
         });
 
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          const context = {
+            label: 'Grid',
+            meta: {
+              action: 'grid-major',
+              value: on,
+              detail: `Major grid ${on ? 'enabled' : 'disabled'}`
+            }
+          };
+          commitLayoutPatch(panelId, patch, context);
         }
         break;
       }
@@ -379,7 +457,15 @@ export function createHeaderActions(context = {}) {
         });
 
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          const context = {
+            label: 'Grid',
+            meta: {
+              action: 'grid-major-thickness',
+              value: width,
+              detail: `Major grid width ${width}px`
+            }
+          };
+          commitLayoutPatch(panelId, patch, context);
         }
         break;
       }
@@ -402,7 +488,15 @@ export function createHeaderActions(context = {}) {
           }
         });
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          const context = {
+            label: 'Grid',
+            meta: {
+              action: 'grid-minor',
+              value: on,
+              detail: `Minor grid ${on ? 'enabled' : 'disabled'}`
+            }
+          };
+          commitLayoutPatch(panelId, patch, context);
         }
         break;
       }
@@ -425,7 +519,15 @@ export function createHeaderActions(context = {}) {
           patch[`${axis}.minor.gridwidth`] = baseWidth;
         });
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          const context = {
+            label: 'Grid',
+            meta: {
+              action: 'grid-minor-subdiv',
+              value: subdivisions,
+              detail: `Minor grid subdivisions ${subdivisions}`
+            }
+          };
+          commitLayoutPatch(panelId, patch, context);
         }
         break;
       }
@@ -435,6 +537,12 @@ export function createHeaderActions(context = {}) {
         commitLayoutPatch(panelId, {
           'xaxis.showticklabels': on,
           'yaxis.showticklabels': on
+        }, {
+          label: 'Axis labels',
+          meta: {
+            action: 'axis-labels',
+            detail: `Primary tick labels ${on ? 'shown' : 'hidden'}`
+          }
         });
         break;
       }
@@ -454,7 +562,14 @@ export function createHeaderActions(context = {}) {
         preserveAxisDecorations(panelId, figure, 'yaxis', patch);
         if (hasX2) preserveAxisDecorations(panelId, figure, 'xaxis2', patch);
         if (hasY2) preserveAxisDecorations(panelId, figure, 'yaxis2', patch);
-        commitLayoutPatch(panelId, patch);
+        const detail = placement === '' ? 'Tick marks hidden' : `Tick marks ${placement}`;
+        commitLayoutPatch(panelId, patch, {
+          label: 'Axis ticks',
+          meta: {
+            action: 'ticks-placement',
+            detail
+          }
+        });
         break;
       }
 
@@ -469,7 +584,13 @@ export function createHeaderActions(context = {}) {
         };
         if (hasX2) patch['xaxis2.showticklabels'] = on;
         if (hasY2) patch['yaxis2.showticklabels'] = on;
-        commitLayoutPatch(panelId, patch);
+        commitLayoutPatch(panelId, patch, {
+          label: 'Axis labels',
+          meta: {
+            action: 'axis-labels',
+            detail: `Tick labels ${on ? 'shown' : 'hidden'}`
+          }
+        });
         break;
       }
 
@@ -478,15 +599,26 @@ export function createHeaderActions(context = {}) {
         const hasX2 = axisExists(panelId, figure, 'xaxis2');
         const hasY2 = axisExists(panelId, figure, 'yaxis2');
         const patch = {};
+        const detailParts = [];
         if (payload.x0 === null || Number.isFinite(payload.x0)) {
           patch['xaxis.tick0'] = payload.x0;
           if (hasX2) patch['xaxis2.tick0'] = payload.x0;
+          detailParts.push(payload.x0 == null ? 'X offset reset' : `X offset ${payload.x0}`);
         }
         if (payload.y0 === null || Number.isFinite(payload.y0)) {
           patch['yaxis.tick0'] = payload.y0;
           if (hasY2) patch['yaxis2.tick0'] = payload.y0;
+          detailParts.push(payload.y0 == null ? 'Y offset reset' : `Y offset ${payload.y0}`);
         }
-        commitLayoutPatch(panelId, patch);
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch, {
+            label: 'Axis ticks',
+            meta: {
+              action: 'ticks-major-offset',
+              detail: detailParts.join(' • ') || 'Tick offsets updated'
+            }
+          });
+        }
         break;
       }
 
@@ -495,15 +627,26 @@ export function createHeaderActions(context = {}) {
         const hasX2 = axisExists(panelId, figure, 'xaxis2');
         const hasY2 = axisExists(panelId, figure, 'yaxis2');
         const patch = {};
+        const detailParts = [];
         if (payload.dx === null || Number.isFinite(payload.dx)) {
           patch['xaxis.dtick'] = payload.dx;
           if (hasX2) patch['xaxis2.dtick'] = payload.dx;
+          detailParts.push(payload.dx == null ? 'X spacing auto' : `X spacing ${payload.dx}`);
         }
         if (payload.dy === null || Number.isFinite(payload.dy)) {
           patch['yaxis.dtick'] = payload.dy;
           if (hasY2) patch['yaxis2.dtick'] = payload.dy;
+          detailParts.push(payload.dy == null ? 'Y spacing auto' : `Y spacing ${payload.dy}`);
         }
-        commitLayoutPatch(panelId, patch);
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch, {
+            label: 'Axis ticks',
+            meta: {
+              action: 'ticks-major-dtick',
+              detail: detailParts.join(' • ') || 'Tick spacing updated'
+            }
+          });
+        }
         break;
       }
 
@@ -522,7 +665,13 @@ export function createHeaderActions(context = {}) {
           }
         });
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          commitLayoutPatch(panelId, patch, {
+            label: 'Axis ticks',
+            meta: {
+              action: 'ticks-minor',
+              detail: `Minor ticks ${on ? 'enabled' : 'disabled'}`
+            }
+          });
         }
         break;
       }
@@ -537,7 +686,14 @@ export function createHeaderActions(context = {}) {
           patch[`${axis}.minor.ticks`] = placement;
         });
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          const detail = placement === '' ? 'Minor ticks hidden' : `Minor ticks ${placement}`;
+          commitLayoutPatch(panelId, patch, {
+            label: 'Axis ticks',
+            meta: {
+              action: 'ticks-minor-placement',
+              detail
+            }
+          });
         }
         break;
       }
@@ -552,27 +708,37 @@ export function createHeaderActions(context = {}) {
           Object.assign(patch, buildMinorTickPatch(axis, ctx, subdivisions, { ensureVisible: true }));
         });
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          commitLayoutPatch(panelId, patch, {
+            label: 'Axis ticks',
+            meta: {
+              action: 'ticks-minor-subdiv',
+              detail: `Minor subdivisions ${subdivisions}`
+            }
+          });
         }
         break;
       }
 
       case 'axis-title-style': {
         const patch = {};
+        const detailParts = [];
         if (typeof payload.fontFamily === 'string') {
           const family = payload.fontFamily === 'inherit' ? '' : payload.fontFamily;
           if (family) {
             patch['xaxis.title.font.family'] = family;
             patch['yaxis.title.font.family'] = family;
+            detailParts.push(`Font ${family}`);
           } else {
             patch['xaxis.title.font.family'] = null;
             patch['yaxis.title.font.family'] = null;
+            detailParts.push('Font reset to default');
           }
         }
         if (payload.fontWeight) {
           const weight = payload.fontWeight === 'bold' ? 700 : 400;
           patch['xaxis.title.font.weight'] = weight;
           patch['yaxis.title.font.weight'] = weight;
+          detailParts.push(weight === 700 ? 'Bold titles' : 'Normal weight');
         }
         if (payload.fontSize !== undefined) {
           const sizeNumeric = Number(payload.fontSize);
@@ -580,11 +746,13 @@ export function createHeaderActions(context = {}) {
             const size = Math.max(6, Math.round(sizeNumeric));
             patch['xaxis.title.font.size'] = size;
             patch['yaxis.title.font.size'] = size;
+            detailParts.push(`Font size ${size}px`);
           }
         }
         if (typeof payload.color === 'string' && payload.color) {
           patch['xaxis.title.font.color'] = payload.color;
           patch['yaxis.title.font.color'] = payload.color;
+          detailParts.push(`Title color ${payload.color}`);
         }
         if (payload.angle !== undefined) {
           const angleNumeric = Number(payload.angle);
@@ -592,6 +760,7 @@ export function createHeaderActions(context = {}) {
             const angle = Math.max(-180, Math.min(180, Math.round(angleNumeric)));
             patch['xaxis.title.textangle'] = angle;
             patch['yaxis.title.textangle'] = angle;
+            detailParts.push(`Angle ${angle}°`);
           }
         }
         if (payload.distance !== undefined) {
@@ -600,15 +769,26 @@ export function createHeaderActions(context = {}) {
             const dist = Math.round(distanceNumeric);
             patch['xaxis.title.standoff'] = dist;
             patch['yaxis.title.standoff'] = dist;
+            detailParts.push(`Offset ${dist}px`);
           }
         }
         if (payload.toggleLabels !== undefined) {
           const on = !!payload.toggleLabels;
           patch['xaxis.showticklabels'] = on;
           patch['yaxis.showticklabels'] = on;
+          detailParts.push(`Labels ${on ? 'shown' : 'hidden'}`);
         }
         if (Object.keys(patch).length) {
-          commitLayoutPatch(panelId, patch);
+          const context = detailParts.length
+            ? {
+                label: 'Axis labels',
+                meta: {
+                  action: 'axis-labels',
+                  detail: detailParts.join(' • ')
+                }
+              }
+            : null;
+          commitLayoutPatch(panelId, patch, context);
         }
         break;
       }

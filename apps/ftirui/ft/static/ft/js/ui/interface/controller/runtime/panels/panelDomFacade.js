@@ -617,10 +617,15 @@ export function createPanelDomFacade({
           const isMajorGridOn = Boolean(currentLayout?.xaxis?.showgrid || currentLayout?.yaxis?.showgrid);
 
           // === Grid options (major + minor) ===========================================
-          const gridBtn = document.createElement('button');
-          gridBtn.type = 'button';
-          gridBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-          gridBtn.innerHTML = '<i class="bi bi-grid-3x3-gap"></i>';
+        const gridBtn = document.createElement('button');
+        gridBtn.type = 'button';
+        gridBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+        gridBtn.innerHTML = `
+          <span class="workspace-panel-action-icon">
+            <span class="workspace-panel-action-icon-grid" aria-hidden="true"></span>
+            <span class="visually-hidden">Grid options</span>
+          </span>
+        `;
           gridBtn.title = 'Grid options';
           gridBtn.setAttribute('aria-expanded', 'false');
           gridBtn.setAttribute('aria-pressed', String(isMajorGridOn));
@@ -1081,12 +1086,6 @@ export function createPanelDomFacade({
           pop.__close = close;
         }
 
-        const labelsDataBtn = createToggleButton({
-          icon: 'bi-card-text',
-          title: 'Toggle data labels'
-        });
-        controlsWrapper.appendChild(labelsDataBtn);
-
         const figureForLegend = safeGetPanelFigure(panelId);
         const figureLayoutForLegend = figureForLegend?.layout || {};
         const legendInitiallyVisible = Object.prototype.hasOwnProperty.call(figureLayoutForLegend, 'showlegend')
@@ -1336,22 +1335,6 @@ export function createPanelDomFacade({
         });
         controlsWrapper.appendChild(fullscreenBtn);
 
-        const undoBtn = document.createElement('button');
-        undoBtn.type = 'button';
-        undoBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-        undoBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i>';
-        undoBtn.title = 'Undo';
-        undoBtn.addEventListener('click', () => safeHandleHeaderAction(panelId, 'history-undo'));
-        controlsWrapper.appendChild(undoBtn);
-
-        const redoBtn = document.createElement('button');
-        redoBtn.type = 'button';
-        redoBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-        redoBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
-        redoBtn.title = 'Redo';
-        redoBtn.addEventListener('click', () => safeHandleHeaderAction(panelId, 'history-redo'));
-        controlsWrapper.appendChild(redoBtn);
-
         const overflowBtn = document.createElement('button');
         overflowBtn.type = 'button';
         overflowBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-overflow';
@@ -1395,31 +1378,6 @@ export function createPanelDomFacade({
           }
         });
 
-        const refreshActionOverflow = () => {
-          const collapsed = controlsWrapper.classList.contains('is-collapsed');
-          const expanded = controlsWrapper.classList.contains('is-expanded');
-          if (expanded) {
-            controlsWrapper.classList.remove('is-expanded');
-          }
-          let isOverflowing = false;
-          if (!collapsed) {
-            isOverflowing = controlsWrapper.scrollWidth - controlsWrapper.clientWidth > 1;
-          }
-          if (!isOverflowing) {
-            closeOverflowMenu();
-          } else if (expanded) {
-            controlsWrapper.classList.add('is-expanded');
-            overflowBtn.classList.add('is-active');
-            overflowBtn.setAttribute('aria-expanded', 'true');
-            if (!overflowOutsideActive) {
-              document.addEventListener('click', handleOverflowOutside);
-              overflowOutsideActive = true;
-            }
-          }
-          overflowBtn.hidden = !isOverflowing;
-          actions.classList.toggle('has-overflow', isOverflowing);
-        };
-
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'btn btn-outline-secondary';
@@ -1454,6 +1412,42 @@ export function createPanelDomFacade({
           refreshActionOverflow();
           safeUpdateToolbarMetrics();
         });
+
+        const refreshActionOverflow = () => {
+          const collapsed = controlsWrapper.classList.contains('is-collapsed');
+          const expanded = controlsWrapper.classList.contains('is-expanded');
+          if (expanded) {
+            controlsWrapper.classList.remove('is-expanded');
+          }
+          const computeAvailableWidth = () => {
+            if (!actions) return controlsWrapper.clientWidth;
+            const staticButtons = (settingsBtn?.offsetWidth || 0) + (closeBtn?.offsetWidth || 0);
+            const overflowReserve = !overflowBtn.hidden ? (overflowBtn.offsetWidth || 0) : 0;
+            const gutter = 8;
+            const budget = actions.clientWidth - staticButtons - overflowReserve - gutter;
+            return Math.max(budget, controlsWrapper.clientWidth, 0);
+          };
+          const rawOverflow = controlsWrapper.scrollWidth - controlsWrapper.clientWidth > 1;
+          const budgetOverflow = controlsWrapper.scrollWidth - computeAvailableWidth() > 1;
+          const isOverflowing = !collapsed && (rawOverflow || budgetOverflow);
+          if (!isOverflowing) {
+            closeOverflowMenu();
+          } else if (expanded) {
+            controlsWrapper.classList.add('is-expanded');
+            overflowBtn.classList.add('is-active');
+            overflowBtn.setAttribute('aria-expanded', 'true');
+            if (!overflowOutsideActive) {
+              document.addEventListener('click', handleOverflowOutside);
+              overflowOutsideActive = true;
+            }
+          }
+          overflowBtn.hidden = !isOverflowing;
+          actions.classList.toggle('has-overflow', isOverflowing);
+        };
+        if (typeof ResizeObserver === 'function') {
+          const resizeObserver = new ResizeObserver(() => refreshActionOverflow());
+          resizeObserver.observe(actions);
+        }
 
         actions.appendChild(controlsWrapper);
         actions.appendChild(overflowBtn);

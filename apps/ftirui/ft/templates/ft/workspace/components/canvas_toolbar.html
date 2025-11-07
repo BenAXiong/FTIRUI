@@ -1,12 +1,12 @@
 <div class="workspace-toolbar" role="toolbar" aria-label="Workspace actions">
-  <div class="btn-group btn-group-sm" role="group" aria-label="Canvas actions">
-    <button id="c_canvas_add_plot" class="btn btn-primary workspace-toolbar-btn" type="button" title="Add plot" aria-label="Add plot">
-      <i class="bi bi-graph-up workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Add plot</span>
-    </button>
-    <button id="c_canvas_reset_layout" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Reset layout" aria-label="Reset layout">
+  <div class="btn-group btn-group-sm" role="group" aria-label="History actions">
+    <button id="c_history_undo" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Undo" aria-label="Undo">
       <i class="bi bi-arrow-counterclockwise workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Reset layout</span>
+      <span class="visually-hidden">Undo</span>
+    </button>
+    <button id="c_history_redo" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Redo" aria-label="Redo">
+      <i class="bi bi-arrow-clockwise workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Redo</span>
     </button>
   </div>
   <div class="btn-group btn-group-sm" role="group" aria-label="Canvas panel types">
@@ -43,6 +43,14 @@
       <span class="visually-hidden">More workspace tools</span>
     </button>
     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="c_canvas_more_btn">
+      <button id="c_canvas_add_plot" class="dropdown-item" type="button">
+        <i class="bi bi-graph-up"></i>
+        <span>Add plot</span>
+      </button>
+      <button id="c_canvas_reset_layout" class="dropdown-item" type="button">
+        <i class="bi bi-arrow-counterclockwise"></i>
+        <span>Reset layout</span>
+      </button>
       <button class="dropdown-item" type="button">
         <i class="bi bi-funnel"></i>
         <span>ATR correction</span>

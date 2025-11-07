@@ -4,8 +4,8 @@ export function createHistoryHelpers({
   persist
 } = {}) {
   const safePush = typeof pushHistory === 'function'
-    ? (label) => pushHistory(label)
-    : () => {};
+    ? (info) => pushHistory(info)
+    : () => null;
   const safePersist = typeof persist === 'function'
     ? (...args) => persist(...args)
     : () => {};
@@ -25,10 +25,10 @@ export function createHistoryHelpers({
       return true;
     },
     push(label = null) {
-      safePush(label);
+      return safePush(label);
     },
     pushHistory(label = null) {
-      safePush(label);
+      return safePush(label);
     },
     persist() {
       safePersist();

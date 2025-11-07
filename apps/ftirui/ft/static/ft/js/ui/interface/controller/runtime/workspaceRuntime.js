@@ -52,6 +52,7 @@ let operationsPanelHandles = null;
 let operationsToggleButton = null;
 let operationsVisible = true;
 let operationsRenderQueued = false;
+let operationSequence = 0;
 const colorCursorManager = createColorCursorManager();
 let panelPreferences = null;
 
@@ -197,6 +198,7 @@ export function initWorkspaceRuntime(context = {}) {
   browserFacade = null;
   operationsLog.length = 0;
   operationsRenderQueued = false;
+  operationSequence = 0;
   if (operationsPanelHandles?.root?.parentNode) {
     operationsPanelHandles.root.parentNode.removeChild(operationsPanelHandles.root);
   }
@@ -296,92 +298,196 @@ export function initWorkspaceRuntime(context = {}) {
     return operationsPanelHandles;
   }
 
-  const shortenSource = (value) => {
-    if (!value) return '';
-    let text = value;
-    try {
-      if (typeof window !== 'undefined' && window.location) {
-        text = text.replace(window.location.origin, '');
-      }
-    } catch {
-      /* ignore */
+const shortenSource = (value) => {
+  if (!value) return '';
+  let text = typeof value === 'string' ? value.trim() : '';
+  if (!text) return '';
+  const parenIndex = text.indexOf('(');
+  if (parenIndex >= 0) {
+    const inner = text.slice(parenIndex + 1);
+    const closing = inner.lastIndexOf(')');
+    text = closing >= 0 ? inner.slice(0, closing) : inner;
+  }
+  try {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      text = text.replace(window.location.origin, '');
     }
-    if (text.length > 120) {
-      return `${text.slice(0, 117)}…`;
-    }
-    return text;
+  } catch {
+    /* ignore */
+  }
+  text = text.replace(/\s+at\s+/gi, '').trim();
+  if (text.length > 120) {
+    return `${text.slice(0, 117)}…`;
+  }
+  return text;
+};
+
+const describeHistoryStatus = (delta) => {
+  if (delta == null) return '—';
+  if (delta === 0) return 'Merged';
+  if (delta > 0) return 'Added';
+  if (delta < 0) return 'Rewind';
+  return '—';
+};
+
+const STATUS_LABELS = new Set(['added', 'merged', 'rewind', 'state change']);
+
+const extractInlineStatus = (value) => {
+  const fallback = typeof value === 'string' ? value.trim() : '';
+  if (!fallback) {
+    return { text: '', inlineStatus: null };
+  }
+  const match = fallback.match(/\(([^)]+)\)\s*$/);
+  if (!match) {
+    return { text: fallback, inlineStatus: null };
+  }
+  const candidate = match[1]?.trim() ?? '';
+  if (!candidate || !STATUS_LABELS.has(candidate.toLowerCase())) {
+    return { text: fallback, inlineStatus: null };
+  }
+  const trimmedText = fallback.slice(0, match.index).trim();
+  return {
+    text: trimmedText || fallback,
+    inlineStatus: candidate
   };
+};
 
-  const renderOperationsLog = () => {
-    operationsRenderQueued = false;
-    const handles = ensureOperationsPanel();
-    if (!handles) return;
-    const listEl = handles.list;
-    listEl.innerHTML = '';
-    if (!operationsLog.length) {
-      const empty = document.createElement('div');
-      empty.className = 'workspace-operations-panel__empty';
-      empty.textContent = 'No operations yet.';
-      listEl.appendChild(empty);
-      syncOperationsVisibility();
-      return;
-    }
-    const table = document.createElement('table');
-    table.className = 'workspace-operations-panel__table';
+const formatDelta = (value) => {
+  if (!Number.isFinite(value) || value === 0) return '0';
+  return value > 0 ? `+${value}` : String(value);
+};
 
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    ['Time', 'Operation', 'Location'].forEach((label) => {
-      const th = document.createElement('th');
-      th.scope = 'col';
-      th.textContent = label;
-      headRow.appendChild(th);
-    });
-    thead.appendChild(headRow);
-    table.appendChild(thead);
+const buildOperationDetail = (meta = {}) => {
+  if (!meta) return '';
+  if (typeof meta.detail === 'string' && meta.detail.trim()) {
+    return meta.detail.trim();
+  }
+  if (meta.action === 'panel-resize' && meta.deltas) {
+    return `ΔW ${formatDelta(meta.deltas.width)}px, ΔH ${formatDelta(meta.deltas.height)}px`;
+  }
+  if (meta.action === 'panel-drag' && meta.deltas) {
+    return `ΔX ${formatDelta(meta.deltas.x)}px, ΔY ${formatDelta(meta.deltas.y)}px`;
+  }
+  if (meta.action && meta.value !== undefined) {
+    return `${meta.action}: ${meta.value}`;
+  }
+  return '';
+};
 
-    const tbody = document.createElement('tbody');
-    operationsLog.forEach((entry) => {
-      const row = document.createElement('tr');
+const annotateOperationMeta = (operationId, nextMeta = {}) => {
+  if (!operationId || !operationsLog.length) return;
+  const target = operationsLog.find((entry) => entry.meta?.operationId === operationId);
+  if (!target) return;
+  target.meta = {
+    ...(target.meta || {}),
+    ...(nextMeta || {})
+  };
+  scheduleOperationsRender();
+};
 
-      const timeCell = document.createElement('td');
-      const timeText = Number.isFinite(entry.timestamp)
-        ? new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        : '';
-      timeCell.textContent = timeText || '—';
-      timeCell.title = timeText || '—';
+const normalizeHistoryInfo = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const result = {
+      label: typeof value.label === 'string' && value.label.trim() ? value.label.trim() : null,
+      meta: value.meta && typeof value.meta === 'object' ? { ...value.meta } : null
+    };
+    return result;
+  }
+  return {
+    label: typeof value === 'string' && value.trim() ? value.trim() : null,
+    meta: null
+  };
+};
 
-      const opCell = document.createElement('td');
-      const operationLabel = entry.label || 'Operation';
-      const historyDelta = typeof entry?.meta?.historyDelta === 'number' ? entry.meta.historyDelta : null;
-      const deltaBadge = historyDelta === 0 ? ' (merged)' : historyDelta > 0 ? ' (added)' : historyDelta < 0 ? ' (rewind)' : '';
-      opCell.textContent = `${operationLabel}${deltaBadge}`;
-      const titleParts = [operationLabel];
-      if (historyDelta != null) {
-        const signedDelta = historyDelta > 0 ? `+${historyDelta}` : `${historyDelta}`;
-        titleParts.push(`Δhistory ${signedDelta}`);
-      }
-      if (typeof entry?.meta?.historySize === 'number') {
-        titleParts.push(`history size ${entry.meta.historySize}`);
-      }
-      if (typeof entry?.meta?.futureSize === 'number') {
-        titleParts.push(`future size ${entry.meta.futureSize}`);
-      }
-      opCell.title = titleParts.join(' • ');
-
-      const locationCell = document.createElement('td');
-      const sourceText = entry.source ? shortenSource(entry.source) : '—';
-      locationCell.textContent = sourceText;
-      locationCell.title = entry.source || '—';
-
-      row.append(timeCell, opCell, locationCell);
-      tbody.appendChild(row);
-    });
-
-    table.appendChild(tbody);
-    listEl.appendChild(table);
+const renderOperationsLog = () => {
+  operationsRenderQueued = false;
+  const handles = ensureOperationsPanel();
+  if (!handles) return;
+  const listEl = handles.list;
+  listEl.innerHTML = '';
+  if (!operationsLog.length) {
+    const empty = document.createElement('div');
+    empty.className = 'workspace-operations-panel__empty';
+    empty.textContent = 'No operations yet.';
+    listEl.appendChild(empty);
     syncOperationsVisibility();
-  };
+    return;
+  }
+  const table = document.createElement('table');
+  table.className = 'workspace-operations-panel__table';
+
+  const headRow = document.createElement('tr');
+  ['Time', 'Operation', 'Status', 'Details', 'Location'].forEach((label) => {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    th.textContent = label;
+    headRow.appendChild(th);
+  });
+  const thead = document.createElement('thead');
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  operationsLog.forEach((entry) => {
+    const row = document.createElement('tr');
+
+    const timeCell = document.createElement('td');
+    const timeText = Number.isFinite(entry.timestamp)
+      ? new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : '';
+    timeCell.textContent = timeText || '—';
+    timeCell.title = timeText || '—';
+
+    const opCell = document.createElement('td');
+    const { text: cleanLabel, inlineStatus } = extractInlineStatus(entry.label || 'Operation');
+    const operationLabel = cleanLabel || 'Operation';
+    opCell.textContent = operationLabel;
+    const historyDelta = typeof entry?.meta?.historyDelta === 'number' ? entry.meta.historyDelta : null;
+    const titleParts = [operationLabel];
+    if (historyDelta != null) {
+      const signedDelta = historyDelta > 0 ? `+${historyDelta}` : `${historyDelta}`;
+      titleParts.push(`Δhistory ${signedDelta}`);
+    }
+    if (typeof entry?.meta?.historySize === 'number') {
+      titleParts.push(`history size ${entry.meta.historySize}`);
+    }
+    if (typeof entry?.meta?.futureSize === 'number') {
+      titleParts.push(`future size ${entry.meta.futureSize}`);
+    }
+    opCell.title = titleParts.join(' • ');
+
+    const statusCell = document.createElement('td');
+    const metaStatus = typeof entry?.meta?.status === 'string' ? entry.meta.status.trim() : null;
+    const statusCandidates = [
+      describeHistoryStatus(historyDelta),
+      metaStatus,
+      inlineStatus
+    ].filter(Boolean);
+    const statusText = statusCandidates.find((value) => value && value !== '—') || '—';
+    if (statusText && statusText !== '—') {
+      titleParts.push(`status ${statusText}`);
+    }
+    statusCell.textContent = statusText;
+    statusCell.title = statusText;
+
+    const detailCell = document.createElement('td');
+    const detailText = buildOperationDetail(entry.meta);
+    detailCell.textContent = detailText || '—';
+    detailCell.title = detailText || '—';
+
+    const locationCell = document.createElement('td');
+    const locationText = entry.source ? shortenSource(entry.source) : '—';
+    locationCell.textContent = locationText;
+    locationCell.title = entry.source || locationText || '—';
+
+    row.append(timeCell, opCell, statusCell, detailCell, locationCell);
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  listEl.appendChild(table);
+  syncOperationsVisibility();
+};
 
   const scheduleOperationsRender = () => {
     if (operationsRenderQueued) return;
@@ -417,27 +523,32 @@ export function initWorkspaceRuntime(context = {}) {
     return head;
   };
 
-  const recordOperation = (entry) => {
-    const payload = typeof entry === 'string' ? { label: entry } : (entry || {});
-    const source = typeof payload.source === 'string' ? payload.source : null;
-    let label = typeof payload.label === 'string' && payload.label.trim()
-      ? payload.label.trim()
-      : null;
-    if (!label) {
-      label = deriveLabelFromSource(source);
-    }
-    if (!label) {
-      label = 'Operation';
-    }
-    const timestamp = Number.isFinite(payload.timestamp) ? payload.timestamp : Date.now();
-    const meta = payload.meta && typeof payload.meta === 'object' ? { ...payload.meta } : null;
-    operationsLog.unshift({ label, source, timestamp, meta });
-    while (operationsLog.length > OPERATIONS_LOG_LIMIT) {
-      operationsLog.pop();
-    }
-    ensureOperationsPanel();
-    scheduleOperationsRender();
-  };
+const recordOperation = (entry) => {
+  const payload = typeof entry === 'string' ? { label: entry } : (entry || {});
+  const source = typeof payload.source === 'string' ? payload.source : null;
+  let label = typeof payload.label === 'string' && payload.label.trim()
+    ? payload.label.trim()
+    : null;
+  if (!label) {
+    label = deriveLabelFromSource(source);
+  }
+  if (!label) {
+    label = 'Operation';
+  }
+  const timestamp = Number.isFinite(payload.timestamp) ? payload.timestamp : Date.now();
+  const meta = payload.meta && typeof payload.meta === 'object' ? { ...payload.meta } : {};
+  if (!meta.operationId) {
+    operationSequence += 1;
+    meta.operationId = `op_${Date.now()}_${operationSequence}`;
+  }
+  operationsLog.unshift({ label, source, timestamp, meta });
+  while (operationsLog.length > OPERATIONS_LOG_LIMIT) {
+    operationsLog.pop();
+  }
+  ensureOperationsPanel();
+  scheduleOperationsRender();
+  return meta.operationId;
+};
 
   const captureOperationSource = () => {
     try {
@@ -1128,6 +1239,9 @@ let updateCanvasState = () => {};
     dimensions: {
       minWidth: MIN_WIDTH,
       minHeight: MIN_HEIGHT
+    },
+    operations: {
+      annotateOperation: annotateOperationMeta
     }
   });
 
@@ -1179,27 +1293,28 @@ let updateCanvasState = () => {};
     } = persistence);
     persistence.attachEvents();
     const rawPushHistory = pushHistory || (() => false);
-    pushHistory = (label = null) => {
+    pushHistory = (info = null) => {
+      const normalized = normalizeHistoryInfo(info);
       const beforeInspect = history?.inspect?.();
       const beforePast = beforeInspect?.past?.length ?? null;
-      const result = rawPushHistory(label);
-      if (result !== false) {
-        const resolvedLabel = typeof label === 'string' && label.trim() ? label.trim() : null;
-        const afterInspect = history?.inspect?.();
-        const afterPast = afterInspect?.past?.length ?? beforePast;
-        const delta = beforePast != null && afterPast != null ? afterPast - beforePast : null;
-        recordOperation({
-          label: resolvedLabel,
-          source: captureOperationSource(),
-          timestamp: Date.now(),
-          meta: {
-            historyDelta: delta,
-            historySize: afterPast,
-            futureSize: afterInspect?.future?.length ?? null
-          }
-        });
+      const result = rawPushHistory(normalized.label);
+      if (result === false) {
+        return null;
       }
-      return result;
+      const afterInspect = history?.inspect?.();
+      const afterPast = afterInspect?.past?.length ?? beforePast;
+      const delta = beforePast != null && afterPast != null ? afterPast - beforePast : null;
+      return recordOperation({
+        label: normalized.label,
+        source: captureOperationSource(),
+        timestamp: Date.now(),
+        meta: {
+          ...(normalized.meta || {}),
+          historyDelta: delta,
+          historySize: afterPast,
+          futureSize: afterInspect?.future?.length ?? null
+        }
+      });
     };
     const rawUndo = undo || (() => false);
     undo = (...args) => {
@@ -2147,10 +2262,3 @@ let updateCanvasState = () => {};
     getPanelDomRegistry: () => panelDomRegistry
   };
 }
-
-
-
-
-
-
-

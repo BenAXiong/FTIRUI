@@ -80,6 +80,17 @@ export function createPersistenceFacade({
     };
   };
 
+  const normalizeHistoryInfo = (value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return {
+        label: typeof value.label === 'string' ? value.label : null
+      };
+    }
+    return {
+      label: typeof value === 'string' ? value : null
+    };
+  };
+
   const updateHistoryButtons = () => {
     if (undoButton) {
       const canUndo = history?.canUndo?.() ?? false;
@@ -147,8 +158,10 @@ export function createPersistenceFacade({
     return queued;
   };
 
-  const pushHistory = (label) => {
+  const pushHistory = (info = null) => {
+    const { label } = normalizeHistoryInfo(info);
     history?.push?.(buildSnapshot(), label);
+    return info;
   };
 
   const undo = () => {
