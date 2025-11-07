@@ -205,7 +205,7 @@ export function createPanelsFacade({
   };
 
   const ingestPayloadAsPanel = (payload, {
-    width = 520,
+    width = 720,
     height = 320,
     skipHistory = false,
     skipPersist = false,

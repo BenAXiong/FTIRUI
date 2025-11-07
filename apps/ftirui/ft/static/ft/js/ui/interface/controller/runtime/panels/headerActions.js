@@ -126,17 +126,27 @@ export function createHeaderActions(context = {}) {
     const placement = ctx.combined?.minor?.ticks;
     patch[`${axisKey}.minor.ticks`] = placement == null ? 'outside' : placement;
     patch[`${axisKey}.minor.nticks`] = resolvedSubdivisions;
-    patch[`${axisKey}.minor.tickmode`] = 'linear';
     if (ensureVisible) {
       patch[`${axisKey}.minor.show`] = true;
     }
+    const previousMinorDtickRaw = ctx.combined?.minor?.dtick;
+    const previousMinorTickmode = ctx.combined?.minor?.tickmode;
+    const numericMinorDtick = Number(previousMinorDtickRaw);
+    const hasStringMinorDtick = typeof previousMinorDtickRaw === 'string'
+      && !Number.isFinite(numericMinorDtick)
+      && previousMinorDtickRaw.length > 0;
     const majorSpacing = resolveMajorSpacing(ctx);
-    const fallbackMinorDtick = Number(ctx.combined?.minor?.dtick);
+    const fallbackMinorDtick = Number.isFinite(numericMinorDtick) && numericMinorDtick > 0
+      ? numericMinorDtick
+      : NaN;
     const minorDtick = Number.isFinite(majorSpacing) && majorSpacing > 0
       ? majorSpacing / (resolvedSubdivisions + 1)
       : (Number.isFinite(fallbackMinorDtick) && fallbackMinorDtick > 0 ? fallbackMinorDtick : NaN);
     if (Number.isFinite(minorDtick) && minorDtick > 0) {
+      patch[`${axisKey}.minor.tickmode`] = 'linear';
       patch[`${axisKey}.minor.dtick`] = minorDtick;
+    } else if (!hasStringMinorDtick && previousMinorTickmode === 'linear') {
+      patch[`${axisKey}.minor.tickmode`] = 'auto';
     }
     return patch;
   };

@@ -8,6 +8,14 @@
 const rendered = new WeakSet();  // marks containers that had an initial render
 const resizeQueue = new Set();
 let resizeRaf = null;
+const plotConfig = {
+  responsive: true,
+  displayModeBar: true,
+  editable: true,
+  edits: {
+    legendPosition: true
+  }
+};
 
 function _scheduleResizeFlush() {
   if (resizeRaf) return;
@@ -38,10 +46,7 @@ export function isRendered(containerEl) {
 export async function renderInitial(panelId, containerEl, figure) {
   if (!containerEl) throw new Error('renderInitial: missing containerEl');
   // eslint-disable-next-line no-undef
-  await Plotly.newPlot(containerEl, figure?.data ?? [], figure?.layout ?? {}, {
-    responsive: true,
-    displayModeBar: true
-  });
+  await Plotly.newPlot(containerEl, figure?.data ?? [], figure?.layout ?? {}, plotConfig);
   rendered.add(containerEl);
 }
 
@@ -52,10 +57,7 @@ export async function renderUpdate(panelId, containerEl, figure) {
     return;
   }
   // eslint-disable-next-line no-undef
-  await Plotly.react(containerEl, figure?.data ?? [], figure?.layout ?? {}, {
-    responsive: true,
-    displayModeBar: true
-  });
+  await Plotly.react(containerEl, figure?.data ?? [], figure?.layout ?? {}, plotConfig);
   rendered.add(containerEl);
 }
 
