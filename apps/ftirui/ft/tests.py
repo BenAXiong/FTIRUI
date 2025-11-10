@@ -6,7 +6,12 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from . import sessions_repository as session_repo
-from .models import PlotSession
+from .models import (
+    PlotSession,
+    WorkspaceSection,
+    WorkspaceProject,
+    WorkspaceBoard,
+)
 from .sessions_repository import SessionTooLargeError
 
 User = get_user_model()
@@ -134,3 +139,46 @@ class SessionApiTests(TestCase):
             )
         self.assertEqual(resp.status_code, 413)
         self.assertIn("too large", resp.json()["error"])
+
+
+class DashboardApiTests(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="dash", password="secret")
+        self.client.force_login(self.user)
+        self.section = WorkspaceSection.objects.create(owner=self.user, name="Reports")
+        self.project = WorkspaceProject.objects.create(owner=self.user, section=self.section, title="Week 42")
+        self.board = WorkspaceBoard.objects.create(
+            owner=self.user,
+            project=self.project,
+            title="Initial board",
+            state_json={"order": []},
+            state_size=2,
+        )
+
+    def test_sections_require_auth(self):
+        self.client.logout()
+        resp = self.client.get("/api/dashboard/sections/")
+        self.assertEqual(resp.status_code, 401)
+
+    def test_list_sections_with_projects(self):
+        resp = self.client.get("/api/dashboard/sections/?include=full")
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+        self.assertEqual(len(payload["items"]), 1)
+        section = payload["items"][0]
+        self.assertEqual(section["name"], "Reports")
+        self.assertEqual(len(section.get("projects", [])), 1)
+        project = section["projects"][0]
+        self.assertEqual(project["title"], "Week 42")
+        self.assertEqual(project["board_count"], 1)
+
+    def test_create_board(self):
+        url = f"/api/dashboard/projects/{self.project.id}/boards/"
+        resp = self.client.post(
+            url,
+            data=json.dumps({"title": "Analysis", "state": {"order": ["a"]}}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(WorkspaceBoard.objects.filter(project=self.project).count(), 2)

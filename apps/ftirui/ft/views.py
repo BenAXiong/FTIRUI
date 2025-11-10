@@ -30,7 +30,13 @@ import matplotlib.pyplot as plt
 from core.jcamp_utils import load_jcamp_fixed
 from core.io import convert_many
 from . import sessions_repository as session_repo
-from .models import PlotSession
+from .models import (
+    PlotSession,
+    WorkspaceSection,
+    WorkspaceProject,
+    WorkspaceBoard,
+    WorkspaceBoardVersion,
+)
 from .sessions_repository import SessionStorageError, SessionTooLargeError
 
 BASE_DIR = Path(__file__).resolve().parents[1]          # apps/ftirui
@@ -545,6 +551,77 @@ def _stringify_meta(meta) -> dict[str, str]:
         result[str(key).upper()] = text
     return result
 
+def _json_body(request):
+    try:
+        raw = request.body.decode("utf-8")
+    except Exception:
+        raw = ""
+    raw = raw or "{}"
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JSON body") from exc
+
+def _isoformat(value):
+    if not value:
+        return None
+    return timezone.localtime(value).isoformat()
+
+def _serialize_board(board):
+    return {
+        "id": str(board.id),
+        "project_id": str(board.project_id),
+        "title": board.title,
+        "thumbnail_url": board.thumbnail_url,
+        "version_label": board.version_label,
+        "state_size": board.state_size,
+        "updated": _isoformat(board.updated_at),
+        "created": _isoformat(board.created_at),
+    }
+
+def _serialize_project(project, *, include_boards=False):
+    data = {
+        "id": str(project.id),
+        "section_id": str(project.section_id),
+        "title": project.title,
+        "summary": project.summary,
+        "cover_thumbnail": project.cover_thumbnail,
+        "position": project.position,
+        "updated": _isoformat(project.updated_at),
+        "board_count": project.boards.count(),
+    }
+    if include_boards:
+        data["boards"] = [_serialize_board(board) for board in project.boards.order_by("-updated_at")]
+    return data
+
+def _serialize_section(section, *, include_projects=False):
+    data = {
+        "id": str(section.id),
+        "name": section.name,
+        "description": section.description,
+        "color": section.color,
+        "position": section.position,
+        "created": _isoformat(section.created_at),
+        "updated": _isoformat(section.updated_at),
+    }
+    if include_projects:
+        projects = section.projects.select_related("section").prefetch_related("boards")
+        data["projects"] = [
+            _serialize_project(project, include_boards=True)
+            for project in projects.order_by("position", "created_at")
+        ]
+    return data
+
+def _compute_state_size(state):
+    if not isinstance(state, dict):
+        state = {}
+    size, _ = session_repo._serialise_state(state)
+    return state, size
+
+def _next_position(queryset):
+    last = queryset.order_by("-position").first()
+    return (last.position + 1) if last else 1
+
 def _require_json_auth(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
@@ -576,6 +653,354 @@ def _build_login_urls(request, *, next_path: str) -> dict[str, str]:
         "login": login_target,
         "logout": logout_target,
     }
+
+def _get_section_for_user(user, section_id):
+    try:
+        return WorkspaceSection.objects.get(owner=user, id=section_id)
+    except WorkspaceSection.DoesNotExist:
+        return None
+
+def _get_project_for_user(user, project_id):
+    try:
+        return WorkspaceProject.objects.get(owner=user, id=project_id)
+    except WorkspaceProject.DoesNotExist:
+        return None
+
+def _get_board_for_user(user, board_id):
+    try:
+        return WorkspaceBoard.objects.get(owner=user, id=board_id)
+    except WorkspaceBoard.DoesNotExist:
+        return None
+
+@require_http_methods(["GET", "POST"])
+@_require_json_auth
+def api_dashboard_sections(request):
+    user = request.user
+    if request.method == "GET":
+        include = request.GET.get("include") == "full"
+        sections = WorkspaceSection.objects.filter(owner=user).order_by("position", "created_at")
+        return JsonResponse(
+            {"items": [_serialize_section(section, include_projects=include) for section in sections]}
+        )
+    # POST
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return JsonResponse({"error": "'name' is required"}, status=400)
+
+    position = payload.get("position")
+    if not isinstance(position, int):
+        position = _next_position(WorkspaceSection.objects.filter(owner=user))
+
+    section = WorkspaceSection.objects.create(
+        owner=user,
+        name=name,
+        description=payload.get("description") or "",
+        color=payload.get("color") or "",
+        position=max(position, 0),
+    )
+    return JsonResponse(_serialize_section(section, include_projects=True), status=201)
+
+@require_http_methods(["PATCH", "DELETE"])
+@_require_json_auth
+def api_dashboard_section_detail(request, section_id):
+    user = request.user
+    section = _get_section_for_user(user, section_id)
+    if not section:
+        return JsonResponse({"error": "Section not found"}, status=404)
+
+    if request.method == "DELETE":
+        section.delete()
+        return HttpResponse(status=204)
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    update_fields = []
+    if "name" in payload:
+        new_name = (payload.get("name") or "").strip()
+        if not new_name:
+            return JsonResponse({"error": "'name' cannot be empty"}, status=400)
+        section.name = new_name
+        update_fields.append("name")
+    if "description" in payload:
+        section.description = payload.get("description") or ""
+        update_fields.append("description")
+    if "color" in payload:
+        section.color = payload.get("color") or ""
+        update_fields.append("color")
+    if "position" in payload and isinstance(payload.get("position"), int):
+        section.position = max(payload["position"], 0)
+        update_fields.append("position")
+
+    if update_fields:
+        update_fields.append("updated_at")
+        section.save(update_fields=update_fields)
+    return JsonResponse(_serialize_section(section, include_projects=True))
+
+@require_http_methods(["GET", "POST"])
+@_require_json_auth
+def api_dashboard_section_projects(request, section_id):
+    user = request.user
+    section = _get_section_for_user(user, section_id)
+    if not section:
+        return JsonResponse({"error": "Section not found"}, status=404)
+
+    if request.method == "GET":
+        projects = section.projects.prefetch_related("boards").order_by("position", "created_at")
+        return JsonResponse({"items": [_serialize_project(project, include_boards=True) for project in projects]})
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    title = (payload.get("title") or "").strip()
+    if not title:
+        return JsonResponse({"error": "'title' is required"}, status=400)
+
+    position = payload.get("position")
+    if not isinstance(position, int):
+        position = _next_position(section.projects.all())
+
+    project = WorkspaceProject.objects.create(
+        owner=user,
+        section=section,
+        title=title,
+        summary=payload.get("summary") or "",
+        cover_thumbnail=payload.get("cover_thumbnail") or "",
+        position=max(position, 0),
+    )
+    return JsonResponse(_serialize_project(project, include_boards=True), status=201)
+
+@require_http_methods(["GET", "PATCH", "DELETE"])
+@_require_json_auth
+def api_dashboard_project_detail(request, project_id):
+    user = request.user
+    project = _get_project_for_user(user, project_id)
+    if not project:
+        return JsonResponse({"error": "Project not found"}, status=404)
+
+    if request.method == "GET":
+        project = WorkspaceProject.objects.prefetch_related("boards").get(id=project.id)
+        return JsonResponse(_serialize_project(project, include_boards=True))
+
+    if request.method == "DELETE":
+        project.delete()
+        return HttpResponse(status=204)
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    update_fields = []
+    if "title" in payload:
+        new_title = (payload.get("title") or "").strip()
+        if not new_title:
+            return JsonResponse({"error": "'title' cannot be empty"}, status=400)
+        project.title = new_title
+        update_fields.append("title")
+    if "summary" in payload:
+        project.summary = payload.get("summary") or ""
+        update_fields.append("summary")
+    if "cover_thumbnail" in payload:
+        project.cover_thumbnail = payload.get("cover_thumbnail") or ""
+        update_fields.append("cover_thumbnail")
+    if "position" in payload and isinstance(payload.get("position"), int):
+        project.position = max(payload["position"], 0)
+        update_fields.append("position")
+    if "section_id" in payload:
+        new_section = _get_section_for_user(user, payload["section_id"])
+        if not new_section:
+            return JsonResponse({"error": "Target section not found"}, status=404)
+        project.section = new_section
+        update_fields.append("section")
+
+    if update_fields:
+        update_fields.append("updated_at")
+        project.save(update_fields=update_fields)
+    return JsonResponse(_serialize_project(project, include_boards=True))
+
+@require_http_methods(["GET", "POST"])
+@_require_json_auth
+def api_dashboard_project_boards(request, project_id):
+    user = request.user
+    project = _get_project_for_user(user, project_id)
+    if not project:
+        return JsonResponse({"error": "Project not found"}, status=404)
+
+    if request.method == "GET":
+        boards = project.boards.order_by("-updated_at")
+        return JsonResponse({"items": [_serialize_board(board) for board in boards]})
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    title = (payload.get("title") or "").strip() or "Untitled board"
+    raw_state = payload.get("state")
+    if raw_state is None:
+        raw_state = {}
+    state, state_size = _compute_state_size(raw_state if isinstance(raw_state, dict) else {})
+
+    board = WorkspaceBoard.objects.create(
+        owner=user,
+        project=project,
+        title=title,
+        state_json=state,
+        state_size=state_size,
+        thumbnail_url=payload.get("thumbnail_url") or "",
+        version_label=payload.get("version_label") or "",
+        autosave_token=payload.get("autosave_token") or "",
+    )
+    return JsonResponse(_serialize_board(board), status=201)
+
+@require_http_methods(["GET", "PATCH", "DELETE"])
+@_require_json_auth
+def api_dashboard_board_detail(request, board_id):
+    user = request.user
+    board = _get_board_for_user(user, board_id)
+    if not board:
+        return JsonResponse({"error": "Board not found"}, status=404)
+
+    if request.method == "GET":
+        data = _serialize_board(board)
+        data["project"] = _serialize_project(board.project, include_boards=False)
+        return JsonResponse(data)
+
+    if request.method == "DELETE":
+        board.delete()
+        return HttpResponse(status=204)
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    update_fields = []
+    if "title" in payload:
+        board.title = (payload.get("title") or "").strip() or board.title
+        update_fields.append("title")
+    if "thumbnail_url" in payload:
+        board.thumbnail_url = payload.get("thumbnail_url") or ""
+        update_fields.append("thumbnail_url")
+    if "version_label" in payload:
+        board.version_label = payload.get("version_label") or ""
+        update_fields.append("version_label")
+    if "project_id" in payload:
+        new_project = _get_project_for_user(user, payload["project_id"])
+        if not new_project:
+            return JsonResponse({"error": "Target project not found"}, status=404)
+        board.project = new_project
+        update_fields.append("project")
+
+    if update_fields:
+        update_fields.append("updated_at")
+        board.save(update_fields=update_fields)
+    return JsonResponse(_serialize_board(board))
+
+@require_http_methods(["GET", "PUT"])
+@_require_json_auth
+def api_dashboard_board_state(request, board_id):
+    user = request.user
+    board = _get_board_for_user(user, board_id)
+    if not board:
+        return JsonResponse({"error": "Board not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "id": str(board.id),
+                "title": board.title,
+                "state": board.state_json,
+                "state_size": board.state_size,
+                "version_label": board.version_label,
+                "thumbnail_url": board.thumbnail_url,
+            }
+        )
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    raw_state = payload.get("state")
+    if not isinstance(raw_state, dict):
+        return JsonResponse({"error": "'state' must be an object"}, status=400)
+
+    state, size = _compute_state_size(raw_state)
+    board.state_json = state
+    board.state_size = size
+    board.version_label = payload.get("version_label") or board.version_label
+    if "thumbnail_url" in payload:
+        board.thumbnail_url = payload.get("thumbnail_url") or ""
+    board.autosave_token = payload.get("autosave_token") or board.autosave_token
+    board.save(update_fields=["state_json", "state_size", "version_label", "thumbnail_url", "autosave_token", "updated_at"])
+    return JsonResponse(_serialize_board(board))
+
+@require_http_methods(["GET", "POST"])
+@_require_json_auth
+def api_dashboard_board_versions(request, board_id):
+    user = request.user
+    board = _get_board_for_user(user, board_id)
+    if not board:
+        return JsonResponse({"error": "Board not found"}, status=404)
+
+    if request.method == "GET":
+        versions = board.versions.order_by("-created_at")
+        data = [
+            {
+                "id": str(version.id),
+                "label": version.label,
+                "notes": version.notes,
+                "state_size": version.state_size,
+                "thumbnail_url": version.thumbnail_url,
+                "created": _isoformat(version.created_at),
+            }
+            for version in versions
+        ]
+        return JsonResponse({"items": data})
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    state = payload.get("state")
+    if state is None:
+        state = board.state_json
+    if not isinstance(state, dict):
+        return JsonResponse({"error": "'state' must be an object"}, status=400)
+    state, state_size = _compute_state_size(state)
+
+    version = WorkspaceBoardVersion.objects.create(
+        board=board,
+        created_by=user,
+        label=payload.get("label") or board.version_label or "",
+        notes=payload.get("notes") or "",
+        state_json=state,
+        state_size=state_size,
+        thumbnail_url=payload.get("thumbnail_url") or board.thumbnail_url,
+    )
+    return JsonResponse(
+        {
+            "id": str(version.id),
+            "label": version.label,
+            "notes": version.notes,
+            "state_size": version.state_size,
+            "thumbnail_url": version.thumbnail_url,
+            "created": _isoformat(version.created_at),
+        },
+        status=201,
+    )
 
 
 @require_http_methods(["GET"])

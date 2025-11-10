@@ -54,6 +54,8 @@ mlirui/
 
 ### 3.3 Persistence & Sessions
 - Session APIs now persist state in the `PlotSession` model (backed by the project database). Each row stores the JSON payload, its byte size, and metadata placeholders for future external storage; access requires an authenticated user (401 JSON when missing) to guarantee user-scoped data. Responses now surface `size` and `storage` attributes, and oversized payloads trigger HTTP 413 until the external storage path is implemented.
+- Dashboard-focused models (`WorkspaceSection`, `WorkspaceProject`, `WorkspaceBoard`, `WorkspaceBoardVersion`) mirror modern board tools. They expose REST endpoints under `/api/dashboard/...` so the client can list sections, create projects, save boards (using the PlotSession JSON payload), and take immutable snapshots.
+- Existing `PlotSession` rows can be imported into the new hierarchy via `python apps/ftirui/manage.py seed_workspace_from_sessions`. The command creates a default section/project per user and migrates each saved session into a board, with `--dry-run` and `--limit` helpers for cautious execution.
 - Social login uses django-allauth (Google & GitHub). Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and optional `SITE_ID` in the environment. Minimal login/logout templates live under `templates/account/`.
 
 - `/api/me/` exposes the current authentication status (username, email, avatar hash, cloud-session counts, and login/logout targets) so the front end can render account-aware widgets and keep redirect parameters in sync.
@@ -101,6 +103,7 @@ mlirui/
 
 ### 5.3 Contributor Tips
 - Keep backend parsing deterministic; subtle differences in normalization cascade to the UI.
+- When touching the dashboard hierarchy, prefer using the provided management command for test data instead of crafting manual DB entries.
 - When touching the workspace runtime stack (`workspaceRuntime.js` and its facades), be mindful of the global state mutations—multiple features depend on consistent keys (`inputAuto`, `inputMode`, folder structures).
 - For static assets, maintain ASCII unless existing file uses unicode (project policy).
 

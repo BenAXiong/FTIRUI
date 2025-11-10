@@ -30,3 +30,14 @@ urlpatterns += [
 urlpatterns += [
     path('api/demos/', views.api_demo_files, name='api_demo_files'),
 ]
+
+urlpatterns += [
+    path('api/dashboard/sections/', views.api_dashboard_sections, name='api_dashboard_sections'),
+    path('api/dashboard/sections/<uuid:section_id>/', views.api_dashboard_section_detail, name='api_dashboard_section_detail'),
+    path('api/dashboard/sections/<uuid:section_id>/projects/', views.api_dashboard_section_projects, name='api_dashboard_section_projects'),
+    path('api/dashboard/projects/<uuid:project_id>/', views.api_dashboard_project_detail, name='api_dashboard_project_detail'),
+    path('api/dashboard/projects/<uuid:project_id>/boards/', views.api_dashboard_project_boards, name='api_dashboard_project_boards'),
+    path('api/dashboard/boards/<uuid:board_id>/', views.api_dashboard_board_detail, name='api_dashboard_board_detail'),
+    path('api/dashboard/boards/<uuid:board_id>/state/', views.api_dashboard_board_state, name='api_dashboard_board_state'),
+    path('api/dashboard/boards/<uuid:board_id>/versions/', views.api_dashboard_board_versions, name='api_dashboard_board_versions'),
+]
