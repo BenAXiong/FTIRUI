@@ -4,4 +4,8 @@ apps/ftirui/dist/
 *.pkg
 *.exe
 apps/ftirui/.env
+.env
+.venv/
+__pycache__/
+test-results/
 node_modules/

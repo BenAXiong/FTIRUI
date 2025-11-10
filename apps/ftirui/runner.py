@@ -14,6 +14,9 @@ def run_django():
     import django
     django.setup()
     from django.core.management import call_command
+    from ft.desktop_seed import ensure_workspace_seeded
+
+    ensure_workspace_seeded()
     call_command("runserver", "127.0.0.1:8765", use_reloader=False, verbosity=1)
 
 def main():

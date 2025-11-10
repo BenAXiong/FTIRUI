@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["gunicorn", "ftirui.wsgi:application", "--bind", "0.0.0.0:8000"]
+    volumes:
+      - .:/app
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ftirui}
+      POSTGRES_USER: ${POSTGRES_USER:-ftirui}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ftirui}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ftirui} -d ${POSTGRES_DB:-ftirui}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  playwright:
+    build:
+      context: .
+      dockerfile: docker/Playwright.Dockerfile
+    depends_on:
+      web:
+        condition: service_started
+    environment:
+      SMOKE_BASE_URL: ${SMOKE_BASE_URL:-http://web:8000}
+      SMOKE_USERNAME: ${SMOKE_USERNAME:-admin@example.com}
+      SMOKE_PASSWORD: ${SMOKE_PASSWORD:-changeme}
+
+volumes:
+  pgdata:

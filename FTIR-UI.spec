@@ -1,4 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_all
 
 datas = []
@@ -17,6 +19,11 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('matplotlib')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
+BASE_DIR = Path(__file__).resolve().parent
+datas += [
+    (str(BASE_DIR / 'apps' / 'ftirui' / 'ft' / 'static'), 'ft/static'),
+    (str(BASE_DIR / 'apps' / 'ftirui' / 'ft' / 'templates'), 'ft/templates'),
+]
 
 a = Analysis(
     ['apps\\ftirui\\runner.py'],
