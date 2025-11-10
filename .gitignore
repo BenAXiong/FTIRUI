@@ -4,3 +4,4 @@ apps/ftirui/dist/
 *.pkg
 *.exe
 apps/ftirui/.env
+node_modules/

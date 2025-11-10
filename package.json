@@ -1,0 +1,16 @@
+{
+  "name": "mlirui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:smoke": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "jsdom": "^24.1.0",
+    "vitest": "^1.6.0"
+  }
+}

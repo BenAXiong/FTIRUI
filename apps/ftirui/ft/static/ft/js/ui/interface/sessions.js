@@ -664,7 +664,7 @@ async function importSessionFromFile(instance, file, deps) {
   return applySessionState(instance, st, deps);
 }
 
-function createBoardBridge(boardId, instance, deps) {
+export function createBoardBridge(boardId, instance, deps) {
   if (!boardId || !instance) return null;
   return {
     id: boardId,
