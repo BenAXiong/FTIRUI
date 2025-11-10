@@ -51,6 +51,14 @@
         <i class="bi bi-arrow-counterclockwise"></i>
         <span>Reset layout</span>
       </button>
+      <button id="c_canvas_snapshot_save" class="dropdown-item" type="button">
+        <i class="bi bi-camera"></i>
+        <span>Save snapshot</span>
+      </button>
+      <button id="c_canvas_snapshot_manage" class="dropdown-item" type="button">
+        <i class="bi bi-archive"></i>
+        <span>Manage snapshots</span>
+      </button>
       <button class="dropdown-item" type="button">
         <i class="bi bi-funnel"></i>
         <span>ATR correction</span>
@@ -71,6 +79,26 @@
         <i class="bi bi-activity"></i>
         <span>Smoothing</span>
       </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="c_canvas_snapshot_modal" tabindex="-1" aria-labelledby="c_canvas_snapshot_modal_label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="c_canvas_snapshot_modal_label">Snapshots</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div data-snapshot-empty class="text-center text-muted py-4 d-none">
+          <p class="mb-0">No snapshots yet. Use “Save snapshot” to capture the current canvas.</p>
+        </div>
+        <div data-snapshot-list class="snapshot-list d-flex flex-column gap-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
   </div>
 </div>

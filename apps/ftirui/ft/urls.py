@@ -40,4 +40,5 @@ urlpatterns += [
     path('api/dashboard/boards/<uuid:board_id>/', views.api_dashboard_board_detail, name='api_dashboard_board_detail'),
     path('api/dashboard/boards/<uuid:board_id>/state/', views.api_dashboard_board_state, name='api_dashboard_board_state'),
     path('api/dashboard/boards/<uuid:board_id>/versions/', views.api_dashboard_board_versions, name='api_dashboard_board_versions'),
+    path('api/dashboard/boards/<uuid:board_id>/versions/<uuid:version_id>/', views.api_dashboard_board_version_detail, name='api_dashboard_board_version_detail'),
 ]

@@ -182,3 +182,18 @@ class DashboardApiTests(TestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertEqual(WorkspaceBoard.objects.filter(project=self.project).count(), 2)
+
+    def test_board_version_detail_includes_state(self):
+        url = f"/api/dashboard/boards/{self.board.id}/versions/"
+        create = self.client.post(
+            url,
+            data=json.dumps({"label": "alpha"}),
+            content_type="application/json",
+        )
+        self.assertEqual(create.status_code, 201)
+        version_id = create.json()["id"]
+        detail = self.client.get(f"/api/dashboard/boards/{self.board.id}/versions/{version_id}/")
+        self.assertEqual(detail.status_code, 200)
+        payload = detail.json()
+        self.assertEqual(payload["label"], "alpha")
+        self.assertIn("state", payload)

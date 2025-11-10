@@ -75,7 +75,9 @@ mlirui/
 - `static/ft/js/core/plot.js` builds Plotly traces/layouts based on the state and triggers re-renders.
 - `static/ft/js/core/parse.js` (legacy) contains preview parsing utilities (distinct from backend parsing).
 - Legacy Option B UI (`static/ft/js/ui/interfaceB.js`) has been retired. The active workspace experience now lives under `static/ft/js/ui/interface/controller/runtime/`, which orchestrates uploads, plotting, history, and persistence through modular facades.
-- `static/ft/app.js` bootstraps shared UI chrome (theme toggle, account widget, toast notifications). It consumes `/api/me/`, emits `ftir:user-status` events, and exposes `window.showAppToast` so feature modules can surface consistent feedback.
+- `static/ft/app.js` bootstraps shared UI chrome (theme toggle, account widget, toast notifications) and hands off to the dashboard/workspace modules. It consumes `/api/me/`, emits `ftir:user-status` events, and exposes `window.showAppToast` so feature modules can surface consistent feedback.
+- `static/ft/js/ui/dashboard/initDashboard.js` pulls `/api/dashboard/...` data, renders sections/projects/boards, and routes “open canvas” actions by navigating to `/?board=<uuid>#pane-plotC` so the workspace loads that board.
+- `static/ft/js/ui/interface/boardSnapshots.js` powers the workspace “Save snapshot / Manage snapshots” actions, calling `/api/dashboard/boards/<id>/versions/` to persist and restore immutable snapshots.
 - Additional UI helpers under `static/ft/js/lib/` provide CSRF handling, etc.
 
 ### 4.3 Data Flow

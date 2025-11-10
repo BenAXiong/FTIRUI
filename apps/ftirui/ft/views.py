@@ -1002,6 +1002,29 @@ def api_dashboard_board_versions(request, board_id):
         status=201,
     )
 
+@require_http_methods(["GET"])
+@_require_json_auth
+def api_dashboard_board_version_detail(request, board_id, version_id):
+    user = request.user
+    board = _get_board_for_user(user, board_id)
+    if not board:
+        return JsonResponse({"error": "Board not found"}, status=404)
+    try:
+        version = board.versions.get(id=version_id)
+    except WorkspaceBoardVersion.DoesNotExist:
+        return JsonResponse({"error": "Snapshot not found"}, status=404)
+    return JsonResponse(
+        {
+            "id": str(version.id),
+            "label": version.label,
+            "notes": version.notes,
+            "state": version.state_json,
+            "state_size": version.state_size,
+            "thumbnail_url": version.thumbnail_url,
+            "created": _isoformat(version.created_at),
+        }
+    )
+
 
 @require_http_methods(["GET"])
 def api_me(request):

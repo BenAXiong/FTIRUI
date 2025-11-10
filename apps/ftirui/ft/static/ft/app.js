@@ -1,4 +1,5 @@
 import { el } from './js/ui/utils/dom.js';
+import { initDashboard } from './js/ui/dashboard/initDashboard.js';
 
 // Option A likely already initializes somewhere else.
 // If not, you can do a similar instance for A later.
@@ -206,6 +207,19 @@ async function refreshUserStatus(options = {}) {
   }
 }
 
+const BOARD_QUERY_PARAM = 'board';
+function setActiveBoardFromUrl() {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const boardId = params.get(BOARD_QUERY_PARAM);
+  if (boardId) {
+    window.__ACTIVE_BOARD_ID = boardId;
+  }
+  return boardId;
+}
+
+setActiveBoardFromUrl();
+
 window.refreshUserStatus = refreshUserStatus;
 if (userStatusCard) {
   refreshUserStatus();
@@ -215,4 +229,6 @@ if (userStatusCard) {
     }
   });
 }
+
+initDashboard();
 
