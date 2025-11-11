@@ -27,6 +27,7 @@ export function initDashboard() {
   const folderSelect = document.getElementById('dashboard_filter_folder');
   const sortSelect = document.getElementById('dashboard_filter_sort');
   const viewToggle = document.querySelector('[data-dashboard-view-toggle]');
+  const devBadge = document.querySelector('[data-dashboard-dev-indicator]');
 
   const state = {
     sections: [],
@@ -42,7 +43,8 @@ export function initDashboard() {
       section: 'all',
       sort: 'recent'
     },
-    viewMode: 'list'
+    viewMode: 'list',
+    devMode: new URLSearchParams(window.location.search).get('dev') === 'true'
   };
 
   const escapeHtml = (value) =>
@@ -64,6 +66,9 @@ export function initDashboard() {
       titleLabel.textContent = activeProject.title || 'Untitled project';
     } else {
       titleLabel.textContent = 'All Projects';
+    }
+    if (devBadge) {
+      devBadge.classList.toggle('d-none', !state.devMode);
     }
   };
 
@@ -328,11 +333,11 @@ export function initDashboard() {
 
   const flattenBoards = (sections) => {
     const rows = [];
-    sections.forEach((section) => {
-      (section.projects || []).forEach((project) => {
-        (project.boards || []).forEach((board) => {
-          rows.push({
-            id: board.id,
+  sections.forEach((section) => {
+    (section.projects || []).forEach((project) => {
+      (project.boards || []).forEach((board) => {
+        rows.push({
+          id: board.id,
             title: board.title || 'Untitled board',
             projectTitle: project.title || 'Untitled project',
             folderName: section.name || 'Folder',
