@@ -10,7 +10,8 @@ def feature_flags(request):
     board_context = bool(request.GET.get("board"))
 
     workspace_enabled = getattr(settings, "WORKSPACE_LEGACY_ENABLED", False) or dev_override
-    force_workspace_active = workspace_enabled or board_context
+    forced_workspace = request.GET.get("pane") == "workspace"
+    force_workspace_active = board_context or forced_workspace
 
     shortcut_enabled = getattr(settings, "WORKSPACE_DEV_SHORTCUT_ENABLED", True)
 

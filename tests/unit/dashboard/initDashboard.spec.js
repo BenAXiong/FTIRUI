@@ -8,6 +8,7 @@ const ORIGINAL_LOCATION = window.location;
 const setupDom = () => {
   document.body.innerHTML = `
     <div id="dashboard_root">
+      <span data-dashboard-title></span>
       <div data-dashboard-empty class="dashboard-empty"></div>
       <div data-dashboard-sections></div>
     </div>
@@ -124,11 +125,19 @@ describe('initDashboard', () => {
 
     const sidebar = document.querySelector('[data-dashboard-sidebar]');
     expect(sidebar?.textContent).toContain('Lab');
-    const projectButton = sidebar?.querySelector('[data-action="sidebar-open-project"]');
-    expect(projectButton?.textContent).toContain('Spectra');
-    projectButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const projectToggle = sidebar?.querySelector('[data-action="toggle-project"]');
+    projectToggle?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+    const folderToggle = sidebar?.querySelector('[data-action="toggle-folder"]');
+    folderToggle?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+    const boardLink = sidebar?.querySelector('[data-action="sidebar-open-board"]');
+    expect(boardLink?.textContent).toContain('IR stack');
+    boardLink?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flushPromises();
     expect(window.location.href).toContain('board-9');
+    const title = document.querySelector('[data-dashboard-title]');
+    expect(title?.textContent).toBe('Spectra');
   });
 
   it('invokes quick actions for new sections and boards', async () => {
