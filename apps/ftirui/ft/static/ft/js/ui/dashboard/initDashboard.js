@@ -5,7 +5,7 @@ import {
   createBoard
 } from '../../services/dashboard.js';
 
-const DEFAULT_SECTION_NAME = 'Projects';
+const DEFAULT_SECTION_NAME = 'Folder';
 const DEFAULT_PROJECT_NAME = 'Workspace';
 
 export function initDashboard() {
@@ -18,10 +18,16 @@ export function initDashboard() {
   const newSectionBtn = document.getElementById('dashboard_action_new_section');
   const newBoardBtn = document.getElementById('dashboard_action_new_board');
   const sidebarTree = document.querySelector('[data-dashboard-sidebar]');
+  const sidebarNav = document.querySelector('[data-sidebar-nav]');
+  const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
 
   const state = {
     sections: [],
-    loading: false
+    loading: false,
+    sidebarView: 'home',
+    expandedFolders: new Set(),
+    activeSectionId: null,
+    activeProjectId: null
   };
 
   const escapeHtml = (value) =>
@@ -37,11 +43,13 @@ export function initDashboard() {
     const hasSections = Array.isArray(state.sections) && state.sections.length > 0;
     if (!hasSections) {
       emptyState?.classList.add('is-visible');
-      renderSidebar([]);
+      renderSidebar();
+      renderSidebarNav();
       return;
     }
     emptyState?.classList.remove('is-visible');
-    renderSidebar(state.sections);
+    renderSidebar();
+    renderSidebarNav();
 
     state.sections.forEach((section) => {
       const sectionEl = document.createElement('section');
@@ -131,49 +139,76 @@ export function initDashboard() {
     }
   };
 
-  const renderSidebar = (sections) => {
+  const ensureSectionSelection = () => {
+    if (!Array.isArray(state.sections) || !state.sections.length) {
+      state.activeSectionId = null;
+      return;
+    }
+    if (!state.activeSectionId) {
+      state.activeSectionId = state.sections[0].id;
+    }
+    state.expandedFolders.add(state.activeSectionId);
+  };
+
+  const renderSidebarNav = () => {
+    if (!sidebarNav) return;
+    sidebarNav.querySelectorAll('.sidebar-nav-link').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.view === state.sidebarView);
+    });
+  };
+
+  const renderSidebar = () => {
     if (!sidebarTree) return;
+    ensureSectionSelection();
+    const sections = Array.isArray(state.sections) ? state.sections : [];
     if (!sections.length) {
-      sidebarTree.innerHTML = '<p class="text-muted small mb-0">No hierarchy yet.</p>';
+      sidebarTree.innerHTML = '<p class="text-muted small mb-0">No projects yet.</p>';
       return;
     }
     const fragment = document.createDocumentFragment();
-    sections.forEach((section) => {
-      const sectionWrap = document.createElement('div');
-      sectionWrap.className = 'sidebar-section';
-      sectionWrap.innerHTML = `
-        <strong>${escapeHtml(section.name)}</strong>
-        <div class="small text-muted">${section.projects?.length || 0} project(s)</div>
-      `;
-      const projects = Array.isArray(section.projects) ? section.projects : [];
-      if (projects.length) {
-        const ul = document.createElement('ul');
-        projects.forEach((project) => {
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <button type="button" data-action="sidebar-open" data-project="${project.id}">
-              ${escapeHtml(project.title)}
-            </button>
-          `;
-          const boards = Array.isArray(project.boards) ? project.boards : [];
-          if (boards.length) {
-            const boardList = document.createElement('ul');
-            boards.forEach((board) => {
-              const boardLi = document.createElement('li');
-              boardLi.innerHTML = `
-                <button type="button" data-action="sidebar-open-board" data-board="${board.id}">
-                  ${escapeHtml(board.title || 'Untitled')}
-                </button>
-              `;
-              boardList.appendChild(boardLi);
-            });
-            li.appendChild(boardList);
-          }
-          ul.appendChild(li);
-        });
-        sectionWrap.appendChild(ul);
+    sections.forEach((section, index) => {
+      const expanded =
+        state.expandedFolders.has(section.id) || (!state.expandedFolders.size && index === 0);
+      if (expanded) {
+        state.expandedFolders.add(section.id);
       }
-      fragment.appendChild(sectionWrap);
+      const folder = document.createElement('div');
+      folder.className = `sidebar-folder${expanded ? ' is-open' : ''}`;
+      folder.innerHTML = `
+        <button type="button" class="sidebar-folder-toggle" data-action="toggle-folder" data-section="${section.id}">
+          <span>${escapeHtml(section.name)}</span>
+          <span class="sidebar-folder-meta">${section.projects?.length || 0}</span>
+        </button>
+      `;
+      const children = document.createElement('div');
+      children.className = 'sidebar-folder-children';
+      if (!expanded) {
+        children.hidden = true;
+      }
+      const projects = Array.isArray(section.projects) ? section.projects : [];
+      if (!projects.length) {
+        const empty = document.createElement('div');
+        empty.className = 'text-muted small px-2';
+        empty.textContent = 'No projects';
+        children.appendChild(empty);
+      } else {
+        projects.forEach((project) => {
+          const projectBtn = document.createElement('button');
+          projectBtn.type = 'button';
+          projectBtn.dataset.action = 'sidebar-open-project';
+          projectBtn.dataset.project = project.id;
+          projectBtn.className = `sidebar-project-link${
+            state.activeProjectId === project.id ? ' is-active' : ''
+          }`;
+          projectBtn.innerHTML = `
+            <span>${escapeHtml(project.title)}</span>
+            <span class="sidebar-project-meta">${project.boards?.length || 0}</span>
+          `;
+          children.appendChild(projectBtn);
+        });
+      }
+      folder.appendChild(children);
+      fragment.appendChild(folder);
     });
     sidebarTree.replaceChildren(fragment);
   };
@@ -267,12 +302,14 @@ export function initDashboard() {
   };
 
   const handleCreateSection = async () => {
-    const name = window.prompt('Section name', DEFAULT_SECTION_NAME);
+    const name = window.prompt('Folder name', DEFAULT_SECTION_NAME);
     if (!name) return;
     try {
       const section = await createSection({ name, description: '' });
       section.projects = [];
       state.sections.push(section);
+      state.activeSectionId = section.id;
+      state.expandedFolders.add(section.id);
       render();
     } catch (err) {
       window.showAppToast?.({
@@ -318,6 +355,9 @@ export function initDashboard() {
       project.boards = [];
       section.projects = section.projects || [];
       section.projects.push(project);
+      state.activeProjectId = project.id;
+      state.activeSectionId = section.id;
+      state.expandedFolders.add(section.id);
       render();
     } catch (err) {
       window.showAppToast?.({
@@ -336,21 +376,59 @@ export function initDashboard() {
     void handleCreateBoard();
   });
 
+  const toggleFolder = (sectionId) => {
+    if (!sectionId) return;
+    if (state.expandedFolders.has(sectionId)) {
+      state.expandedFolders.delete(sectionId);
+    } else {
+      state.expandedFolders.add(sectionId);
+    }
+    state.activeSectionId = sectionId;
+    renderSidebar();
+  };
+
   sidebarTree?.addEventListener('click', (event) => {
     const trigger = event.target.closest('button[data-action]');
     if (!trigger) return;
     const { action } = trigger.dataset;
-    if (action === 'sidebar-open-board' && trigger.dataset.board) {
-      navigateToBoard(trigger.dataset.board);
+    if (action === 'toggle-folder' && trigger.dataset.section) {
+      toggleFolder(trigger.dataset.section);
       return;
     }
-    if (action === 'sidebar-open' && trigger.dataset.project) {
+    if (action === 'sidebar-open-project' && trigger.dataset.project) {
+      state.activeProjectId = trigger.dataset.project;
+      renderSidebar();
       const project = findProject(trigger.dataset.project);
       const board = project?.boards?.[0];
       if (board) {
         navigateToBoard(board.id);
       }
     }
+  });
+
+  sidebarNav?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-view]');
+    if (!button) return;
+    state.sidebarView = button.dataset.view || 'home';
+    renderSidebarNav();
+  });
+
+  const getActiveSection = () => {
+    if (!state.activeSectionId) return null;
+    return state.sections.find((section) => section.id === state.activeSectionId) || null;
+  };
+
+  sidebarNewProjectBtn?.addEventListener('click', () => {
+    const activeSection = getActiveSection();
+    if (!activeSection) {
+      window.showAppToast?.({
+        title: 'No folder selected',
+        message: 'Create a folder before adding a project.',
+        variant: 'warning'
+      });
+      return;
+    }
+    void handleCreateProject(activeSection.id);
   });
 
   void loadSections();

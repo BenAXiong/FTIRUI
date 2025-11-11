@@ -11,7 +11,15 @@ const setupDom = () => {
       <div data-dashboard-empty class="dashboard-empty"></div>
       <div data-dashboard-sections></div>
     </div>
-    <div data-dashboard-sidebar></div>
+    <aside class="dashboard-sidebar">
+      <nav data-sidebar-nav>
+        <button class="sidebar-nav-link" data-view="home">Home</button>
+        <button class="sidebar-nav-link" data-view="latest">Latest</button>
+        <button class="sidebar-nav-link" data-view="favorites">Favorites</button>
+      </nav>
+      <button id="dashboard_sidebar_new_project" type="button">+</button>
+      <div data-dashboard-sidebar></div>
+    </aside>
     <button id="dashboard_action_new_section"></button>
     <button id="dashboard_action_new_board"></button>
   `;
@@ -92,7 +100,7 @@ describe('initDashboard', () => {
     expect(window.location.hash).toBe('#pane-plotC');
   });
 
-  it('builds the sidebar tree with nested boards', async () => {
+  it('builds the explorer pane and opens the first board of a project', async () => {
     vi.spyOn(dashboardService, 'fetchSections').mockResolvedValue({
       items: [
         {
@@ -116,8 +124,11 @@ describe('initDashboard', () => {
 
     const sidebar = document.querySelector('[data-dashboard-sidebar]');
     expect(sidebar?.textContent).toContain('Lab');
-    const nestedBoard = sidebar?.querySelector('[data-action="sidebar-open-board"]');
-    expect(nestedBoard?.textContent).toContain('IR stack');
+    const projectButton = sidebar?.querySelector('[data-action="sidebar-open-project"]');
+    expect(projectButton?.textContent).toContain('Spectra');
+    projectButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+    expect(window.location.href).toContain('board-9');
   });
 
   it('invokes quick actions for new sections and boards', async () => {
