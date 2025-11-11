@@ -77,6 +77,14 @@
               <span class="fw-semibold" data-dashboard-title>All Projects</span>
             </div>
             <div class="ms-auto d-flex flex-wrap gap-2 dashboard-quick-actions">
+              <div class="btn-group btn-group-sm dashboard-view-toggle" role="group" data-dashboard-view-toggle aria-label="View toggle">
+                <button type="button" class="btn btn-outline-secondary active" data-view="list" title="List view">
+                  <i class="bi bi-table"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary" data-view="gallery" title="Gallery view">
+                  <i class="bi bi-grid-3x3-gap"></i>
+                </button>
+              </div>
               <button id="dashboard_action_new_section" class="btn btn-outline-secondary btn-sm" type="button">
                 <i class="bi bi-folder-plus me-1"></i>
                 New section
@@ -88,7 +96,8 @@
             </div>
           </div>
           <div class="card-body">
-            <div id="dashboard_sections_list" class="dashboard-sections-list" data-dashboard-sections></div>
+            <div class="dashboard-list-view" data-dashboard-list></div>
+            <div class="dashboard-gallery-view d-none" data-dashboard-gallery></div>
             <div id="dashboard_empty_state" class="dashboard-empty text-muted small text-center py-4" data-dashboard-empty>
               <p class="mb-1">No sections yet.</p>
               <p class="mb-0">Create a section to group your projects, then add canvases for each board.</p>

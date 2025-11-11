@@ -13,7 +13,8 @@ export function initDashboard() {
   const root = document.getElementById('dashboard_root');
   if (!root) return null;
 
-  const sectionsContainer = root.querySelector('[data-dashboard-sections]');
+  const listContainer = root.querySelector('[data-dashboard-list]');
+  const galleryContainer = root.querySelector('[data-dashboard-gallery]');
   const emptyState = root.querySelector('[data-dashboard-empty]');
   const newSectionBtn = document.getElementById('dashboard_action_new_section');
   const newBoardBtn = document.getElementById('dashboard_action_new_board');
@@ -25,6 +26,7 @@ export function initDashboard() {
   const searchInput = document.getElementById('dashboard_filter_search');
   const folderSelect = document.getElementById('dashboard_filter_folder');
   const sortSelect = document.getElementById('dashboard_filter_sort');
+  const viewToggle = document.querySelector('[data-dashboard-view-toggle]');
 
   const state = {
     sections: [],
@@ -39,7 +41,8 @@ export function initDashboard() {
       search: '',
       section: 'all',
       sort: 'recent'
-    }
+    },
+    viewMode: 'list'
   };
 
   const escapeHtml = (value) =>
@@ -108,97 +111,20 @@ export function initDashboard() {
   };
 
   const render = () => {
-    if (!sectionsContainer) return;
-    sectionsContainer.innerHTML = '';
     const filteredSections = getFilteredSections();
-    const hasSections = filteredSections.length > 0;
-    if (!hasSections) {
+    const boards = flattenBoards(filteredSections);
+    state.filteredBoards = boards;
+    if (!boards.length) {
       emptyState?.classList.add('is-visible');
-      renderSidebar();
-      renderSidebarNav();
-      updateMainTitle();
-      return;
+    } else {
+      emptyState?.classList.remove('is-visible');
     }
-    emptyState?.classList.remove('is-visible');
+    renderList(boards);
+    renderGallery(boards);
+    updateView();
     renderSidebar();
     renderSidebarNav();
-
-    filteredSections.forEach((section) => {
-      const sectionEl = document.createElement('section');
-      sectionEl.className = 'dashboard-section';
-      sectionEl.dataset.sectionId = section.id;
-      sectionEl.innerHTML = `
-        <div class="dashboard-section-header">
-          <h6>${escapeHtml(section.name)}</h6>
-          <span class="small text-muted">${section.projects?.length || 0} projects</span>
-          <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-action="create-project" data-section="${section.id}">
-            <i class="bi bi-plus-lg me-1"></i>
-            Project
-          </button>
-        </div>
-      `;
-      const projectsWrapper = document.createElement('div');
-      projectsWrapper.className = 'dashboard-projects';
-
-      const projects = Array.isArray(section.projects) ? section.projects : [];
-      if (!projects.length) {
-        const placeholder = document.createElement('div');
-        placeholder.className = 'text-muted small';
-        placeholder.textContent = 'No projects yet. Create one to add canvases.';
-        projectsWrapper.appendChild(placeholder);
-      } else {
-        projects.forEach((project) => {
-          projectsWrapper.appendChild(renderProject(project));
-        });
-      }
-      sectionEl.appendChild(projectsWrapper);
-      sectionsContainer.appendChild(sectionEl);
-    });
     updateMainTitle();
-  };
-
-  const renderProject = (project) => {
-    const projectEl = document.createElement('div');
-    projectEl.className = 'dashboard-project-card';
-    projectEl.dataset.projectId = project.id;
-    const boardCount = project.boards?.length || 0;
-    projectEl.innerHTML = `
-      <h5>
-        <i class="bi bi-collection"></i>
-        <span>${escapeHtml(project.title)}</span>
-        <span class="badge text-bg-light ms-auto">${boardCount} board${boardCount === 1 ? '' : 's'}</span>
-      </h5>
-      <div class="dashboard-project-meta">${escapeHtml(project.summary || 'No description')}</div>
-      <ul class="dashboard-board-list">
-        ${renderBoards(project)}
-      </ul>
-      <div class="d-flex gap-2 mt-2">
-        <button type="button" class="btn btn-sm btn-outline-primary" data-action="create-board" data-project="${project.id}">
-          <i class="bi bi-plus-lg me-1"></i>
-          Canvas
-        </button>
-      </div>
-    `;
-    return projectEl;
-  };
-
-  const renderBoards = (project) => {
-    const boards = Array.isArray(project.boards) ? project.boards : [];
-    if (!boards.length) {
-      return `<li class="text-muted small">No canvases yet.</li>`;
-    }
-    return boards
-      .map(
-        (board) => `
-          <li>
-            <button type="button" class="dashboard-board-button" data-action="open-board" data-board="${board.id}">
-              <span>${escapeHtml(board.title || 'Untitled board')}</span>
-              <span class="dashboard-board-meta">${formatRelative(board.updated)}</span>
-            </button>
-          </li>
-        `
-      )
-      .join('');
   };
 
   const formatRelative = (iso) => {
@@ -400,6 +326,118 @@ export function initDashboard() {
     });
   };
 
+  const flattenBoards = (sections) => {
+    const rows = [];
+    sections.forEach((section) => {
+      (section.projects || []).forEach((project) => {
+        (project.boards || []).forEach((board) => {
+          rows.push({
+            id: board.id,
+            title: board.title || 'Untitled board',
+            projectTitle: project.title || 'Untitled project',
+            folderName: section.name || 'Folder',
+            updated: board.updated,
+            owner: board.owner || 'You',
+            tags: board.tags || [],
+            type: board.type || ''
+          });
+        });
+      });
+    });
+    return rows;
+  };
+
+  const renderList = (boards) => {
+    if (!listContainer) return;
+    if (!boards.length) {
+      listContainer.innerHTML = '';
+      return;
+    }
+    const rows = boards
+      .map(
+        (board) => `
+          <tr>
+            <td class="cell-name">
+              <button type="button" class="btn btn-link p-0" data-action="open-board" data-board="${board.id}">
+                ${escapeHtml(board.title)}
+              </button>
+            </td>
+            <td>${escapeHtml(board.projectTitle)}</td>
+            <td>${escapeHtml(board.folderName)}</td>
+            <td class="cell-meta">${formatRelative(board.updated)}</td>
+            <td class="cell-meta">${escapeHtml(board.owner)}</td>
+            <td class="table-actions">
+              <button type="button" class="table-icon-btn" data-action="list-pin" data-board="${board.id}" title="Pin">
+                <i class="bi bi-star"></i>
+              </button>
+              <button type="button" class="table-icon-btn" data-action="list-more" data-board="${board.id}" title="More options">
+                <i class="bi bi-three-dots"></i>
+              </button>
+            </td>
+          </tr>
+        `
+      )
+      .join('');
+    listContainer.innerHTML = `
+      <div class="dashboard-table-wrapper">
+        <table class="dashboard-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Project</th>
+              <th>Folder</th>
+              <th>Last opened</th>
+              <th>Owner</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const renderGallery = (boards) => {
+    if (!galleryContainer) return;
+    if (!boards.length) {
+      galleryContainer.innerHTML = '';
+      return;
+    }
+    galleryContainer.innerHTML = boards
+      .map(
+        (board) => `
+          <article class="dashboard-gallery-card">
+            <div class="dashboard-gallery-thumb" aria-hidden="true"></div>
+            <div class="dashboard-gallery-title">${escapeHtml(board.title)}</div>
+            <div class="dashboard-gallery-meta">${formatRelative(board.updated)} • ${escapeHtml(board.projectTitle)}</div>
+            <div class="table-actions">
+              <button type="button" class="table-icon-btn" data-action="open-board" data-board="${board.id}" title="Open">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </button>
+              <button type="button" class="table-icon-btn" data-action="list-pin" data-board="${board.id}" title="Pin">
+                <i class="bi bi-star"></i>
+              </button>
+              <button type="button" class="table-icon-btn" data-action="list-more" data-board="${board.id}" title="More options">
+                <i class="bi bi-three-dots"></i>
+              </button>
+            </div>
+          </article>
+        `
+      )
+      .join('');
+  };
+
+  const updateView = () => {
+    if (!listContainer || !galleryContainer || !viewToggle) return;
+    listContainer.classList.toggle('d-none', state.viewMode !== 'list');
+    galleryContainer.classList.toggle('d-none', state.viewMode !== 'gallery');
+    viewToggle.querySelectorAll('button[data-view]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.view === state.viewMode);
+    });
+  };
+
   const loadSections = async () => {
     try {
       state.loading = true;
@@ -540,23 +578,6 @@ export function initDashboard() {
     url.hash = '#pane-plotC';
     window.location.href = url.toString();
   };
-
-  sectionsContainer?.addEventListener('click', (event) => {
-    const openBtn = event.target.closest('[data-action="open-board"]');
-    if (openBtn?.dataset.board) {
-      navigateToBoard(openBtn.dataset.board);
-      return;
-    }
-    const projectBtn = event.target.closest('[data-action="create-board"]');
-    if (projectBtn?.dataset.project) {
-      void handleCreateBoard(projectBtn.dataset.project);
-      return;
-    }
-    const createProjectBtn = event.target.closest('[data-action="create-project"]');
-    if (createProjectBtn?.dataset.section) {
-      void handleCreateProject(createProjectBtn.dataset.section);
-    }
-  });
 
   const handleCreateProject = async (sectionId) => {
     const section = state.sections.find((item) => item.id === sectionId);
@@ -723,6 +744,40 @@ export function initDashboard() {
         message: 'Boards will appear here as you open them.',
         variant: 'info'
       });
+    }
+  });
+
+  viewToggle?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-view]');
+    if (!button) return;
+    state.viewMode = button.dataset.view || 'list';
+    updateView();
+  });
+
+  root.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-action]');
+    if (!trigger) return;
+    if (trigger.dataset.action === 'list-pin') {
+      event.preventDefault();
+      window.showAppToast?.({
+        title: 'Coming soon',
+        message: 'Pinning will be available soon.',
+        variant: 'info'
+      });
+      return;
+    }
+    if (trigger.dataset.action === 'list-more') {
+      event.preventDefault();
+      window.showAppToast?.({
+        title: 'Coming soon',
+        message: 'More options will arrive soon.',
+        variant: 'info'
+      });
+      return;
+    }
+    if (trigger.dataset.action === 'open-board' && trigger.dataset.board) {
+      event.preventDefault();
+      navigateToBoard(trigger.dataset.board);
     }
   });
 

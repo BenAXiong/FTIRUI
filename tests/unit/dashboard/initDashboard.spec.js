@@ -10,7 +10,8 @@ const setupDom = () => {
     <div id="dashboard_root">
       <span data-dashboard-title></span>
       <div data-dashboard-empty class="dashboard-empty"></div>
-      <div data-dashboard-sections></div>
+      <div class="dashboard-list-view" data-dashboard-list></div>
+      <div class="dashboard-gallery-view d-none" data-dashboard-gallery></div>
     </div>
     <aside class="dashboard-sidebar">
       <nav data-sidebar-nav>
@@ -23,6 +24,10 @@ const setupDom = () => {
     </aside>
     <button id="dashboard_action_new_section"></button>
     <button id="dashboard_action_new_board"></button>
+    <div data-dashboard-view-toggle>
+      <button data-view="list">List</button>
+      <button data-view="gallery">Gallery</button>
+    </div>
   `;
 };
 
@@ -90,8 +95,8 @@ describe('initDashboard', () => {
     initDashboard();
     await flushPromises();
 
-    const sectionTitle = document.querySelector('.dashboard-section-header h6');
-    expect(sectionTitle?.textContent).toBe('Reports');
+    const firstRow = document.querySelector('[data-dashboard-list] tbody tr');
+    expect(firstRow?.textContent).toContain('Reports');
 
     const boardButton = document.querySelector('[data-action="open-board"]');
     boardButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
