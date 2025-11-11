@@ -4,20 +4,26 @@ Codex / agents : do not read this document and do not take account of its exista
 /////////////////////////////////////
 -------------------------------
 
-next prompts
+next
+
+save and manage snapshots?
+
+(dash UI/UX)
+- change projects containers to headers + cards
+- rename delete duplicate -- sub/pro names, desc & boards
+- Hierachy: remove "X projects"
+- does board date meta update when edited?
+- 
 
 - fix browser popups 
 
-first think through project tab
--  
 ___________________________________________________________
-details
+polishing
 
 - increase popup width or auto
 - legend button state inits on on while legend is off
 - remove screenshot icon from polotly area
     also zooms & "produced with...."
-
 
 ___________________________________________________________
 ???
@@ -31,3 +37,4 @@ bugs
 
 - grids: minor become major when major runed off
 - browser: stying chips, only thickness wired
+
