@@ -29,6 +29,35 @@ document.getElementById('themeToggle')?.addEventListener('click', () => {
     if (icon) icon.textContent = cur === 'dark' ? '🌙' : '☀️';
 })();
 
+function initWorkspaceDevShortcut() {
+  const body = document.body;
+  if (!body || body.dataset.workspaceShortcut !== 'true') return;
+
+  const toggleDevParam = () => {
+    const url = new URL(window.location.href);
+    const hasDev = url.searchParams.get('dev') === 'true';
+    if (hasDev) {
+      url.searchParams.delete('dev');
+    } else {
+      url.searchParams.set('dev', 'true');
+    }
+    window.location.assign(url.toString());
+  };
+
+  document.addEventListener('keydown', (event) => {
+    if (!event.ctrlKey || !event.shiftKey) return;
+    const key = event.key || '';
+    if (key.toLowerCase() !== 'w') return;
+    const target = event.target;
+    if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+    if (target?.isContentEditable) return;
+    event.preventDefault();
+    toggleDevParam();
+  });
+}
+
+initWorkspaceDevShortcut();
+
 const toastContainer = document.getElementById('app_toasts');
 const toastVariants = {
   success: 'text-bg-success',

@@ -94,6 +94,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',   
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'ft.context_processors.feature_flags',
             ],
         },
     },
@@ -163,6 +164,17 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
+
+
+def _env_flag(key: str, default: bool = False) -> bool:
+    value = os.getenv(key)
+    if value is None:
+        return default
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+WORKSPACE_LEGACY_ENABLED = _env_flag("WORKSPACE_LEGACY_ENABLED", default=os.getenv("DEBUG", "true").lower() == "true")
+WORKSPACE_DEV_SHORTCUT_ENABLED = _env_flag("WORKSPACE_DEV_SHORTCUT_ENABLED", default=True)
 
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/")

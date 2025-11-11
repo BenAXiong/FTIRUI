@@ -19,7 +19,7 @@
       })();
     </script>
   </head>
-  <body class="{% block body_class %}bg-body app-frame{% endblock %}">
+  <body class="{% block body_class %}bg-body app-frame{% endblock %}" data-workspace-shortcut="{% if workspace_dev_shortcut_enabled %}true{% else %}false{% endif %}">
     <div class="container-fluid py-3 px-3 px-lg-4 app-frame-main">
       {% block page_header %}{% endblock %}
       {% block page_body %}{% endblock %}

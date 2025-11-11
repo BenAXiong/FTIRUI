@@ -28,6 +28,7 @@ Key values:
 - `DATABASE_URL` (defaults to the Postgres container in `docker-compose.yml`; omit to stay on SQLite).
 - Social auth secrets (Google/GitHub) if you plan to enable OAuth.
 - `SMOKE_BASE_URL`, `SMOKE_USERNAME`, `SMOKE_PASSWORD` for Playwright runs (local or CI).
+- `WORKSPACE_LEGACY_ENABLED` (default `true` in dev, `false` in prod) to expose the legacy Workspace tab. Keep it `false` in production—design/devs can press `Ctrl+Shift+W` (when `WORKSPACE_DEV_SHORTCUT_ENABLED=true`) to toggle a `?dev=true` query param and temporarily reveal the canvas tab.
 
 ## Test suites
 

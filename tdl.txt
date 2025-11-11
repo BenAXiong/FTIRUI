@@ -6,14 +6,18 @@ Codex / agents : do not read this document and do not take account of its exista
 
 next
 
-save and manage snapshots?
+*save and manage snapshots?
 
 (dash UI/UX)
+- rethink architecture: unique content = canvas but high cust on style ? 
+    e.g. graphing vs pres vs paper
+    project = board, paper, sub?
+
 - change projects containers to headers + cards
 - rename delete duplicate -- sub/pro names, desc & boards
 - Hierachy: remove "X projects"
 - does board date meta update when edited?
-- 
+- tag system (tech only) for easy filter
 
 - fix browser popups 
 
@@ -24,9 +28,8 @@ polishing
 - legend button state inits on on while legend is off
 - remove screenshot icon from polotly area
     also zooms & "produced with...."
-
 ___________________________________________________________
-???
+future work
 
 add tab: Present (canvas or else?)
 feature: Worskpace tab Browser explorer section - load raw files and display sparklines on hover
