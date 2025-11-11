@@ -41,6 +41,7 @@ export function initDashboard() {
     filters: {
       search: '',
       section: 'all',
+      folder: null,
       sort: 'recent'
     },
     viewMode: 'list',
@@ -54,16 +55,25 @@ export function initDashboard() {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
 
+  const normalizeId = (value) => (value === null || value === undefined ? '' : String(value));
+  const idsMatch = (left, right) => normalizeId(left) === normalizeId(right);
+
   const getActiveSection = () => {
     if (!state.activeSectionId) return null;
-    return state.sections.find((section) => section.id === state.activeSectionId) || null;
+    return (
+      state.sections.find((section) => idsMatch(section.id, state.activeSectionId)) || null
+    );
   };
 
   const updateMainTitle = () => {
     if (!titleLabel) return;
-    const activeProject = state.activeProjectId ? findProject(state.activeProjectId) : null;
-    if (activeProject) {
-      titleLabel.textContent = activeProject.title || 'Untitled project';
+    const activeFolder = state.activeProjectId ? findProject(state.activeProjectId) : null;
+    if (activeFolder) {
+      titleLabel.textContent = activeFolder.title || 'Untitled folder';
+    } else if (state.filters.section && state.filters.section !== 'all') {
+      const section =
+        state.sections.find((item) => idsMatch(item.id, state.filters.section)) || null;
+      titleLabel.textContent = section?.name || 'All Projects';
     } else {
       titleLabel.textContent = 'All Projects';
     }
@@ -74,15 +84,23 @@ export function initDashboard() {
 
   const getFilteredSections = () => {
     let sections = Array.isArray(state.sections) ? state.sections : [];
-    const { search, section: sectionFilter, sort } = state.filters;
+    const { search, section: sectionFilter, folder: folderFilter, sort } = state.filters;
     const query = search.trim().toLowerCase();
     if (sectionFilter && sectionFilter !== 'all') {
-      sections = sections.filter((section) => section.id === sectionFilter);
+      sections = sections.filter((section) => idsMatch(section.id, sectionFilter));
+    }
+    if (folderFilter) {
+      sections = sections.filter((section) =>
+        (section.projects || []).some((project) => idsMatch(project.id, folderFilter))
+      );
     }
     const filtered = sections
       .map((section) => {
         const projects = (section.projects || [])
           .map((project) => {
+            if (folderFilter && !idsMatch(project.id, folderFilter)) {
+              return null;
+            }
             let boards = Array.isArray(project.boards) ? [...project.boards] : [];
             const matchesProject = query
               ? project.title?.toLowerCase().includes(query)
@@ -148,8 +166,17 @@ export function initDashboard() {
       state.activeSectionId = null;
       return;
     }
+    if (state.filters.section === 'all') {
+      if (!state.expandedProjects.size && state.sections.length) {
+        state.expandedProjects.add(state.sections[0].id);
+      }
+      return;
+    }
     if (!state.activeSectionId) {
-      state.activeSectionId = state.sections[0].id;
+      state.activeSectionId = state.filters.section || state.sections[0].id;
+    }
+    if (!idsMatch(state.activeSectionId, state.filters.section)) {
+      state.activeSectionId = state.filters.section;
     }
     if (!state.expandedProjects.size) {
       state.expandedProjects.add(state.activeSectionId);
@@ -181,10 +208,25 @@ export function initDashboard() {
       const projectBlock = document.createElement('div');
       projectBlock.className = `sidebar-project${projectExpanded ? ' is-open' : ''}`;
       const projectRow = document.createElement('div');
+      const projectSelected =
+        state.filters.section !== 'all' && idsMatch(state.filters.section, section.id);
       projectRow.className = 'sidebar-project-row';
       projectRow.innerHTML = `
-        <button type="button" class="sidebar-project-toggle" data-action="toggle-project" data-section="${section.id}">
+        <button
+          type="button"
+          class="sidebar-project-toggle"
+          data-action="toggle-project"
+          data-section="${section.id}"
+          aria-label="Toggle project"
+        >
           <i class="bi bi-chevron-right sidebar-project-chevron"></i>
+        </button>
+        <button
+          type="button"
+          class="sidebar-project-link${projectSelected ? ' is-selected' : ''}"
+          data-action="select-project"
+          data-section="${section.id}"
+        >
           <span>${escapeHtml(section.name)}</span>
         </button>
       `;
@@ -206,11 +248,25 @@ export function initDashboard() {
         folders.forEach((folder) => {
           const folderExpanded = state.expandedFolders.has(folder.id);
           const folderEntry = document.createElement('div');
+          const folderSelected = idsMatch(state.filters.folder, folder.id);
           folderEntry.className = `sidebar-folder-entry${folderExpanded ? ' is-open' : ''}`;
           folderEntry.innerHTML = `
             <div class="sidebar-folder-row">
-              <button type="button" class="sidebar-folder-toggle" data-action="toggle-folder" data-folder="${folder.id}">
+              <button
+                type="button"
+                class="sidebar-folder-toggle"
+                data-action="toggle-folder"
+                data-folder="${folder.id}"
+                aria-label="Toggle folder"
+              >
                 <i class="bi bi-chevron-right sidebar-folder-chevron"></i>
+              </button>
+              <button
+                type="button"
+                class="sidebar-folder-label${folderSelected ? ' is-selected' : ''}"
+                data-action="select-folder"
+                data-folder="${folder.id}"
+              >
                 <span>${escapeHtml(folder.title || 'Untitled folder')}</span>
               </button>
               <span class="sidebar-folder-actions">
@@ -241,7 +297,13 @@ export function initDashboard() {
               const boardRow = document.createElement('div');
               boardRow.className = 'sidebar-folder-item';
               boardRow.innerHTML = `
-                <button type="button" class="sidebar-folder-link" data-action="sidebar-open-board" data-board="${board.id}">
+                <button
+                  type="button"
+                  class="sidebar-folder-link"
+                  data-action="sidebar-open-board"
+                  data-board="${board.id}"
+                  data-folder="${folder.id}"
+                >
                   ${escapeHtml(board.title || 'Untitled board')}
                 </button>
                 <span class="sidebar-folder-item-actions">
@@ -276,10 +338,33 @@ export function initDashboard() {
     });
     folderSelect.innerHTML = options.join('');
     const valid =
-      current === 'all' || (state.sections || []).some((section) => section.id === current);
+      current === 'all' ||
+      (state.sections || []).some((section) => idsMatch(section.id, current));
     const nextValue = valid ? current : 'all';
     folderSelect.value = nextValue;
     state.filters.section = nextValue;
+  };
+
+  const ensureFilterTargets = () => {
+    const hasSection =
+      state.filters.section === 'all' ||
+      (state.sections || []).some((section) => idsMatch(section.id, state.filters.section));
+    if (!hasSection) {
+      state.filters.section = 'all';
+      state.activeSectionId = null;
+      if (folderSelect) {
+        folderSelect.value = 'all';
+      }
+    }
+    if (state.filters.folder) {
+      const folderExists = (state.sections || []).some((section) =>
+        (section.projects || []).some((project) => idsMatch(project.id, state.filters.folder))
+      );
+      if (!folderExists) {
+        state.filters.folder = null;
+        state.activeProjectId = null;
+      }
+    }
   };
 
   const computeLatestBoards = () => {
@@ -453,7 +538,7 @@ export function initDashboard() {
       }
       if (
         state.activeSectionId &&
-        !state.sections.some((section) => section.id === state.activeSectionId)
+        !state.sections.some((section) => idsMatch(section.id, state.activeSectionId))
       ) {
         state.activeSectionId = null;
       }
@@ -468,6 +553,7 @@ export function initDashboard() {
       state.expandedFolders = new Set(
         [...state.expandedFolders].filter((id) => folderIds.has(id))
       );
+      ensureFilterTargets();
       updateFolderOptions();
       computeLatestBoards();
       render();
@@ -520,6 +606,16 @@ export function initDashboard() {
         state: createEmptyWorkspaceSnapshot()
       });
       project.boards = [payload, ...(project.boards || [])];
+      const owner = findFolderOwner(project.id);
+      if (owner) {
+        state.filters.section = owner.section.id;
+        state.activeSectionId = owner.section.id;
+        if (folderSelect) {
+          folderSelect.value = owner.section.id;
+        }
+        state.expandedProjects.add(owner.section.id);
+      }
+      state.filters.folder = project.id;
       state.expandedFolders.add(project.id);
       state.activeProjectId = project.id;
       computeLatestBoards();
@@ -550,8 +646,20 @@ export function initDashboard() {
   const findProject = (projectId) => {
     for (const section of state.sections) {
       const projects = section.projects || [];
-      const match = projects.find((project) => project.id === projectId);
+      const match = projects.find((project) => idsMatch(project.id, projectId));
       if (match) return match;
+    }
+    return null;
+  };
+
+  const findFolderOwner = (folderId) => {
+    if (!folderId && folderId !== 0) return null;
+    for (const section of state.sections) {
+      const project =
+        section.projects?.find((candidate) => idsMatch(candidate.id, folderId)) || null;
+      if (project) {
+        return { section, project };
+      }
     }
     return null;
   };
@@ -565,6 +673,12 @@ export function initDashboard() {
       state.sections.push(section);
       state.activeSectionId = section.id;
       state.expandedProjects.add(section.id);
+      state.activeProjectId = null;
+      state.filters.section = section.id;
+      state.filters.folder = null;
+      if (folderSelect) {
+        folderSelect.value = section.id;
+      }
       updateFolderOptions();
       render();
     } catch (err) {
@@ -585,7 +699,7 @@ export function initDashboard() {
   };
 
   const handleCreateProject = async (sectionId) => {
-    const section = state.sections.find((item) => item.id === sectionId);
+    const section = state.sections.find((item) => idsMatch(item.id, sectionId));
     if (!section) return;
     const title = window.prompt('Project title', DEFAULT_PROJECT_NAME);
     if (!title) return;
@@ -596,8 +710,13 @@ export function initDashboard() {
       section.projects.push(project);
       state.activeProjectId = project.id;
       state.activeSectionId = section.id;
+      state.filters.section = section.id;
+      state.filters.folder = project.id;
       state.expandedProjects.add(section.id);
       state.expandedFolders.add(project.id);
+      if (folderSelect) {
+        folderSelect.value = section.id;
+      }
       updateFolderOptions();
       computeLatestBoards();
       render();
@@ -618,19 +737,46 @@ export function initDashboard() {
     void handleCreateBoard();
   });
 
+  const selectProject = (sectionId) => {
+    if (!sectionId) return;
+    const section =
+      state.sections.find((item) => idsMatch(item.id, sectionId)) || null;
+    if (!section) return;
+    state.filters.section = section.id;
+    state.filters.folder = null;
+    state.activeSectionId = section.id;
+    state.activeProjectId = null;
+    if (folderSelect) {
+      folderSelect.value = section.id;
+    }
+    state.expandedProjects.add(section.id);
+    renderSidebar();
+    render();
+    updateMainTitle();
+  };
+
+  const selectFolder = (folderId) => {
+    if (!folderId) return;
+    const owner = findFolderOwner(folderId);
+    if (!owner) return;
+    state.filters.section = owner.section.id;
+    state.filters.folder = owner.project.id;
+    state.activeSectionId = owner.section.id;
+    state.activeProjectId = owner.project.id;
+    if (folderSelect) {
+      folderSelect.value = owner.section.id;
+    }
+    state.expandedProjects.add(owner.section.id);
+    state.expandedFolders.add(owner.project.id);
+    renderSidebar();
+    render();
+    updateMainTitle();
+  };
+
   const toggleProject = (sectionId) => {
     if (!sectionId) return;
     if (state.expandedProjects.has(sectionId)) {
       state.expandedProjects.delete(sectionId);
-      const section = state.sections.find((sec) => sec.id === sectionId);
-      if (section?.projects) {
-        section.projects.forEach((project) => {
-          state.expandedFolders.delete(project.id);
-          if (state.activeProjectId === project.id) {
-            state.activeProjectId = null;
-          }
-        });
-      }
     } else {
       state.expandedProjects.add(sectionId);
       state.activeSectionId = sectionId;
@@ -643,21 +789,24 @@ export function initDashboard() {
     if (!folderId) return;
     if (state.expandedFolders.has(folderId)) {
       state.expandedFolders.delete(folderId);
-      if (state.activeProjectId === folderId) {
-        state.activeProjectId = null;
-      }
     } else {
       state.expandedFolders.add(folderId);
-      state.activeProjectId = folderId;
     }
     renderSidebar();
-    updateMainTitle();
   };
 
   sidebarTree?.addEventListener('click', (event) => {
     const trigger = event.target.closest('button[data-action]');
     if (!trigger) return;
     const { action } = trigger.dataset;
+    if (action === 'select-project' && trigger.dataset.section) {
+      selectProject(trigger.dataset.section);
+      return;
+    }
+    if (action === 'select-folder' && trigger.dataset.folder) {
+      selectFolder(trigger.dataset.folder);
+      return;
+    }
     if (action === 'toggle-project' && trigger.dataset.section) {
       toggleProject(trigger.dataset.section);
       return;
@@ -689,6 +838,9 @@ export function initDashboard() {
       return;
     }
     if (action === 'sidebar-open-board' && trigger.dataset.board) {
+      if (trigger.dataset.folder) {
+        selectFolder(trigger.dataset.folder);
+      }
       navigateToBoard(trigger.dataset.board);
     }
   });
@@ -722,8 +874,19 @@ export function initDashboard() {
   });
 
   folderSelect?.addEventListener('change', (event) => {
-    state.filters.section = event.target.value || 'all';
+    const nextValue = event.target.value || 'all';
+    state.filters.section = nextValue;
+    state.filters.folder = null;
+    if (nextValue === 'all') {
+      state.activeSectionId = null;
+    } else {
+      state.activeSectionId = nextValue;
+      state.expandedProjects.add(nextValue);
+    }
+    state.activeProjectId = null;
+    renderSidebar();
     render();
+    updateMainTitle();
   });
 
   sortSelect?.addEventListener('change', (event) => {
@@ -735,10 +898,13 @@ export function initDashboard() {
   root.querySelector('[data-action="view-latest"]')?.addEventListener('click', () => {
     state.filters.search = '';
     state.filters.section = 'all';
+    state.filters.folder = null;
     state.filters.sort = 'recent';
     if (searchInput) searchInput.value = '';
     if (folderSelect) folderSelect.value = 'all';
     if (sortSelect) sortSelect.value = 'recent';
+    state.activeSectionId = null;
+    state.activeProjectId = null;
     render();
     const top = state.latestBoards[0];
     if (top) {
