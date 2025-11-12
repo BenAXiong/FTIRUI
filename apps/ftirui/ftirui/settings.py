@@ -175,6 +175,7 @@ def _env_flag(key: str, default: bool = False) -> bool:
 
 WORKSPACE_LEGACY_ENABLED = _env_flag("WORKSPACE_LEGACY_ENABLED", default=os.getenv("DEBUG", "true").lower() == "true")
 WORKSPACE_DEV_SHORTCUT_ENABLED = _env_flag("WORKSPACE_DEV_SHORTCUT_ENABLED", default=True)
+DASHBOARD_V2_ENABLED = _env_flag("DASHBOARD_V2_ENABLED", default=True)
 
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import math
 from django.core.management.base import BaseCommand
+
 from ._workspace_migrator import (
     DEFAULT_PROJECT_NAME,
     DEFAULT_SECTION_NAME,
@@ -10,7 +10,7 @@ from ._workspace_migrator import (
 
 
 class Command(BaseCommand):
-    help = "Populate workspace sections/projects/canvases from existing PlotSession entries."
+    help = "Migrate PlotSession rows into the workspace Projects/Folders/Canvases hierarchy."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -23,26 +23,34 @@ class Command(BaseCommand):
             "--limit",
             type=int,
             dest="limit",
-            help="Only process the first N PlotSession rows (useful for smoke tests).",
+            help="Only migrate the first N PlotSession rows.",
         )
         parser.add_argument(
             "--section-name",
             type=str,
             dest="section_name",
             default=DEFAULT_SECTION_NAME,
-            help=f"Name of the default section to create per user (default: {DEFAULT_SECTION_NAME!r}).",
+            help=f"Name of the section to create per user (default: {DEFAULT_SECTION_NAME!r}).",
         )
         parser.add_argument(
             "--project-name",
             type=str,
             dest="project_name",
             default=DEFAULT_PROJECT_NAME,
-            help=f"Name of the project that will hold imported canvases (default: {DEFAULT_PROJECT_NAME!r}).",
+            help=f"Name of the project that will hold migrated canvases (default: {DEFAULT_PROJECT_NAME!r}).",
+        )
+        parser.add_argument(
+            "--delete-source",
+            action="store_true",
+            dest="delete_source",
+            help="Delete PlotSession rows after successful migration.",
         )
 
     def handle(self, *args, **options):
         dry_run = options.get("dry_run", False)
         limit = options.get("limit")
+        delete_source = options.get("delete_source", False)
+
         section_name = (options.get("section_name") or DEFAULT_SECTION_NAME).strip() or DEFAULT_SECTION_NAME
         project_name = (options.get("project_name") or DEFAULT_PROJECT_NAME).strip() or DEFAULT_PROJECT_NAME
 
@@ -50,18 +58,11 @@ class Command(BaseCommand):
         stats = migrator.migrate(
             dry_run=dry_run,
             limit=limit,
-            delete_source=False,
+            delete_source=delete_source and not dry_run,
         )
 
-        total_canvases = stats.get("sessions_migrated", stats.get("sessions_would_migrate", 0))
-        summary = [
-            ("Sections created", stats.get("sections_created", 0)),
-            ("Projects created", stats.get("projects_created", 0)),
-            ("Canvases skipped (existing)", stats.get("canvases_skipped_existing", 0)),
-            ("Sessions without owner", stats.get("sessions_skipped_no_owner", 0)),
-        ]
-        for label, value in summary:
-            self.stdout.write(f"{label}: {value}")
-
-        verb = "would create" if dry_run else "created"
-        self.stdout.write(f"Canvases {verb}: {total_canvases}")
+        total = stats.get("sessions_migrated", stats.get("sessions_would_migrate", 0))
+        verb = "would migrate" if dry_run else "migrated"
+        self.stdout.write(f"Sessions {verb}: {total}")
+        if delete_source and dry_run:
+            self.stdout.write("Note: --delete-source is ignored during dry runs.")

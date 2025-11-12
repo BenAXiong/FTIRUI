@@ -29,7 +29,8 @@ Key values:
 - Social auth secrets (Google/GitHub) if you plan to enable OAuth.
 - `SMOKE_BASE_URL`, `SMOKE_USERNAME`, `SMOKE_PASSWORD` for Playwright runs (local or CI).
 - `WORKSPACE_LEGACY_ENABLED` (default `true` in dev, `false` in prod) to expose the legacy Workspace tab. Keep it `false` in production—design/devs can press `Ctrl+Shift+W` (when `WORKSPACE_DEV_SHORTCUT_ENABLED=true`) to toggle a `?dev=true` query param and temporarily reveal the canvas tab. The shortcut works on both `/dashboard` and `/workspace`, so you can flip between tabbed vs. standalone layouts without touching settings.
-- When the tab is disabled (default), dashboards still open canvases in a new tab at `/workspace?canvas=<ID>` so users can keep navigation/search open while editing. That page reuses the exact same browser/canvas/toolbar partials; only the wrapper differs, so behaviour stays consistent across routes.
+- `DASHBOARD_V2_ENABLED` (default `true`) gates the new Projects/Folders dashboard. Set it to `false` to fall back to the legacy cards while you finish migrations; you can still append `?dev=true` to preview the new explorer without flipping the flag.
+- When the workspace tab is disabled (default), dashboards still open canvases in a new tab at `/workspace?canvas=<ID>` so users can keep navigation/search open while editing. That page reuses the exact same browser/canvas/toolbar partials; only the wrapper differs, so behaviour stays consistent across routes.
 
 ## Test suites
 
@@ -110,3 +111,8 @@ Releases are automated via `/.github/workflows/release.yml`:
 - **Relevant commands:** `python apps/ftirui/manage.py test ft`, `npm run test:unit`, `npm run test:smoke`, `docker compose up --build`.
 
 Phase 6 delivers the runnable artifacts (Docker & desktop) so Phase 7 can focus on distribution; see `architecture.md` for broader context.
+- **Migrate legacy PlotSession rows**: run `python apps/ftirui/manage.py migrate_sessions` (add `--delete-source` once you’ve verified the canvases) to move `/api/session/` saves into the Projects/Folders hierarchy. This is the same helper the older `seed_workspace_from_sessions` command used, but it now supports dry-runs, limits, and optional cleanup.
+
+- **Feature flags recap**:
+  - `WORKSPACE_LEGACY_ENABLED` or `?dev=true` toggles the Workspace tab for devs.
+  - `DASHBOARD_V2_ENABLED` controls whether the new dashboard loads; set it to `false` for quick rollbacks and use the `dashboard_legacy` pane until QA signs off.

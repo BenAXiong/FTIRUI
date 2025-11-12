@@ -62,6 +62,7 @@ initWorkspaceDevShortcut();
 const bodyDataset = typeof document !== 'undefined' ? document.body.dataset : {};
 const isWorkspacePage = bodyDataset?.workspacePage === 'true';
 const workspaceTabEnabled = bodyDataset?.workspaceTabEnabled === 'true';
+const dashboardV2Enabled = bodyDataset?.dashboardV2Enabled !== 'false';
 
 const toastContainer = document.getElementById('app_toasts');
 const toastVariants = {
@@ -319,7 +320,7 @@ if (userStatusCard) {
   });
 }
 
-if (document.getElementById('dashboard_root')) {
+if (dashboardV2Enabled && document.getElementById('dashboard_root')) {
   initDashboard();
 }
 

@@ -1,0 +1,51 @@
+<!-- Legacy Dashboard (flagged via DASHBOARD_V2_ENABLED) -->
+<div id="dashboard_legacy" class="tab-pane fade{% if not workspace_pane_active %} show active{% endif %}" role="tabpanel">
+  <div class="card shadow-sm my-4">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Projects overview (legacy)</h2>
+      <p class="text-muted mb-4">
+        The modern dashboard is disabled because <code>DASHBOARD_V2_ENABLED</code> is set to <strong>false</strong>. Enable the flag (or append <code>?dev=true</code>) to restore the new explorer + filters. This legacy layout keeps the core entry points available so users can still reach their canvases.
+      </p>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="workspace-card h-100">
+            <div class="workspace-card-body">
+              <h3 class="workspace-card-title">Open a canvas</h3>
+              <p class="text-muted small mb-3">
+                Jump into the workspace editor, then use the browser sidebar to pick a migrated canvas.
+              </p>
+              <a class="btn btn-primary btn-sm" href="{% url 'ft:workspace' %}">
+                Go to workspace
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="workspace-card h-100">
+            <div class="workspace-card-body">
+              <h3 class="workspace-card-title">Run migration</h3>
+              <p class="text-muted small mb-3">
+                Use <code>python apps/ftirui/manage.py migrate_sessions</code> to move saved sessions into the new Projects/Folders structure.
+              </p>
+              <div class="text-muted small">
+                Need a dry-run? Add <code>--dry-run</code>.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="workspace-card h-100">
+            <div class="workspace-card-body">
+              <h3 class="workspace-card-title">Switch to v2</h3>
+              <p class="text-muted small mb-3">
+                Set <code>DASHBOARD_V2_ENABLED=true</code> (or append <code>?dev=true</code>) to preview the new explorer, filters, and list/gallery views.
+              </p>
+              <div class="text-muted small">Remember to flip the flag only after QA signs off.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

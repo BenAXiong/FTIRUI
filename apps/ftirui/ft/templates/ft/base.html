@@ -16,7 +16,11 @@
         {% if workspace_tab_enabled %}
           {% include 'ft/workspace/panes/workspace.html' %}
         {% endif %}
-        {% include 'ft/workspace/panes/dashboard.html' %}
+        {% if dashboard_v2_enabled %}
+          {% include 'ft/workspace/panes/dashboard.html' %}
+        {% else %}
+          {% include 'ft/workspace/panes/dashboard_legacy.html' %}
+        {% endif %}
         {% include 'ft/workspace/panes/live.html' %}
         {% include 'ft/workspace/panes/tools.html' %}
         {% include 'ft/workspace/panes/about.html' %}
