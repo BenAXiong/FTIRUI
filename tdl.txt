@@ -1,11 +1,14 @@
 Phase 7
 
-
-add CRUD button for canvases in the explorer
 edit/rename/delete canvas in main view
 rename main view's new section button
+test option/move
+ellipse long names
+bug: extra window opens when editing canvas
 
 possible to create the fav backend, API and all now?
+
+test create, save, reopen canvases
 
 Step 4 – Cleanup & Migration (✅ done)
 
@@ -47,6 +50,7 @@ Polishing
     also zooms & "produced with...."
 - fix browser popups 
 - rethink plot types: defaults, changing, etc
+- dash/explorer: extensible to the right?
 ___________________________________________________________
 Future work
 

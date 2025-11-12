@@ -70,6 +70,14 @@ export async function createCanvas(projectId, payload) {
   return request(`/api/dashboard/projects/${projectId}/canvases/`, { method: 'POST', body: payload });
 }
 
+export async function updateCanvas(canvasId, payload) {
+  return request(`/api/dashboard/canvases/${canvasId}/`, { method: 'PATCH', body: payload });
+}
+
+export async function deleteCanvas(canvasId) {
+  return request(`/api/dashboard/canvases/${canvasId}/`, { method: 'DELETE', expectJson: false });
+}
+
 export async function fetchCanvasState(canvasId) {
   return request(`/api/dashboard/canvases/${canvasId}/state/`);
 }

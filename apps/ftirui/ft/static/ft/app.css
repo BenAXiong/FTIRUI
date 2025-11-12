@@ -267,8 +267,8 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 }
 .sidebar-folder-menu {
   position: absolute;
-  top: calc(100% + .3rem);
-  right: 0;
+  top: 0;
+  left: calc(100% + .5rem);
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: .6rem;
@@ -279,6 +279,24 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   z-index: 20;
 }
 .sidebar-folder-menu.is-open {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+.sidebar-canvas-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + .5rem);
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: .6rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .15);
+  padding: .35rem;
+  display: none;
+  min-width: 180px;
+  z-index: 20;
+}
+.sidebar-canvas-menu.is-open {
   display: flex;
   flex-direction: column;
   gap: .1rem;
@@ -343,6 +361,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   gap: .2rem;
   padding: .2rem .35rem;
   border-radius: .45rem;
+  position: relative;
 }
 .sidebar-folder-link {
   border: none;

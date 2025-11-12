@@ -6,7 +6,10 @@ import {
   updateSection,
   deleteSection,
   updateProject,
-  deleteProject
+  deleteProject,
+  updateCanvas,
+  deleteCanvas,
+  fetchCanvasState
 } from '../../services/dashboard.js';
 
 const DEFAULT_SECTION_NAME = 'Project';
@@ -49,6 +52,8 @@ export function initDashboard() {
     latestCanvases: [],
     editingSectionId: null,
     editingFolderId: null,
+    editingCanvasId: null,
+    openCanvasMenuId: null,
     openOptionsFolderId: null,
     filters: {
       search: '',
@@ -232,6 +237,11 @@ export function initDashboard() {
         const escaped = window.CSS?.escape ? window.CSS.escape(value) : value.replace(/"/g, '\\"');
         focusInput(`[data-inline-folder="${escaped}"]`);
       }
+      if (state.editingCanvasId) {
+        const value = normalizeId(state.editingCanvasId);
+        const escaped = window.CSS?.escape ? window.CSS.escape(value) : value.replace(/"/g, '\\"');
+        focusInput(`[data-inline-canvas="${escaped}"]`);
+      }
     });
   };
 
@@ -410,11 +420,29 @@ export function initDashboard() {
             placeholder.className = 'text-muted small px-4';
             placeholder.textContent = 'No canvases yet';
             canvasList?.appendChild(placeholder);
-          } else {
-            canvases.forEach((canvas) => {
-              const canvasRow = document.createElement('div');
-              canvasRow.className = 'sidebar-folder-item';
-              canvasRow.innerHTML = `
+        } else {
+          canvases.forEach((canvas) => {
+            const canvasRow = document.createElement('div');
+            canvasRow.className = 'sidebar-folder-item';
+            const canvasMenuOpen = idsMatch(state.openCanvasMenuId, canvas.id);
+            const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
+            const canvasLabelMarkup = isEditingCanvas
+              ? `
+                <div class="sidebar-folder-link sidebar-inline-wrapper">
+                  <input
+                    type="text"
+                    class="sidebar-inline-input"
+                    data-inline-canvas="${canvas.id}"
+                    data-initial-value="${escapeAttribute(canvas.title || 'Untitled canvas')}"
+                    value="${escapeAttribute(canvas.title || 'Untitled canvas')}"
+                    maxlength="140"
+                    placeholder="Canvas name"
+                    aria-label="Edit canvas name"
+                    autocomplete="off"
+                  />
+                </div>
+              `
+              : `
                 <button
                   type="button"
                   class="sidebar-folder-link"
@@ -424,14 +452,49 @@ export function initDashboard() {
                 >
                   ${escapeHtml(canvas.title || 'Untitled canvas')}
                 </button>
+              `;
+            canvasRow.innerHTML = `
+                ${canvasLabelMarkup}
                 <span class="sidebar-folder-item-actions">
-                  <button type="button" class="sidebar-folder-icon" data-action="folder-pin" data-canvas="${canvas.id}" title="Pin canvas">
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-duplicate" data-canvas="${canvas.id}" title="Duplicate canvas">
+                    <i class="bi bi-files"></i>
+                  </button>
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-favorite" data-canvas="${canvas.id}" title="Favorite canvas">
                     <i class="bi bi-star"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-canvas="${canvas.id}" title="Canvas options">
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-rename" data-canvas="${canvas.id}" title="Rename canvas">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-options" data-canvas="${canvas.id}" title="Canvas options">
                     <i class="bi bi-three-dots"></i>
                   </button>
                 </span>
+                <div class="sidebar-canvas-menu${canvasMenuOpen ? ' is-open' : ''}" data-canvas-menu="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-open" data-canvas="${canvas.id}">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    <span>Open canvas</span>
+                  </button>
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-duplicate" data-canvas="${canvas.id}">
+                    <i class="bi bi-files"></i>
+                    <span>Duplicate canvas</span>
+                  </button>
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-canvas="${canvas.id}">
+                    <i class="bi bi-pencil"></i>
+                    <span>Rename canvas</span>
+                  </button>
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-canvas="${canvas.id}">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Move to folder</span>
+                  </button>
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-delete" data-canvas="${canvas.id}">
+                    <i class="bi bi-trash"></i>
+                    <span>Delete canvas</span>
+                  </button>
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-share" data-canvas="${canvas.id}">
+                    <i class="bi bi-share"></i>
+                    <span>Share canvas</span>
+                  </button>
+                </div>
               `;
               canvasList?.appendChild(canvasRow);
             });
@@ -451,6 +514,7 @@ export function initDashboard() {
   const clearInlineEditing = () => {
     state.editingSectionId = null;
     state.editingFolderId = null;
+    state.editingCanvasId = null;
   };
 
   const closeFolderMenu = () => {
@@ -466,10 +530,24 @@ export function initDashboard() {
     renderSidebar();
   };
 
+  const closeCanvasMenu = () => {
+    if (state.openCanvasMenuId !== null) {
+      state.openCanvasMenuId = null;
+      renderSidebar();
+    }
+  };
+
+  const toggleCanvasMenu = (canvasId) => {
+    if (!canvasId) return;
+    state.openCanvasMenuId = idsMatch(state.openCanvasMenuId, canvasId) ? null : canvasId;
+    renderSidebar();
+  };
+
   const beginProjectRename = (sectionId) => {
     if (!sectionId) return;
     state.editingSectionId = sectionId;
     state.editingFolderId = null;
+    state.editingCanvasId = null;
     renderSidebar();
   };
 
@@ -477,6 +555,16 @@ export function initDashboard() {
     if (!folderId) return;
     state.editingFolderId = folderId;
     state.editingSectionId = null;
+    state.editingCanvasId = null;
+    renderSidebar();
+  };
+
+  const beginCanvasRename = (canvasId) => {
+    if (!canvasId) return;
+    state.editingCanvasId = canvasId;
+    state.editingSectionId = null;
+    state.editingFolderId = null;
+    closeCanvasMenu();
     renderSidebar();
   };
 
@@ -486,6 +574,7 @@ export function initDashboard() {
     const value = input.value;
     const sectionId = input.dataset.inlineProject;
     const folderId = input.dataset.inlineFolder;
+    const canvasId = input.dataset.inlineCanvas;
     clearInlineEditing();
     renderSidebar();
     if (cancel) return;
@@ -493,6 +582,8 @@ export function initDashboard() {
       void handleRenameProject(sectionId, value);
     } else if (folderId) {
       void handleRenameFolder(folderId, value);
+    } else if (canvasId) {
+      void handleRenameCanvas(canvasId, value);
     }
   };
 
@@ -720,6 +811,18 @@ export function initDashboard() {
       state.expandedFolders = new Set(
         [...state.expandedFolders].filter((id) => folderIds.has(id))
       );
+      if (state.openOptionsFolderId && !folderIds.has(state.openOptionsFolderId)) {
+        state.openOptionsFolderId = null;
+      }
+      const canvasIds = new Set();
+      state.sections.forEach((section) => {
+        (section.projects || []).forEach((project) => {
+          (project.canvases || []).forEach((canvas) => canvasIds.add(canvas.id));
+        });
+      });
+      if (state.openCanvasMenuId && !canvasIds.has(state.openCanvasMenuId)) {
+        state.openCanvasMenuId = null;
+      }
       ensureFilterTargets();
       updateFolderOptions();
       computeLatestCanvases();
@@ -810,6 +913,22 @@ export function initDashboard() {
     ui: {}
   });
 
+  const generateDuplicateTitle = (project, baseTitle) => {
+    const trimmedBase = (baseTitle || 'Untitled canvas').trim() || 'Untitled canvas';
+    const existingTitles = new Set(
+      (project?.canvases || []).map((item) => (item.title || '').trim().toLowerCase())
+    );
+    const suffix = ' Copy';
+    let candidate = `${trimmedBase}${suffix}`;
+    let counter = 2;
+    while (existingTitles.has(candidate.trim().toLowerCase())) {
+      candidate = `${trimmedBase}${suffix} ${counter}`;
+      counter += 1;
+      if (counter > 99) break;
+    }
+    return candidate;
+  };
+
   const findFolder = (folderId) => {
     for (const section of state.sections) {
       const projects = section.projects || [];
@@ -826,6 +945,20 @@ export function initDashboard() {
         section.projects?.find((candidate) => idsMatch(candidate.id, folderId)) || null;
       if (project) {
         return { section, project };
+      }
+    }
+    return null;
+  };
+
+  const findCanvasOwner = (canvasId) => {
+    if (!canvasId && canvasId !== 0) return null;
+    for (const section of state.sections) {
+      for (const project of section.projects || []) {
+        const canvas =
+          (project.canvases || []).find((candidate) => idsMatch(candidate.id, canvasId)) || null;
+        if (canvas) {
+          return { section, project, canvas };
+        }
       }
     }
     return null;
@@ -1097,6 +1230,75 @@ export function initDashboard() {
       });
       return;
     }
+    if (action === 'canvas-duplicate' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      closeCanvasMenu();
+      void handleDuplicateCanvas(trigger.dataset.canvas);
+      return;
+    }
+    if (action === 'canvas-favorite' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      closeCanvasMenu();
+      window.showAppToast?.({
+        title: 'Favorites coming soon',
+        message: 'Pin canvases once the API is available.',
+        variant: 'info'
+      });
+      return;
+    }
+    if (action === 'canvas-rename' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      beginCanvasRename(trigger.dataset.canvas);
+      return;
+    }
+    if (action === 'canvas-options' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      toggleCanvasMenu(trigger.dataset.canvas);
+      return;
+    }
+    if (action === 'canvas-menu-open' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      closeCanvasMenu();
+      navigateToCanvas(trigger.dataset.canvas);
+      return;
+    }
+    if (action === 'canvas-menu-duplicate' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      closeCanvasMenu();
+      void handleDuplicateCanvas(trigger.dataset.canvas);
+      return;
+    }
+    if (action === 'canvas-menu-move' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      closeCanvasMenu();
+      window.showAppToast?.({
+        title: 'Move coming soon',
+        message: 'Moving canvases between folders will arrive later.',
+        variant: 'info'
+      });
+      return;
+    }
+    if (action === 'canvas-menu-rename' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      beginCanvasRename(trigger.dataset.canvas);
+      return;
+    }
+    if (action === 'canvas-menu-delete' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      closeCanvasMenu();
+      void handleDeleteCanvas(trigger.dataset.canvas);
+      return;
+    }
+    if (action === 'canvas-menu-share' && trigger.dataset.canvas) {
+      event.stopPropagation();
+      closeCanvasMenu();
+      window.showAppToast?.({
+        title: 'Share coming soon',
+        message: 'Sharing workflow is not enabled yet.',
+        variant: 'info'
+      });
+      return;
+    }
     if (action === 'sidebar-open-canvas' && trigger.dataset.canvas) {
       if (trigger.dataset.folder) {
         selectFolder(trigger.dataset.folder);
@@ -1108,7 +1310,8 @@ export function initDashboard() {
   sidebarTree?.addEventListener('keydown', (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
-    if (!input.dataset.inlineProject && !input.dataset.inlineFolder) return;
+    if (!input.dataset.inlineProject && !input.dataset.inlineFolder && !input.dataset.inlineCanvas)
+      return;
     if (event.key === 'Enter') {
       event.preventDefault();
       finalizeInlineEdit(input);
@@ -1125,27 +1328,47 @@ export function initDashboard() {
     (event) => {
       const input = event.target;
       if (!(input instanceof HTMLInputElement)) return;
-      if (!input.dataset.inlineProject && !input.dataset.inlineFolder) return;
+      if (
+        !input.dataset.inlineProject &&
+        !input.dataset.inlineFolder &&
+        !input.dataset.inlineCanvas
+      )
+        return;
       finalizeInlineEdit(input);
     },
     true
   );
 
   document.addEventListener('click', (event) => {
-    if (!state.openOptionsFolderId) return;
     const target = event.target;
     if (
-      target &&
-      (target.closest?.('[data-folder-menu]') || target.closest?.('[data-action="folder-options"]'))
+      state.openOptionsFolderId &&
+      !(
+        target &&
+        (target.closest?.('[data-folder-menu]') || target.closest?.('[data-action="folder-options"]'))
+      )
     ) {
-      return;
+      closeFolderMenu();
     }
-    closeFolderMenu();
+    if (
+      state.openCanvasMenuId &&
+      !(
+        target &&
+        (target.closest?.('[data-canvas-menu]') || target.closest?.('[data-action="canvas-options"]'))
+      )
+    ) {
+      closeCanvasMenu();
+    }
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && state.openOptionsFolderId) {
-      closeFolderMenu();
+    if (event.key === 'Escape') {
+      if (state.openOptionsFolderId) {
+        closeFolderMenu();
+      }
+      if (state.openCanvasMenuId) {
+        closeCanvasMenu();
+      }
     }
   });
 
@@ -1324,6 +1547,103 @@ export function initDashboard() {
     } catch (err) {
       window.showAppToast?.({
         title: 'Unable to move project',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleRenameCanvas = async (canvasId, nextTitle) => {
+    const owner = findCanvasOwner(canvasId);
+    if (!owner) return;
+    const currentTitle = owner.canvas?.title || 'Untitled canvas';
+    const trimmed = nextTitle?.trim();
+    if (!trimmed) {
+      window.showAppToast?.({
+        title: 'Canvas name required',
+        message: 'Enter a canvas name before saving.',
+        variant: 'warning'
+      });
+      return;
+    }
+    if (trimmed === currentTitle) return;
+    try {
+      await updateCanvas(canvasId, { title: trimmed });
+      window.showAppToast?.({
+        title: 'Canvas renamed',
+        message: trimmed,
+        variant: 'success'
+      });
+      await loadSections();
+      if (owner?.project?.id) {
+        selectFolder(owner.project.id);
+      }
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to rename canvas',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleDuplicateCanvas = async (canvasId) => {
+    const owner = findCanvasOwner(canvasId);
+    if (!owner || !owner.project) {
+      window.showAppToast?.({
+        title: 'Canvas not found',
+        message: 'Refresh the dashboard and try again.',
+        variant: 'warning'
+      });
+      return;
+    }
+    const baseTitle = owner.canvas?.title || 'Untitled canvas';
+    const duplicateTitle = generateDuplicateTitle(owner.project, baseTitle);
+    try {
+      const payload = await fetchCanvasState(canvasId);
+      const snapshot = payload?.state || createEmptyWorkspaceSnapshot();
+      const newCanvas = await createCanvas(owner.project.id, {
+        title: duplicateTitle,
+        state: snapshot,
+        version_label: payload?.version_label || ''
+      });
+      window.showAppToast?.({
+        title: 'Canvas duplicated',
+        message: `${baseTitle} → ${newCanvas?.title || duplicateTitle}`,
+        variant: 'success'
+      });
+      await loadSections();
+      selectFolder(owner.project.id);
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to duplicate canvas',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleDeleteCanvas = async (canvasId) => {
+    const owner = findCanvasOwner(canvasId);
+    const title = owner?.canvas?.title || 'Untitled canvas';
+    const confirmed = window.confirm(
+      `Delete canvas "${title}"? This cannot be undone and removes all autosaves.`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteCanvas(canvasId);
+      window.showAppToast?.({
+        title: 'Canvas deleted',
+        message: title,
+        variant: 'info'
+      });
+      await loadSections();
+      if (owner?.project?.id) {
+        selectFolder(owner.project.id);
+      }
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to delete canvas',
         message: err?.message || String(err),
         variant: 'danger'
       });
