@@ -2,7 +2,7 @@ import {
   fetchSections,
   createSection,
   createProject,
-  createBoard
+  createCanvas
 } from '../../services/dashboard.js';
 
 const DEFAULT_SECTION_NAME = 'Folder';
@@ -17,7 +17,7 @@ export function initDashboard() {
   const galleryContainer = root.querySelector('[data-dashboard-gallery]');
   const emptyState = root.querySelector('[data-dashboard-empty]');
   const newSectionBtn = document.getElementById('dashboard_action_new_section');
-  const newBoardBtn = document.getElementById('dashboard_action_new_board');
+  const newCanvasBtn = document.getElementById('dashboard_action_new_canvas');
   const sidebarTree = document.querySelector('[data-dashboard-sidebar]');
   const sidebarNav = document.querySelector('[data-sidebar-nav]');
   const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
@@ -29,6 +29,11 @@ export function initDashboard() {
   const viewToggle = document.querySelector('[data-dashboard-view-toggle]');
   const devBadge = document.querySelector('[data-dashboard-dev-indicator]');
 
+  const workspaceTabEnabled =
+    document.body?.dataset?.workspaceTabEnabled === 'true';
+  const workspaceRoute =
+    document.body?.dataset?.workspaceRoute || '/workspace/';
+
   const state = {
     sections: [],
     loading: false,
@@ -37,7 +42,7 @@ export function initDashboard() {
     expandedFolders: new Set(),
     activeSectionId: null,
     activeProjectId: null,
-    latestBoards: [],
+    latestCanvases: [],
     filters: {
       search: '',
       section: 'all',
@@ -101,22 +106,22 @@ export function initDashboard() {
             if (folderFilter && !idsMatch(project.id, folderFilter)) {
               return null;
             }
-            let boards = Array.isArray(project.boards) ? [...project.boards] : [];
+            let canvases = Array.isArray(project.canvases) ? [...project.canvases] : [];
             const matchesProject = query
               ? project.title?.toLowerCase().includes(query)
               : true;
             if (query && !matchesProject) {
-              boards = boards.filter((board) =>
-                (board.title || 'Untitled').toLowerCase().includes(query)
+              canvases = canvases.filter((canvas) =>
+                (canvas.title || 'Untitled').toLowerCase().includes(query)
               );
-              if (!boards.length) {
+              if (!canvases.length) {
                 return null;
               }
             }
-            boards = sortBoards(boards, sort);
+            canvases = sortCanvases(canvases, sort);
             return {
               ...project,
-              boards
+              canvases
             };
           })
           .filter(Boolean);
@@ -135,15 +140,15 @@ export function initDashboard() {
 
   const render = () => {
     const filteredSections = getFilteredSections();
-    const boards = flattenBoards(filteredSections);
-    state.filteredBoards = boards;
-    if (!boards.length) {
+    const canvases = flattenCanvases(filteredSections);
+    state.filteredCanvases = canvases;
+    if (!canvases.length) {
       emptyState?.classList.add('is-visible');
     } else {
       emptyState?.classList.remove('is-visible');
     }
-    renderList(boards);
-    renderGallery(boards);
+    renderList(canvases);
+    renderGallery(canvases);
     updateView();
     renderSidebar();
     renderSidebarNav();
@@ -270,7 +275,7 @@ export function initDashboard() {
                 <span>${escapeHtml(folder.title || 'Untitled folder')}</span>
               </button>
               <span class="sidebar-folder-actions">
-                <button type="button" class="sidebar-folder-icon" data-action="folder-create-board" data-project="${folder.id}" title="New canvas">
+                <button type="button" class="sidebar-folder-icon" data-action="folder-create-canvas" data-project="${folder.id}" title="New canvas">
                   <i class="bi bi-plus-lg"></i>
                 </button>
                 <button type="button" class="sidebar-folder-icon" data-action="folder-pin" data-folder="${folder.id}" title="Pin folder">
@@ -281,41 +286,41 @@ export function initDashboard() {
                 </button>
               </span>
             </div>
-            <div class="sidebar-board-list"${folderExpanded ? '' : ' hidden'}>
+            <div class="sidebar-canvas-list"${folderExpanded ? '' : ' hidden'}>
             </div>
           `;
 
-          const boardList = folderEntry.querySelector('.sidebar-board-list');
-          const boards = Array.isArray(folder.boards) ? folder.boards : [];
-          if (!boards.length) {
+          const canvasList = folderEntry.querySelector('.sidebar-canvas-list');
+          const canvases = Array.isArray(folder.canvases) ? folder.canvases : [];
+          if (!canvases.length) {
             const placeholder = document.createElement('div');
             placeholder.className = 'text-muted small px-4';
             placeholder.textContent = 'No canvases yet';
-            boardList?.appendChild(placeholder);
+            canvasList?.appendChild(placeholder);
           } else {
-            boards.forEach((board) => {
-              const boardRow = document.createElement('div');
-              boardRow.className = 'sidebar-folder-item';
-              boardRow.innerHTML = `
+            canvases.forEach((canvas) => {
+              const canvasRow = document.createElement('div');
+              canvasRow.className = 'sidebar-folder-item';
+              canvasRow.innerHTML = `
                 <button
                   type="button"
                   class="sidebar-folder-link"
-                  data-action="sidebar-open-board"
-                  data-board="${board.id}"
+                  data-action="sidebar-open-canvas"
+                  data-canvas="${canvas.id}"
                   data-folder="${folder.id}"
                 >
-                  ${escapeHtml(board.title || 'Untitled board')}
+                  ${escapeHtml(canvas.title || 'Untitled canvas')}
                 </button>
                 <span class="sidebar-folder-item-actions">
-                  <button type="button" class="sidebar-folder-icon" data-action="folder-pin" data-board="${board.id}" title="Pin canvas">
+                  <button type="button" class="sidebar-folder-icon" data-action="folder-pin" data-canvas="${canvas.id}" title="Pin canvas">
                     <i class="bi bi-star"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-board="${board.id}" title="Canvas options">
+                  <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-canvas="${canvas.id}" title="Canvas options">
                     <i class="bi bi-three-dots"></i>
                   </button>
                 </span>
               `;
-              boardList?.appendChild(boardRow);
+              canvasList?.appendChild(canvasRow);
             });
           }
 
@@ -367,69 +372,69 @@ export function initDashboard() {
     }
   };
 
-  const computeLatestBoards = () => {
-    const boards = [];
+  const computeLatestCanvases = () => {
+    const canvases = [];
     (state.sections || []).forEach((section) => {
       (section.projects || []).forEach((project) => {
-        (project.boards || []).forEach((board) => {
-          boards.push({
-            id: board.id,
-            title: board.title || 'Untitled board',
-            updated: board.updated,
+        (project.canvases || []).forEach((canvas) => {
+          canvases.push({
+            id: canvas.id,
+            title: canvas.title || 'Untitled canvas',
+            updated: canvas.updated,
             projectTitle: project.title || 'Untitled project',
             sectionName: section.name || 'Folder'
           });
         });
       });
     });
-    boards.sort((a, b) => {
+    canvases.sort((a, b) => {
       const aTime = new Date(a.updated || 0).getTime();
       const bTime = new Date(b.updated || 0).getTime();
       return bTime - aTime;
     });
-    state.latestBoards = boards.slice(0, 30);
+    state.latestCanvases = canvases.slice(0, 30);
     renderLatest();
   };
 
   const renderLatest = () => {
     if (!latestContainer) return;
     latestContainer.innerHTML = '';
-    if (!state.latestBoards.length) {
+    if (!state.latestCanvases.length) {
       latestContainer.innerHTML =
         '<p class="text-muted small mb-0">No recent canvases yet.</p>';
       return;
     }
-    state.latestBoards.forEach((board) => {
+    state.latestCanvases.forEach((canvas) => {
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'latest-card';
-      card.dataset.board = board.id;
+      card.dataset.canvas = canvas.id;
       card.innerHTML = `
         <div class="latest-card-thumb" aria-hidden="true"></div>
-        <div class="latest-card-title">${escapeHtml(board.title)}</div>
+        <div class="latest-card-title">${escapeHtml(canvas.title)}</div>
         <div class="latest-card-meta">
-          ${formatRelative(board.updated)} • ${escapeHtml(board.projectTitle)}
+          ${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}
         </div>
       `;
-      card.addEventListener('click', () => navigateToBoard(board.id));
+      card.addEventListener('click', () => navigateToCanvas(canvas.id));
       latestContainer.appendChild(card);
     });
   };
 
-  const flattenBoards = (sections) => {
+  const flattenCanvases = (sections) => {
     const rows = [];
   sections.forEach((section) => {
     (section.projects || []).forEach((project) => {
-      (project.boards || []).forEach((board) => {
+      (project.canvases || []).forEach((canvas) => {
         rows.push({
-          id: board.id,
-            title: board.title || 'Untitled board',
+          id: canvas.id,
+            title: canvas.title || 'Untitled canvas',
             projectTitle: project.title || 'Untitled project',
             folderName: section.name || 'Folder',
-            updated: board.updated,
-            owner: board.owner || 'You',
-            tags: board.tags || [],
-            type: board.type || ''
+            updated: canvas.updated,
+            owner: canvas.owner || 'You',
+            tags: canvas.tags || [],
+            type: canvas.type || ''
           });
         });
       });
@@ -437,30 +442,30 @@ export function initDashboard() {
     return rows;
   };
 
-  const renderList = (boards) => {
+  const renderList = (canvases) => {
     if (!listContainer) return;
-    if (!boards.length) {
+    if (!canvases.length) {
       listContainer.innerHTML = '';
       return;
     }
-    const rows = boards
+    const rows = canvases
       .map(
-        (board) => `
+        (canvas) => `
           <tr>
             <td class="cell-name">
-              <button type="button" class="btn btn-link p-0" data-action="open-board" data-board="${board.id}">
-                ${escapeHtml(board.title)}
+              <button type="button" class="btn btn-link p-0" data-action="open-canvas" data-canvas="${canvas.id}">
+                ${escapeHtml(canvas.title)}
               </button>
             </td>
-            <td>${escapeHtml(board.projectTitle)}</td>
-            <td>${escapeHtml(board.folderName)}</td>
-            <td class="cell-meta">${formatRelative(board.updated)}</td>
-            <td class="cell-meta">${escapeHtml(board.owner)}</td>
+            <td>${escapeHtml(canvas.projectTitle)}</td>
+            <td>${escapeHtml(canvas.folderName)}</td>
+            <td class="cell-meta">${formatRelative(canvas.updated)}</td>
+            <td class="cell-meta">${escapeHtml(canvas.owner)}</td>
             <td class="table-actions">
-              <button type="button" class="table-icon-btn" data-action="list-pin" data-board="${board.id}" title="Pin">
+              <button type="button" class="table-icon-btn" data-action="list-pin" data-canvas="${canvas.id}" title="Pin">
                 <i class="bi bi-star"></i>
               </button>
-              <button type="button" class="table-icon-btn" data-action="list-more" data-board="${board.id}" title="More options">
+              <button type="button" class="table-icon-btn" data-action="list-more" data-canvas="${canvas.id}" title="More options">
                 <i class="bi bi-three-dots"></i>
               </button>
             </td>
@@ -489,27 +494,27 @@ export function initDashboard() {
     `;
   };
 
-  const renderGallery = (boards) => {
+  const renderGallery = (canvases) => {
     if (!galleryContainer) return;
-    if (!boards.length) {
+    if (!canvases.length) {
       galleryContainer.innerHTML = '';
       return;
     }
-    galleryContainer.innerHTML = boards
+    galleryContainer.innerHTML = canvases
       .map(
-        (board) => `
+        (canvas) => `
           <article class="dashboard-gallery-card">
             <div class="dashboard-gallery-thumb" aria-hidden="true"></div>
-            <div class="dashboard-gallery-title">${escapeHtml(board.title)}</div>
-            <div class="dashboard-gallery-meta">${formatRelative(board.updated)} • ${escapeHtml(board.projectTitle)}</div>
+            <div class="dashboard-gallery-title">${escapeHtml(canvas.title)}</div>
+            <div class="dashboard-gallery-meta">${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}</div>
             <div class="table-actions">
-              <button type="button" class="table-icon-btn" data-action="open-board" data-board="${board.id}" title="Open">
+              <button type="button" class="table-icon-btn" data-action="open-canvas" data-canvas="${canvas.id}" title="Open">
                 <i class="bi bi-box-arrow-up-right"></i>
               </button>
-              <button type="button" class="table-icon-btn" data-action="list-pin" data-board="${board.id}" title="Pin">
+              <button type="button" class="table-icon-btn" data-action="list-pin" data-canvas="${canvas.id}" title="Pin">
                 <i class="bi bi-star"></i>
               </button>
-              <button type="button" class="table-icon-btn" data-action="list-more" data-board="${board.id}" title="More options">
+              <button type="button" class="table-icon-btn" data-action="list-more" data-canvas="${canvas.id}" title="More options">
                 <i class="bi bi-three-dots"></i>
               </button>
             </div>
@@ -555,7 +560,7 @@ export function initDashboard() {
       );
       ensureFilterTargets();
       updateFolderOptions();
-      computeLatestBoards();
+      computeLatestCanvases();
       render();
     } catch (err) {
       console.warn('Dashboard load failed', err);
@@ -586,7 +591,7 @@ export function initDashboard() {
         title: DEFAULT_PROJECT_NAME,
         summary: ''
       });
-      project.boards = [];
+      project.canvases = [];
       section.projects = section.projects || [];
       section.projects.push(project);
     }
@@ -594,18 +599,18 @@ export function initDashboard() {
     return { section, project };
   };
 
-  const handleCreateBoard = async (projectId) => {
+  const handleCreateCanvas = async (projectId) => {
     try {
       let project = findProject(projectId);
       if (!project) {
         const ensured = await ensureProject();
         project = ensured.project;
       }
-      const payload = await createBoard(project.id, {
-        title: 'Untitled board',
+      const payload = await createCanvas(project.id, {
+        title: 'Untitled canvas',
         state: createEmptyWorkspaceSnapshot()
       });
-      project.boards = [payload, ...(project.boards || [])];
+      project.canvases = [payload, ...(project.canvases || [])];
       const owner = findFolderOwner(project.id);
       if (owner) {
         state.filters.section = owner.section.id;
@@ -618,11 +623,11 @@ export function initDashboard() {
       state.filters.folder = project.id;
       state.expandedFolders.add(project.id);
       state.activeProjectId = project.id;
-      computeLatestBoards();
+      computeLatestCanvases();
       render();
-      navigateToBoard(payload.id);
+      navigateToCanvas(payload.id);
     } catch (err) {
-      console.warn('Failed to create board', err);
+      console.warn('Failed to create canvas', err);
       window.showAppToast?.({
         title: 'Unable to create canvas',
         message: err?.message || String(err),
@@ -634,7 +639,7 @@ export function initDashboard() {
   const createEmptyWorkspaceSnapshot = () => ({
     version: 2,
     global: {
-      sessionTitle: 'Untitled board'
+      sessionTitle: 'Untitled canvas'
     },
     order: [],
     traces: {},
@@ -690,12 +695,24 @@ export function initDashboard() {
     }
   };
 
-  const navigateToBoard = (boardId) => {
-    if (!boardId) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('board', boardId);
-    url.hash = '#pane-plotC';
-    window.location.href = url.toString();
+  const navigateToCanvas = (canvasId) => {
+    if (!canvasId) return;
+    if (workspaceTabEnabled) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('canvas', canvasId);
+      url.hash = '#pane-plotC';
+      window.location.href = url.toString();
+      return;
+    }
+    const target = new URL(workspaceRoute, window.location.origin);
+    target.searchParams.set('canvas', canvasId);
+    if (state.devMode) {
+      target.searchParams.set('dev', 'true');
+    }
+    const openedWindow = window.open(target.toString(), '_blank', 'noopener');
+    if (!openedWindow) {
+      window.location.assign(target.toString());
+    }
   };
 
   const handleCreateProject = async (sectionId) => {
@@ -705,7 +722,7 @@ export function initDashboard() {
     if (!title) return;
     try {
       const project = await createProject(section.id, { title, summary: '' });
-      project.boards = [];
+      project.canvases = [];
       section.projects = section.projects || [];
       section.projects.push(project);
       state.activeProjectId = project.id;
@@ -718,7 +735,7 @@ export function initDashboard() {
         folderSelect.value = section.id;
       }
       updateFolderOptions();
-      computeLatestBoards();
+      computeLatestCanvases();
       render();
     } catch (err) {
       window.showAppToast?.({
@@ -733,8 +750,8 @@ export function initDashboard() {
     void handleCreateSection();
   });
 
-  newBoardBtn?.addEventListener('click', () => {
-    void handleCreateBoard();
+  newCanvasBtn?.addEventListener('click', () => {
+    void handleCreateCanvas();
   });
 
   const selectProject = (sectionId) => {
@@ -820,14 +837,14 @@ export function initDashboard() {
       void handleCreateProject(trigger.dataset.section);
       return;
     }
-    if (action === 'folder-create-board' && trigger.dataset.project) {
+    if (action === 'folder-create-canvas' && trigger.dataset.project) {
       event.stopPropagation();
-      void handleCreateBoard(trigger.dataset.project);
+      void handleCreateCanvas(trigger.dataset.project);
       return;
     }
     if (
       (action === 'folder-pin' || action === 'folder-options') &&
-      (trigger.dataset.section || trigger.dataset.board || trigger.dataset.folder)
+      (trigger.dataset.section || trigger.dataset.canvas || trigger.dataset.folder)
     ) {
       event.stopPropagation();
       window.showAppToast?.({
@@ -837,11 +854,11 @@ export function initDashboard() {
       });
       return;
     }
-    if (action === 'sidebar-open-board' && trigger.dataset.board) {
+    if (action === 'sidebar-open-canvas' && trigger.dataset.canvas) {
       if (trigger.dataset.folder) {
         selectFolder(trigger.dataset.folder);
       }
-      navigateToBoard(trigger.dataset.board);
+      navigateToCanvas(trigger.dataset.canvas);
     }
   });
 
@@ -906,13 +923,13 @@ export function initDashboard() {
     state.activeSectionId = null;
     state.activeProjectId = null;
     render();
-    const top = state.latestBoards[0];
+    const top = state.latestCanvases[0];
     if (top) {
-      navigateToBoard(top.id);
+      navigateToCanvas(top.id);
     } else {
       window.showAppToast?.({
         title: 'No recent canvases',
-        message: 'Boards will appear here as you open them.',
+        message: 'Canvases will appear here as you open them.',
         variant: 'info'
       });
     }
@@ -946,9 +963,9 @@ export function initDashboard() {
       });
       return;
     }
-    if (trigger.dataset.action === 'open-board' && trigger.dataset.board) {
+    if (trigger.dataset.action === 'open-canvas' && trigger.dataset.canvas) {
       event.preventDefault();
-      navigateToBoard(trigger.dataset.board);
+      navigateToCanvas(trigger.dataset.canvas);
     }
   });
 
@@ -958,8 +975,8 @@ export function initDashboard() {
   };
 }
 
-function sortBoards(boards, mode) {
-  const copy = [...boards];
+function sortCanvases(canvases, mode) {
+  const copy = [...canvases];
   if (mode === 'alpha') {
     copy.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   } else {
@@ -980,14 +997,14 @@ function sortProjects(projects, mode) {
     copy.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   } else if (mode === 'created') {
     copy.sort((a, b) => {
-      const aTime = new Date(a.created || a.boards?.[0]?.created || 0).getTime();
-      const bTime = new Date(b.created || b.boards?.[0]?.created || 0).getTime();
+      const aTime = new Date(a.created || a.canvases?.[0]?.created || 0).getTime();
+      const bTime = new Date(b.created || b.canvases?.[0]?.created || 0).getTime();
       return bTime - aTime;
     });
   } else {
     copy.sort((a, b) => {
-      const aTime = new Date(a.updated || a.boards?.[0]?.updated || 0).getTime();
-      const bTime = new Date(b.updated || b.boards?.[0]?.updated || 0).getTime();
+      const aTime = new Date(a.updated || a.canvases?.[0]?.updated || 0).getTime();
+      const bTime = new Date(b.updated || b.canvases?.[0]?.updated || 0).getTime();
       return bTime - aTime;
     });
   }

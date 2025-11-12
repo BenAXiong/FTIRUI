@@ -1,5 +1,6 @@
 import { el } from './js/ui/utils/dom.js';
 import { initDashboard } from './js/ui/dashboard/initDashboard.js';
+import { mountWorkspace } from './js/ui/workspace/initControls.js';
 
 // Option A likely already initializes somewhere else.
 // If not, you can do a similar instance for A later.
@@ -57,6 +58,10 @@ function initWorkspaceDevShortcut() {
 }
 
 initWorkspaceDevShortcut();
+
+const bodyDataset = typeof document !== 'undefined' ? document.body.dataset : {};
+const isWorkspacePage = bodyDataset?.workspacePage === 'true';
+const workspaceTabEnabled = bodyDataset?.workspaceTabEnabled === 'true';
 
 const toastContainer = document.getElementById('app_toasts');
 const toastVariants = {
@@ -236,18 +241,73 @@ async function refreshUserStatus(options = {}) {
   }
 }
 
-const BOARD_QUERY_PARAM = 'board';
-function setActiveBoardFromUrl() {
+const CANVAS_QUERY_PARAM = 'canvas';
+function setActiveCanvasFromUrl() {
   if (typeof window === 'undefined') return null;
+  if (!isWorkspacePage && !workspaceTabEnabled) return null;
   const params = new URLSearchParams(window.location.search);
-  const boardId = params.get(BOARD_QUERY_PARAM);
-  if (boardId) {
-    window.__ACTIVE_BOARD_ID = boardId;
+  const canvasId = params.get(CANVAS_QUERY_PARAM);
+  if (canvasId) {
+    window.__ACTIVE_CANVAS_ID = canvasId;
   }
-  return boardId;
+  return canvasId;
 }
 
-setActiveBoardFromUrl();
+setActiveCanvasFromUrl();
+
+function stripWorkspaceParams() {
+  if (typeof window === 'undefined') return;
+  if (isWorkspacePage || workspaceTabEnabled) return;
+  const url = new URL(window.location.href);
+  let changed = false;
+  ['canvas', 'pane'].forEach((param) => {
+    if (url.searchParams.has(param)) {
+      url.searchParams.delete(param);
+      changed = true;
+    }
+  });
+  if (!changed) return;
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, document.title, nextUrl);
+}
+
+stripWorkspaceParams();
+
+let workspaceMounted = false;
+let workspaceMountScheduled = false;
+const mountWorkspaceOnce = () => {
+  if (workspaceMounted) return;
+  const didMount = mountWorkspace();
+  if (didMount) {
+    workspaceMounted = true;
+  }
+};
+
+const scheduleWorkspaceMount = () => {
+  if (workspaceMounted || workspaceMountScheduled) return;
+  workspaceMountScheduled = true;
+  const run = () => {
+    workspaceMountScheduled = false;
+    mountWorkspaceOnce();
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run, { once: true });
+  } else {
+    run();
+  }
+};
+if (isWorkspacePage) {
+  scheduleWorkspaceMount();
+} else if (workspaceTabEnabled) {
+  const tabButton = document.getElementById('tab-plotC');
+  if (tabButton?.classList.contains('active')) {
+    scheduleWorkspaceMount();
+  } else {
+    tabButton?.addEventListener('shown.bs.tab', () => {
+      scheduleWorkspaceMount();
+    }, { once: true });
+  }
+}
 
 window.refreshUserStatus = refreshUserStatus;
 if (userStatusCard) {
@@ -259,5 +319,7 @@ if (userStatusCard) {
   });
 }
 
-initDashboard();
+if (document.getElementById('dashboard_root')) {
+  initDashboard();
+}
 

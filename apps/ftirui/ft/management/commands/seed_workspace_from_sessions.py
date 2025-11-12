@@ -11,7 +11,7 @@ from ft.models import (
     PlotSession,
     WorkspaceSection,
     WorkspaceProject,
-    WorkspaceBoard,
+    WorkspaceCanvas,
 )
 
 
@@ -20,7 +20,7 @@ DEFAULT_PROJECT_NAME = "Legacy Imports"
 
 
 class Command(BaseCommand):
-    help = "Populate workspace sections/projects/boards from existing PlotSession entries."
+    help = "Populate workspace sections/projects/canvases from existing PlotSession entries."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -47,7 +47,7 @@ class Command(BaseCommand):
             type=str,
             dest="project_name",
             default=DEFAULT_PROJECT_NAME,
-            help=f"Name of the project that will hold imported boards (default: {DEFAULT_PROJECT_NAME!r}).",
+            help=f"Name of the project that will hold imported canvases (default: {DEFAULT_PROJECT_NAME!r}).",
         )
 
     def handle(self, *args, **options):
@@ -104,8 +104,8 @@ class Command(BaseCommand):
                 if created:
                     stats["projects_created"] += 1
 
-            if WorkspaceBoard.objects.filter(owner=owner, project=project, title=session.title or "").exists():
-                stats["boards_skipped_existing"] += 1
+            if WorkspaceCanvas.objects.filter(owner=owner, project=project, title=session.title or "").exists():
+                stats["canvases_skipped_existing"] += 1
                 continue
 
             state = session.state_json or {}
@@ -113,10 +113,10 @@ class Command(BaseCommand):
             title = session.title or "Imported session"
 
             if dry_run:
-                stats["boards_would_create"] += 1
+                stats["canvases_would_create"] += 1
                 continue
 
-            board = WorkspaceBoard.objects.create(
+            canvas = WorkspaceCanvas.objects.create(
                 owner=owner,
                 project=project,
                 title=title,
@@ -125,28 +125,28 @@ class Command(BaseCommand):
                 version_label="imported",
                 thumbnail_url="",
             )
-            board.created_at = session.created_at or timezone.now()
-            board.updated_at = session.updated_at or timezone.now()
-            board.save(update_fields=["created_at", "updated_at"])
-            stats["boards_created"] += 1
+            canvas.created_at = session.created_at or timezone.now()
+            canvas.updated_at = session.updated_at or timezone.now()
+            canvas.save(update_fields=["created_at", "updated_at"])
+            stats["canvases_created"] += 1
 
         self._render_summary(stats, dry_run)
 
     def _render_summary(self, stats, dry_run):
-        total_boards = stats.get("boards_created", 0)
+        total_canvases = stats.get("canvases_created", 0)
         if dry_run:
-            total_boards = stats.get("boards_would_create", 0)
+            total_canvases = stats.get("canvases_would_create", 0)
         summary = [
             ("Sections created", stats.get("sections_created", 0)),
             ("Projects created", stats.get("projects_created", 0)),
-            ("Boards skipped (existing)", stats.get("boards_skipped_existing", 0)),
+            ("Canvases skipped (existing)", stats.get("canvases_skipped_existing", 0)),
             ("Sessions without owner", stats.get("skipped_no_owner", 0)),
         ]
         for label, value in summary:
             self.stdout.write(f"{label}: {value}")
 
         verb = "would create" if dry_run else "created"
-        self.stdout.write(f"Boards {verb}: {total_boards}")
+        self.stdout.write(f"Canvases {verb}: {total_canvases}")
 
 
 def _compute_state(state):

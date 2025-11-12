@@ -8,6 +8,8 @@ let lastPlotMode = null; // 'preview' | 'live'
 let markerCount = 0;
 let dropZone = null;
 let convertInput = null;
+let canvasBootstrapped = false;
+let workspaceMounted = false;
 
 function renderPlotly(data) {
   const config = {
@@ -412,20 +414,15 @@ function initLivePanel() {
 }
 
 function bootWorkspaceCanvas() {
-  let initializedCanvas = false;
-  const initCanvas = () => {
-    if (initializedCanvas) return;
-    initWorkspaceCanvas();
-    initializedCanvas = true;
-  };
-
-  initCanvas();
-  document.getElementById('tab-plotC')?.addEventListener('shown.bs.tab', initCanvas);
+  if (canvasBootstrapped) return;
+  initWorkspaceCanvas();
+  canvasBootstrapped = true;
 }
 
-function initWorkspaceControls() {
+export function mountWorkspace() {
+  if (workspaceMounted) return true;
   const workspacePane = document.getElementById('pane-plotC');
-  if (!workspacePane) return;
+  if (!workspacePane) return false;
 
   dropZone = el('drop_zone');
   convertInput = el('conv_files');
@@ -435,10 +432,11 @@ function initWorkspaceControls() {
   setupDropZone();
   setupPreviewPopup();
   bootWorkspaceCanvas();
+  workspaceMounted = true;
+  return true;
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initWorkspaceControls, { once: true });
-} else {
-  initWorkspaceControls();
+export function __resetWorkspaceMountForTests() {
+  workspaceMounted = false;
+  canvasBootstrapped = false;
 }

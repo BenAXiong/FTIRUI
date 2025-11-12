@@ -4,20 +4,23 @@ const hasCredentials = Boolean(process.env.SMOKE_USERNAME && process.env.SMOKE_P
 
 test.describe.configure({ mode: 'serial' });
 
-test('opens a seeded dashboard board and confirms autosave status', async ({ page, baseURL }) => {
+test('opens a seeded dashboard canvas and confirms autosave status', async ({ page, baseURL }) => {
   test.skip(!baseURL, 'SMOKE_BASE_URL not set');
   test.skip(!hasCredentials, 'SMOKE_USERNAME/SMOKE_PASSWORD not provided');
 
   await loginWithAdmin(page, baseURL);
-  const seededBoard = await seedBoardViaApi(page, baseURL);
+  const seededCanvas = await seedCanvasViaApi(page, baseURL);
   await openDashboardTab(page, baseURL);
 
-  const boardButton = page.locator(`[data-action="open-board"][data-board="${seededBoard.boardId}"]`).first();
-  await boardButton.waitFor({ state: 'visible' });
-  await boardButton.click();
-  await page.waitForURL(new RegExp(`\\?board=${seededBoard.boardId}`));
+  const canvasButton = page.locator(`[data-action="open-canvas"][data-canvas="${seededCanvas.canvasId}"]`).first();
+  await canvasButton.waitFor({ state: 'visible' });
+  const [workspacePage] = await Promise.all([
+    page.waitForEvent('popup'),
+    canvasButton.click()
+  ]);
+  await workspacePage.waitForURL(new RegExp(`/workspace.*canvas=${seededCanvas.canvasId}`));
 
-  const autosaveText = page.locator('#autosave_indicator .autosave-text');
+  const autosaveText = workspacePage.locator('#autosave_indicator .autosave-text');
   await expect(autosaveText).toContainText('Saved', { timeout: 10000 });
 });
 
@@ -26,20 +29,20 @@ test('saves and restores a snapshot through the workspace modal', async ({ page,
   test.skip(!hasCredentials, 'SMOKE_USERNAME/SMOKE_PASSWORD not provided');
 
   await loginWithAdmin(page, baseURL);
-  const seededBoard = await seedBoardViaApi(page, baseURL);
+  const seededCanvas = await seedCanvasViaApi(page, baseURL);
   await openDashboardTab(page, baseURL);
-  await openBoardFromDashboard(page, seededBoard.boardId);
+  const workspacePage = await openCanvasFromDashboard(page, seededCanvas.canvasId);
 
-  await page.click('#c_canvas_more_btn');
-  const dialogPromise = page.waitForEvent('dialog');
-  await page.click('#c_canvas_snapshot_save');
+  await workspacePage.click('#c_canvas_more_btn');
+  const dialogPromise = workspacePage.waitForEvent('dialog');
+  await workspacePage.click('#c_canvas_snapshot_save');
   const dialog = await dialogPromise;
   await dialog.accept('Smoke Snapshot');
 
-  await page.click('#c_canvas_more_btn');
-  await page.click('#c_canvas_snapshot_manage');
+  await workspacePage.click('#c_canvas_more_btn');
+  await workspacePage.click('#c_canvas_snapshot_manage');
 
-  const modal = page.locator('#c_canvas_snapshot_modal.show');
+  const modal = workspacePage.locator('#c_canvas_snapshot_modal.show');
   await expect(modal).toBeVisible();
   const restoreButton = modal.locator('[data-action="restore"]').first();
   await restoreButton.waitFor({ state: 'visible' });
@@ -67,16 +70,20 @@ async function openDashboardTab(page, baseURL) {
   await expect(page.locator('#dashboard')).toBeVisible();
 }
 
-async function openBoardFromDashboard(page, boardId) {
-  const boardButton = page.locator(`[data-action="open-board"][data-board="${boardId}"]`).first();
-  await boardButton.waitFor({ state: 'visible' });
-  await boardButton.click();
-  await page.waitForURL(new RegExp(`\\?board=${boardId}`));
+async function openCanvasFromDashboard(page, canvasId) {
+  const canvasButton = page.locator(`[data-action="open-canvas"][data-canvas="${canvasId}"]`).first();
+  await canvasButton.waitFor({ state: 'visible' });
+  const [workspacePage] = await Promise.all([
+    page.waitForEvent('popup'),
+    canvasButton.click()
+  ]);
+  await workspacePage.waitForURL(new RegExp(`/workspace.*canvas=${canvasId}`));
+  return workspacePage;
 }
 
-async function seedBoardViaApi(page, baseURL) {
+async function seedCanvasViaApi(page, baseURL) {
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
-  const title = `Smoke Board ${Date.now()}`;
+  const title = `Smoke Canvas ${Date.now()}`;
   return page.evaluate(async ({ newTitle }) => {
     const csrf = document.cookie
       .split('; ')
@@ -145,10 +152,10 @@ async function seedBoardViaApi(page, baseURL) {
         method: 'POST',
         body: { title: 'Smoke Project', summary: 'CI workspace' }
       });
-      project.boards = [];
+      project.canvases = [];
     }
 
-    const board = await request(`/api/dashboard/projects/${project.id}/boards/`, {
+    const canvas = await request(`/api/dashboard/projects/${project.id}/canvases/`, {
       method: 'POST',
       body: {
         title: newTitle,
@@ -156,6 +163,6 @@ async function seedBoardViaApi(page, baseURL) {
       }
     });
 
-    return { boardId: board.id, boardTitle: board.title };
+    return { canvasId: canvas.id, canvasTitle: canvas.title };
   }, { newTitle: title });
 }

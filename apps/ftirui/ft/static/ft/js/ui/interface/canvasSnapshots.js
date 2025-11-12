@@ -1,12 +1,12 @@
 import {
-  createBoardVersion,
-  listBoardVersions,
-  fetchBoardVersion
+  createCanvasVersion,
+  listCanvasVersions,
+  fetchCanvasVersion
 } from '../../services/dashboard.js';
 
 const toast = (options = {}) => window.showAppToast?.(options);
 
-export function initBoardSnapshots({ bridge, saveButton, manageButton, modal }) {
+export function initCanvasSnapshots({ bridge, saveButton, manageButton, modal }) {
   if (!bridge) {
     disableButton(saveButton);
     disableButton(manageButton);
@@ -58,7 +58,7 @@ function createController({ bridge, modal }) {
     if (!listContainer) return;
     listContainer.classList.add('is-loading');
     try {
-      const payload = await listBoardVersions(bridge.id);
+      const payload = await listCanvasVersions(bridge.id);
       const items = Array.isArray(payload?.items) ? payload.items : [];
       renderList(items);
     } catch (err) {
@@ -75,7 +75,7 @@ function createController({ bridge, modal }) {
   const handleRestore = async (versionId) => {
     if (!versionId) return;
     try {
-      const version = await fetchBoardVersion(bridge.id, versionId);
+      const version = await fetchCanvasVersion(bridge.id, versionId);
       if (!version?.state) {
         throw new Error('Snapshot payload missing.');
       }
@@ -108,7 +108,7 @@ function createController({ bridge, modal }) {
       const label = window.prompt('Snapshot label', bridge.defaultTitle || 'Snapshot');
       if (label === null) return;
       try {
-        await createBoardVersion(bridge.id, { label });
+        await createCanvasVersion(bridge.id, { label });
         toast({
           title: 'Snapshot saved',
           message: `"${label || 'Snapshot'}" created.`,

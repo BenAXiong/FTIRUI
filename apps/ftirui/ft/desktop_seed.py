@@ -6,7 +6,7 @@ from pathlib import Path
 from django.core.management import call_command
 from django.db import OperationalError, ProgrammingError
 
-from .models import WorkspaceBoard
+from .models import WorkspaceCanvas
 
 SENTINEL_NAME = ".desktop_seed_complete"
 
@@ -27,7 +27,7 @@ def ensure_workspace_seeded() -> bool:
     if sentinel.exists():
         return False
     try:
-        if WorkspaceBoard.objects.exists():
+        if WorkspaceCanvas.objects.exists():
             sentinel.touch()
             return False
     except (OperationalError, ProgrammingError) as exc:
@@ -37,7 +37,7 @@ def ensure_workspace_seeded() -> bool:
     try:
         call_command("seed_workspace_from_sessions")
         sentinel.touch()
-        log.info("Workspace boards seeded from legacy sessions.")
+        log.info("Workspace canvases seeded from legacy sessions.")
         return True
     except Exception as exc:  # pylint: disable=broad-except
         log.error("Workspace seeding failed: %s", exc, exc_info=True)

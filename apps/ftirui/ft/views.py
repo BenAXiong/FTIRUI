@@ -34,8 +34,8 @@ from .models import (
     PlotSession,
     WorkspaceSection,
     WorkspaceProject,
-    WorkspaceBoard,
-    WorkspaceBoardVersion,
+    WorkspaceCanvas,
+    WorkspaceCanvasVersion,
 )
 from .sessions_repository import SessionStorageError, SessionTooLargeError
 
@@ -66,6 +66,19 @@ def _to_fractional_T(y: np.ndarray) -> np.ndarray:
 
 def index(request):
     return render(request, "ft/base.html", {})
+
+
+@ensure_csrf_cookie
+def workspace_page(request):
+    """
+    Standalone workspace shell so canvases can open outside the dashboard tabs.
+    """
+    dev_override = request.GET.get("dev") == "true"
+    context = {
+        "workspace_only": not dev_override,
+        "workspace_pane_active": True
+    }
+    return render(request, "ft/base.html", context)
 
 @require_http_methods(["POST"])
 def preview(request):
@@ -567,19 +580,19 @@ def _isoformat(value):
         return None
     return timezone.localtime(value).isoformat()
 
-def _serialize_board(board):
+def _serialize_canvas(canvas):
     return {
-        "id": str(board.id),
-        "project_id": str(board.project_id),
-        "title": board.title,
-        "thumbnail_url": board.thumbnail_url,
-        "version_label": board.version_label,
-        "state_size": board.state_size,
-        "updated": _isoformat(board.updated_at),
-        "created": _isoformat(board.created_at),
+        "id": str(canvas.id),
+        "project_id": str(canvas.project_id),
+        "title": canvas.title,
+        "thumbnail_url": canvas.thumbnail_url,
+        "version_label": canvas.version_label,
+        "state_size": canvas.state_size,
+        "updated": _isoformat(canvas.updated_at),
+        "created": _isoformat(canvas.created_at),
     }
 
-def _serialize_project(project, *, include_boards=False):
+def _serialize_project(project, *, include_canvases=False):
     data = {
         "id": str(project.id),
         "section_id": str(project.section_id),
@@ -588,10 +601,10 @@ def _serialize_project(project, *, include_boards=False):
         "cover_thumbnail": project.cover_thumbnail,
         "position": project.position,
         "updated": _isoformat(project.updated_at),
-        "board_count": project.boards.count(),
+        "canvas_count": project.canvases.count(),
     }
-    if include_boards:
-        data["boards"] = [_serialize_board(board) for board in project.boards.order_by("-updated_at")]
+    if include_canvases:
+        data["canvases"] = [_serialize_canvas(canvas) for canvas in project.canvases.order_by("-updated_at")]
     return data
 
 def _serialize_section(section, *, include_projects=False):
@@ -605,9 +618,9 @@ def _serialize_section(section, *, include_projects=False):
         "updated": _isoformat(section.updated_at),
     }
     if include_projects:
-        projects = section.projects.select_related("section").prefetch_related("boards")
+        projects = section.projects.select_related("section").prefetch_related("canvases")
         data["projects"] = [
-            _serialize_project(project, include_boards=True)
+            _serialize_project(project, include_canvases=True)
             for project in projects.order_by("position", "created_at")
         ]
     return data
@@ -666,10 +679,10 @@ def _get_project_for_user(user, project_id):
     except WorkspaceProject.DoesNotExist:
         return None
 
-def _get_board_for_user(user, board_id):
+def _get_canvas_for_user(user, canvas_id):
     try:
-        return WorkspaceBoard.objects.get(owner=user, id=board_id)
-    except WorkspaceBoard.DoesNotExist:
+        return WorkspaceCanvas.objects.get(owner=user, id=canvas_id)
+    except WorkspaceCanvas.DoesNotExist:
         return None
 
 @require_http_methods(["GET", "POST"])
@@ -753,8 +766,8 @@ def api_dashboard_section_projects(request, section_id):
         return JsonResponse({"error": "Section not found"}, status=404)
 
     if request.method == "GET":
-        projects = section.projects.prefetch_related("boards").order_by("position", "created_at")
-        return JsonResponse({"items": [_serialize_project(project, include_boards=True) for project in projects]})
+        projects = section.projects.prefetch_related("canvases").order_by("position", "created_at")
+        return JsonResponse({"items": [_serialize_project(project, include_canvases=True) for project in projects]})
 
     try:
         payload = _json_body(request)
@@ -777,7 +790,7 @@ def api_dashboard_section_projects(request, section_id):
         cover_thumbnail=payload.get("cover_thumbnail") or "",
         position=max(position, 0),
     )
-    return JsonResponse(_serialize_project(project, include_boards=True), status=201)
+    return JsonResponse(_serialize_project(project, include_canvases=True), status=201)
 
 @require_http_methods(["GET", "PATCH", "DELETE"])
 @_require_json_auth
@@ -788,8 +801,8 @@ def api_dashboard_project_detail(request, project_id):
         return JsonResponse({"error": "Project not found"}, status=404)
 
     if request.method == "GET":
-        project = WorkspaceProject.objects.prefetch_related("boards").get(id=project.id)
-        return JsonResponse(_serialize_project(project, include_boards=True))
+        project = WorkspaceProject.objects.prefetch_related("canvases").get(id=project.id)
+        return JsonResponse(_serialize_project(project, include_canvases=True))
 
     if request.method == "DELETE":
         project.delete()
@@ -826,32 +839,32 @@ def api_dashboard_project_detail(request, project_id):
     if update_fields:
         update_fields.append("updated_at")
         project.save(update_fields=update_fields)
-    return JsonResponse(_serialize_project(project, include_boards=True))
+    return JsonResponse(_serialize_project(project, include_canvases=True))
 
 @require_http_methods(["GET", "POST"])
 @_require_json_auth
-def api_dashboard_project_boards(request, project_id):
+def api_dashboard_project_canvases(request, project_id):
     user = request.user
     project = _get_project_for_user(user, project_id)
     if not project:
         return JsonResponse({"error": "Project not found"}, status=404)
 
     if request.method == "GET":
-        boards = project.boards.order_by("-updated_at")
-        return JsonResponse({"items": [_serialize_board(board) for board in boards]})
+        canvases = project.canvases.order_by("-updated_at")
+        return JsonResponse({"items": [_serialize_canvas(canvas) for canvas in canvases]})
 
     try:
         payload = _json_body(request)
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
-    title = (payload.get("title") or "").strip() or "Untitled board"
+    title = (payload.get("title") or "").strip() or "Untitled canvas"
     raw_state = payload.get("state")
     if raw_state is None:
         raw_state = {}
     state, state_size = _compute_state_size(raw_state if isinstance(raw_state, dict) else {})
 
-    board = WorkspaceBoard.objects.create(
+    canvas = WorkspaceCanvas.objects.create(
         owner=user,
         project=project,
         title=title,
@@ -861,23 +874,23 @@ def api_dashboard_project_boards(request, project_id):
         version_label=payload.get("version_label") or "",
         autosave_token=payload.get("autosave_token") or "",
     )
-    return JsonResponse(_serialize_board(board), status=201)
+    return JsonResponse(_serialize_canvas(canvas), status=201)
 
 @require_http_methods(["GET", "PATCH", "DELETE"])
 @_require_json_auth
-def api_dashboard_board_detail(request, board_id):
+def api_dashboard_canvas_detail(request, canvas_id):
     user = request.user
-    board = _get_board_for_user(user, board_id)
-    if not board:
-        return JsonResponse({"error": "Board not found"}, status=404)
+    canvas = _get_canvas_for_user(user, canvas_id)
+    if not canvas:
+        return JsonResponse({"error": "Canvas not found"}, status=404)
 
     if request.method == "GET":
-        data = _serialize_board(board)
-        data["project"] = _serialize_project(board.project, include_boards=False)
+        data = _serialize_canvas(canvas)
+        data["project"] = _serialize_project(canvas.project, include_canvases=False)
         return JsonResponse(data)
 
     if request.method == "DELETE":
-        board.delete()
+        canvas.delete()
         return HttpResponse(status=204)
 
     try:
@@ -887,43 +900,43 @@ def api_dashboard_board_detail(request, board_id):
 
     update_fields = []
     if "title" in payload:
-        board.title = (payload.get("title") or "").strip() or board.title
+        canvas.title = (payload.get("title") or "").strip() or canvas.title
         update_fields.append("title")
     if "thumbnail_url" in payload:
-        board.thumbnail_url = payload.get("thumbnail_url") or ""
+        canvas.thumbnail_url = payload.get("thumbnail_url") or ""
         update_fields.append("thumbnail_url")
     if "version_label" in payload:
-        board.version_label = payload.get("version_label") or ""
+        canvas.version_label = payload.get("version_label") or ""
         update_fields.append("version_label")
     if "project_id" in payload:
         new_project = _get_project_for_user(user, payload["project_id"])
         if not new_project:
             return JsonResponse({"error": "Target project not found"}, status=404)
-        board.project = new_project
+        canvas.project = new_project
         update_fields.append("project")
 
     if update_fields:
         update_fields.append("updated_at")
-        board.save(update_fields=update_fields)
-    return JsonResponse(_serialize_board(board))
+        canvas.save(update_fields=update_fields)
+    return JsonResponse(_serialize_canvas(canvas))
 
 @require_http_methods(["GET", "PUT"])
 @_require_json_auth
-def api_dashboard_board_state(request, board_id):
+def api_dashboard_canvas_state(request, canvas_id):
     user = request.user
-    board = _get_board_for_user(user, board_id)
-    if not board:
-        return JsonResponse({"error": "Board not found"}, status=404)
+    canvas = _get_canvas_for_user(user, canvas_id)
+    if not canvas:
+        return JsonResponse({"error": "Canvas not found"}, status=404)
 
     if request.method == "GET":
         return JsonResponse(
             {
-                "id": str(board.id),
-                "title": board.title,
-                "state": board.state_json,
-                "state_size": board.state_size,
-                "version_label": board.version_label,
-                "thumbnail_url": board.thumbnail_url,
+                "id": str(canvas.id),
+                "title": canvas.title,
+                "state": canvas.state_json,
+                "state_size": canvas.state_size,
+                "version_label": canvas.version_label,
+                "thumbnail_url": canvas.thumbnail_url,
             }
         )
 
@@ -937,25 +950,25 @@ def api_dashboard_board_state(request, board_id):
         return JsonResponse({"error": "'state' must be an object"}, status=400)
 
     state, size = _compute_state_size(raw_state)
-    board.state_json = state
-    board.state_size = size
-    board.version_label = payload.get("version_label") or board.version_label
+    canvas.state_json = state
+    canvas.state_size = size
+    canvas.version_label = payload.get("version_label") or canvas.version_label
     if "thumbnail_url" in payload:
-        board.thumbnail_url = payload.get("thumbnail_url") or ""
-    board.autosave_token = payload.get("autosave_token") or board.autosave_token
-    board.save(update_fields=["state_json", "state_size", "version_label", "thumbnail_url", "autosave_token", "updated_at"])
-    return JsonResponse(_serialize_board(board))
+        canvas.thumbnail_url = payload.get("thumbnail_url") or ""
+    canvas.autosave_token = payload.get("autosave_token") or canvas.autosave_token
+    canvas.save(update_fields=["state_json", "state_size", "version_label", "thumbnail_url", "autosave_token", "updated_at"])
+    return JsonResponse(_serialize_canvas(canvas))
 
 @require_http_methods(["GET", "POST"])
 @_require_json_auth
-def api_dashboard_board_versions(request, board_id):
+def api_dashboard_canvas_versions(request, canvas_id):
     user = request.user
-    board = _get_board_for_user(user, board_id)
-    if not board:
-        return JsonResponse({"error": "Board not found"}, status=404)
+    canvas = _get_canvas_for_user(user, canvas_id)
+    if not canvas:
+        return JsonResponse({"error": "Canvas not found"}, status=404)
 
     if request.method == "GET":
-        versions = board.versions.order_by("-created_at")
+        versions = canvas.versions.order_by("-created_at")
         data = [
             {
                 "id": str(version.id),
@@ -976,19 +989,19 @@ def api_dashboard_board_versions(request, board_id):
 
     state = payload.get("state")
     if state is None:
-        state = board.state_json
+        state = canvas.state_json
     if not isinstance(state, dict):
         return JsonResponse({"error": "'state' must be an object"}, status=400)
     state, state_size = _compute_state_size(state)
 
-    version = WorkspaceBoardVersion.objects.create(
-        board=board,
+    version = WorkspaceCanvasVersion.objects.create(
+        canvas=canvas,
         created_by=user,
-        label=payload.get("label") or board.version_label or "",
+        label=payload.get("label") or canvas.version_label or "",
         notes=payload.get("notes") or "",
         state_json=state,
         state_size=state_size,
-        thumbnail_url=payload.get("thumbnail_url") or board.thumbnail_url,
+        thumbnail_url=payload.get("thumbnail_url") or canvas.thumbnail_url,
     )
     return JsonResponse(
         {
@@ -1004,14 +1017,14 @@ def api_dashboard_board_versions(request, board_id):
 
 @require_http_methods(["GET"])
 @_require_json_auth
-def api_dashboard_board_version_detail(request, board_id, version_id):
+def api_dashboard_canvas_version_detail(request, canvas_id, version_id):
     user = request.user
-    board = _get_board_for_user(user, board_id)
-    if not board:
-        return JsonResponse({"error": "Board not found"}, status=404)
+    canvas = _get_canvas_for_user(user, canvas_id)
+    if not canvas:
+        return JsonResponse({"error": "Canvas not found"}, status=404)
     try:
-        version = board.versions.get(id=version_id)
-    except WorkspaceBoardVersion.DoesNotExist:
+        version = canvas.versions.get(id=version_id)
+    except WorkspaceCanvasVersion.DoesNotExist:
         return JsonResponse({"error": "Snapshot not found"}, status=404)
     return JsonResponse(
         {

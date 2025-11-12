@@ -19,7 +19,12 @@
       })();
     </script>
   </head>
-  <body class="{% block body_class %}bg-body app-frame{% endblock %}" data-workspace-shortcut="{% if workspace_dev_shortcut_enabled %}true{% else %}false{% endif %}">
+  <body class="{% block body_class %}bg-body app-frame{% endblock %}"
+        data-workspace-shortcut="{% if workspace_dev_shortcut_enabled %}true{% else %}false{% endif %}"
+        data-workspace-tab-enabled="{% if workspace_tab_enabled %}true{% else %}false{% endif %}"
+        data-workspace-route="{% url 'ft:workspace' %}"
+        data-workspace-page="{% if workspace_only %}true{% else %}false{% endif %}"
+        data-workspace-dev="{% if workspace_dev_active %}true{% else %}false{% endif %}">
     <div class="container-fluid py-3 px-3 px-lg-4 app-frame-main">
       {% block page_header %}{% endblock %}
       {% block page_body %}{% endblock %}

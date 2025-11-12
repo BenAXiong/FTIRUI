@@ -5,6 +5,7 @@ app_name = "ft"
 
 urlpatterns = [
     path("", views.index, name="home"),
+    path("workspace/", views.workspace_page, name="workspace"),
 
     # JSON endpoints for Plotly + table preview
     path("data/", views.data_json, name="data_json"),
@@ -36,9 +37,9 @@ urlpatterns += [
     path('api/dashboard/sections/<uuid:section_id>/', views.api_dashboard_section_detail, name='api_dashboard_section_detail'),
     path('api/dashboard/sections/<uuid:section_id>/projects/', views.api_dashboard_section_projects, name='api_dashboard_section_projects'),
     path('api/dashboard/projects/<uuid:project_id>/', views.api_dashboard_project_detail, name='api_dashboard_project_detail'),
-    path('api/dashboard/projects/<uuid:project_id>/boards/', views.api_dashboard_project_boards, name='api_dashboard_project_boards'),
-    path('api/dashboard/boards/<uuid:board_id>/', views.api_dashboard_board_detail, name='api_dashboard_board_detail'),
-    path('api/dashboard/boards/<uuid:board_id>/state/', views.api_dashboard_board_state, name='api_dashboard_board_state'),
-    path('api/dashboard/boards/<uuid:board_id>/versions/', views.api_dashboard_board_versions, name='api_dashboard_board_versions'),
-    path('api/dashboard/boards/<uuid:board_id>/versions/<uuid:version_id>/', views.api_dashboard_board_version_detail, name='api_dashboard_board_version_detail'),
+    path('api/dashboard/projects/<uuid:project_id>/canvases/', views.api_dashboard_project_canvases, name='api_dashboard_project_canvases'),
+    path('api/dashboard/canvases/<uuid:canvas_id>/', views.api_dashboard_canvas_detail, name='api_dashboard_canvas_detail'),
+    path('api/dashboard/canvases/<uuid:canvas_id>/state/', views.api_dashboard_canvas_state, name='api_dashboard_canvas_state'),
+    path('api/dashboard/canvases/<uuid:canvas_id>/versions/', views.api_dashboard_canvas_versions, name='api_dashboard_canvas_versions'),
+    path('api/dashboard/canvases/<uuid:canvas_id>/versions/<uuid:version_id>/', views.api_dashboard_canvas_version_detail, name='api_dashboard_canvas_version_detail'),
 ]

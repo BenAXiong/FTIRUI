@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createState } from '../../../apps/ftirui/ft/static/ft/js/core/state/index.js';
-import { createBoardBridge } from '../../../apps/ftirui/ft/static/ft/js/ui/interface/sessions.js';
+import { createCanvasBridge } from '../../../apps/ftirui/ft/static/ft/js/ui/interface/sessions.js';
 import * as dashboardService from '../../../apps/ftirui/ft/static/ft/js/services/dashboard.js';
 
 const makeDeps = () => ({
@@ -17,7 +17,7 @@ const makeDeps = () => ({
   updateWorkspaceSummary: vi.fn()
 });
 
-const sampleState = (title = 'Cloud Board') => ({
+const sampleState = (title = 'Cloud Canvas') => ({
   version: 2,
   global: { sessionTitle: title },
   order: ['trace-1'],
@@ -43,7 +43,7 @@ const sampleState = (title = 'Cloud Board') => ({
   ui: { activeFolder: 'root' }
 });
 
-describe('createBoardBridge', () => {
+describe('createCanvasBridge', () => {
   let deps;
   let instance;
 
@@ -58,42 +58,42 @@ describe('createBoardBridge', () => {
     window.showAppToast = vi.fn();
   });
 
-  it('loads board state from the dashboard API', async () => {
-    const bridge = createBoardBridge('board-42', instance, deps);
-    const fetchSpy = vi.spyOn(dashboardService, 'fetchBoardState').mockResolvedValue({
-      id: 'board-42',
-      title: 'Cloud Board',
+  it('loads canvas state from the dashboard API', async () => {
+    const bridge = createCanvasBridge('canvas-42', instance, deps);
+    const fetchSpy = vi.spyOn(dashboardService, 'fetchCanvasState').mockResolvedValue({
+      id: 'canvas-42',
+      title: 'Cloud Canvas',
       state: sampleState()
     });
 
     await bridge.load();
 
-    expect(fetchSpy).toHaveBeenCalledWith('board-42');
-    expect(instance.state.global.sessionTitle).toBe('Cloud Board');
+    expect(fetchSpy).toHaveBeenCalledWith('canvas-42');
+    expect(instance.state.global.sessionTitle).toBe('Cloud Canvas');
     expect(window.showAppToast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Board ready', variant: 'success' })
+      expect.objectContaining({ title: 'Canvas ready', variant: 'success' })
     );
   });
 
-  it('reports failures while loading board state', async () => {
-    const bridge = createBoardBridge('board-99', instance, deps);
-    vi.spyOn(dashboardService, 'fetchBoardState').mockRejectedValue(new Error('offline'));
+  it('reports failures while loading canvas state', async () => {
+    const bridge = createCanvasBridge('canvas-99', instance, deps);
+    vi.spyOn(dashboardService, 'fetchCanvasState').mockRejectedValue(new Error('offline'));
 
     await bridge.load();
 
     expect(window.showAppToast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Unable to load board', variant: 'danger' })
+      expect.objectContaining({ title: 'Unable to load canvas', variant: 'danger' })
     );
   });
 
-  it('persists board snapshots through saveBoardState', async () => {
-    const bridge = createBoardBridge('board-7', instance, deps);
-    const saveSpy = vi.spyOn(dashboardService, 'saveBoardState').mockResolvedValue({});
+  it('persists canvas snapshots through saveCanvasState', async () => {
+    const bridge = createCanvasBridge('canvas-7', instance, deps);
+    const saveSpy = vi.spyOn(dashboardService, 'saveCanvasState').mockResolvedValue({});
     const payload = sampleState('Workspace Sync');
 
     await bridge.save(payload, 'Workspace Sync');
 
-    expect(saveSpy).toHaveBeenCalledWith('board-7', {
+    expect(saveSpy).toHaveBeenCalledWith('canvas-7', {
       state: payload,
       version_label: 'Workspace Sync'
     });

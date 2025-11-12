@@ -28,7 +28,8 @@ Key values:
 - `DATABASE_URL` (defaults to the Postgres container in `docker-compose.yml`; omit to stay on SQLite).
 - Social auth secrets (Google/GitHub) if you plan to enable OAuth.
 - `SMOKE_BASE_URL`, `SMOKE_USERNAME`, `SMOKE_PASSWORD` for Playwright runs (local or CI).
-- `WORKSPACE_LEGACY_ENABLED` (default `true` in dev, `false` in prod) to expose the legacy Workspace tab. Keep it `false` in production—design/devs can press `Ctrl+Shift+W` (when `WORKSPACE_DEV_SHORTCUT_ENABLED=true`) to toggle a `?dev=true` query param and temporarily reveal the canvas tab.
+- `WORKSPACE_LEGACY_ENABLED` (default `true` in dev, `false` in prod) to expose the legacy Workspace tab. Keep it `false` in production—design/devs can press `Ctrl+Shift+W` (when `WORKSPACE_DEV_SHORTCUT_ENABLED=true`) to toggle a `?dev=true` query param and temporarily reveal the canvas tab. The shortcut works on both `/dashboard` and `/workspace`, so you can flip between tabbed vs. standalone layouts without touching settings.
+- When the tab is disabled (default), dashboards still open canvases in a new tab at `/workspace?canvas=<ID>` so users can keep navigation/search open while editing. That page reuses the exact same browser/canvas/toolbar partials; only the wrapper differs, so behaviour stays consistent across routes.
 
 ## Test suites
 
@@ -54,8 +55,8 @@ Environment variables:
 When these are set, `npm run test:smoke` will:
 
 1. Log into `/admin/`.
-2. Seed a dashboard board via the public API.
-3. Open the board from the dashboard and assert autosave UI state.
+2. Seed a dashboard canvas via the public API.
+3. Open the canvas from the dashboard and assert autosave UI state.
 4. Save & restore a workspace snapshot via the modal buttons.
 
 Omitting any of the env vars causes the suite to skip gracefully, which keeps local runs fast when you only need unit coverage.

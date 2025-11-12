@@ -86,19 +86,19 @@ class WorkspaceProject(models.Model):
         return self.title
 
 
-class WorkspaceBoard(models.Model):
-    """Editable boards/canvases that store PlotSession payloads."""
+class WorkspaceCanvas(models.Model):
+    """Editable canvases that store PlotSession payloads."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         get_user_model(),
         on_delete=models.CASCADE,
-        related_name="workspace_boards",
+        related_name="workspace_canvases",
     )
     project = models.ForeignKey(
         WorkspaceProject,
         on_delete=models.CASCADE,
-        related_name="boards",
+        related_name="canvases",
     )
     title = models.CharField(max_length=200)
     state_json = models.JSONField(default=dict)
@@ -116,15 +116,15 @@ class WorkspaceBoard(models.Model):
         ]
 
     def __str__(self):
-        return self.title or f"Board {self.id}"
+        return self.title or f"Canvas {self.id}"
 
 
-class WorkspaceBoardVersion(models.Model):
-    """Immutable snapshots of a board."""
+class WorkspaceCanvasVersion(models.Model):
+    """Immutable snapshots of a canvas."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    board = models.ForeignKey(
-        WorkspaceBoard,
+    canvas = models.ForeignKey(
+        WorkspaceCanvas,
         on_delete=models.CASCADE,
         related_name="versions",
     )
@@ -133,7 +133,7 @@ class WorkspaceBoardVersion(models.Model):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="workspace_board_versions",
+        related_name="workspace_canvas_versions",
     )
     label = models.CharField(max_length=120, blank=True, default="")
     notes = models.CharField(max_length=512, blank=True, default="")
@@ -145,7 +145,7 @@ class WorkspaceBoardVersion(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["board", "created_at"]),
+            models.Index(fields=["canvas", "created_at"]),
         ]
 
     def __str__(self):

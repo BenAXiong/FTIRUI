@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { initBoardSnapshots } from '../../../apps/ftirui/ft/static/ft/js/ui/interface/boardSnapshots.js';
+import { initCanvasSnapshots } from '../../../apps/ftirui/ft/static/ft/js/ui/interface/canvasSnapshots.js';
 import * as dashboardService from '../../../apps/ftirui/ft/static/ft/js/services/dashboard.js';
 
 const createModalScaffold = () => {
@@ -24,7 +24,7 @@ const modalInstance = () => ({
   hide: vi.fn()
 });
 
-describe('boardSnapshots controller', () => {
+describe('canvasSnapshots controller', () => {
   beforeEach(() => {
     window.showAppToast = vi.fn();
     window.prompt = vi.fn();
@@ -38,30 +38,30 @@ describe('boardSnapshots controller', () => {
   it('creates snapshots when Save is clicked', async () => {
     const { saveButton, manageButton, modal } = createModalScaffold();
     window.prompt.mockReturnValue('Snapshot A');
-    const createMock = vi.spyOn(dashboardService, 'createBoardVersion').mockResolvedValue({});
+    const createMock = vi.spyOn(dashboardService, 'createCanvasVersion').mockResolvedValue({});
 
     const bridge = {
-      id: 'board-1',
-      defaultTitle: 'Board 1',
+      id: 'canvas-1',
+      defaultTitle: 'Canvas 1',
       save: vi.fn(),
       applyLocal: vi.fn()
     };
 
-    initBoardSnapshots({ bridge, saveButton, manageButton, modal });
+    initCanvasSnapshots({ bridge, saveButton, manageButton, modal });
 
     saveButton?.dispatchEvent(new MouseEvent('click'));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(createMock).toHaveBeenCalledWith('board-1', { label: 'Snapshot A' });
+    expect(createMock).toHaveBeenCalledWith('canvas-1', { label: 'Snapshot A' });
     expect(window.showAppToast).toHaveBeenCalled();
   });
 
   it('loads and restores snapshots from the modal', async () => {
     const { saveButton, manageButton, modal } = createModalScaffold();
     const versions = [{ id: 'v1', label: 'Alpha', state_size: 42, created: '2025-11-10T08:00:00Z' }];
-    vi.spyOn(dashboardService, 'createBoardVersion').mockResolvedValue({});
-    vi.spyOn(dashboardService, 'listBoardVersions').mockResolvedValue({ items: versions });
-    vi.spyOn(dashboardService, 'fetchBoardVersion').mockResolvedValue({
+    vi.spyOn(dashboardService, 'createCanvasVersion').mockResolvedValue({});
+    vi.spyOn(dashboardService, 'listCanvasVersions').mockResolvedValue({ items: versions });
+    vi.spyOn(dashboardService, 'fetchCanvasVersion').mockResolvedValue({
       id: 'v1',
       label: 'Alpha',
       state_size: 42,
@@ -70,13 +70,13 @@ describe('boardSnapshots controller', () => {
     });
 
     const bridge = {
-      id: 'board-9',
-      defaultTitle: 'Board 9',
+      id: 'canvas-9',
+      defaultTitle: 'Canvas 9',
       save: vi.fn().mockResolvedValue(),
       applyLocal: vi.fn()
     };
 
-    initBoardSnapshots({ bridge, saveButton, manageButton, modal });
+    initCanvasSnapshots({ bridge, saveButton, manageButton, modal });
 
     manageButton?.dispatchEvent(new MouseEvent('click'));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -87,7 +87,7 @@ describe('boardSnapshots controller', () => {
     restoreButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(dashboardService.fetchBoardVersion).toHaveBeenCalledWith('board-9', 'v1');
+    expect(dashboardService.fetchCanvasVersion).toHaveBeenCalledWith('canvas-9', 'v1');
     expect(bridge.save).toHaveBeenCalledWith({ version: 2 }, 'Alpha');
     expect(bridge.applyLocal).toHaveBeenCalledWith({ version: 2 });
   });

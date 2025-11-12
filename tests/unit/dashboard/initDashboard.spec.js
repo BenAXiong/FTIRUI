@@ -23,7 +23,7 @@ const setupDom = () => {
       <div data-dashboard-sidebar></div>
     </aside>
     <button id="dashboard_action_new_section"></button>
-    <button id="dashboard_action_new_board"></button>
+    <button id="dashboard_action_new_canvas"></button>
     <div data-dashboard-view-toggle>
       <button data-view="list">List</button>
       <button data-view="gallery">Gallery</button>
@@ -47,6 +47,8 @@ beforeEach(() => {
   window.showAppToast = vi.fn();
   window.prompt = vi.fn().mockReturnValue('New Section');
   mockLocation();
+  document.body.dataset.workspaceTabEnabled = 'true';
+  document.body.dataset.workspaceRoute = '/workspace/';
 });
 
 afterEach(() => {
@@ -54,6 +56,7 @@ afterEach(() => {
     value: ORIGINAL_LOCATION,
     configurable: true
   });
+  vi.restoreAllMocks();
 });
 
 describe('initDashboard', () => {
@@ -67,8 +70,8 @@ describe('initDashboard', () => {
     expect(emptyState?.classList.contains('is-visible')).toBe(true);
   });
 
-  it('renders sections/projects and opens boards via button click', async () => {
-    const boardId = 'board-123';
+  it('renders sections/projects and opens canvases via button click', async () => {
+    const canvasId = 'canvas-123';
     vi.spyOn(dashboardService, 'fetchSections').mockResolvedValue({
       items: [
         {
@@ -79,10 +82,10 @@ describe('initDashboard', () => {
               id: 'proj-1',
               title: 'Week 42',
               summary: 'Daily summary',
-              boards: [
+              canvases: [
                 {
-                  id: boardId,
-                  title: 'Initial board',
+                  id: canvasId,
+                  title: 'Initial canvas',
                   updated: '2025-11-10T08:00:00Z'
                 }
               ]
@@ -98,15 +101,50 @@ describe('initDashboard', () => {
     const firstRow = document.querySelector('[data-dashboard-list] tbody tr');
     expect(firstRow?.textContent).toContain('Reports');
 
-    const boardButton = document.querySelector('[data-action="open-board"]');
-    boardButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const canvasButton = document.querySelector('[data-action="open-canvas"]');
+    canvasButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flushPromises();
 
-    expect(window.location.href).toContain(`board=${boardId}`);
+    expect(window.location.href).toContain(`canvas=${canvasId}`);
     expect(window.location.hash).toBe('#pane-plotC');
   });
 
-  it('builds the explorer pane and opens the first board of a project', async () => {
+  it('opens standalone workspace route when workspace tab is disabled', async () => {
+    document.body.dataset.workspaceTabEnabled = 'false';
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({});
+
+    const canvasId = 'canvas-standalone';
+    vi.spyOn(dashboardService, 'fetchSections').mockResolvedValue({
+      items: [
+        {
+          id: 'sec-1',
+          name: 'Reports',
+          projects: [
+            {
+              id: 'proj-1',
+              title: 'Week 42',
+              summary: 'Daily summary',
+              canvases: [{ id: canvasId, title: 'Standalone canvas', updated: '2025-11-10T08:00:00Z' }]
+            }
+          ]
+        }
+      ]
+    });
+
+    initDashboard();
+    await flushPromises();
+
+    const canvasButton = document.querySelector('[data-action="open-canvas"]');
+    canvasButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const urlOpened = openSpy.mock.calls[0][0];
+    expect(urlOpened).toContain('/workspace');
+    expect(urlOpened).toContain(canvasId);
+  });
+
+  it('builds the explorer pane and opens the first canvas of a project', async () => {
     vi.spyOn(dashboardService, 'fetchSections').mockResolvedValue({
       items: [
         {
@@ -116,8 +154,8 @@ describe('initDashboard', () => {
             {
               id: 'proj-9',
               title: 'Spectra',
-              boards: [
-                { id: 'board-9', title: 'IR stack', updated: '2025-11-10T08:00:00Z' }
+              canvases: [
+                { id: 'canvas-9', title: 'IR stack', updated: '2025-11-10T08:00:00Z' }
               ]
             }
           ]
@@ -136,16 +174,16 @@ describe('initDashboard', () => {
     const folderToggle = sidebar?.querySelector('[data-action="toggle-folder"]');
     folderToggle?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flushPromises();
-    const boardLink = sidebar?.querySelector('[data-action="sidebar-open-board"]');
-    expect(boardLink?.textContent).toContain('IR stack');
-    boardLink?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const canvasLink = sidebar?.querySelector('[data-action="sidebar-open-canvas"]');
+    expect(canvasLink?.textContent).toContain('IR stack');
+    canvasLink?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flushPromises();
-    expect(window.location.href).toContain('board-9');
+    expect(window.location.href).toContain('canvas-9');
     const title = document.querySelector('[data-dashboard-title]');
     expect(title?.textContent).toBe('Spectra');
   });
 
-  it('invokes quick actions for new sections and boards', async () => {
+  it('invokes quick actions for new sections and canvases', async () => {
     vi.spyOn(dashboardService, 'fetchSections').mockResolvedValue({ items: [] });
     const createSection = vi.spyOn(dashboardService, 'createSection').mockResolvedValue({
       id: 'sec-new',
@@ -155,11 +193,11 @@ describe('initDashboard', () => {
     const createProject = vi.spyOn(dashboardService, 'createProject').mockResolvedValue({
       id: 'proj-new',
       title: 'Workspace',
-      boards: []
+      canvases: []
     });
-    const createBoard = vi.spyOn(dashboardService, 'createBoard').mockResolvedValue({
-      id: 'board-new',
-      title: 'Untitled board',
+    const createCanvas = vi.spyOn(dashboardService, 'createCanvas').mockResolvedValue({
+      id: 'canvas-new',
+      title: 'Untitled canvas',
       updated: '2025-11-10T08:00:00Z'
     });
 
@@ -171,12 +209,12 @@ describe('initDashboard', () => {
     await flushPromises();
     expect(createSection).toHaveBeenCalledWith({ name: 'Automation', description: '' });
 
-    document.getElementById('dashboard_action_new_board')?.click();
+    document.getElementById('dashboard_action_new_canvas')?.click();
     await flushPromises();
     expect(createProject).toHaveBeenCalled();
-    expect(createBoard).toHaveBeenCalledWith(
+    expect(createCanvas).toHaveBeenCalledWith(
       'proj-new',
-      expect.objectContaining({ title: 'Untitled board' })
+      expect.objectContaining({ title: 'Untitled canvas' })
     );
   });
 

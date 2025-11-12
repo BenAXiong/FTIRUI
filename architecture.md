@@ -39,6 +39,7 @@ mlirui/
 - `apps/ftirui/ft` is the only feature app. It exposes template views and JSON APIs used by the UI.
 - URL patterns live in `apps/ftirui/ft/urls.py`. Key endpoints include:
   - `/` → `index()`: serves `templates/ft/base.html` containing the full UI.
+  - `/workspace/` → `workspace_page()`: renders the standalone canvas shell used when dashboards open canvases in a new tab.
   - `/api/xy/` → `api_xy()`: main upload endpoint returning numeric arrays, metadata, and inferred ingest mode.
   - `/api/demos/` → `api_demo_files()`: enumerates demo datasets.
   - `/api/session/…` → CRUD endpoints for saving and loading user sessions (JSON stored under `sessions/`).
@@ -54,8 +55,8 @@ mlirui/
 
 ### 3.3 Persistence & Sessions
 - Session APIs now persist state in the `PlotSession` model (backed by the project database). Each row stores the JSON payload, its byte size, and metadata placeholders for future external storage; access requires an authenticated user (401 JSON when missing) to guarantee user-scoped data. Responses now surface `size` and `storage` attributes, and oversized payloads trigger HTTP 413 until the external storage path is implemented.
-- Dashboard-focused models (`WorkspaceSection`, `WorkspaceProject`, `WorkspaceBoard`, `WorkspaceBoardVersion`) mirror modern board tools. They expose REST endpoints under `/api/dashboard/...` so the client can list sections, create projects, save boards (using the PlotSession JSON payload), and take immutable snapshots.
-- Existing `PlotSession` rows can be imported into the new hierarchy via `python apps/ftirui/manage.py seed_workspace_from_sessions`. The command creates a default section/project per user and migrates each saved session into a board, with `--dry-run` and `--limit` helpers for cautious execution.
+- Dashboard-focused models (`WorkspaceSection`, `WorkspaceProject`, `WorkspaceCanvas`, `WorkspaceCanvasVersion`) mirror modern canvas tools. They expose REST endpoints under `/api/dashboard/...` so the client can list sections, create projects, save canvases (using the PlotSession JSON payload), and take immutable snapshots.
+- Existing `PlotSession` rows can be imported into the new hierarchy via `python apps/ftirui/manage.py seed_workspace_from_sessions`. The command creates a default section/project per user and migrates each saved session into a canvas, with `--dry-run` and `--limit` helpers for cautious execution.
 - Social login uses django-allauth (Google & GitHub). Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and optional `SITE_ID` in the environment. Minimal login/logout templates live under `templates/account/`.
 
 - `/api/me/` exposes the current authentication status (username, email, avatar hash, cloud-session counts, and login/logout targets) so the front end can render account-aware widgets and keep redirect parameters in sync.
@@ -68,6 +69,7 @@ mlirui/
 
 ### 4.1 Entry HTML
 - `templates/ft/base.html` defines the layout: upload controls, plot area, and settings panels.
+- `/workspace` renders the same `workspace.html` partials outside the tabbed dashboard so users can pop canvases into their own tab without diverging UI contracts.
 - Bootstrap provides base styling; custom CSS is under `static/ft/app.css`.
 
 ### 4.2 JavaScript Modules
@@ -76,8 +78,8 @@ mlirui/
 - `static/ft/js/core/parse.js` (legacy) contains preview parsing utilities (distinct from backend parsing).
 - Legacy Option B UI (`static/ft/js/ui/interfaceB.js`) has been retired. The active workspace experience now lives under `static/ft/js/ui/interface/controller/runtime/`, which orchestrates uploads, plotting, history, and persistence through modular facades.
 - `static/ft/app.js` bootstraps shared UI chrome (theme toggle, account widget, toast notifications) and hands off to the dashboard/workspace modules. It consumes `/api/me/`, emits `ftir:user-status` events, and exposes `window.showAppToast` so feature modules can surface consistent feedback.
-- `static/ft/js/ui/dashboard/initDashboard.js` pulls `/api/dashboard/...` data, renders sections/projects/boards, and routes “open canvas” actions by navigating to `/?board=<uuid>#pane-plotC` so the workspace loads that board.
-- `static/ft/js/ui/interface/boardSnapshots.js` powers the workspace “Save snapshot / Manage snapshots” actions, calling `/api/dashboard/boards/<id>/versions/` to persist and restore immutable snapshots.
+- `static/ft/js/ui/dashboard/initDashboard.js` pulls `/api/dashboard/...` data, renders sections/projects/canvases, and routes “open canvas” actions by navigating to `/?canvas=<uuid>#pane-plotC` so the workspace loads that canvas.
+- `static/ft/js/ui/interface/canvasSnapshots.js` powers the workspace “Save snapshot / Manage snapshots” actions, calling `/api/dashboard/canvases/<id>/versions/` to persist and restore immutable snapshots.
 - Additional UI helpers under `static/ft/js/lib/` provide CSRF handling, etc.
 
 ### 4.3 Data Flow

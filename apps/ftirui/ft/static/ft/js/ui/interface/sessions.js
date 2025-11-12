@@ -5,9 +5,9 @@ import {
   getSessionRequest,
   deleteSessionRequest
 } from '../../services/sessions.js';
-import { fetchBoardState, saveBoardState } from '../../services/dashboard.js';
+import { fetchCanvasState, saveCanvasState } from '../../services/dashboard.js';
 import { escapeHtml } from '../utils/dom.js';
-import { initBoardSnapshots } from './boardSnapshots.js';
+import { initCanvasSnapshots } from './canvasSnapshots.js';
 
 const SESSION_SCHEMA_VERSION = 2;
 
@@ -17,7 +17,7 @@ const AUTOSAVE_STORE = 'autosave';
 const AUTOSAVE_KEY = 'plot-session-v2';
 const AUTOSAVE_INTERVAL_MS = 8000;
 const AUTOSAVE_IDLE_THRESHOLD_MS = AUTOSAVE_INTERVAL_MS;
-const BOARD_QUERY_PARAM = 'board';
+const CANVAS_QUERY_PARAM = 'canvas';
 
 function formatBytes(size) {
   const value = Number(size);
@@ -124,14 +124,14 @@ function supportsIndexedDB() {
   }
 }
 
-function getActiveBoardId() {
+function getActiveCanvasId() {
   if (typeof window === 'undefined') return null;
-  if (window.__ACTIVE_BOARD_ID) return window.__ACTIVE_BOARD_ID;
+  if (window.__ACTIVE_CANVAS_ID) return window.__ACTIVE_CANVAS_ID;
   try {
     const params = new URLSearchParams(window.location.search);
-    const id = params.get(BOARD_QUERY_PARAM);
+    const id = params.get(CANVAS_QUERY_PARAM);
     if (id) {
-      window.__ACTIVE_BOARD_ID = id;
+      window.__ACTIVE_CANVAS_ID = id;
       return id;
     }
   } catch {
@@ -232,7 +232,7 @@ function ensureAutosaveContext(instance, uiRefs = {}, options = {}) {
         icon: null,
         text: null
       },
-      boardId: null,
+      canvasId: null,
       remoteSave: null
     };
   }
@@ -251,8 +251,8 @@ function ensureAutosaveContext(instance, uiRefs = {}, options = {}) {
     ctx.ui.container.classList.remove('is-visible', 'is-saving', 'is-error');
   }
   if (options && typeof options === 'object') {
-    if (options.boardId) {
-      ctx.boardId = options.boardId;
+    if (options.canvasId) {
+      ctx.canvasId = options.canvasId;
     }
     if (typeof options.remoteSave === 'function') {
       ctx.remoteSave = options.remoteSave;
@@ -380,12 +380,12 @@ async function runAutosave(ctx, { force = false } = {}) {
     ctx.lastWrite = Date.now();
     ctx.lastChange = Date.now();
     updateAutosaveUI(ctx, 'saved');
-    if (ctx.boardId && typeof ctx.remoteSave === 'function') {
+    if (ctx.canvasId && typeof ctx.remoteSave === 'function') {
       try {
         await ctx.remoteSave(snapshot);
       } catch (remoteErr) {
-        console.warn('Board sync failed', remoteErr);
-        const message = remoteErr?.message ? `Board sync failed: ${remoteErr.message}` : undefined;
+        console.warn('Canvas sync failed', remoteErr);
+        const message = remoteErr?.message ? `Canvas sync failed: ${remoteErr.message}` : undefined;
         updateAutosaveUI(ctx, 'error', message);
       }
     }
@@ -664,16 +664,16 @@ async function importSessionFromFile(instance, file, deps) {
   return applySessionState(instance, st, deps);
 }
 
-export function createBoardBridge(boardId, instance, deps) {
-  if (!boardId || !instance) return null;
+export function createCanvasBridge(canvasId, instance, deps) {
+  if (!canvasId || !instance) return null;
   return {
-    id: boardId,
+    id: canvasId,
     get defaultTitle() {
       return String(instance.state?.global?.sessionTitle || 'Snapshot');
     },
     async load() {
       try {
-        const payload = await fetchBoardState(boardId);
+        const payload = await fetchCanvasState(canvasId);
         if (payload?.state) {
           applySessionState(instance, payload.state, deps);
         }
@@ -681,21 +681,21 @@ export function createBoardBridge(boardId, instance, deps) {
           instance.state.global.sessionTitle = payload.title;
         }
         window.showAppToast?.({
-          title: 'Board ready',
+          title: 'Canvas ready',
           message: payload?.title ? `"${payload.title}" loaded.` : 'Canvas loaded.',
           variant: 'success'
         });
       } catch (err) {
         window.showAppToast?.({
-          title: 'Unable to load board',
+          title: 'Unable to load canvas',
           message: err?.message || String(err),
           variant: 'danger'
         });
-        console.warn('Failed to load board state', err);
+        console.warn('Failed to load canvas state', err);
       }
     },
     async save(state, label) {
-      await saveBoardState(boardId, {
+      await saveCanvasState(canvasId, {
         state,
         version_label: label || state?.global?.sessionTitle || ''
       });
@@ -727,10 +727,10 @@ export function bindSessionUI(instance, deps) {
   const autosaveText = autosaveIndicator?.querySelector('.autosave-text') || null;
   const sessionBanner = document.getElementById('b_session_alert');
   let sessionAuthBlocked = false;
-  const activeBoardId = getActiveBoardId();
-  const boardBridge = activeBoardId ? createBoardBridge(activeBoardId, instance, deps) : null;
-  const boardMode = !!boardBridge;
-  if (boardMode) {
+  const activeCanvasId = getActiveCanvasId();
+  const canvasBridge = activeCanvasId ? createCanvasBridge(activeCanvasId, instance, deps) : null;
+  const canvasMode = !!canvasBridge;
+  if (canvasMode) {
     sessionAuthBlocked = true;
   }
 
@@ -750,18 +750,18 @@ export function bindSessionUI(instance, deps) {
 
   updateBackendAccess();
 
-  if (boardMode) {
+  if (canvasMode) {
     [btnSave, btnSave2, btnLoad].forEach((btn) => btn?.classList.add('d-none'));
     modalEl?.classList.add('d-none');
     hideBanner();
     window.showAppToast?.({
       title: 'Canvas linked to dashboard',
-      message: 'Changes sync directly to this board.',
+      message: 'Changes sync directly to this canvas.',
       variant: 'info'
     });
-    void boardBridge.load();
-    initBoardSnapshots({
-      bridge: boardBridge,
+    void canvasBridge.load();
+    initCanvasSnapshots({
+      bridge: canvasBridge,
       saveButton: snapshotSaveBtn,
       manageButton: snapshotManageBtn,
       modal: snapshotModal
@@ -770,7 +770,7 @@ export function bindSessionUI(instance, deps) {
     [snapshotSaveBtn, snapshotManageBtn].forEach((btn) => {
       if (btn) {
         btn.disabled = true;
-        btn.title = 'Snapshots available when editing a project board.';
+        btn.title = 'Snapshots available when editing a project canvas.';
       }
     });
   }
@@ -797,7 +797,7 @@ export function bindSessionUI(instance, deps) {
   };
 
   const refreshList = async () => {
-    if (boardMode || !listEl) return;
+    if (canvasMode || !listEl) return;
     listEl.replaceChildren();
     hideBanner();
     try {
@@ -1009,8 +1009,8 @@ export function bindSessionUI(instance, deps) {
       text: autosaveText
     },
     {
-      boardId: boardBridge?.id || null,
-      remoteSave: boardBridge ? (state) => boardBridge.save(state) : null
+      canvasId: canvasBridge?.id || null,
+      remoteSave: canvasBridge ? (state) => canvasBridge.save(state) : null
     }
   );
 }

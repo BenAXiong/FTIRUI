@@ -8,7 +8,7 @@ next
 
 *save and manage snapshots?
 
-*Clicking a project still opens its first board so existing flows continue to work.
+*Clicking a project still opens its first canvas so existing flows continue to work.
 *exp pane: placeholders on hover (pin needs new section)
 *Drag-and-drop will arrive later. For now, use the buttons above the list to add content.
 
@@ -51,9 +51,10 @@ bugs
 
 Step 3 – Workspace UX (even if the tab disappears)
 
-apps/ftirui/ft/templates/ft/workspace/panes/workspace.html + .../workspaceCanvas.js: turn the workspace pane into a self-contained layout that can mount inside the dashboard. Extract the browser/sidebar markup into a partial and load it only when ?pane=workspace or a board is open so the Dashboard never sees the collapsed strip again.
-apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/workspaceRuntime.js: replace the legacy bootstrap with a mountWorkspace(rootEl, { boardId, devMode }) helper. It should hydrate canvases when a board opens, but no longer control global tab state.
-Tests: add Vitest cases under tests/unit/workspace/ to cover the new mount helper; use Playwright smoke flow (Step 5) to ensure a board opened from Dashboard still renders the workspace canvas.
+3‑1 Routing & Entry (done): dedicated `/workspace?canvas=` page plus dashboard→workspace hand-off.
+3‑2 Bootstrap cleanup (done): when the tab is disabled don’t render the hidden pane, ignore `?canvas` for nav state, and make sure workspace JS only boots when the pane/page exists so Bootstrap tabs stop driving the flow. `/workspace?dev=true` falls back to the tabbed view for quick inspection.
+apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/workspaceRuntime.js: replace the legacy bootstrap with a mountWorkspace(rootEl, { canvasId, devMode }) helper. It should hydrate canvases when a canvas opens, but no longer control global tab state.
+Tests: add Vitest cases under tests/unit/workspace/ to cover the new mount helper; use Playwright smoke flow (Step 5) to ensure a canvas opened from Dashboard still renders the workspace canvas.
 Step 4 – Cleanup & Migration
 
 Data migration: add a Django management command (e.g., apps/ftirui/ft/management/commands/migrate_sessions.py) to map /api/session/ rows into the new “Projects/Folders” structure; default orphaned sessions to the “Unsorted” project.
@@ -61,14 +62,14 @@ Feature flags: keep both old/new dashboards behind DASHBOARD_V2_ENABLED; ensure 
 Remove the legacy cards only after the migration script runs and QA signs off; document the flag and migration steps in README.md so future agents know how to rehearse them locally.
 Step 5 – Dev Experience Boosters
 
-Shortcuts: wire /dashboard?dev=true to show hidden tooling (already partly done) and add /workspace?board=<id>&dev=true to jump straight into a board without exposing the Workspace tab in prod.
+Shortcuts: wire /dashboard?dev=true to show hidden tooling (already partly done) and add /workspace?canvas=<id>&dev=true to jump straight into a canvas without exposing the Workspace tab in prod.
 Tooling: create npm scripts for npm run lint:js and npm run format plus a Django check shortcut; list all commands (npm run test:unit, npm run test:smoke, python apps/ftirui/manage.py test ft) in the README handoff section.
-Fixtures: under apps/ftirui/ft/tests/fixtures/, add sample boards/projects so both backend tests and Playwright smoke flows can seed realistic dashboards quickly.
+Fixtures: under apps/ftirui/ft/tests/fixtures/, add sample canvases/projects so both backend tests and Playwright smoke flows can seed realistic dashboards quickly.
 Step 6 – QA & Accessibility
 
 Backend: expand apps/ftirui/ft/tests/ to cover autosave fixtures, snapshot restore, and the new project/folder filtering endpoints.
 Frontend: add Vitest suites for initDashboard (sidebar links, filters, error toasts) and the autosave bridge; ensure list/gallery toggles and the explorer filters are covered.
-End-to-end: flesh out tests/smoke/dashboard.spec.js to log in, open boards, verify autosave badge “Saved,” and exercise snapshot modals. Gate the job in .github/workflows/ci.yml on secrets (SMOKE_BASE_URL, creds) and explain env vars in README.
+End-to-end: flesh out tests/smoke/dashboard.spec.js to log in, open canvases, verify autosave badge “Saved,” and exercise snapshot modals. Gate the job in .github/workflows/ci.yml on secrets (SMOKE_BASE_URL, creds) and explain env vars in README.
 Accessibility: run axe-core (or Playwright’s page.accessibility) on Dashboard + Workspace to catch tab order/contrast issues.
 Step 7 – Optional Bug Sweep
 
@@ -76,7 +77,7 @@ Track pending UI bugs (e.g., Plotly toolbar cleanup, grid toggles) in tdl.txt or
 When ready, create a dedicated branch to address the backlog, prioritize regressions found during QA, and add regression tests so fixes stick.
 Context for New Sessions
 
-Workspace tab is dev-only; prod users should reach the dashboard, open a board, and have the same canvas UI mounted in-place.
+Workspace tab is dev-only; prod users should reach the dashboard, open a canvas, and have the same canvas UI mounted in-place.
 Feature flags: WORKSPACE_LEGACY_ENABLED controls the old tab; ?dev=true unlocks dev tools and the explorer/dev drawer.
 Tests live under apps/ftirui/ft/tests/ (backend), tests/unit/ (Vitest), and tests/smoke/ (Playwright); CI runs via .github/workflows/ci.yml.
 When adding code, mirror the existing ES module structure in apps/ftirui/ft/static/ft/js/ui/... and the Django templates under apps/ftirui/ft/templates/ft/.

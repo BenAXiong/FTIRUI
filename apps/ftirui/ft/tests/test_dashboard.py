@@ -3,7 +3,7 @@ import json
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from ..models import WorkspaceBoard, WorkspaceProject, WorkspaceSection
+from ..models import WorkspaceCanvas, WorkspaceProject, WorkspaceSection
 
 User = get_user_model()
 
@@ -19,15 +19,15 @@ class DashboardApiTests(TestCase):
             title="Week 42",
             summary="Daily summary",
         )
-        self.board = WorkspaceBoard.objects.create(
+        self.canvas = WorkspaceCanvas.objects.create(
             owner=self.user,
             project=self.project,
-            title="Initial board",
+            title="Initial canvas",
             state_json={"order": []},
             state_size=2,
         )
 
-    def _board_state(self, title="Autosave Title", *, trace_id="trace-1"):
+    def _canvas_state(self, title="Autosave Title", *, trace_id="trace-1"):
         return {
             "version": 2,
             "global": {"sessionTitle": title},
@@ -54,10 +54,10 @@ class DashboardApiTests(TestCase):
             "ui": {"activeFolder": "root"},
         }
 
-    def _put_board_state(self, board, *, state, **extras):
+    def _put_canvas_state(self, canvas, *, state, **extras):
         payload = {"state": state} | extras
         return self.client.put(
-            f"/api/dashboard/boards/{board.id}/state/",
+            f"/api/dashboard/canvases/{canvas.id}/state/",
             data=json.dumps(payload),
             content_type="application/json",
         )
@@ -77,20 +77,20 @@ class DashboardApiTests(TestCase):
         self.assertEqual(len(section.get("projects", [])), 1)
         project = section["projects"][0]
         self.assertEqual(project["title"], "Week 42")
-        self.assertEqual(project["board_count"], 1)
+        self.assertEqual(project["canvas_count"], 1)
 
-    def test_create_board(self):
-        url = f"/api/dashboard/projects/{self.project.id}/boards/"
+    def test_create_canvas(self):
+        url = f"/api/dashboard/projects/{self.project.id}/canvases/"
         resp = self.client.post(
             url,
             data=json.dumps({"title": "Analysis", "state": {"order": ["a"]}}),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201, resp.content)
-        self.assertEqual(WorkspaceBoard.objects.filter(project=self.project).count(), 2)
+        self.assertEqual(WorkspaceCanvas.objects.filter(project=self.project).count(), 2)
 
-    def test_board_version_detail_includes_state(self):
-        url = f"/api/dashboard/boards/{self.board.id}/versions/"
+    def test_canvas_version_detail_includes_state(self):
+        url = f"/api/dashboard/canvases/{self.canvas.id}/versions/"
         create = self.client.post(
             url,
             data=json.dumps({"label": "alpha"}),
@@ -98,54 +98,53 @@ class DashboardApiTests(TestCase):
         )
         self.assertEqual(create.status_code, 201)
         version_id = create.json()["id"]
-        detail = self.client.get(f"/api/dashboard/boards/{self.board.id}/versions/{version_id}/")
+        detail = self.client.get(f"/api/dashboard/canvases/{self.canvas.id}/versions/{version_id}/")
         self.assertEqual(detail.status_code, 200)
         payload = detail.json()
         self.assertEqual(payload["label"], "alpha")
         self.assertIn("state", payload)
 
-    def test_board_state_put_updates_size_and_payload(self):
-        state = self._board_state("Autosave v1")
-        resp = self._put_board_state(self.board, state=state, version_label="Alpha v1")
+    def test_canvas_state_put_updates_size_and_payload(self):
+        state = self._canvas_state("Autosave v1")
+        resp = self._put_canvas_state(self.canvas, state=state, version_label="Alpha v1")
         self.assertEqual(resp.status_code, 200, resp.content)
-        self.board.refresh_from_db()
-        self.assertGreater(self.board.state_size, 0)
-        self.assertEqual(self.board.version_label, "Alpha v1")
-        self.assertEqual(self.board.state_json, state)
-        detail = self.client.get(f"/api/dashboard/boards/{self.board.id}/state/")
+        self.canvas.refresh_from_db()
+        self.assertGreater(self.canvas.state_size, 0)
+        self.assertEqual(self.canvas.version_label, "Alpha v1")
+        self.assertEqual(self.canvas.state_json, state)
+        detail = self.client.get(f"/api/dashboard/canvases/{self.canvas.id}/state/")
         self.assertEqual(detail.status_code, 200)
         payload = detail.json()
         self.assertEqual(payload["state"], state)
-        self.assertEqual(payload["state_size"], self.board.state_size)
+        self.assertEqual(payload["state_size"], self.canvas.state_size)
 
     def test_snapshot_roundtrip_restores_saved_state(self):
-        initial_state = self._board_state("Snapshot A", trace_id="trace-a")
-        self._put_board_state(self.board, state=initial_state, version_label="Snapshot A")
+        initial_state = self._canvas_state("Snapshot A", trace_id="trace-a")
+        self._put_canvas_state(self.canvas, state=initial_state, version_label="Snapshot A")
         create = self.client.post(
-            f"/api/dashboard/boards/{self.board.id}/versions/",
+            f"/api/dashboard/canvases/{self.canvas.id}/versions/",
             data=json.dumps({"label": "Snapshot A"}),
             content_type="application/json",
         )
         self.assertEqual(create.status_code, 201, create.content)
         version_id = create.json()["id"]
 
-        mutated_state = self._board_state("Snapshot B", trace_id="trace-b")
-        self._put_board_state(self.board, state=mutated_state, version_label="Snapshot B")
+        mutated_state = self._canvas_state("Snapshot B", trace_id="trace-b")
+        self._put_canvas_state(self.canvas, state=mutated_state, version_label="Snapshot B")
 
         version_detail = self.client.get(
-            f"/api/dashboard/boards/{self.board.id}/versions/{version_id}/"
+            f"/api/dashboard/canvases/{self.canvas.id}/versions/{version_id}/"
         )
         self.assertEqual(version_detail.status_code, 200)
         snapshot_state = version_detail.json()["state"]
         self.assertEqual(snapshot_state["order"], initial_state["order"])
 
-        restore = self._put_board_state(
-            self.board,
+        restore = self._put_canvas_state(
+            self.canvas,
             state=snapshot_state,
             version_label="Snapshot A (restored)",
         )
         self.assertEqual(restore.status_code, 200)
-        self.board.refresh_from_db()
-        self.assertEqual(self.board.state_json["order"], initial_state["order"])
-        self.assertEqual(self.board.version_label, "Snapshot A (restored)")
-
+        self.canvas.refresh_from_db()
+        self.assertEqual(self.canvas.state_json["order"], initial_state["order"])
+        self.assertEqual(self.canvas.version_label, "Snapshot A (restored)")

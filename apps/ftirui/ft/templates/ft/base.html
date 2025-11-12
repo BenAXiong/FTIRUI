@@ -6,18 +6,25 @@
 {% endblock %}
 
 {% block page_body %}
-  <div class="mb-3 app-tabs-container">
-    <div class="tab-content">
-      {% include 'ft/workspace/panes/workspace.html' %}
-      {% include 'ft/workspace/panes/dashboard.html' %}
-      {% include 'ft/workspace/panes/live.html' %}
-      {% include 'ft/workspace/panes/tools.html' %}
-      {% include 'ft/workspace/panes/about.html' %}
+  {% if workspace_only %}
+    <div class="workspace-shell">
+      {% include 'ft/workspace/panes/workspace.html' with workspace_standalone=True %}
     </div>
-  </div>
+  {% else %}
+    <div class="mb-3 app-tabs-container">
+      <div class="tab-content">
+        {% if workspace_tab_enabled %}
+          {% include 'ft/workspace/panes/workspace.html' %}
+        {% endif %}
+        {% include 'ft/workspace/panes/dashboard.html' %}
+        {% include 'ft/workspace/panes/live.html' %}
+        {% include 'ft/workspace/panes/tools.html' %}
+        {% include 'ft/workspace/panes/about.html' %}
+      </div>
+    </div>
+  {% endif %}
 {% endblock %}
 
 {% block body_scripts %}
   {{ block.super }}
-  <script type="module" src="{% static 'ft/js/ui/workspace/initControls.js' %}"></script>
 {% endblock %}

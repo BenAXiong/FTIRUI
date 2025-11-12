@@ -48,26 +48,26 @@ export async function createProject(sectionId, payload) {
   return request(`/api/dashboard/sections/${sectionId}/projects/`, { method: 'POST', body: payload });
 }
 
-export async function createBoard(projectId, payload) {
-  return request(`/api/dashboard/projects/${projectId}/boards/`, { method: 'POST', body: payload });
+export async function createCanvas(projectId, payload) {
+  return request(`/api/dashboard/projects/${projectId}/canvases/`, { method: 'POST', body: payload });
 }
 
-export async function fetchBoardState(boardId) {
-  return request(`/api/dashboard/boards/${boardId}/state/`);
+export async function fetchCanvasState(canvasId) {
+  return request(`/api/dashboard/canvases/${canvasId}/state/`);
 }
 
-export async function saveBoardState(boardId, payload) {
-  return request(`/api/dashboard/boards/${boardId}/state/`, { method: 'PUT', body: payload });
+export async function saveCanvasState(canvasId, payload) {
+  return request(`/api/dashboard/canvases/${canvasId}/state/`, { method: 'PUT', body: payload });
 }
 
-export async function listBoardVersions(boardId) {
-  return request(`/api/dashboard/boards/${boardId}/versions/`);
+export async function listCanvasVersions(canvasId) {
+  return request(`/api/dashboard/canvases/${canvasId}/versions/`);
 }
 
-export async function createBoardVersion(boardId, payload) {
-  return request(`/api/dashboard/boards/${boardId}/versions/`, { method: 'POST', body: payload });
+export async function createCanvasVersion(canvasId, payload) {
+  return request(`/api/dashboard/canvases/${canvasId}/versions/`, { method: 'POST', body: payload });
 }
 
-export async function fetchBoardVersion(boardId, versionId) {
-  return request(`/api/dashboard/boards/${boardId}/versions/${versionId}/`);
+export async function fetchCanvasVersion(canvasId, versionId) {
+  return request(`/api/dashboard/canvases/${canvasId}/versions/${versionId}/`);
 }

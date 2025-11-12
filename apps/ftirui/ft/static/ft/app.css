@@ -194,14 +194,14 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   place-items: center;
   color: inherit;
 }
-.sidebar-board-list {
+.sidebar-canvas-list {
   margin-left: 1.75rem;
   display: flex;
   flex-direction: column;
   gap: .25rem;
   padding-bottom: .35rem;
 }
-.sidebar-board-list[hidden] {
+.sidebar-canvas-list[hidden] {
   display: none;
 }
 .sidebar-project {
@@ -306,14 +306,14 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .sidebar-folder-item:is(:hover, :focus-within) .sidebar-folder-item-actions {
   opacity: 1;
 }
-.sidebar-board-list {
+.sidebar-canvas-list {
   margin-left: 1.75rem;
   display: flex;
   flex-direction: column;
   gap: .25rem;
   padding-bottom: .35rem;
 }
-.sidebar-board-list[hidden] {
+.sidebar-canvas-list[hidden] {
   display: none;
 }
 .dashboard-main {
@@ -595,6 +595,23 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   height: var(--workspace-pane-height, auto);
   max-height: var(--workspace-pane-height, none);
   overflow:hidden;
+}
+#pane-plotC.workspace-pane-standalone{
+  border: 1px solid var(--bs-border-color);
+  border-radius: 1rem;
+  background: var(--bs-body-bg);
+  padding: 1rem;
+}
+#pane-plotC.workspace-pane-standalone .plot-b-wrapper{
+  min-height: var(--workspace-pane-height, 520px);
+}
+.workspace-shell{
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+}
+.workspace-back-btn{
+  white-space:nowrap;
 }
 #pane-plotC.show.workspace-pane,
 #pane-plotC.active.workspace-pane{
