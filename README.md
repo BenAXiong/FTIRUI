@@ -112,6 +112,7 @@ Releases are automated via `/.github/workflows/release.yml`:
 
 Phase 6 delivers the runnable artifacts (Docker & desktop) so Phase 7 can focus on distribution; see `architecture.md` for broader context.
 - **Migrate legacy PlotSession rows**: run `python apps/ftirui/manage.py migrate_sessions` (add `--delete-source` once you’ve verified the canvases) to move `/api/session/` saves into the Projects/Folders hierarchy. This is the same helper the older `seed_workspace_from_sessions` command used, but it now supports dry-runs, limits, and optional cleanup.
+- **Seed demo data**: for local smoke tests, run `python apps/ftirui/manage.py seed_dashboard_demo <username> [--replace]` to create a sample section/project/canvas set you can explore without manually uploading traces.
 
 - **Feature flags recap**:
   - `WORKSPACE_LEGACY_ENABLED` or `?dev=true` toggles the Workspace tab for devs.

@@ -246,6 +246,24 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .sidebar-project-link.is-selected {
   color: var(--bs-primary);
 }
+.sidebar-inline-wrapper {
+  flex: 1;
+  display: flex;
+}
+.sidebar-inline-input {
+  width: 100%;
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  border-radius: .35rem;
+  padding: .2rem .4rem;
+  font: inherit;
+  color: inherit;
+}
+.sidebar-inline-input:focus {
+  outline: none;
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, .18);
+}
 .sidebar-project-actions {
   display: flex;
   gap: .2rem;

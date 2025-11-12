@@ -6,7 +6,10 @@
   "scripts": {
     "test:unit": "vitest run",
     "test:watch": "vitest",
-    "test:smoke": "playwright test"
+    "test:smoke": "playwright test",
+    "lint:js": "eslint --ext .js,.jsx,.mjs apps/ftirui/ft/static/ft/js",
+    "format": "prettier --write apps/ftirui/ft/static/ft/js",
+    "check:django": "python apps/ftirui/manage.py check"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

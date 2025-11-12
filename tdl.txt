@@ -1,5 +1,10 @@
 Phase 7
 
+possible to create the fav backend, API and all now? 
+edit/rename/delete canvas in main view
+edit/rename/delete canvas in exp
+rename main view's new section button
+
 Step 4 – Cleanup & Migration (✅ done)
 
 - `python apps/ftirui/manage.py migrate_sessions` migrates `/api/session/` saves into the Projects/Folders/Canvases tables (`--dry-run`, `--limit`, and optional `--delete-source` are available).
@@ -9,9 +14,9 @@ Step 4 – Cleanup & Migration (✅ done)
 Step 5 – Dev Experience Boosters
 
 - Shortcuts: make sure /dashboard?dev=true reveals dev-only tooling (already half-done) and ensure /workspace?canvas=<id>&dev=true jumps straight into a canvas without permanently exposing the tab.
-- Tooling: add npm scripts for npm run lint:js and npm run format, plus a Django check shortcut; list the core commands (npm run test:unit, npm run test:smoke, python apps/ftirui/manage.py test ft) in the README’s handoff section.
-- Fixtures: create sample sections/projects/canvases under something like apps/ftirui/ft/tests/fixtures/ so backend and Playwright tests can seed realistic dashboards quickly.
-- Explorer CRUD: wire rename/delete/move actions for sections/folders and projects in the sidebar, replacing the placeholder toasts once APIs are ready.
+- Tooling: add npm scripts for npm run lint:js and npm run format, plus a Django check shortcut; list the core commands (npm run test:unit, npm run test:smoke, python apps/ftirui/manage.py test ft) in the README’s handoff section. ✅ `package.json` now includes `lint:js`, `format`, and `check:django`.
+- Fixtures: create sample sections/projects/canvases under something like apps/ftirui/ft/tests/fixtures/ so backend and Playwright tests can seed realistic dashboards quickly. ✅ Use `python apps/ftirui/manage.py seed_dashboard_demo <username> [--replace]` to create demo data.
+- Explorer CRUD: wire rename/delete/move actions for sections/folders and projects in the sidebar, replacing the placeholder toasts once APIs are ready. ✅ Rename/move/delete now available via the folder actions (prompts + API calls).
 
 Step 6 – QA & Accessibility
 
@@ -43,6 +48,7 @@ Polishing
 ___________________________________________________________
 Future work
 
+- ?hide other tabs for MVP and rework UI (miro-like tabless design?)
 - research annotations
 - EC : CV, LSV, 
 - new tab: Present

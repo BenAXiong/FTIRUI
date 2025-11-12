@@ -44,8 +44,26 @@ export async function updateSection(sectionId, payload) {
   return request(`/api/dashboard/sections/${sectionId}/`, { method: 'PATCH', body: payload });
 }
 
+export async function deleteSection(sectionId) {
+  return request(`/api/dashboard/sections/${sectionId}/`, {
+    method: 'DELETE',
+    expectJson: false
+  });
+}
+
 export async function createProject(sectionId, payload) {
   return request(`/api/dashboard/sections/${sectionId}/projects/`, { method: 'POST', body: payload });
+}
+
+export async function updateProject(projectId, payload) {
+  return request(`/api/dashboard/projects/${projectId}/`, { method: 'PATCH', body: payload });
+}
+
+export async function deleteProject(projectId) {
+  return request(`/api/dashboard/projects/${projectId}/`, {
+    method: 'DELETE',
+    expectJson: false
+  });
 }
 
 export async function createCanvas(projectId, payload) {

@@ -2,11 +2,15 @@ import {
   fetchSections,
   createSection,
   createProject,
-  createCanvas
+  createCanvas,
+  updateSection,
+  deleteSection,
+  updateProject,
+  deleteProject
 } from '../../services/dashboard.js';
 
-const DEFAULT_SECTION_NAME = 'Folder';
-const DEFAULT_PROJECT_NAME = 'Workspace';
+const DEFAULT_SECTION_NAME = 'Project';
+const DEFAULT_PROJECT_NAME = 'Folder';
 
 export function initDashboard() {
   if (typeof document === 'undefined') return null;
@@ -43,6 +47,8 @@ export function initDashboard() {
     activeSectionId: null,
     activeProjectId: null,
     latestCanvases: [],
+    editingSectionId: null,
+    editingFolderId: null,
     filters: {
       search: '',
       section: 'all',
@@ -60,6 +66,14 @@ export function initDashboard() {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
 
+  const escapeAttribute = (value) =>
+    String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
   const normalizeId = (value) => (value === null || value === undefined ? '' : String(value));
   const idsMatch = (left, right) => normalizeId(left) === normalizeId(right);
 
@@ -72,7 +86,7 @@ export function initDashboard() {
 
   const updateMainTitle = () => {
     if (!titleLabel) return;
-    const activeFolder = state.activeProjectId ? findProject(state.activeProjectId) : null;
+    const activeFolder = state.activeProjectId ? findFolder(state.activeProjectId) : null;
     if (activeFolder) {
       titleLabel.textContent = activeFolder.title || 'Untitled folder';
     } else if (state.filters.section && state.filters.section !== 'all') {
@@ -195,6 +209,31 @@ export function initDashboard() {
     });
   };
 
+  const focusInlineEditors = () => {
+    if (!sidebarTree) return;
+    const focusInput = (selector) => {
+      const node = sidebarTree.querySelector(selector);
+      if (node && typeof node.focus === 'function') {
+        node.focus();
+        if (typeof node.select === 'function') {
+          node.select();
+        }
+      }
+    };
+    window.requestAnimationFrame(() => {
+      if (state.editingSectionId) {
+        const value = normalizeId(state.editingSectionId);
+        const escaped = window.CSS?.escape ? window.CSS.escape(value) : value.replace(/"/g, '\\"');
+        focusInput(`[data-inline-project="${escaped}"]`);
+      }
+      if (state.editingFolderId) {
+        const value = normalizeId(state.editingFolderId);
+        const escaped = window.CSS?.escape ? window.CSS.escape(value) : value.replace(/"/g, '\\"');
+        focusInput(`[data-inline-folder="${escaped}"]`);
+      }
+    });
+  };
+
   const renderSidebar = () => {
     if (!sidebarTree) return;
     ensureSectionSelection();
@@ -216,6 +255,33 @@ export function initDashboard() {
       const projectSelected =
         state.filters.section !== 'all' && idsMatch(state.filters.section, section.id);
       projectRow.className = 'sidebar-project-row';
+      const isEditingProject = idsMatch(state.editingSectionId, section.id);
+      const projectLabelMarkup = isEditingProject
+        ? `
+          <div class="sidebar-project-link sidebar-inline-wrapper">
+            <input
+              type="text"
+              class="sidebar-inline-input"
+              data-inline-project="${section.id}"
+              data-initial-value="${escapeAttribute(section.name)}"
+              value="${escapeAttribute(section.name)}"
+              maxlength="120"
+              placeholder="Project name"
+              aria-label="Edit project name"
+              autocomplete="off"
+            />
+          </div>
+        `
+        : `
+          <button
+            type="button"
+            class="sidebar-project-link${projectSelected ? ' is-selected' : ''}"
+            data-action="select-project"
+            data-section="${section.id}"
+          >
+            <span>${escapeHtml(section.name)}</span>
+          </button>
+        `;
       projectRow.innerHTML = `
         <button
           type="button"
@@ -226,14 +292,18 @@ export function initDashboard() {
         >
           <i class="bi bi-chevron-right sidebar-project-chevron"></i>
         </button>
-        <button
-          type="button"
-          class="sidebar-project-link${projectSelected ? ' is-selected' : ''}"
-          data-action="select-project"
-          data-section="${section.id}"
-        >
-          <span>${escapeHtml(section.name)}</span>
-        </button>
+        ${projectLabelMarkup}
+        <span class="sidebar-project-actions">
+          <button type="button" class="sidebar-project-icon" data-action="section-add-folder" data-section="${section.id}" title="Create folder">
+            <i class="bi bi-folder-plus"></i>
+          </button>
+          <button type="button" class="sidebar-project-icon" data-action="section-rename" data-section="${section.id}" title="Rename project">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button type="button" class="sidebar-project-icon" data-action="section-delete" data-section="${section.id}" title="Delete project">
+            <i class="bi bi-trash"></i>
+          </button>
+        </span>
       `;
       projectBlock.appendChild(projectRow);
 
@@ -255,6 +325,33 @@ export function initDashboard() {
           const folderEntry = document.createElement('div');
           const folderSelected = idsMatch(state.filters.folder, folder.id);
           folderEntry.className = `sidebar-folder-entry${folderExpanded ? ' is-open' : ''}`;
+          const isEditingFolder = idsMatch(state.editingFolderId, folder.id);
+          const folderLabelMarkup = isEditingFolder
+            ? `
+              <div class="sidebar-folder-label sidebar-inline-wrapper">
+                <input
+                  type="text"
+                  class="sidebar-inline-input"
+                  data-inline-folder="${folder.id}"
+                  data-initial-value="${escapeAttribute(folder.title || 'Untitled folder')}"
+                  value="${escapeAttribute(folder.title || 'Untitled folder')}"
+                  maxlength="140"
+                  placeholder="Folder name"
+                  aria-label="Edit folder name"
+                  autocomplete="off"
+                />
+              </div>
+            `
+            : `
+              <button
+                type="button"
+                class="sidebar-folder-label${folderSelected ? ' is-selected' : ''}"
+                data-action="select-folder"
+                data-folder="${folder.id}"
+              >
+                <span>${escapeHtml(folder.title || 'Untitled folder')}</span>
+              </button>
+            `;
           folderEntry.innerHTML = `
             <div class="sidebar-folder-row">
               <button
@@ -266,22 +363,18 @@ export function initDashboard() {
               >
                 <i class="bi bi-chevron-right sidebar-folder-chevron"></i>
               </button>
-              <button
-                type="button"
-                class="sidebar-folder-label${folderSelected ? ' is-selected' : ''}"
-                data-action="select-folder"
-                data-folder="${folder.id}"
-              >
-                <span>${escapeHtml(folder.title || 'Untitled folder')}</span>
-              </button>
+              ${folderLabelMarkup}
               <span class="sidebar-folder-actions">
                 <button type="button" class="sidebar-folder-icon" data-action="folder-create-canvas" data-project="${folder.id}" title="New canvas">
                   <i class="bi bi-plus-lg"></i>
                 </button>
-                <button type="button" class="sidebar-folder-icon" data-action="folder-pin" data-folder="${folder.id}" title="Pin folder">
+                <button type="button" class="sidebar-folder-icon" data-action="folder-favorite" data-folder="${folder.id}" title="Favorite folder">
                   <i class="bi bi-star"></i>
                 </button>
-                <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-folder="${folder.id}" title="Folder options">
+                <button type="button" class="sidebar-folder-icon" data-action="folder-rename" data-folder="${folder.id}" title="Rename folder">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-folder="${folder.id}" title="More options">
                   <i class="bi bi-three-dots"></i>
                 </button>
               </span>
@@ -332,6 +425,42 @@ export function initDashboard() {
       fragment.appendChild(projectBlock);
     });
     sidebarTree.replaceChildren(fragment);
+    focusInlineEditors();
+  };
+
+  const clearInlineEditing = () => {
+    state.editingSectionId = null;
+    state.editingFolderId = null;
+  };
+
+  const beginProjectRename = (sectionId) => {
+    if (!sectionId) return;
+    state.editingSectionId = sectionId;
+    state.editingFolderId = null;
+    renderSidebar();
+  };
+
+  const beginFolderRename = (folderId) => {
+    if (!folderId) return;
+    state.editingFolderId = folderId;
+    state.editingSectionId = null;
+    renderSidebar();
+  };
+
+  const finalizeInlineEdit = (input, { cancel = false } = {}) => {
+    if (!input || input.dataset.inlineSubmitted === 'true') return;
+    input.dataset.inlineSubmitted = 'true';
+    const value = input.value;
+    const sectionId = input.dataset.inlineProject;
+    const folderId = input.dataset.inlineFolder;
+    clearInlineEditing();
+    renderSidebar();
+    if (cancel) return;
+    if (sectionId) {
+      void handleRenameProject(sectionId, value);
+    } else if (folderId) {
+      void handleRenameFolder(folderId, value);
+    }
   };
 
   const updateFolderOptions = () => {
@@ -423,14 +552,14 @@ export function initDashboard() {
 
   const flattenCanvases = (sections) => {
     const rows = [];
-  sections.forEach((section) => {
-    (section.projects || []).forEach((project) => {
-      (project.canvases || []).forEach((canvas) => {
-        rows.push({
-          id: canvas.id,
+    sections.forEach((section) => {
+      (section.projects || []).forEach((project) => {
+        (project.canvases || []).forEach((canvas) => {
+          rows.push({
+            id: canvas.id,
             title: canvas.title || 'Untitled canvas',
-            projectTitle: project.title || 'Untitled project',
-            folderName: section.name || 'Folder',
+            projectTitle: section.name || 'Untitled project',
+            folderName: project.title || 'Untitled folder',
             updated: canvas.updated,
             owner: canvas.owner || 'You',
             tags: canvas.tags || [],
@@ -538,7 +667,7 @@ export function initDashboard() {
       state.loading = true;
       const data = await fetchSections({ include: true });
       state.sections = Array.isArray(data?.items) ? data.items : [];
-      if (state.activeProjectId && !findProject(state.activeProjectId)) {
+      if (state.activeProjectId && !findFolder(state.activeProjectId)) {
         state.activeProjectId = null;
       }
       if (
@@ -601,7 +730,7 @@ export function initDashboard() {
 
   const handleCreateCanvas = async (projectId) => {
     try {
-      let project = findProject(projectId);
+      let project = findFolder(projectId);
       if (!project) {
         const ensured = await ensureProject();
         project = ensured.project;
@@ -648,10 +777,10 @@ export function initDashboard() {
     ui: {}
   });
 
-  const findProject = (projectId) => {
+  const findFolder = (folderId) => {
     for (const section of state.sections) {
       const projects = section.projects || [];
-      const match = projects.find((project) => idsMatch(project.id, projectId));
+      const match = projects.find((project) => idsMatch(project.id, folderId));
       if (match) return match;
     }
     return null;
@@ -669,8 +798,13 @@ export function initDashboard() {
     return null;
   };
 
-  const handleCreateSection = async () => {
-    const name = window.prompt('Folder name', DEFAULT_SECTION_NAME);
+  const handleCreateProject = async (initialName = null) => {
+    let name =
+      typeof initialName === 'string'
+        ? initialName
+        : window.prompt('Project name', DEFAULT_SECTION_NAME);
+    if (!name) return;
+    name = name.trim();
     if (!name) return;
     try {
       const section = await createSection({ name, description: '' });
@@ -686,9 +820,14 @@ export function initDashboard() {
       }
       updateFolderOptions();
       render();
+      window.showAppToast?.({
+        title: 'Project created',
+        message: name,
+        variant: 'success'
+      });
     } catch (err) {
       window.showAppToast?.({
-        title: 'Unable to create section',
+        title: 'Unable to create project',
         message: err?.message || String(err),
         variant: 'danger'
       });
@@ -715,13 +854,15 @@ export function initDashboard() {
     }
   };
 
-  const handleCreateProject = async (sectionId) => {
+  const handleCreateFolder = async (sectionId) => {
     const section = state.sections.find((item) => idsMatch(item.id, sectionId));
     if (!section) return;
-    const title = window.prompt('Project title', DEFAULT_PROJECT_NAME);
+    const title = window.prompt('Folder name', DEFAULT_PROJECT_NAME);
     if (!title) return;
+    const trimmed = title.trim();
+    if (!trimmed) return;
     try {
-      const project = await createProject(section.id, { title, summary: '' });
+      const project = await createProject(section.id, { title: trimmed, summary: '' });
       project.canvases = [];
       section.projects = section.projects || [];
       section.projects.push(project);
@@ -737,9 +878,14 @@ export function initDashboard() {
       updateFolderOptions();
       computeLatestCanvases();
       render();
+      window.showAppToast?.({
+        title: 'Folder created',
+        message: trimmed,
+        variant: 'success'
+      });
     } catch (err) {
       window.showAppToast?.({
-        title: 'Unable to create project',
+        title: 'Unable to create folder',
         message: err?.message || String(err),
         variant: 'danger'
       });
@@ -747,7 +893,7 @@ export function initDashboard() {
   };
 
   newSectionBtn?.addEventListener('click', () => {
-    void handleCreateSection();
+    void handleCreateProject();
   });
 
   newCanvasBtn?.addEventListener('click', () => {
@@ -834,7 +980,7 @@ export function initDashboard() {
     }
     if (action === 'folder-create' && trigger.dataset.section) {
       event.stopPropagation();
-      void handleCreateProject(trigger.dataset.section);
+      void handleCreateFolder(trigger.dataset.section);
       return;
     }
     if (action === 'folder-create-canvas' && trigger.dataset.project) {
@@ -842,15 +988,79 @@ export function initDashboard() {
       void handleCreateCanvas(trigger.dataset.project);
       return;
     }
-    if (
-      (action === 'folder-pin' || action === 'folder-options') &&
-      (trigger.dataset.section || trigger.dataset.canvas || trigger.dataset.folder)
-    ) {
+    if (action === 'section-rename' && trigger.dataset.section) {
+      event.stopPropagation();
+      beginProjectRename(trigger.dataset.section);
+      return;
+    }
+    if (action === 'section-add-folder' && trigger.dataset.section) {
+      event.stopPropagation();
+      const targetSectionId = trigger.dataset.section;
+      const target = state.sections.find((item) => idsMatch(item.id, targetSectionId));
+      if (!target) return;
+      state.activeSectionId = targetSectionId;
+      state.expandedProjects.add(targetSectionId);
+      state.activeProjectId = null;
+      renderSidebar();
+      render();
+      void handleCreateFolder(targetSectionId);
+      return;
+    }
+    if (action === 'section-delete' && trigger.dataset.section) {
+      event.stopPropagation();
+      void handleDeleteProject(trigger.dataset.section);
+      return;
+    }
+    if (action === 'folder-favorite' && trigger.dataset.folder) {
       event.stopPropagation();
       window.showAppToast?.({
-        title: 'Coming soon',
-        message: 'This action will arrive in a future update.',
+        title: 'Favorites coming soon',
+        message: 'Pin folders once the API is available.',
         variant: 'info'
+      });
+      return;
+    }
+    if (action === 'folder-rename' && trigger.dataset.folder) {
+      event.stopPropagation();
+      beginFolderRename(trigger.dataset.folder);
+      return;
+    }
+    if (action === 'folder-options' && trigger.dataset.folder) {
+      event.stopPropagation();
+      const choice = window.prompt(
+        'Folder options:\n1. Move\n2. Delete\n3. Details\n4. Share',
+        '1'
+      );
+      if (!choice) return;
+      const normalized = choice.trim();
+      if (normalized === '1') {
+        void handleMoveFolder(trigger.dataset.folder);
+        return;
+      }
+      if (normalized === '2') {
+        void handleDeleteFolder(trigger.dataset.folder);
+        return;
+      }
+      if (normalized === '3') {
+        window.showAppToast?.({
+          title: 'Folder details',
+          message: 'Details view will arrive soon.',
+          variant: 'info'
+        });
+        return;
+      }
+      if (normalized === '4') {
+        window.showAppToast?.({
+          title: 'Share folder',
+          message: 'Sharing workflow is not enabled yet.',
+          variant: 'info'
+        });
+        return;
+      }
+      window.showAppToast?.({
+        title: 'Action not available',
+        message: 'Choose 1, 2, 3, or 4 to pick an option.',
+        variant: 'warning'
       });
       return;
     }
@@ -861,6 +1071,32 @@ export function initDashboard() {
       navigateToCanvas(trigger.dataset.canvas);
     }
   });
+
+  sidebarTree?.addEventListener('keydown', (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    if (!input.dataset.inlineProject && !input.dataset.inlineFolder) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      finalizeInlineEdit(input);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      const original = input.dataset.initialValue ?? '';
+      input.value = original;
+      finalizeInlineEdit(input, { cancel: true });
+    }
+  });
+
+  sidebarTree?.addEventListener(
+    'focusout',
+    (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      if (!input.dataset.inlineProject && !input.dataset.inlineFolder) return;
+      finalizeInlineEdit(input);
+    },
+    true
+  );
 
   sidebarNav?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-view]');
@@ -873,17 +1109,175 @@ export function initDashboard() {
   });
 
   sidebarNewProjectBtn?.addEventListener('click', () => {
-    const activeSection = getActiveSection();
-    if (!activeSection) {
+    const sectionName = window.prompt('Project name', DEFAULT_SECTION_NAME);
+    if (!sectionName || !sectionName.trim()) return;
+    void handleCreateProject(sectionName.trim());
+  });
+
+  const handleRenameProject = async (sectionId, nextName) => {
+    const section = state.sections.find((item) => idsMatch(item.id, sectionId));
+    if (!section) return;
+    const trimmed = nextName?.trim();
+    if (!trimmed) {
       window.showAppToast?.({
-        title: 'No folder selected',
-        message: 'Create a folder before adding a project.',
+        title: 'Project name required',
+        message: 'Enter a project name before saving.',
         variant: 'warning'
       });
       return;
     }
-    void handleCreateProject(activeSection.id);
-  });
+    if (trimmed === section.name) return;
+    try {
+      await updateSection(sectionId, { name: trimmed });
+      window.showAppToast?.({
+        title: 'Project renamed',
+        message: trimmed,
+        variant: 'success'
+      });
+      await loadSections();
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to rename project',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleDeleteProject = async (sectionId) => {
+    const section = state.sections.find((item) => idsMatch(item.id, sectionId));
+    if (!section) return;
+    const confirmed = window.confirm(
+      `Delete project "${section.name}"? Folders and canvases inside will also be removed.`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteSection(sectionId);
+      window.showAppToast?.({
+        title: 'Project deleted',
+        message: section.name,
+        variant: 'info'
+      });
+      await loadSections();
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to delete project',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleRenameFolder = async (projectId, nextTitle) => {
+    const project = findFolder(projectId);
+    if (!project) return;
+    const trimmed = nextTitle?.trim();
+    if (!trimmed) {
+      window.showAppToast?.({
+        title: 'Folder name required',
+        message: 'Enter a folder name before saving.',
+        variant: 'warning'
+      });
+      return;
+    }
+    if (trimmed === project.title) return;
+    try {
+      await updateProject(projectId, { title: trimmed });
+      window.showAppToast?.({
+        title: 'Folder renamed',
+        message: trimmed,
+        variant: 'success'
+      });
+      await loadSections();
+      selectFolder(projectId);
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to rename folder',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleDeleteFolder = async (projectId) => {
+    const project = findFolder(projectId);
+    if (!project) return;
+    const confirmed = window.confirm(
+      `Delete folder "${project.title || 'Untitled folder'}"? All canvases inside will also be removed.`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteProject(projectId);
+      window.showAppToast?.({
+        title: 'Folder deleted',
+        message: project.title || 'Untitled folder',
+        variant: 'info'
+      });
+      await loadSections();
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to delete folder',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleMoveFolder = async (projectId) => {
+    const project = findFolder(projectId);
+    if (!project) return;
+    if (!state.sections.length) {
+      window.showAppToast?.({
+        title: 'No projects available',
+        message: 'Create a project before moving a folder.',
+        variant: 'warning'
+      });
+      return;
+    }
+    const options = state.sections
+      .map((section, index) => `${index + 1}. ${section.name}`)
+      .join('\n');
+    const choice = window.prompt(
+      `Move "${project.title || 'Untitled folder'}" to which project?\n${options}`,
+      state.sections.find((section) => idsMatch(section.id, project.section_id || project.sectionId))?.name || ''
+    );
+    if (!choice) return;
+    const normalized = choice.trim().toLowerCase();
+    const target =
+      state.sections.find(
+        (section, index) =>
+          idsMatch(section.id, choice.trim()) ||
+          section.name.toLowerCase() === normalized ||
+          `${index + 1}` === normalized
+      ) || null;
+    if (!target) {
+      window.showAppToast?.({
+        title: 'Project not found',
+        message: 'Enter the project number or exact name.',
+        variant: 'warning'
+      });
+      return;
+    }
+    if (idsMatch(target.id, project.section_id || project.sectionId)) {
+      return;
+    }
+    try {
+      await updateProject(projectId, { section_id: target.id });
+      window.showAppToast?.({
+        title: 'Folder moved',
+        message: `Moved to ${target.name}`,
+        variant: 'success'
+      });
+      await loadSections();
+      selectFolder(projectId);
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to move project',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
 
   searchInput?.addEventListener('input', (event) => {
     state.filters.search = event.target.value || '';
