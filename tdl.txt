@@ -1,9 +1,11 @@
 Phase 7
 
-possible to create the fav backend, API and all now? 
+
+add CRUD button for canvases in the explorer
 edit/rename/delete canvas in main view
-edit/rename/delete canvas in exp
 rename main view's new section button
+
+possible to create the fav backend, API and all now?
 
 Step 4 – Cleanup & Migration (✅ done)
 

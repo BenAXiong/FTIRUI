@@ -49,6 +49,7 @@ export function initDashboard() {
     latestCanvases: [],
     editingSectionId: null,
     editingFolderId: null,
+    openOptionsFolderId: null,
     filters: {
       search: '',
       section: 'all',
@@ -325,6 +326,7 @@ export function initDashboard() {
           const folderEntry = document.createElement('div');
           const folderSelected = idsMatch(state.filters.folder, folder.id);
           folderEntry.className = `sidebar-folder-entry${folderExpanded ? ' is-open' : ''}`;
+          const menuOpen = idsMatch(state.openOptionsFolderId, folder.id);
           const isEditingFolder = idsMatch(state.editingFolderId, folder.id);
           const folderLabelMarkup = isEditingFolder
             ? `
@@ -378,6 +380,24 @@ export function initDashboard() {
                   <i class="bi bi-three-dots"></i>
                 </button>
               </span>
+              <div class="sidebar-folder-menu${menuOpen ? ' is-open' : ''}" data-folder-menu="${folder.id}">
+                <button type="button" class="sidebar-menu-item" data-action="folder-menu-move" data-folder="${folder.id}">
+                  <i class="bi bi-arrow-left-right"></i>
+                  <span>Move to project</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="folder-menu-delete" data-folder="${folder.id}">
+                  <i class="bi bi-trash"></i>
+                  <span>Delete folder</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="folder-menu-details" data-folder="${folder.id}">
+                  <i class="bi bi-info-circle"></i>
+                  <span>Details</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="folder-menu-share" data-folder="${folder.id}">
+                  <i class="bi bi-share"></i>
+                  <span>Share</span>
+                </button>
+              </div>
             </div>
             <div class="sidebar-canvas-list"${folderExpanded ? '' : ' hidden'}>
             </div>
@@ -431,6 +451,19 @@ export function initDashboard() {
   const clearInlineEditing = () => {
     state.editingSectionId = null;
     state.editingFolderId = null;
+  };
+
+  const closeFolderMenu = () => {
+    if (state.openOptionsFolderId !== null) {
+      state.openOptionsFolderId = null;
+      renderSidebar();
+    }
+  };
+
+  const toggleFolderMenu = (folderId) => {
+    if (!folderId) return;
+    state.openOptionsFolderId = idsMatch(state.openOptionsFolderId, folderId) ? null : folderId;
+    renderSidebar();
   };
 
   const beginProjectRename = (sectionId) => {
@@ -1027,40 +1060,40 @@ export function initDashboard() {
     }
     if (action === 'folder-options' && trigger.dataset.folder) {
       event.stopPropagation();
-      const choice = window.prompt(
-        'Folder options:\n1. Move\n2. Delete\n3. Details\n4. Share',
-        '1'
-      );
-      if (!choice) return;
-      const normalized = choice.trim();
-      if (normalized === '1') {
-        void handleMoveFolder(trigger.dataset.folder);
-        return;
-      }
-      if (normalized === '2') {
-        void handleDeleteFolder(trigger.dataset.folder);
-        return;
-      }
-      if (normalized === '3') {
-        window.showAppToast?.({
-          title: 'Folder details',
-          message: 'Details view will arrive soon.',
-          variant: 'info'
-        });
-        return;
-      }
-      if (normalized === '4') {
-        window.showAppToast?.({
-          title: 'Share folder',
-          message: 'Sharing workflow is not enabled yet.',
-          variant: 'info'
-        });
-        return;
-      }
+      toggleFolderMenu(trigger.dataset.folder);
+      return;
+    }
+    if (action === 'folder-menu-move' && trigger.dataset.folder) {
+      event.stopPropagation();
+      state.openOptionsFolderId = null;
+      renderSidebar();
+      void handleMoveFolder(trigger.dataset.folder);
+      return;
+    }
+    if (action === 'folder-menu-delete' && trigger.dataset.folder) {
+      event.stopPropagation();
+      state.openOptionsFolderId = null;
+      renderSidebar();
+      void handleDeleteFolder(trigger.dataset.folder);
+      return;
+    }
+    if (action === 'folder-menu-details' && trigger.dataset.folder) {
+      event.stopPropagation();
+      closeFolderMenu();
       window.showAppToast?.({
-        title: 'Action not available',
-        message: 'Choose 1, 2, 3, or 4 to pick an option.',
-        variant: 'warning'
+        title: 'Folder details',
+        message: 'Details view will arrive soon.',
+        variant: 'info'
+      });
+      return;
+    }
+    if (action === 'folder-menu-share' && trigger.dataset.folder) {
+      event.stopPropagation();
+      closeFolderMenu();
+      window.showAppToast?.({
+        title: 'Share folder',
+        message: 'Sharing workflow is not enabled yet.',
+        variant: 'info'
       });
       return;
     }
@@ -1097,6 +1130,24 @@ export function initDashboard() {
     },
     true
   );
+
+  document.addEventListener('click', (event) => {
+    if (!state.openOptionsFolderId) return;
+    const target = event.target;
+    if (
+      target &&
+      (target.closest?.('[data-folder-menu]') || target.closest?.('[data-action="folder-options"]'))
+    ) {
+      return;
+    }
+    closeFolderMenu();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && state.openOptionsFolderId) {
+      closeFolderMenu();
+    }
+  });
 
   sidebarNav?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-view]');
