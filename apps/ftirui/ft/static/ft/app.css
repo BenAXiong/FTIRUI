@@ -265,10 +265,8 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   border-color: var(--bs-primary);
   box-shadow: 0 0 0 2px rgba(13, 110, 253, .18);
 }
-.sidebar-folder-menu {
+.canvas-menu {
   position: absolute;
-  top: 0;
-  left: calc(100% + .5rem);
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: .6rem;
@@ -278,28 +276,23 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   min-width: 180px;
   z-index: 20;
 }
-.sidebar-folder-menu.is-open {
+.canvas-menu.is-open {
   display: flex;
   flex-direction: column;
   gap: .1rem;
+}
+.sidebar-folder-menu {
+  top: 0;
+  left: calc(100% + .5rem);
 }
 .sidebar-canvas-menu {
-  position: absolute;
   top: 0;
   left: calc(100% + .5rem);
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: .6rem;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, .15);
-  padding: .35rem;
-  display: none;
-  min-width: 180px;
-  z-index: 20;
 }
-.sidebar-canvas-menu.is-open {
-  display: flex;
-  flex-direction: column;
-  gap: .1rem;
+.dashboard-canvas-menu {
+  top: calc(100% + .3rem);
+  right: auto;
+  left: calc(-100% - .5rem);
 }
 .sidebar-menu-item {
   border: none;
@@ -521,6 +514,12 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   display: flex;
   justify-content: flex-end;
   gap: .35rem;
+  position: relative;
+}
+.dashboard-table .table-action-buttons,
+.dashboard-gallery-card .table-action-buttons {
+  display: flex;
+  gap: .35rem;
 }
 .table-icon-btn {
   border: none;
@@ -563,6 +562,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 }
 .dashboard-gallery-card .table-actions {
   justify-content: flex-start;
+  position: relative;
 }
 .collapsed-card .card-header {
   cursor: pointer;

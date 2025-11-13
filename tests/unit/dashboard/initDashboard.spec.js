@@ -45,7 +45,7 @@ const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
 beforeEach(() => {
   setupDom();
   window.showAppToast = vi.fn();
-  window.prompt = vi.fn().mockReturnValue('New Section');
+  window.prompt = vi.fn().mockReturnValue('New Folder');
   mockLocation();
   document.body.dataset.workspaceTabEnabled = 'true';
   document.body.dataset.workspaceRoute = '/workspace/';

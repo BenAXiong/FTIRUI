@@ -123,7 +123,7 @@ function buildFolderNode(instance, folderId, target, depth) {
   const actions = document.createElement('div');
   actions.className = 'folder-actions';
   actions.innerHTML = `
-    <button class="btn-icon folder-add" type="button" title="New section"><i class="bi bi-plus-lg"></i></button>
+    <button class="btn-icon folder-add" type="button" title="New folder"><i class="bi bi-plus-lg"></i></button>
     <button class="btn-icon folder-menu" type="button" title="Section options"><i class="bi bi-three-dots"></i></button>
   `;
   header.appendChild(actions);
@@ -192,7 +192,7 @@ function handleTreeClick(event, instance, deps) {
   if (addBtn) {
     event.preventDefault();
     const parentId = folderNode?.dataset.id || rootFolderId();
-    const name = prompt('Section name', 'New section');
+    const name = prompt('Section name', 'New folder');
     if (!name) return;
     deps.recordHistory();
     createFolder(instance.state, parentId, name.trim());

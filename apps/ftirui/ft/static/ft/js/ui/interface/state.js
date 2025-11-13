@@ -150,7 +150,7 @@ export function createFolder(state, parentId, name) {
   const id = newFolderId();
   state.folders[id] = {
     id,
-    name: name || 'New section',
+    name: name || 'New folder',
     parent: parent.id,
     folders: [],
     traces: [],

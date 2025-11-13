@@ -53,6 +53,7 @@ export function initDashboard() {
     editingSectionId: null,
     editingFolderId: null,
     editingCanvasId: null,
+    editingCanvasContext: null,
     openCanvasMenuId: null,
     openOptionsFolderId: null,
     filters: {
@@ -216,9 +217,8 @@ export function initDashboard() {
   };
 
   const focusInlineEditors = () => {
-    if (!sidebarTree) return;
     const focusInput = (selector) => {
-      const node = sidebarTree.querySelector(selector);
+      const node = document.querySelector(selector);
       if (node && typeof node.focus === 'function') {
         node.focus();
         if (typeof node.select === 'function') {
@@ -240,7 +240,8 @@ export function initDashboard() {
       if (state.editingCanvasId) {
         const value = normalizeId(state.editingCanvasId);
         const escaped = window.CSS?.escape ? window.CSS.escape(value) : value.replace(/"/g, '\\"');
-        focusInput(`[data-inline-canvas="${escaped}"]`);
+        const ctx = state.editingCanvasContext || 'sidebar';
+        focusInput(`[data-inline-canvas="${escaped}"][data-inline-context="${ctx}"]`);
       }
     });
   };
@@ -390,7 +391,7 @@ export function initDashboard() {
                   <i class="bi bi-three-dots"></i>
                 </button>
               </span>
-              <div class="sidebar-folder-menu${menuOpen ? ' is-open' : ''}" data-folder-menu="${folder.id}">
+              <div class="canvas-menu sidebar-folder-menu${menuOpen ? ' is-open' : ''}" data-folder-menu="${folder.id}">
                 <button type="button" class="sidebar-menu-item" data-action="folder-menu-move" data-folder="${folder.id}">
                   <i class="bi bi-arrow-left-right"></i>
                   <span>Move to project</span>
@@ -426,13 +427,15 @@ export function initDashboard() {
             canvasRow.className = 'sidebar-folder-item';
             const canvasMenuOpen = idsMatch(state.openCanvasMenuId, canvas.id);
             const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
-            const canvasLabelMarkup = isEditingCanvas
+            const isSidebarInline = isEditingCanvas && state.editingCanvasContext === 'sidebar';
+            const canvasLabelMarkup = isSidebarInline
               ? `
                 <div class="sidebar-folder-link sidebar-inline-wrapper">
                   <input
                     type="text"
                     class="sidebar-inline-input"
                     data-inline-canvas="${canvas.id}"
+                    data-inline-context="sidebar"
                     data-initial-value="${escapeAttribute(canvas.title || 'Untitled canvas')}"
                     value="${escapeAttribute(canvas.title || 'Untitled canvas')}"
                     maxlength="140"
@@ -456,41 +459,41 @@ export function initDashboard() {
             canvasRow.innerHTML = `
                 ${canvasLabelMarkup}
                 <span class="sidebar-folder-item-actions">
-                  <button type="button" class="sidebar-folder-icon" data-action="canvas-duplicate" data-canvas="${canvas.id}" title="Duplicate canvas">
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-duplicate" data-context="sidebar" data-canvas="${canvas.id}" title="Duplicate canvas">
                     <i class="bi bi-files"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="canvas-favorite" data-canvas="${canvas.id}" title="Favorite canvas">
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-favorite" data-context="sidebar" data-canvas="${canvas.id}" title="Favorite canvas">
                     <i class="bi bi-star"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="canvas-rename" data-canvas="${canvas.id}" title="Rename canvas">
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-rename" data-context="sidebar" data-canvas="${canvas.id}" title="Rename canvas">
                     <i class="bi bi-pencil"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="canvas-options" data-canvas="${canvas.id}" title="Canvas options">
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-options" data-context="sidebar" data-canvas="${canvas.id}" title="Canvas options">
                     <i class="bi bi-three-dots"></i>
                   </button>
                 </span>
-                <div class="sidebar-canvas-menu${canvasMenuOpen ? ' is-open' : ''}" data-canvas-menu="${canvas.id}">
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-open" data-canvas="${canvas.id}">
+                <div class="canvas-menu sidebar-canvas-menu${canvasMenuOpen ? ' is-open' : ''}" data-canvas-menu="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-open" data-context="sidebar" data-canvas="${canvas.id}">
                     <i class="bi bi-box-arrow-up-right"></i>
                     <span>Open canvas</span>
                   </button>
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-duplicate" data-canvas="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-duplicate" data-context="sidebar" data-canvas="${canvas.id}">
                     <i class="bi bi-files"></i>
                     <span>Duplicate canvas</span>
                   </button>
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-canvas="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-context="sidebar" data-canvas="${canvas.id}">
                     <i class="bi bi-pencil"></i>
                     <span>Rename canvas</span>
                   </button>
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-canvas="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-context="sidebar" data-canvas="${canvas.id}">
                     <i class="bi bi-arrow-left-right"></i>
                     <span>Move to folder</span>
                   </button>
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-delete" data-canvas="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-delete" data-context="sidebar" data-canvas="${canvas.id}">
                     <i class="bi bi-trash"></i>
                     <span>Delete canvas</span>
                   </button>
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-share" data-canvas="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-share" data-context="sidebar" data-canvas="${canvas.id}">
                     <i class="bi bi-share"></i>
                     <span>Share canvas</span>
                   </button>
@@ -515,6 +518,7 @@ export function initDashboard() {
     state.editingSectionId = null;
     state.editingFolderId = null;
     state.editingCanvasId = null;
+    state.editingCanvasContext = null;
   };
 
   const closeFolderMenu = () => {
@@ -540,7 +544,87 @@ export function initDashboard() {
   const toggleCanvasMenu = (canvasId) => {
     if (!canvasId) return;
     state.openCanvasMenuId = idsMatch(state.openCanvasMenuId, canvasId) ? null : canvasId;
-    renderSidebar();
+    render();
+  };
+
+  const handleCanvasAction = (action, trigger, event = null) => {
+    if (!action || !trigger) return false;
+    const canvasId = trigger.dataset.canvas;
+    const context = trigger.dataset.context || 'sidebar';
+    const stop = () => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+    };
+    if (action === 'canvas-duplicate' && canvasId) {
+      stop();
+      closeCanvasMenu();
+      void handleDuplicateCanvas(canvasId);
+      return true;
+    }
+    if (action === 'canvas-favorite' && canvasId) {
+      stop();
+      closeCanvasMenu();
+      window.showAppToast?.({
+        title: 'Favorites coming soon',
+        message: 'Pin canvases once the API is available.',
+        variant: 'info'
+      });
+      return true;
+    }
+    if (action === 'canvas-rename' && canvasId) {
+      stop();
+      beginCanvasRename(canvasId, context);
+      return true;
+    }
+    if (action === 'canvas-options' && canvasId) {
+      stop();
+      toggleCanvasMenu(canvasId);
+      return true;
+    }
+    if (action === 'canvas-menu-open' && canvasId) {
+      stop();
+      closeCanvasMenu();
+      navigateToCanvas(canvasId);
+      return true;
+    }
+    if (action === 'canvas-menu-duplicate' && canvasId) {
+      stop();
+      closeCanvasMenu();
+      void handleDuplicateCanvas(canvasId);
+      return true;
+    }
+    if (action === 'canvas-menu-rename' && canvasId) {
+      stop();
+      beginCanvasRename(canvasId, context);
+      return true;
+    }
+    if (action === 'canvas-menu-move' && canvasId) {
+      stop();
+      closeCanvasMenu();
+      window.showAppToast?.({
+        title: 'Move coming soon',
+        message: 'Moving canvases between folders will arrive later.',
+        variant: 'info'
+      });
+      return true;
+    }
+    if (action === 'canvas-menu-delete' && canvasId) {
+      stop();
+      closeCanvasMenu();
+      void handleDeleteCanvas(canvasId);
+      return true;
+    }
+    if (action === 'canvas-menu-share' && canvasId) {
+      stop();
+      closeCanvasMenu();
+      window.showAppToast?.({
+        title: 'Share coming soon',
+        message: 'Sharing workflow is not enabled yet.',
+        variant: 'info'
+      });
+      return true;
+    }
+    return false;
   };
 
   const beginProjectRename = (sectionId) => {
@@ -559,14 +643,19 @@ export function initDashboard() {
     renderSidebar();
   };
 
-  const beginCanvasRename = (canvasId) => {
+  const beginCanvasRename = (canvasId, context = 'sidebar') => {
     if (!canvasId) return;
     state.editingCanvasId = canvasId;
+    state.editingCanvasContext = context;
     state.editingSectionId = null;
     state.editingFolderId = null;
     closeCanvasMenu();
-    renderSidebar();
+    render();
   };
+
+  const isInlineInput = (node) =>
+    node instanceof HTMLInputElement &&
+    (node.dataset.inlineProject || node.dataset.inlineFolder || node.dataset.inlineCanvas);
 
   const finalizeInlineEdit = (input, { cancel = false } = {}) => {
     if (!input || input.dataset.inlineSubmitted === 'true') return;
@@ -702,29 +791,86 @@ export function initDashboard() {
       return;
     }
     const rows = canvases
-      .map(
-        (canvas) => `
+      .map((canvas) => {
+        const canvasMenuOpen = idsMatch(state.openCanvasMenuId, canvas.id);
+        const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
+        const showInline = isEditingCanvas && state.editingCanvasContext === 'list';
+        const titleCell = showInline
+          ? `
+            <div class="sidebar-inline-wrapper w-100">
+              <input
+                type="text"
+                class="sidebar-inline-input"
+                data-inline-canvas="${canvas.id}"
+                data-inline-context="list"
+                data-initial-value="${escapeAttribute(canvas.title)}"
+                value="${escapeAttribute(canvas.title)}"
+                maxlength="140"
+                placeholder="Canvas name"
+                aria-label="Edit canvas name"
+                autocomplete="off"
+              />
+            </div>
+          `
+          : `
+            <button type="button" class="btn btn-link p-0" data-action="open-canvas" data-canvas="${canvas.id}">
+              ${escapeHtml(canvas.title)}
+            </button>
+          `;
+        return `
           <tr>
             <td class="cell-name">
-              <button type="button" class="btn btn-link p-0" data-action="open-canvas" data-canvas="${canvas.id}">
-                ${escapeHtml(canvas.title)}
-              </button>
+              ${titleCell}
             </td>
             <td>${escapeHtml(canvas.projectTitle)}</td>
             <td>${escapeHtml(canvas.folderName)}</td>
             <td class="cell-meta">${formatRelative(canvas.updated)}</td>
             <td class="cell-meta">${escapeHtml(canvas.owner)}</td>
             <td class="table-actions">
-              <button type="button" class="table-icon-btn" data-action="list-pin" data-canvas="${canvas.id}" title="Pin">
-                <i class="bi bi-star"></i>
-              </button>
-              <button type="button" class="table-icon-btn" data-action="list-more" data-canvas="${canvas.id}" title="More options">
-                <i class="bi bi-three-dots"></i>
-              </button>
+              <div class="table-action-buttons">
+                <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="list" data-canvas="${canvas.id}" title="Duplicate canvas">
+                  <i class="bi bi-files"></i>
+                </button>
+                <button type="button" class="table-icon-btn" data-action="canvas-favorite" data-context="list" data-canvas="${canvas.id}" title="Favorite canvas">
+                  <i class="bi bi-star"></i>
+                </button>
+                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="list" data-canvas="${canvas.id}" title="Rename canvas">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="table-icon-btn" data-action="canvas-options" data-context="list" data-canvas="${canvas.id}" title="Canvas options">
+                  <i class="bi bi-three-dots"></i>
+                </button>
+              </div>
+              <div class="canvas-menu dashboard-canvas-menu${canvasMenuOpen ? ' is-open' : ''}" data-canvas-menu="${canvas.id}">
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-open" data-context="list" data-canvas="${canvas.id}">
+                  <i class="bi bi-box-arrow-up-right"></i>
+                  <span>Open canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-duplicate" data-context="list" data-canvas="${canvas.id}">
+                  <i class="bi bi-files"></i>
+                  <span>Duplicate canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-context="list" data-canvas="${canvas.id}">
+                  <i class="bi bi-pencil"></i>
+                  <span>Rename canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-context="list" data-canvas="${canvas.id}">
+                  <i class="bi bi-arrow-left-right"></i>
+                  <span>Move to folder</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-delete" data-context="list" data-canvas="${canvas.id}">
+                  <i class="bi bi-trash"></i>
+                  <span>Delete canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-share" data-context="list" data-canvas="${canvas.id}">
+                  <i class="bi bi-share"></i>
+                  <span>Share canvas</span>
+                </button>
+              </div>
             </td>
           </tr>
-        `
-      )
+        `;
+      })
       .join('');
     listContainer.innerHTML = `
       <div class="dashboard-table-wrapper">
@@ -754,26 +900,78 @@ export function initDashboard() {
       return;
     }
     galleryContainer.innerHTML = canvases
-      .map(
-        (canvas) => `
+      .map((canvas) => {
+        const canvasMenuOpen = idsMatch(state.openCanvasMenuId, canvas.id);
+        const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
+        const showInline = isEditingCanvas && state.editingCanvasContext === 'gallery';
+        const titleBlock = showInline
+          ? `
+            <div class="sidebar-inline-wrapper w-100">
+              <input
+                type="text"
+                class="sidebar-inline-input"
+                data-inline-canvas="${canvas.id}"
+                data-inline-context="gallery"
+                data-initial-value="${escapeAttribute(canvas.title)}"
+                value="${escapeAttribute(canvas.title)}"
+                maxlength="140"
+                placeholder="Canvas name"
+                aria-label="Edit canvas name"
+                autocomplete="off"
+              />
+            </div>
+          `
+          : `<div class="dashboard-gallery-title">${escapeHtml(canvas.title)}</div>`;
+        return `
           <article class="dashboard-gallery-card">
             <div class="dashboard-gallery-thumb" aria-hidden="true"></div>
-            <div class="dashboard-gallery-title">${escapeHtml(canvas.title)}</div>
+            ${titleBlock}
             <div class="dashboard-gallery-meta">${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}</div>
             <div class="table-actions">
-              <button type="button" class="table-icon-btn" data-action="open-canvas" data-canvas="${canvas.id}" title="Open">
-                <i class="bi bi-box-arrow-up-right"></i>
-              </button>
-              <button type="button" class="table-icon-btn" data-action="list-pin" data-canvas="${canvas.id}" title="Pin">
-                <i class="bi bi-star"></i>
-              </button>
-              <button type="button" class="table-icon-btn" data-action="list-more" data-canvas="${canvas.id}" title="More options">
-                <i class="bi bi-three-dots"></i>
-              </button>
+              <div class="table-action-buttons">
+                <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="gallery" data-canvas="${canvas.id}" title="Duplicate canvas">
+                  <i class="bi bi-files"></i>
+                </button>
+                <button type="button" class="table-icon-btn" data-action="canvas-favorite" data-context="gallery" data-canvas="${canvas.id}" title="Favorite canvas">
+                  <i class="bi bi-star"></i>
+                </button>
+                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="gallery" data-canvas="${canvas.id}" title="Rename canvas">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="table-icon-btn" data-action="canvas-options" data-context="gallery" data-canvas="${canvas.id}" title="Canvas options">
+                  <i class="bi bi-three-dots"></i>
+                </button>
+              </div>
+              <div class="canvas-menu dashboard-canvas-menu${canvasMenuOpen ? ' is-open' : ''}" data-canvas-menu="${canvas.id}">
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-open" data-context="gallery" data-canvas="${canvas.id}">
+                  <i class="bi bi-box-arrow-up-right"></i>
+                  <span>Open canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-duplicate" data-context="gallery" data-canvas="${canvas.id}">
+                  <i class="bi bi-files"></i>
+                  <span>Duplicate canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-context="gallery" data-canvas="${canvas.id}">
+                  <i class="bi bi-pencil"></i>
+                  <span>Rename canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-context="gallery" data-canvas="${canvas.id}">
+                  <i class="bi bi-arrow-left-right"></i>
+                  <span>Move to folder</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-delete" data-context="gallery" data-canvas="${canvas.id}">
+                  <i class="bi bi-trash"></i>
+                  <span>Delete canvas</span>
+                </button>
+                <button type="button" class="sidebar-menu-item" data-action="canvas-menu-share" data-context="gallery" data-canvas="${canvas.id}">
+                  <i class="bi bi-share"></i>
+                  <span>Share canvas</span>
+                </button>
+              </div>
             </div>
           </article>
-        `
-      )
+        `;
+      })
       .join('');
   };
 
@@ -1014,10 +1212,7 @@ export function initDashboard() {
     if (state.devMode) {
       target.searchParams.set('dev', 'true');
     }
-    const openedWindow = window.open(target.toString(), '_blank', 'noopener');
-    if (!openedWindow) {
-      window.location.assign(target.toString());
-    }
+    window.location.assign(target.toString());
   };
 
   const handleCreateFolder = async (sectionId) => {
@@ -1230,73 +1425,7 @@ export function initDashboard() {
       });
       return;
     }
-    if (action === 'canvas-duplicate' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      closeCanvasMenu();
-      void handleDuplicateCanvas(trigger.dataset.canvas);
-      return;
-    }
-    if (action === 'canvas-favorite' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      closeCanvasMenu();
-      window.showAppToast?.({
-        title: 'Favorites coming soon',
-        message: 'Pin canvases once the API is available.',
-        variant: 'info'
-      });
-      return;
-    }
-    if (action === 'canvas-rename' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      beginCanvasRename(trigger.dataset.canvas);
-      return;
-    }
-    if (action === 'canvas-options' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      toggleCanvasMenu(trigger.dataset.canvas);
-      return;
-    }
-    if (action === 'canvas-menu-open' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      closeCanvasMenu();
-      navigateToCanvas(trigger.dataset.canvas);
-      return;
-    }
-    if (action === 'canvas-menu-duplicate' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      closeCanvasMenu();
-      void handleDuplicateCanvas(trigger.dataset.canvas);
-      return;
-    }
-    if (action === 'canvas-menu-move' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      closeCanvasMenu();
-      window.showAppToast?.({
-        title: 'Move coming soon',
-        message: 'Moving canvases between folders will arrive later.',
-        variant: 'info'
-      });
-      return;
-    }
-    if (action === 'canvas-menu-rename' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      beginCanvasRename(trigger.dataset.canvas);
-      return;
-    }
-    if (action === 'canvas-menu-delete' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      closeCanvasMenu();
-      void handleDeleteCanvas(trigger.dataset.canvas);
-      return;
-    }
-    if (action === 'canvas-menu-share' && trigger.dataset.canvas) {
-      event.stopPropagation();
-      closeCanvasMenu();
-      window.showAppToast?.({
-        title: 'Share coming soon',
-        message: 'Sharing workflow is not enabled yet.',
-        variant: 'info'
-      });
+    if (handleCanvasAction(action, trigger, event)) {
       return;
     }
     if (action === 'sidebar-open-canvas' && trigger.dataset.canvas) {
@@ -1307,11 +1436,9 @@ export function initDashboard() {
     }
   });
 
-  sidebarTree?.addEventListener('keydown', (event) => {
+  const handleInlineKeydown = (event) => {
     const input = event.target;
-    if (!(input instanceof HTMLInputElement)) return;
-    if (!input.dataset.inlineProject && !input.dataset.inlineFolder && !input.dataset.inlineCanvas)
-      return;
+    if (!isInlineInput(input)) return;
     if (event.key === 'Enter') {
       event.preventDefault();
       finalizeInlineEdit(input);
@@ -1321,23 +1448,18 @@ export function initDashboard() {
       input.value = original;
       finalizeInlineEdit(input, { cancel: true });
     }
-  });
+  };
 
-  sidebarTree?.addEventListener(
-    'focusout',
-    (event) => {
-      const input = event.target;
-      if (!(input instanceof HTMLInputElement)) return;
-      if (
-        !input.dataset.inlineProject &&
-        !input.dataset.inlineFolder &&
-        !input.dataset.inlineCanvas
-      )
-        return;
-      finalizeInlineEdit(input);
-    },
-    true
-  );
+  const handleInlineBlur = (event) => {
+    const input = event.target;
+    if (!isInlineInput(input)) return;
+    finalizeInlineEdit(input);
+  };
+
+  sidebarTree?.addEventListener('keydown', handleInlineKeydown);
+  sidebarTree?.addEventListener('focusout', handleInlineBlur, true);
+  root.addEventListener('keydown', handleInlineKeydown, true);
+  root.addEventListener('focusout', handleInlineBlur, true);
 
   document.addEventListener('click', (event) => {
     const target = event.target;
@@ -1567,6 +1689,7 @@ export function initDashboard() {
       return;
     }
     if (trimmed === currentTitle) return;
+    const viewContext = getActiveViewContext();
     try {
       await updateCanvas(canvasId, { title: trimmed });
       window.showAppToast?.({
@@ -1575,9 +1698,9 @@ export function initDashboard() {
         variant: 'success'
       });
       await loadSections();
-      if (owner?.project?.id) {
-        selectFolder(owner.project.id);
-      }
+      applyViewContext(viewContext);
+      render();
+      updateMainTitle();
     } catch (err) {
       window.showAppToast?.({
         title: 'Unable to rename canvas',
@@ -1599,7 +1722,9 @@ export function initDashboard() {
     }
     const baseTitle = owner.canvas?.title || 'Untitled canvas';
     const duplicateTitle = generateDuplicateTitle(owner.project, baseTitle);
+    const viewContext = getActiveViewContext();
     try {
+      clearInlineEditing();
       const payload = await fetchCanvasState(canvasId);
       const snapshot = payload?.state || createEmptyWorkspaceSnapshot();
       const newCanvas = await createCanvas(owner.project.id, {
@@ -1613,7 +1738,9 @@ export function initDashboard() {
         variant: 'success'
       });
       await loadSections();
-      selectFolder(owner.project.id);
+      applyViewContext(viewContext);
+      render();
+      updateMainTitle();
     } catch (err) {
       window.showAppToast?.({
         title: 'Unable to duplicate canvas',
@@ -1630,6 +1757,7 @@ export function initDashboard() {
       `Delete canvas "${title}"? This cannot be undone and removes all autosaves.`
     );
     if (!confirmed) return;
+    const viewContext = getActiveViewContext();
     try {
       await deleteCanvas(canvasId);
       window.showAppToast?.({
@@ -1638,9 +1766,9 @@ export function initDashboard() {
         variant: 'info'
       });
       await loadSections();
-      if (owner?.project?.id) {
-        selectFolder(owner.project.id);
-      }
+      applyViewContext(viewContext);
+      render();
+      updateMainTitle();
     } catch (err) {
       window.showAppToast?.({
         title: 'Unable to delete canvas',
@@ -1710,7 +1838,11 @@ export function initDashboard() {
   root.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-action]');
     if (!trigger) return;
-    if (trigger.dataset.action === 'list-pin') {
+    const action = trigger.dataset.action;
+    if (handleCanvasAction(action, trigger, event)) {
+      return;
+    }
+    if (action === 'list-pin') {
       event.preventDefault();
       window.showAppToast?.({
         title: 'Coming soon',
@@ -1719,7 +1851,7 @@ export function initDashboard() {
       });
       return;
     }
-    if (trigger.dataset.action === 'list-more') {
+    if (action === 'list-more') {
       event.preventDefault();
       window.showAppToast?.({
         title: 'Coming soon',
@@ -1728,7 +1860,7 @@ export function initDashboard() {
       });
       return;
     }
-    if (trigger.dataset.action === 'open-canvas' && trigger.dataset.canvas) {
+    if (action === 'open-canvas' && trigger.dataset.canvas) {
       event.preventDefault();
       navigateToCanvas(trigger.dataset.canvas);
     }
@@ -1775,3 +1907,64 @@ function sortProjects(projects, mode) {
   }
   return copy;
 }
+  const getActiveViewContext = () => {
+    if (state.filters.folder) {
+      return {
+        mode: 'folder',
+        sectionId: state.filters.section,
+        folderId: state.filters.folder
+      };
+    }
+    if (state.filters.section && state.filters.section !== 'all') {
+      return {
+        mode: 'section',
+        sectionId: state.filters.section,
+        folderId: null
+      };
+    }
+    return {
+      mode: 'section',
+      sectionId: 'all',
+      folderId: null
+    };
+  };
+
+  const applyViewContext = (context) => {
+    if (!context) return;
+    if (context.mode === 'folder' && context.folderId) {
+      const owner = findFolderOwner(context.folderId);
+      if (owner) {
+        state.filters.section = owner.section.id;
+        state.filters.folder = owner.project.id;
+        state.activeSectionId = owner.section.id;
+        state.activeProjectId = owner.project.id;
+        if (folderSelect) {
+          folderSelect.value = owner.section.id;
+        }
+        state.expandedProjects.add(owner.section.id);
+        state.expandedFolders.add(owner.project.id);
+        return;
+      }
+    }
+    if (context.mode === 'section' && context.sectionId && context.sectionId !== 'all') {
+      const exists = (state.sections || []).some((section) => idsMatch(section.id, context.sectionId));
+      if (exists) {
+        state.filters.section = context.sectionId;
+        state.filters.folder = null;
+        state.activeSectionId = context.sectionId;
+        state.activeProjectId = null;
+        if (folderSelect) {
+          folderSelect.value = context.sectionId;
+        }
+        state.expandedProjects.add(context.sectionId);
+        return;
+      }
+    }
+    state.filters.section = 'all';
+    state.filters.folder = null;
+    state.activeSectionId = null;
+    state.activeProjectId = null;
+    if (folderSelect) {
+      folderSelect.value = 'all';
+    }
+  };
