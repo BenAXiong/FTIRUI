@@ -84,6 +84,18 @@ export function initDashboard() {
   const normalizeId = (value) => (value === null || value === undefined ? '' : String(value));
   const idsMatch = (left, right) => normalizeId(left) === normalizeId(right);
 
+  const resolveClosest = (event, selector) => {
+    if (!event || !selector) return null;
+    const origin = event.target;
+    if (origin instanceof Element) {
+      return origin.closest(selector);
+    }
+    if (origin && origin.nodeType === Node.TEXT_NODE) {
+      return origin.parentElement?.closest(selector) ?? null;
+    }
+    return null;
+  };
+
   const getActiveSection = () => {
     if (!state.activeSectionId) return null;
     return (
@@ -784,6 +796,68 @@ export function initDashboard() {
     return rows;
   };
 
+  const getActiveViewContext = () => {
+    if (state.filters.folder) {
+      return {
+        mode: 'folder',
+        sectionId: state.filters.section,
+        folderId: state.filters.folder
+      };
+    }
+    if (state.filters.section && state.filters.section !== 'all') {
+      return {
+        mode: 'section',
+        sectionId: state.filters.section,
+        folderId: null
+      };
+    }
+    return {
+      mode: 'section',
+      sectionId: 'all',
+      folderId: null
+    };
+  };
+
+  const applyViewContext = (context) => {
+    if (!context) return;
+    if (context.mode === 'folder' && context.folderId) {
+      const owner = findFolderOwner(context.folderId);
+      if (owner) {
+        state.filters.section = owner.section.id;
+        state.filters.folder = owner.project.id;
+        state.activeSectionId = owner.section.id;
+        state.activeProjectId = owner.project.id;
+        if (folderSelect) {
+          folderSelect.value = owner.section.id;
+        }
+        state.expandedProjects.add(owner.section.id);
+        state.expandedFolders.add(owner.project.id);
+        return;
+      }
+    }
+    if (context.mode === 'section' && context.sectionId && context.sectionId !== 'all') {
+      const exists = (state.sections || []).some((section) => idsMatch(section.id, context.sectionId));
+      if (exists) {
+        state.filters.section = context.sectionId;
+        state.filters.folder = null;
+        state.activeSectionId = context.sectionId;
+        state.activeProjectId = null;
+        if (folderSelect) {
+          folderSelect.value = context.sectionId;
+        }
+        state.expandedProjects.add(context.sectionId);
+        return;
+      }
+    }
+    state.filters.section = 'all';
+    state.filters.folder = null;
+    state.activeSectionId = null;
+    state.activeProjectId = null;
+    if (folderSelect) {
+      folderSelect.value = 'all';
+    }
+  };
+
   const renderList = (canvases) => {
     if (!listContainer) return;
     if (!canvases.length) {
@@ -1320,7 +1394,7 @@ export function initDashboard() {
   };
 
   sidebarTree?.addEventListener('click', (event) => {
-    const trigger = event.target.closest('button[data-action]');
+    const trigger = resolveClosest(event, 'button[data-action]');
     if (!trigger) return;
     const { action } = trigger.dataset;
     if (action === 'select-project' && trigger.dataset.section) {
@@ -1494,8 +1568,42 @@ export function initDashboard() {
     }
   });
 
+  const handleMainActionClick = (event) => {
+    const trigger = resolveClosest(event, '[data-action]');
+    if (!trigger) return;
+    const action = trigger.dataset.action;
+    if (handleCanvasAction(action, trigger, event)) {
+      return;
+    }
+    if (action === 'list-pin') {
+      event.preventDefault();
+      window.showAppToast?.({
+        title: 'Coming soon',
+        message: 'Pinning will be available soon.',
+        variant: 'info'
+      });
+      return;
+    }
+    if (action === 'list-more') {
+      event.preventDefault();
+      window.showAppToast?.({
+        title: 'Coming soon',
+        message: 'More options will arrive soon.',
+        variant: 'info'
+      });
+      return;
+    }
+    if (action === 'open-canvas' && trigger.dataset.canvas) {
+      event.preventDefault();
+      navigateToCanvas(trigger.dataset.canvas);
+    }
+  };
+
+  listContainer?.addEventListener('click', handleMainActionClick);
+  galleryContainer?.addEventListener('click', handleMainActionClick);
+
   sidebarNav?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-view]');
+    const button = resolveClosest(event, '[data-view]');
     if (!button) return;
     state.sidebarView = button.dataset.view || 'home';
     state.activeProjectId = null;
@@ -1829,41 +1937,10 @@ export function initDashboard() {
   });
 
   viewToggle?.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-view]');
+    const button = resolveClosest(event, 'button[data-view]');
     if (!button) return;
     state.viewMode = button.dataset.view || 'list';
     updateView();
-  });
-
-  root.addEventListener('click', (event) => {
-    const trigger = event.target.closest('[data-action]');
-    if (!trigger) return;
-    const action = trigger.dataset.action;
-    if (handleCanvasAction(action, trigger, event)) {
-      return;
-    }
-    if (action === 'list-pin') {
-      event.preventDefault();
-      window.showAppToast?.({
-        title: 'Coming soon',
-        message: 'Pinning will be available soon.',
-        variant: 'info'
-      });
-      return;
-    }
-    if (action === 'list-more') {
-      event.preventDefault();
-      window.showAppToast?.({
-        title: 'Coming soon',
-        message: 'More options will arrive soon.',
-        variant: 'info'
-      });
-      return;
-    }
-    if (action === 'open-canvas' && trigger.dataset.canvas) {
-      event.preventDefault();
-      navigateToCanvas(trigger.dataset.canvas);
-    }
   });
 
   void loadSections();
@@ -1907,64 +1984,3 @@ function sortProjects(projects, mode) {
   }
   return copy;
 }
-  const getActiveViewContext = () => {
-    if (state.filters.folder) {
-      return {
-        mode: 'folder',
-        sectionId: state.filters.section,
-        folderId: state.filters.folder
-      };
-    }
-    if (state.filters.section && state.filters.section !== 'all') {
-      return {
-        mode: 'section',
-        sectionId: state.filters.section,
-        folderId: null
-      };
-    }
-    return {
-      mode: 'section',
-      sectionId: 'all',
-      folderId: null
-    };
-  };
-
-  const applyViewContext = (context) => {
-    if (!context) return;
-    if (context.mode === 'folder' && context.folderId) {
-      const owner = findFolderOwner(context.folderId);
-      if (owner) {
-        state.filters.section = owner.section.id;
-        state.filters.folder = owner.project.id;
-        state.activeSectionId = owner.section.id;
-        state.activeProjectId = owner.project.id;
-        if (folderSelect) {
-          folderSelect.value = owner.section.id;
-        }
-        state.expandedProjects.add(owner.section.id);
-        state.expandedFolders.add(owner.project.id);
-        return;
-      }
-    }
-    if (context.mode === 'section' && context.sectionId && context.sectionId !== 'all') {
-      const exists = (state.sections || []).some((section) => idsMatch(section.id, context.sectionId));
-      if (exists) {
-        state.filters.section = context.sectionId;
-        state.filters.folder = null;
-        state.activeSectionId = context.sectionId;
-        state.activeProjectId = null;
-        if (folderSelect) {
-          folderSelect.value = context.sectionId;
-        }
-        state.expandedProjects.add(context.sectionId);
-        return;
-      }
-    }
-    state.filters.section = 'all';
-    state.filters.folder = null;
-    state.activeSectionId = null;
-    state.activeProjectId = null;
-    if (folderSelect) {
-      folderSelect.value = 'all';
-    }
-  };
