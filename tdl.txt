@@ -1,18 +1,17 @@
 Phase 7
 
+?mountWorkspace or app.js, since both views share the same functionality.
+
+canvases thumbnails?
+broken rename and delete
 check remaining occurences of "section" and replace with folder when adequate
-New folder should open folder not prohect
+New folder should open folder not project
 test option/move for folders and canvases
+create the fav backend, API and all
+
 ellipse long names
-bug: extra window opens when editing canvas
 options popup placement
 gallery fixed size 1/4
-canvas name
-
-possible to create the fav backend, API and all now?
-
-test create, save, reopen canvases
-    thumbnails?
 main view arrows to sort by name, projects, folders, etc
 
 Step 4 – Cleanup & Migration (✅ done)

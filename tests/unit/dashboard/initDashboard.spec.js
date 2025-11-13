@@ -33,6 +33,12 @@ const setupDom = () => {
 
 const mockLocation = (href = 'https://app.test/') => {
   const location = new URL(href);
+  Object.defineProperty(location, 'assign', {
+    value: vi.fn((nextHref) => {
+      location.href = nextHref;
+    }),
+    writable: true
+  });
   Object.defineProperty(window, 'location', {
     value: location,
     writable: true,
@@ -111,7 +117,7 @@ describe('initDashboard', () => {
 
   it('opens standalone workspace route when workspace tab is disabled', async () => {
     document.body.dataset.workspaceTabEnabled = 'false';
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue({});
+    const assignSpy = window.location.assign;
 
     const canvasId = 'canvas-standalone';
     vi.spyOn(dashboardService, 'fetchSections').mockResolvedValue({
@@ -138,10 +144,10 @@ describe('initDashboard', () => {
     canvasButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flushPromises();
 
-    expect(openSpy).toHaveBeenCalledTimes(1);
-    const urlOpened = openSpy.mock.calls[0][0];
-    expect(urlOpened).toContain('/workspace');
-    expect(urlOpened).toContain(canvasId);
+    expect(assignSpy).toHaveBeenCalledTimes(1);
+    const urlAssigned = assignSpy.mock.calls[0][0];
+    expect(urlAssigned).toContain('/workspace');
+    expect(urlAssigned).toContain(canvasId);
   });
 
   it('builds the explorer pane and opens the first canvas of a project', async () => {

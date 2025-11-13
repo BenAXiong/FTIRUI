@@ -6,6 +6,7 @@
  */
 import { fetchDemoFiles } from '../../../../services/demos.js';
 import { uploadTraceFile } from '../../../../services/uploads.js';
+import { fetchCanvasState, saveCanvasState } from '../../../../services/dashboard.js';
 import { createChipPanels } from '../../chipPanels.js';
 import { createPanelsModel } from '../../../../workspace/canvas/state/panelsModel.js';
 import { applyLineChip } from '../../../utils/styling_linechip.js';
@@ -70,6 +71,7 @@ let browserFacade = null;
 let persistence = null;
 let history = null;
 let persist = () => {};
+let suppressRemoteSyncOnce = false;
 let pushHistory = () => {};
 let undo = () => {};
 let redo = () => {};
@@ -79,6 +81,26 @@ let saveWorkspaceSnapshot = () => {};
 let loadWorkspaceSnapshot = () => {};
 let clearWorkspaceSnapshot = () => {};
 let preferencesFacade = null;
+let remoteSyncTimer = null;
+const REMOTE_SYNC_DELAY_MS = 5000;
+
+const getActiveCanvasIdFromContext = () => {
+  if (typeof document !== 'undefined') {
+    const bodyId = document.body?.dataset?.activeCanvasId;
+    if (bodyId) return bodyId;
+  }
+  if (typeof window !== 'undefined') {
+    if (window.__ACTIVE_CANVAS_ID) return window.__ACTIVE_CANVAS_ID;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('canvas');
+      if (id) return id;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+};
 
 const setDropTarget = (element) => {
   if (currentDropTarget === element) return;
@@ -105,6 +127,23 @@ const pickColor = () => {
 };
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
+const isWorkspaceSnapshot = (value) => {
+  if (!value || typeof value !== 'object') return false;
+  if (value.panels) {
+    if (Array.isArray(value.panels)) return true;
+    if (Array.isArray(value.panels?.items)) return true;
+    if (typeof value.panels === 'object') return true;
+  }
+  if (value.sections) {
+    if (Array.isArray(value.sections)) return true;
+    if (Array.isArray(value.sections?.items)) return true;
+    if (typeof value.sections === 'object') return true;
+  }
+  if (value.figures && typeof value.figures === 'object') return true;
+  if (value.uiPrefs && typeof value.uiPrefs === 'object') return true;
+  return false;
+};
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -227,6 +266,7 @@ export function initWorkspaceRuntime(context = {}) {
   const canvasWrapper = roots.canvasWrapper ?? canvas?.closest('.workspace-canvas-wrapper');
   const topToolbar = roots.topToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar');
   const verticalToolbar = roots.verticalToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar-vertical');
+  const activeCanvasId = getActiveCanvasIdFromContext();
 
   const updateToolbarMetrics = () => {
     if (!canvasWrapper) return;
@@ -734,6 +774,44 @@ let updateCanvasState = () => {};
     setActivePanel,
     colorCursor: colorCursorManager
   });
+
+  const flushRemoteSync = async () => {
+    if (!activeCanvasId || !snapshotManager) return;
+    try {
+      const snapshot = snapshotManager.snapshot();
+      if (!snapshot || typeof snapshot !== 'object') return;
+      const title =
+        (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasTitle) || '';
+      await saveCanvasState(activeCanvasId, {
+        state: snapshot,
+        version_label: title
+      });
+    } catch (err) {
+      console.warn('Dashboard canvas sync failed', err);
+    }
+  };
+
+  const scheduleCanvasSync = ({ immediate = false, reset = false } = {}) => {
+    if (!activeCanvasId || !snapshotManager) return;
+    if (reset && remoteSyncTimer) {
+      window.clearTimeout(remoteSyncTimer);
+      remoteSyncTimer = null;
+    }
+    if (reset) return;
+    if (immediate) {
+      if (remoteSyncTimer) {
+        window.clearTimeout(remoteSyncTimer);
+        remoteSyncTimer = null;
+      }
+      void flushRemoteSync();
+      return;
+    }
+    if (remoteSyncTimer) return;
+    remoteSyncTimer = window.setTimeout(() => {
+      remoteSyncTimer = null;
+      void flushRemoteSync();
+    }, REMOTE_SYNC_DELAY_MS);
+  };
   const interact = typeof window !== 'undefined' ? window.interact : null;
   ensureDefaultSection();
   if (!chipPanelsInstance && typeof document !== 'undefined') {
@@ -1379,6 +1457,21 @@ let updateCanvasState = () => {};
       clearSnapshot: clearWorkspaceSnapshot,
       restoreSnapshot
     } = persistence);
+    const basePersist = persist;
+    persist = (options = {}) => {
+      const nextOptions = options && typeof options === 'object' ? options : {};
+      const result = basePersist?.(nextOptions);
+      if (!activeCanvasId) {
+        suppressRemoteSyncOnce = false;
+        return result;
+      }
+      if (nextOptions.skipRemoteSync || suppressRemoteSyncOnce) {
+        suppressRemoteSyncOnce = false;
+        return result;
+      }
+      scheduleCanvasSync();
+      return result;
+    };
     persistence.attachEvents();
     const rawPushHistory = pushHistory || (() => false);
     pushHistory = (info = null) => {
@@ -2242,8 +2335,17 @@ let updateCanvasState = () => {};
 
   const hadSnapshotOnBoot = storage.hasSnapshot?.() ?? false;
   const saved = storage.load?.();
+  const shouldHydrateDashboardCanvas = !!activeCanvasId;
 
-  if (saved) {
+  if (shouldHydrateDashboardCanvas) {
+    history?.clear?.();
+    updateCanvasState();
+    renderBrowser();
+    void hydrateDashboardCanvasState(activeCanvasId, {
+      fallbackSnapshot: saved,
+      hadSnapshotOnBoot
+    });
+  } else if (saved) {
     restoreSnapshot(saved, { skipHistory: true });
     history?.clear?.();
   } else {
@@ -2307,6 +2409,12 @@ let updateCanvasState = () => {};
   };
 
   const teardown = () => {
+    scheduleCanvasSync({ immediate: true });
+    if (remoteSyncTimer) {
+      window.clearTimeout(remoteSyncTimer);
+      remoteSyncTimer = null;
+    }
+    suppressRemoteSyncOnce = false;
     if (workspaceObserver) {
       workspaceObserver.disconnect();
       workspaceObserver = null;
@@ -2340,6 +2448,7 @@ let updateCanvasState = () => {};
       handleWindowScroll();
     },
     onBeforeUnload: () => {
+      scheduleCanvasSync({ immediate: true });
       persistence?.handleBeforeUnload?.();
     },
     onVisibilityChange: () => {
@@ -2349,4 +2458,74 @@ let updateCanvasState = () => {};
     getModels: () => ({ panelsModel, sectionsModel }),
     getPanelDomRegistry: () => panelDomRegistry
   };
+
+  async function hydrateDashboardCanvasState(
+    canvasId,
+    { fallbackSnapshot = null, hadSnapshotOnBoot = false } = {}
+  ) {
+    if (!canvasId) return;
+    try {
+      const payload = await fetchCanvasState(canvasId);
+      const applyActiveCanvasTitle = (value) => {
+        if (!value) return;
+        if (typeof document !== 'undefined' && document.body) {
+          document.body.dataset.activeCanvasTitle = value;
+        }
+        const badge = document.querySelector('[data-workspace-canvas-title]');
+        if (badge && badge.dataset.editing !== 'true') {
+          badge.dataset.displayValue = value;
+          badge.textContent = value;
+        }
+      };
+      if (payload?.title) {
+        applyActiveCanvasTitle(payload.title);
+      }
+      if (!isWorkspaceSnapshot(payload?.state)) {
+        console.info('Canvas state missing workspace snapshot; using local data.');
+        if (fallbackSnapshot) {
+          suppressRemoteSyncOnce = true;
+          restoreSnapshot(fallbackSnapshot, { skipHistory: true });
+          history?.clear?.();
+          updateHistoryButtons();
+          updateStorageButtons();
+          showToast('Canvas restored from local autosave. Syncing to dashboard…', 'info');
+        } else if (hadSnapshotOnBoot) {
+          showToast('Canvas load failed. Starting with defaults.', 'danger');
+        } else {
+          showToast('Canvas ready. Syncing first save to dashboard.', 'info');
+        }
+        scheduleCanvasSync({ immediate: true });
+        return;
+      }
+      suppressRemoteSyncOnce = true;
+      restoreSnapshot(payload.state, { skipHistory: true });
+      history?.clear?.();
+      updateHistoryButtons();
+      updateStorageButtons();
+      updateToolbarMetrics();
+      requestLayoutSync();
+      if (typeof storage?.save === 'function') {
+        try {
+          storage.save(payload.state);
+        } catch {
+          /* ignore storage failures */
+        }
+      }
+      scheduleCanvasSync({ reset: true });
+      showToast(`Canvas "${payload.title || 'Untitled canvas'}" loaded.`, 'success');
+    } catch (err) {
+      console.warn('Failed to load dashboard canvas state', err);
+      if (fallbackSnapshot) {
+        suppressRemoteSyncOnce = true;
+        restoreSnapshot(fallbackSnapshot, { skipHistory: true });
+        history?.clear?.();
+        updateHistoryButtons();
+        updateStorageButtons();
+        showToast('Canvas load failed. Restored last local snapshot.', 'warning');
+        scheduleCanvasSync({ immediate: true });
+      } else if (hadSnapshotOnBoot) {
+        showToast('Canvas load failed. Starting with defaults.', 'danger');
+      }
+    }
+  }
 }
