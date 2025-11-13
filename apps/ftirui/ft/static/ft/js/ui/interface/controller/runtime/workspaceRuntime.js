@@ -50,8 +50,11 @@ const OPERATIONS_LOG_LIMIT = 100;
 const operationsLog = [];
 let operationsPanelHandles = null;
 let operationsToggleButton = null;
-let operationsVisible = true;
+let operationsVisible = false;
 let operationsRenderQueued = false;
+let devToggleButton = null;
+let devModeEnabled =
+  typeof document !== 'undefined' ? document.body?.dataset?.workspaceDev === 'true' : false;
 let operationSequence = 0;
 const colorCursorManager = createColorCursorManager();
 let panelPreferences = null;
@@ -203,11 +206,16 @@ export function initWorkspaceRuntime(context = {}) {
     operationsPanelHandles.root.parentNode.removeChild(operationsPanelHandles.root);
   }
   operationsPanelHandles = null;
-  operationsVisible = true;
+  operationsVisible = false;
   if (operationsToggleButton?.parentNode) {
     operationsToggleButton.parentNode.removeChild(operationsToggleButton);
   }
   operationsToggleButton = null;
+  if (devToggleButton?.parentNode) {
+    devToggleButton.parentNode.removeChild(devToggleButton);
+  }
+  devToggleButton = null;
+  devModeEnabled = document.body?.dataset?.workspaceDev === 'true';
   const { roots = {} } = context;
   const canvas = roots.canvas ?? document.getElementById('c_canvas_root');
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
@@ -269,10 +277,50 @@ export function initWorkspaceRuntime(context = {}) {
     return operationsToggleButton;
   }
 
+  function ensureDevToggle() {
+    if (!canvasWrapper) return null;
+    if (devToggleButton?.isConnected) {
+      updateDevToggleState();
+      return devToggleButton;
+    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'workspace-dev-toggle';
+    btn.textContent = 'Dev';
+    btn.addEventListener('click', () => {
+      if (typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      const hasDev = url.searchParams.get('dev') === 'true';
+      if (hasDev) {
+        url.searchParams.delete('dev');
+      } else {
+        url.searchParams.set('dev', 'true');
+      }
+      devModeEnabled = !hasDev;
+      updateDevToggleState();
+      btn.disabled = true;
+      window.location.assign(url.toString());
+    });
+    canvasWrapper.appendChild(btn);
+    devToggleButton = btn;
+    updateDevToggleState();
+    return devToggleButton;
+  }
+
+  function updateDevToggleState() {
+    if (!devToggleButton) return;
+    const label = devModeEnabled ? 'Disable dev mode' : 'Enable dev mode';
+    devToggleButton.setAttribute('aria-pressed', String(devModeEnabled));
+    devToggleButton.setAttribute('aria-label', label);
+    devToggleButton.setAttribute('title', label);
+    devToggleButton.classList.toggle('is-active', devModeEnabled);
+  }
+
   function ensureOperationsPanel() {
     if (!canvasWrapper) return null;
     if (operationsPanelHandles?.root?.isConnected) {
       ensureOperationsToggle();
+      ensureDevToggle();
       if (operationsToggleButton && operationsPanelHandles.root.id) {
         operationsToggleButton.setAttribute('aria-controls', operationsPanelHandles.root.id);
       }
@@ -291,6 +339,7 @@ export function initWorkspaceRuntime(context = {}) {
     canvasWrapper.appendChild(panel);
     operationsPanelHandles = { root: panel, header, list };
     ensureOperationsToggle();
+    ensureDevToggle();
     if (operationsToggleButton) {
       operationsToggleButton.setAttribute('aria-controls', panel.id);
     }

@@ -689,6 +689,33 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .workspace-back-btn{
   white-space:nowrap;
 }
+.workspace-canvas-title{
+  font-weight:600;
+  font-size:1rem;
+  padding:.25rem .85rem;
+  border:1px solid var(--bs-border-color);
+  border-radius:999px;
+  background:var(--bs-body-bg);
+  cursor:text;
+  user-select:none;
+  min-width:120px;
+  text-align:center;
+}
+.workspace-canvas-title[aria-disabled="true"]{
+  cursor:default;
+  opacity:.65;
+}
+.workspace-canvas-title input.workspace-title-input{
+  border:none;
+  background:transparent;
+  width:100%;
+  outline:none;
+  text-align:center;
+  font:inherit;
+}
+body[data-bs-theme='dark'] .workspace-canvas-title{
+  background:var(--bs-dark-bg-subtle, #1f1f1f);
+}
 #pane-plotC.show.workspace-pane,
 #pane-plotC.active.workspace-pane{
   display:flex;
@@ -2527,7 +2554,8 @@ pre, code, .pre-like {
   max-width:0;
 }
 
-.workspace-operations-toggle{
+.workspace-operations-toggle,
+.workspace-dev-toggle{
   position:absolute;
   bottom:1rem;
   right:1rem;
@@ -2548,18 +2576,27 @@ pre, code, .pre-like {
   transition:background .2s ease, transform .2s ease, box-shadow .2s ease;
   z-index:1610;
 }
-.workspace-operations-toggle:hover{
+.workspace-dev-toggle{
+  right:4.25rem;
+  font-size:.85rem;
+  text-transform:uppercase;
+}
+.workspace-operations-toggle:hover,
+.workspace-dev-toggle:hover{
   background:rgba(37,99,235,0.95);
   box-shadow:0 18px 32px rgba(15,23,42,0.28);
 }
-.workspace-operations-toggle:active{
+.workspace-operations-toggle:active,
+.workspace-dev-toggle:active{
   transform:scale(0.94);
 }
-.workspace-operations-toggle:focus-visible{
+.workspace-operations-toggle:focus-visible,
+.workspace-dev-toggle:focus-visible{
   outline:2px solid var(--bs-primary, #2563eb);
   outline-offset:3px;
 }
-.workspace-operations-toggle.is-active{
+.workspace-operations-toggle.is-active,
+.workspace-dev-toggle.is-active{
   background:rgba(37,99,235,0.85);
 }
 
@@ -2576,5 +2613,9 @@ pre, code, .pre-like {
   .workspace-operations-toggle{
     bottom:.85rem;
     right:.85rem;
+  }
+  .workspace-dev-toggle{
+    bottom:.85rem;
+    right:calc(.85rem + 2.75rem);
   }
 }

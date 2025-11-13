@@ -19,7 +19,20 @@
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#about" type="button">About</button></li>
       </ul>
     {% else %}
-      <a href="{% url 'ft:home' %}" class="btn btn-outline-secondary btn-sm workspace-back-btn" title="Return to dashboard">
+      <span class="workspace-canvas-title badge rounded-pill bg-body-tertiary"
+            data-workspace-canvas-title
+            data-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
+            {% if active_canvas %}title="Double-click to rename canvas"{% endif %}
+            aria-disabled="{% if active_canvas %}false{% else %}true{% endif %}"
+            role="button"
+            tabindex="0">
+        {% if active_canvas %}
+          {{ active_canvas.title|default:"Untitled canvas" }}
+        {% else %}
+          Untitled canvas
+        {% endif %}
+      </span>
+      <a href="{% url 'ft:home' %}" class="btn btn-outline-secondary btn-sm workspace-back-btn ms-2" title="Return to dashboard">
         ← Back to Dashboard
       </a>
     {% endif %}

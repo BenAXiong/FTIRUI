@@ -1,6 +1,7 @@
 import { el } from './js/ui/utils/dom.js';
 import { initDashboard } from './js/ui/dashboard/initDashboard.js';
 import { mountWorkspace } from './js/ui/workspace/initControls.js';
+import { updateCanvas } from './js/services/dashboard.js';
 
 // Option A likely already initializes somewhere else.
 // If not, you can do a similar instance for A later.
@@ -273,6 +274,116 @@ function stripWorkspaceParams() {
 }
 
 stripWorkspaceParams();
+
+function initWorkspaceTitleEditor() {
+  const titleEl = document.querySelector('[data-workspace-canvas-title]');
+  if (!titleEl) return;
+  const getCanvasId = () =>
+    titleEl.dataset.canvasId ||
+    document.body?.dataset?.activeCanvasId ||
+    window.__ACTIVE_CANVAS_ID ||
+    '';
+  const applyDisplayValue = (value) => {
+    const next = (value || '').trim() || 'Untitled canvas';
+    titleEl.dataset.displayValue = next;
+    titleEl.textContent = next;
+    if (document.body?.dataset) {
+      document.body.dataset.activeCanvasTitle = next;
+    }
+  };
+  const baseId = getCanvasId();
+  if (!baseId) {
+    titleEl.setAttribute('aria-disabled', 'true');
+    return;
+  }
+  applyDisplayValue(titleEl.textContent);
+
+  const startEdit = () => {
+    const canvasId = getCanvasId();
+    if (!canvasId || titleEl.dataset.editing === 'true') return;
+    titleEl.dataset.editing = 'true';
+    const original = titleEl.dataset.displayValue || titleEl.textContent?.trim() || 'Untitled canvas';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = original;
+    input.className = 'workspace-title-input';
+    input.maxLength = 120;
+    titleEl.innerHTML = '';
+    titleEl.appendChild(input);
+    input.focus();
+    input.select();
+    let saving = false;
+
+    const finish = (nextValue) => {
+      titleEl.dataset.editing = 'false';
+      titleEl.innerHTML = '';
+      applyDisplayValue(nextValue ?? original);
+    };
+
+    const commit = async () => {
+      if (saving) return;
+      const raw = input.value || '';
+      const trimmed = raw.trim();
+      const nextTitle = trimmed || 'Untitled canvas';
+      if (nextTitle === original) {
+        finish(original);
+        return;
+      }
+      saving = true;
+      input.disabled = true;
+      try {
+        await updateCanvas(canvasId, { title: nextTitle });
+        finish(nextTitle);
+        window.showAppToast?.({
+          title: 'Canvas renamed',
+          message: nextTitle,
+          variant: 'success'
+        });
+      } catch (err) {
+        finish(original);
+        window.showAppToast?.({
+          title: 'Rename failed',
+          message: err?.message || String(err),
+          variant: 'danger'
+        });
+      } finally {
+        saving = false;
+      }
+    };
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void commit();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        finish(original);
+      }
+    });
+    input.addEventListener('blur', () => {
+      if (saving) return;
+      const trimmed = (input.value || '').trim();
+      if (!trimmed || trimmed === original) {
+        finish(original);
+      } else {
+        void commit();
+      }
+    });
+  };
+
+  titleEl.addEventListener('dblclick', (event) => {
+    event.preventDefault();
+    startEdit();
+  });
+  titleEl.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      startEdit();
+    }
+  });
+}
+
+initWorkspaceTitleEditor();
 
 let workspaceMounted = false;
 let workspaceMountScheduled = false;

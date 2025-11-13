@@ -25,7 +25,9 @@
         data-workspace-route="{% url 'ft:workspace' %}"
         data-workspace-page="{% if workspace_only %}true{% else %}false{% endif %}"
         data-workspace-dev="{% if workspace_dev_active %}true{% else %}false{% endif %}"
-        data-dashboard-v2="{% if dashboard_v2_enabled %}true{% else %}false{% endif %}">
+        data-dashboard-v2="{% if dashboard_v2_enabled %}true{% else %}false{% endif %}"
+        data-active-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
+        data-active-canvas-title="{% if active_canvas %}{{ active_canvas.title|default_if_none:'' }}{% endif %}">
     <div class="container-fluid py-3 px-3 px-lg-4 app-frame-main">
       {% block page_header %}{% endblock %}
       {% block page_body %}{% endblock %}

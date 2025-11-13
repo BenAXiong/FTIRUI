@@ -65,7 +65,7 @@ def _to_fractional_T(y: np.ndarray) -> np.ndarray:
     return y
 
 def index(request):
-    return render(request, "ft/base.html", {})
+    return render(request, "ft/base.html", {"active_canvas": None})
 
 
 @ensure_csrf_cookie
@@ -74,9 +74,12 @@ def workspace_page(request):
     Standalone workspace shell so canvases can open outside the dashboard tabs.
     """
     dev_override = request.GET.get("dev") == "true"
+    canvas_id = request.GET.get("canvas")
+    canvas = _get_canvas_for_user(request.user, canvas_id) if canvas_id else None
     context = {
         "workspace_only": not dev_override,
-        "workspace_pane_active": True
+        "workspace_pane_active": True,
+        "active_canvas": canvas,
     }
     return render(request, "ft/base.html", context)
 
