@@ -32,6 +32,9 @@ export function initDashboard() {
   const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
   const titleLabel = root.querySelector('[data-dashboard-title]');
   const latestContainer = document.querySelector('[data-dashboard-latest]');
+  const latestOverlay = document.querySelector('[data-dashboard-latest-overlay]');
+  const latestOverlayList = latestOverlay?.querySelector('[data-dashboard-latest-overlay-list]');
+  const viewLatestBtn = document.querySelector('[data-action="view-latest"]');
   const searchInput = document.getElementById('dashboard_filter_search');
   const folderSelect = document.getElementById('dashboard_filter_folder');
   const sortSelect = document.getElementById('dashboard_filter_sort');
@@ -72,6 +75,7 @@ export function initDashboard() {
     activeSectionId: null,
     activeProjectId: null,
     latestCanvases: [],
+    latestCanvasesFull: [],
     editingSectionId: null,
     editingFolderId: null,
     editingCanvasId: null,
@@ -83,7 +87,7 @@ export function initDashboard() {
       search: '',
       section: 'all',
       folder: null,
-      sort: 'recent',
+      sort: 'modified',
       favoritesOnly: false
     },
     viewMode: 'list',
@@ -821,7 +825,8 @@ export function initDashboard() {
             title: canvas.title || 'Untitled canvas',
             updated: canvas.updated,
             folderName: project.title || 'Untitled folder',
-            projectTitle: section.name || 'Untitled project'
+            projectTitle: section.name || 'Untitled project',
+            owner: canvas.owner || 'You'
           });
         });
       });
@@ -831,6 +836,7 @@ export function initDashboard() {
       const bTime = new Date(b.updated || 0).getTime();
       return bTime - aTime;
     });
+    state.latestCanvasesFull = canvases;
     state.latestCanvases = canvases.slice(0, 6);
     renderLatest();
   };
@@ -859,6 +865,70 @@ export function initDashboard() {
       card.addEventListener('click', () => navigateToCanvas(canvas.id));
       latestContainer.appendChild(card);
     });
+  };
+
+  const renderLatestOverlay = () => {
+    if (!latestOverlayList) return;
+    const canvases = state.latestCanvasesFull || [];
+    if (!canvases.length) {
+      latestOverlayList.innerHTML =
+        '<p class="text-muted small mb-0">No recent canvases to display.</p>';
+      return;
+    }
+    const rows = canvases
+      .map(
+        (canvas) => `
+          <tr>
+            <td>
+              <button type="button" class="btn btn-link p-0 latest-overlay-link" data-latest-canvas="${canvas.id}">
+                ${escapeHtml(canvas.title)}
+              </button>
+            </td>
+            <td>${escapeHtml(canvas.projectTitle)}</td>
+            <td>${escapeHtml(canvas.folderName)}</td>
+            <td>${formatRelative(canvas.updated)}</td>
+            <td>${escapeHtml(canvas.owner || 'You')}</td>
+          </tr>
+        `
+      )
+      .join('');
+    latestOverlayList.innerHTML = `
+      <div class="dashboard-table-wrapper">
+        <table class="dashboard-table dashboard-latest-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Project</th>
+              <th>Folder</th>
+              <th>Last opened</th>
+              <th>Owner</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const openLatestOverlay = () => {
+    if (!latestOverlay) return;
+    renderLatestOverlay();
+    latestOverlay.hidden = false;
+    requestAnimationFrame(() => {
+      latestOverlay.classList.add('is-visible');
+    });
+    document.body.classList.add('dashboard-overlay-open');
+  };
+
+  const closeLatestOverlay = () => {
+    if (!latestOverlay) return;
+    latestOverlay.classList.remove('is-visible');
+    document.body.classList.remove('dashboard-overlay-open');
+    setTimeout(() => {
+      latestOverlay.hidden = true;
+    }, 150);
   };
 
   const flattenCanvases = (sections) => {
@@ -1039,8 +1109,9 @@ export function initDashboard() {
             </div>
           `
           : `
-            <button type="button" class="btn btn-link p-0" data-action="open-canvas" data-canvas="${canvas.id}">
-              ${escapeHtml(canvas.title)}
+            <button type="button" class="dashboard-list-name" data-action="open-canvas" data-canvas="${canvas.id}">
+              <span class="dashboard-list-name-title">${escapeHtml(canvas.title)}</span>
+              <span class="dashboard-list-name-meta">Last opened • ${formatRelative(canvas.updated)}</span>
             </button>
           `;
         return `
@@ -1839,6 +1910,9 @@ export function initDashboard() {
       if (state.openCanvasMenuId) {
         closeCanvasMenu();
       }
+      if (latestOverlay && !latestOverlay.hidden) {
+        closeLatestOverlay();
+      }
     }
   });
 
@@ -2337,30 +2411,16 @@ export function initDashboard() {
     renderLatest();
   });
 
-  root.querySelector('[data-action="view-latest"]')?.addEventListener('click', () => {
-    state.filters.favoritesOnly = false;
-    state.sidebarView = 'latest';
-    renderSidebarNav();
-    state.filters.search = '';
-    state.filters.section = 'all';
-    state.filters.folder = null;
-    state.filters.sort = 'recent';
-    if (searchInput) searchInput.value = '';
-    if (folderSelect) folderSelect.value = 'all';
-    if (sortSelect) sortSelect.value = 'recent';
-    state.activeSectionId = null;
-    state.activeProjectId = null;
-    render();
-    const top = state.latestCanvases[0];
-    if (top) {
-      navigateToCanvas(top.id);
-    } else {
+  viewLatestBtn?.addEventListener('click', () => {
+    if (!state.latestCanvasesFull.length) {
       window.showAppToast?.({
         title: 'No recent canvases',
         message: 'Canvases will appear here as you open them.',
         variant: 'info'
       });
+      return;
     }
+    openLatestOverlay();
   });
 
   viewToggle?.addEventListener('click', (event) => {
@@ -2368,6 +2428,21 @@ export function initDashboard() {
     if (!button) return;
     state.viewMode = button.dataset.view || 'list';
     updateView();
+  });
+
+  latestOverlay?.addEventListener('click', (event) => {
+    const closeTrigger = resolveClosest(event, '[data-action="close-latest-overlay"]');
+    if (closeTrigger) {
+      event.preventDefault();
+      closeLatestOverlay();
+      return;
+    }
+    const canvasTrigger = resolveClosest(event, '[data-latest-canvas]');
+    if (canvasTrigger?.dataset?.latestCanvas) {
+      event.preventDefault();
+      closeLatestOverlay();
+      navigateToCanvas(canvasTrigger.dataset.latestCanvas);
+    }
   });
 
   void loadSections();

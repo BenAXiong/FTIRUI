@@ -42,6 +42,20 @@
           <div class="dashboard-latest-track" data-dashboard-latest></div>
         </section>
 
+        <div class="dashboard-latest-overlay" data-dashboard-latest-overlay hidden>
+          <div class="dashboard-latest-overlay-backdrop" data-action="close-latest-overlay"></div>
+          <div class="dashboard-latest-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="dashboard_latest_overlay_title">
+            <div class="dashboard-latest-overlay-header">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-lightning-charge text-warning"></i>
+                <span id="dashboard_latest_overlay_title" class="fw-semibold">Recent canvases</span>
+              </div>
+              <button type="button" class="btn-close" aria-label="Close" data-action="close-latest-overlay"></button>
+            </div>
+            <div class="dashboard-latest-overlay-body" data-dashboard-latest-overlay-list></div>
+          </div>
+        </div>
+
         <section class="dashboard-filters card shadow-sm mb-3">
           <div class="card-body d-flex flex-wrap align-items-center gap-3">
             <div class="filter-field">
