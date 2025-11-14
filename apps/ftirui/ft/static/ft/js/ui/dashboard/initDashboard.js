@@ -900,7 +900,7 @@ export function initDashboard() {
               <th>Name</th>
               <th>Project</th>
               <th>Folder</th>
-              <th>Last opened</th>
+              <th>Last modified</th>
               <th>Owner</th>
             </tr>
           </thead>
@@ -959,6 +959,30 @@ export function initDashboard() {
     const field = allowed.has(sort.field) ? sort.field : 'title';
     const direction = sort.direction === 'desc' ? 'desc' : 'asc';
     return { field, direction };
+  };
+
+  const formatModifiedDay = (iso) => {
+    if (!iso) return 'Unknown date';
+    try {
+      const value = new Date(iso);
+      if (Number.isNaN(value.getTime())) return 'Unknown date';
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      const sameDay = value.toDateString() === today.toDateString();
+      const sameYesterday = value.toDateString() === yesterday.toDateString();
+      if (sameDay) return 'Today';
+      if (sameYesterday) return 'Yesterday';
+      return value.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch {
+      return 'Unknown date';
+    }
+  };
+
+  const formatModifiedSummary = (canvas) => {
+    const owner = canvas.owner || 'You';
+    const day = formatModifiedDay(canvas.updated);
+    return `Modified by ${owner} • ${day}`;
   };
 
   const renderListHeaderCell = (label, field) => {
@@ -1111,7 +1135,7 @@ export function initDashboard() {
           : `
             <button type="button" class="dashboard-list-name" data-action="open-canvas" data-canvas="${canvas.id}">
               <span class="dashboard-list-name-title">${escapeHtml(canvas.title)}</span>
-              <span class="dashboard-list-name-meta">Last opened • ${formatRelative(canvas.updated)}</span>
+              <span class="dashboard-list-name-meta">${formatModifiedSummary(canvas)}</span>
             </button>
           `;
         return `
@@ -1179,7 +1203,7 @@ export function initDashboard() {
               ${renderListHeaderCell('Name', 'title')}
               ${renderListHeaderCell('Project', 'projectTitle')}
               ${renderListHeaderCell('Folder', 'folderName')}
-              ${renderListHeaderCell('Last opened', 'updated')}
+              ${renderListHeaderCell('Last modified', 'updated')}
               ${renderListHeaderCell('Owner', 'owner')}
               <th></th>
             </tr>
