@@ -47,7 +47,8 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 }
 .dashboard-sidebar {
   flex: 0 0 280px;
-  max-width: 320px;
+  max-width: 280px;
+  width: 280px;
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: 1rem;
@@ -133,6 +134,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   display: flex;
   flex-direction: column;
   gap: .25rem;
+  min-width: 0;
 }
 .sidebar-folder-row {
   display: flex;
@@ -141,9 +143,14 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   border-radius: .45rem;
   padding: .25rem .4rem;
   position: relative;
+  min-width: 0;
 }
 .sidebar-folder-row:is(:hover, :focus-within) {
   background: var(--bs-tertiary-bg);
+}
+.sidebar-folder-label,
+.sidebar-folder-actions {
+  min-width: 0;
 }
 .sidebar-folder-toggle {
   border: none;
@@ -387,6 +394,15 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.sidebar-project-link span,
+.sidebar-folder-label span,
+.sidebar-folder-link span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .sidebar-folder-item-actions {
   display: flex;
   gap: .2rem;
@@ -545,6 +561,24 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   display: flex;
   gap: .35rem;
   align-items: center;
+}
+.table-sort-btn {
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  color: inherit;
+  font-weight: 500;
+  padding: 0;
+}
+.table-sort-btn:is(:hover, :focus-visible) {
+  color: var(--bs-primary);
+}
+.table-sort-btn .table-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: .85em;
 }
 .table-menu-anchor {
   position: relative;

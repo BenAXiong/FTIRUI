@@ -12,6 +12,8 @@ import {
   fetchCanvasState
 } from '../../services/dashboard.js';
 
+const LIST_SORT_STORAGE_KEY = 'ftir.dashboard.listSort.v1';
+
 const DEFAULT_SECTION_NAME = 'Project';
 const DEFAULT_PROJECT_NAME = 'Folder';
 
@@ -41,6 +43,26 @@ export function initDashboard() {
   const workspaceRoute =
     document.body?.dataset?.workspaceRoute || '/workspace/';
 
+  const readStoredListSort = () => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return { field: 'title', direction: 'asc' };
+    }
+    try {
+      const raw = window.localStorage.getItem(LIST_SORT_STORAGE_KEY);
+      if (!raw) return { field: 'title', direction: 'asc' };
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.field === 'string' && typeof parsed.direction === 'string') {
+        return {
+          field: parsed.field,
+          direction: parsed.direction === 'desc' ? 'desc' : 'asc'
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    return { field: 'title', direction: 'asc' };
+  };
+
   const state = {
     sections: [],
     loading: false,
@@ -65,7 +87,8 @@ export function initDashboard() {
       favoritesOnly: false
     },
     viewMode: 'list',
-    devMode: new URLSearchParams(window.location.search).get('dev') === 'true'
+    devMode: new URLSearchParams(window.location.search).get('dev') === 'true',
+    listSort: readStoredListSort()
   };
 
   const escapeHtml = (value) =>
@@ -425,15 +448,12 @@ export function initDashboard() {
               </button>
               ${folderLabelMarkup}
               <span class="sidebar-folder-actions">
-                <button type="button" class="sidebar-folder-icon" data-action="folder-create-canvas" data-project="${folder.id}" title="New canvas">
-                  <i class="bi bi-plus-lg"></i>
-                </button>
-                <button type="button" class="sidebar-folder-icon" data-action="folder-favorite" data-folder="${folder.id}" title="Favorite folder">
-                  <i class="bi bi-star"></i>
-                </button>
-                <button type="button" class="sidebar-folder-icon" data-action="folder-rename" data-folder="${folder.id}" title="Rename folder">
-                  <i class="bi bi-pencil"></i>
-                </button>
+              <button type="button" class="sidebar-folder-icon" data-action="folder-create-canvas" data-project="${folder.id}" title="New canvas">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+              <button type="button" class="sidebar-folder-icon" data-action="folder-rename" data-folder="${folder.id}" title="Rename folder">
+                <i class="bi bi-pencil"></i>
+              </button>
                 <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-folder="${folder.id}" title="More options">
                   <i class="bi bi-three-dots"></i>
                 </button>
@@ -862,6 +882,39 @@ export function initDashboard() {
     return rows;
   };
 
+  const getListSortConfig = () => {
+    const sort = state.listSort || { field: 'title', direction: 'asc' };
+    const allowed = new Set(['title', 'projectTitle', 'folderName', 'updated', 'owner']);
+    const field = allowed.has(sort.field) ? sort.field : 'title';
+    const direction = sort.direction === 'desc' ? 'desc' : 'asc';
+    return { field, direction };
+  };
+
+  const renderListHeaderCell = (label, field) => {
+    const sortConfig = getListSortConfig();
+    const isActive = sortConfig.field === field;
+    const iconClass = isActive
+      ? sortConfig.direction === 'asc'
+        ? 'bi-caret-up-fill'
+        : 'bi-caret-down-fill'
+      : 'bi-caret-up';
+    return `
+      <th>
+        <button
+          type="button"
+          class="table-sort-btn${isActive ? ' is-active' : ''}"
+          data-action="list-sort"
+          data-sort="${field}"
+        >
+          <span class="table-sort-label">${label}</span>
+          <span class="table-sort-icon">
+            <i class="bi ${iconClass}" aria-hidden="true"></i>
+          </span>
+        </button>
+      </th>
+    `;
+  };
+
   const getActiveViewContext = () => {
     if (state.filters.favoritesOnly) {
       return { mode: 'favorites' };
@@ -947,7 +1000,21 @@ export function initDashboard() {
       listContainer.innerHTML = '';
       return;
     }
-    const rows = canvases
+    const sortConfig = getListSortConfig();
+    const rows = [...canvases]
+      .sort((a, b) => {
+        const { field, direction } = sortConfig;
+        const dir = direction === 'desc' ? -1 : 1;
+        if (field === 'updated') {
+          const timeA = new Date(a.updated || 0).getTime();
+          const timeB = new Date(b.updated || 0).getTime();
+          return (timeA - timeB) * dir;
+        }
+        const valueA = (a[field] || '').toString().toLowerCase();
+        const valueB = (b[field] || '').toString().toLowerCase();
+        if (valueA === valueB) return 0;
+        return valueA > valueB ? dir : -dir;
+      })
       .map((canvas) => {
         const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'list');
         const isFavorite = Boolean(canvas.isFavorite);
@@ -1037,11 +1104,11 @@ export function initDashboard() {
         <table class="dashboard-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Project</th>
-              <th>Folder</th>
-              <th>Last opened</th>
-              <th>Owner</th>
+              ${renderListHeaderCell('Name', 'title')}
+              ${renderListHeaderCell('Project', 'projectTitle')}
+              ${renderListHeaderCell('Folder', 'folderName')}
+              ${renderListHeaderCell('Last opened', 'updated')}
+              ${renderListHeaderCell('Owner', 'owner')}
               <th></th>
             </tr>
           </thead>
@@ -1661,15 +1728,6 @@ export function initDashboard() {
       void handleDeleteProject(trigger.dataset.section);
       return;
     }
-    if (action === 'folder-favorite' && trigger.dataset.folder) {
-      event.stopPropagation();
-      window.showAppToast?.({
-        title: 'Favorites coming soon',
-        message: 'Pin folders once the API is available.',
-        variant: 'info'
-      });
-      return;
-    }
     if (action === 'folder-rename' && trigger.dataset.folder) {
       event.stopPropagation();
       beginFolderRename(trigger.dataset.folder);
@@ -1787,6 +1845,12 @@ export function initDashboard() {
     const trigger = resolveClosest(event, '[data-action]');
     if (!trigger) return;
     const action = trigger.dataset.action;
+    if (action === 'list-sort' && trigger.dataset.sort) {
+      event.preventDefault();
+      updateListSort(trigger.dataset.sort);
+      render();
+      return;
+    }
     if (handleCanvasAction(action, trigger, event)) {
       return;
     }
@@ -1938,6 +2002,24 @@ export function initDashboard() {
         message: err?.message || String(err),
         variant: 'danger'
       });
+    }
+  };
+
+  const updateListSort = (field) => {
+    if (!field) return;
+    const current = state.listSort || { field: 'title', direction: 'asc' };
+    const nextDirection =
+      current.field === field ? (current.direction === 'asc' ? 'desc' : 'asc') : 'asc';
+    state.listSort = { field, direction: nextDirection };
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(
+          LIST_SORT_STORAGE_KEY,
+          JSON.stringify(state.listSort)
+        );
+      } catch {
+        /* ignore */
+      }
     }
   };
 
