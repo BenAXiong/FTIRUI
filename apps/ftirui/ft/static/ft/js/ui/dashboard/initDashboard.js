@@ -61,7 +61,8 @@ export function initDashboard() {
       search: '',
       section: 'all',
       folder: null,
-      sort: 'recent'
+      sort: 'recent',
+      favoritesOnly: false
     },
     viewMode: 'list',
     devMode: new URLSearchParams(window.location.search).get('dev') === 'true'
@@ -106,16 +107,20 @@ export function initDashboard() {
 
   const updateMainTitle = () => {
     if (!titleLabel) return;
-    const activeFolder = state.activeProjectId ? findFolder(state.activeProjectId) : null;
-    if (activeFolder) {
-      titleLabel.textContent = activeFolder.title || 'Untitled folder';
-    } else if (state.filters.section && state.filters.section !== 'all') {
-      const section =
-        state.sections.find((item) => idsMatch(item.id, state.filters.section)) || null;
-      titleLabel.textContent = section?.name || 'All Projects';
+    let nextTitle = 'All Projects';
+    if (state.filters.favoritesOnly) {
+      nextTitle = 'Favorites';
     } else {
-      titleLabel.textContent = 'All Projects';
+      const activeFolder = state.activeProjectId ? findFolder(state.activeProjectId) : null;
+      if (activeFolder) {
+        nextTitle = activeFolder.title || 'Untitled folder';
+      } else if (state.filters.section && state.filters.section !== 'all') {
+        const section =
+          state.sections.find((item) => idsMatch(item.id, state.filters.section)) || null;
+        nextTitle = section?.name || 'All Projects';
+      }
     }
+    titleLabel.textContent = nextTitle;
     if (devBadge) {
       devBadge.classList.toggle('d-none', !state.devMode);
     }
@@ -123,21 +128,29 @@ export function initDashboard() {
 
   const getFilteredSections = () => {
     let sections = Array.isArray(state.sections) ? state.sections : [];
-    const { search, section: sectionFilter, folder: folderFilter, sort } = state.filters;
+    const {
+      search,
+      section: sectionFilter,
+      folder: folderFilter,
+      sort,
+      favoritesOnly
+    } = state.filters;
     const query = search.trim().toLowerCase();
-    if (sectionFilter && sectionFilter !== 'all') {
-      sections = sections.filter((section) => idsMatch(section.id, sectionFilter));
+    const effectiveSectionFilter = favoritesOnly ? 'all' : sectionFilter;
+    const effectiveFolderFilter = favoritesOnly ? null : folderFilter;
+    if (effectiveSectionFilter && effectiveSectionFilter !== 'all') {
+      sections = sections.filter((section) => idsMatch(section.id, effectiveSectionFilter));
     }
-    if (folderFilter) {
+    if (effectiveFolderFilter) {
       sections = sections.filter((section) =>
-        (section.projects || []).some((project) => idsMatch(project.id, folderFilter))
+        (section.projects || []).some((project) => idsMatch(project.id, effectiveFolderFilter))
       );
     }
     const filtered = sections
       .map((section) => {
         const projects = (section.projects || [])
           .map((project) => {
-            if (folderFilter && !idsMatch(project.id, folderFilter)) {
+            if (effectiveFolderFilter && !idsMatch(project.id, effectiveFolderFilter)) {
               return null;
             }
             let canvases = Array.isArray(project.canvases) ? [...project.canvases] : [];
@@ -148,6 +161,12 @@ export function initDashboard() {
               canvases = canvases.filter((canvas) =>
                 (canvas.title || 'Untitled').toLowerCase().includes(query)
               );
+              if (!canvases.length) {
+                return null;
+              }
+            }
+            if (favoritesOnly) {
+              canvases = canvases.filter((canvas) => canvas.is_favorite);
               if (!canvases.length) {
                 return null;
               }
@@ -227,6 +246,15 @@ export function initDashboard() {
     sidebarNav.querySelectorAll('.sidebar-nav-link').forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.view === state.sidebarView);
     });
+  };
+
+  const exitFavoritesView = () => {
+    if (!state.filters.favoritesOnly && state.sidebarView !== 'favorites') return;
+    state.filters.favoritesOnly = false;
+    if (state.sidebarView === 'favorites') {
+      state.sidebarView = 'home';
+      renderSidebarNav();
+    }
   };
 
   const focusInlineEditors = () => {
@@ -438,7 +466,8 @@ export function initDashboard() {
           canvases.forEach((canvas) => {
             const canvasRow = document.createElement('div');
             canvasRow.className = 'sidebar-folder-item';
-          const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'sidebar');
+            const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'sidebar');
+            const canvasFavorite = Boolean(canvas.is_favorite);
             const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
             const isSidebarInline = isEditingCanvas && state.editingCanvasContext === 'sidebar';
             const canvasLabelMarkup = isSidebarInline
@@ -475,7 +504,7 @@ export function initDashboard() {
                   <button type="button" class="sidebar-folder-icon" data-action="canvas-duplicate" data-context="sidebar" data-canvas="${canvas.id}" title="Duplicate canvas">
                     <i class="bi bi-files"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="canvas-favorite" data-context="sidebar" data-canvas="${canvas.id}" title="Favorite canvas">
+                  <button type="button" class="sidebar-folder-icon${canvasFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="sidebar" data-canvas="${canvas.id}" title="Favorite canvas" aria-pressed="${canvasFavorite}" data-favorite="${canvasFavorite ? '1' : '0'}">
                     <i class="bi bi-star"></i>
                   </button>
                   <button type="button" class="sidebar-folder-icon" data-action="canvas-rename" data-context="sidebar" data-canvas="${canvas.id}" title="Rename canvas">
@@ -589,11 +618,7 @@ export function initDashboard() {
     if (action === 'canvas-favorite' && canvasId) {
       stop();
       closeCanvasMenu();
-      window.showAppToast?.({
-        title: 'Favorites coming soon',
-        message: 'Pin canvases once the API is available.',
-        variant: 'info'
-      });
+      void handleToggleCanvasFavorite(canvasId);
       return true;
     }
     if (action === 'canvas-rename' && canvasId) {
@@ -675,6 +700,7 @@ export function initDashboard() {
   };
 
   const resetToAllProjects = () => {
+    state.filters.favoritesOnly = false;
     state.filters.section = 'all';
     state.filters.folder = null;
     state.activeSectionId = null;
@@ -709,6 +735,12 @@ export function initDashboard() {
 
   const updateFolderOptions = () => {
     if (!folderSelect) return;
+    if (state.filters.favoritesOnly) {
+      folderSelect.value = 'all';
+      state.filters.section = 'all';
+      state.filters.folder = null;
+      return;
+    }
     const current = state.filters.section || 'all';
     const options = ['<option value="all">All folders</option>'];
     (state.sections || []).forEach((section) => {
@@ -724,6 +756,14 @@ export function initDashboard() {
   };
 
   const ensureFilterTargets = () => {
+    if (state.filters.favoritesOnly) {
+      state.filters.section = 'all';
+      state.filters.folder = null;
+      if (folderSelect) {
+        folderSelect.value = 'all';
+      }
+      return;
+    }
     const hasSection =
       state.filters.section === 'all' ||
       (state.sections || []).some((section) => idsMatch(section.id, state.filters.section));
@@ -807,7 +847,8 @@ export function initDashboard() {
             updated: canvas.updated,
             owner: canvas.owner || 'You',
             tags: canvas.tags || [],
-            type: canvas.type || ''
+            type: canvas.type || '',
+            isFavorite: Boolean(canvas.is_favorite)
           });
         });
       });
@@ -816,6 +857,9 @@ export function initDashboard() {
   };
 
   const getActiveViewContext = () => {
+    if (state.filters.favoritesOnly) {
+      return { mode: 'favorites' };
+    }
     if (state.filters.folder) {
       return {
         mode: 'folder',
@@ -839,6 +883,20 @@ export function initDashboard() {
 
   const applyViewContext = (context) => {
     if (!context) return;
+    if (context.mode === 'favorites') {
+      state.filters.favoritesOnly = true;
+      state.filters.section = 'all';
+      state.filters.folder = null;
+      state.activeSectionId = null;
+      state.activeProjectId = null;
+      state.sidebarView = 'favorites';
+      if (folderSelect) {
+        folderSelect.value = 'all';
+      }
+      renderSidebarNav();
+      return;
+    }
+    exitFavoritesView();
     if (context.mode === 'folder' && context.folderId) {
       const owner = findFolderOwner(context.folderId);
       if (owner) {
@@ -886,6 +944,7 @@ export function initDashboard() {
     const rows = canvases
       .map((canvas) => {
         const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'list');
+        const isFavorite = Boolean(canvas.isFavorite);
         const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
         const showInline = isEditingCanvas && state.editingCanvasContext === 'list';
         const titleCell = showInline
@@ -924,7 +983,7 @@ export function initDashboard() {
                 <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="list" data-canvas="${canvas.id}" title="Duplicate canvas">
                   <i class="bi bi-files"></i>
                 </button>
-                <button type="button" class="table-icon-btn" data-action="canvas-favorite" data-context="list" data-canvas="${canvas.id}" title="Favorite canvas">
+                <button type="button" class="table-icon-btn${isFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="list" data-canvas="${canvas.id}" title="Favorite canvas" aria-pressed="${isFavorite}" data-favorite="${isFavorite ? '1' : '0'}">
                   <i class="bi bi-star"></i>
                 </button>
                 <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="list" data-canvas="${canvas.id}" title="Rename canvas">
@@ -997,6 +1056,7 @@ export function initDashboard() {
     galleryContainer.innerHTML = canvases
       .map((canvas) => {
         const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'gallery');
+        const isFavorite = Boolean(canvas.isFavorite);
         const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
         const showInline = isEditingCanvas && state.editingCanvasContext === 'gallery';
         const titleBlock = showInline
@@ -1027,7 +1087,7 @@ export function initDashboard() {
                 <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="gallery" data-canvas="${canvas.id}" title="Duplicate canvas">
                   <i class="bi bi-files"></i>
                 </button>
-                <button type="button" class="table-icon-btn" data-action="canvas-favorite" data-context="gallery" data-canvas="${canvas.id}" title="Favorite canvas">
+                <button type="button" class="table-icon-btn${isFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="gallery" data-canvas="${canvas.id}" title="Favorite canvas" aria-pressed="${isFavorite}" data-favorite="${isFavorite ? '1' : '0'}">
                   <i class="bi bi-star"></i>
                 </button>
                 <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="gallery" data-canvas="${canvas.id}" title="Rename canvas">
@@ -1162,6 +1222,7 @@ export function initDashboard() {
 
   const handleCreateCanvas = async (projectId) => {
     try {
+      exitFavoritesView();
       let project = findFolder(projectId);
       if (!project) {
         const ensured = await ensureProject();
@@ -1344,6 +1405,7 @@ export function initDashboard() {
   };
 
   const handleCreateProject = async (initialName = null) => {
+    exitFavoritesView();
     let name =
       typeof initialName === 'string'
         ? initialName
@@ -1397,6 +1459,7 @@ export function initDashboard() {
   };
 
   const handleCreateFolder = async (sectionId) => {
+    exitFavoritesView();
     const section = state.sections.find((item) => idsMatch(item.id, sectionId));
     if (!section) return;
     const title = window.prompt('Folder name', DEFAULT_PROJECT_NAME);
@@ -1470,6 +1533,7 @@ export function initDashboard() {
 
   const selectProject = (sectionId) => {
     if (!sectionId) return;
+    exitFavoritesView();
     const section =
       state.sections.find((item) => idsMatch(item.id, sectionId)) || null;
     if (!section) return;
@@ -1488,6 +1552,7 @@ export function initDashboard() {
 
   const selectFolder = (folderId) => {
     if (!folderId) return;
+    exitFavoritesView();
     const owner = findFolderOwner(folderId);
     if (!owner) return;
     state.filters.section = owner.section.id;
@@ -1741,14 +1806,35 @@ export function initDashboard() {
     const nextView = button.dataset.view || 'home';
     state.sidebarView = nextView;
     state.activeProjectId = null;
-    renderSidebarNav();
-    if (nextView === 'home') {
-      resetToAllProjects();
-      renderSidebar();
+    if (nextView === 'favorites') {
+      state.filters.favoritesOnly = true;
+      state.filters.section = 'all';
+      state.filters.folder = null;
+      state.activeSectionId = null;
+      state.activeProjectId = null;
+      if (folderSelect) {
+        folderSelect.value = 'all';
+      }
+      renderSidebarNav();
       render();
       updateMainTitle();
       return;
     }
+    state.filters.favoritesOnly = false;
+    if (nextView === 'home') {
+      resetToAllProjects();
+      renderSidebarNav();
+      render();
+      updateMainTitle();
+      return;
+    }
+    if (state.sidebarView === 'latest') {
+      renderSidebarNav();
+      render();
+      updateMainTitle();
+      return;
+    }
+    renderSidebarNav();
     renderSidebar();
     updateMainTitle();
   });
@@ -2036,6 +2122,38 @@ export function initDashboard() {
     }
   };
 
+  const handleToggleCanvasFavorite = async (canvasId) => {
+    const owner = findCanvasOwner(canvasId);
+    if (!owner || !owner.canvas) {
+      window.showAppToast?.({
+        title: 'Canvas not found',
+        message: 'Refresh the dashboard and try again.',
+        variant: 'warning'
+      });
+      return;
+    }
+    const nextState = !owner.canvas.is_favorite;
+    const viewContext = getActiveViewContext();
+    try {
+      await updateCanvas(canvasId, { is_favorite: nextState });
+      window.showAppToast?.({
+        title: nextState ? 'Added to favorites' : 'Removed from favorites',
+        message: owner.canvas.title || 'Untitled canvas',
+        variant: 'success'
+      });
+      await loadSections();
+      applyViewContext(viewContext);
+      render();
+      updateMainTitle();
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to update favorite',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
   const handleDeleteCanvas = async (canvasId) => {
     const owner = findCanvasOwner(canvasId);
     const title = owner?.canvas?.title || 'Untitled canvas';
@@ -2071,6 +2189,9 @@ export function initDashboard() {
 
   folderSelect?.addEventListener('change', (event) => {
     const nextValue = event.target.value || 'all';
+    state.filters.favoritesOnly = false;
+    state.sidebarView = 'home';
+    renderSidebarNav();
     state.filters.section = nextValue;
     state.filters.folder = null;
     if (nextValue === 'all') {
@@ -2092,6 +2213,9 @@ export function initDashboard() {
   });
 
   root.querySelector('[data-action="view-latest"]')?.addEventListener('click', () => {
+    state.filters.favoritesOnly = false;
+    state.sidebarView = 'latest';
+    renderSidebarNav();
     state.filters.search = '';
     state.filters.section = 'all';
     state.filters.folder = null;

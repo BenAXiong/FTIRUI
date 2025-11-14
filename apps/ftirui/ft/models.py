@@ -106,6 +106,7 @@ class WorkspaceCanvas(models.Model):
     thumbnail_url = models.CharField(max_length=512, blank=True, default="")
     version_label = models.CharField(max_length=120, blank=True, default="")
     autosave_token = models.CharField(max_length=64, blank=True, default="")
+    is_favorite = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -588,6 +588,7 @@ def _serialize_canvas(canvas):
         "id": str(canvas.id),
         "project_id": str(canvas.project_id),
         "title": canvas.title,
+        "is_favorite": bool(getattr(canvas, "is_favorite", False)),
         "thumbnail_url": canvas.thumbnail_url,
         "version_label": canvas.version_label,
         "state_size": canvas.state_size,
@@ -911,6 +912,9 @@ def api_dashboard_canvas_detail(request, canvas_id):
     if "version_label" in payload:
         canvas.version_label = payload.get("version_label") or ""
         update_fields.append("version_label")
+    if "is_favorite" in payload:
+        canvas.is_favorite = bool(payload.get("is_favorite"))
+        update_fields.append("is_favorite")
     if "project_id" in payload:
         new_project = _get_project_for_user(user, payload["project_id"])
         if not new_project:
