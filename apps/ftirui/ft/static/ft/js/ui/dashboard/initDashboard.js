@@ -613,11 +613,7 @@ export function initDashboard() {
     if (action === 'canvas-menu-move' && canvasId) {
       stop();
       closeCanvasMenu();
-      window.showAppToast?.({
-        title: 'Move coming soon',
-        message: 'Moving canvases between folders will arrive later.',
-        variant: 'info'
-      });
+      void handleMoveCanvas(canvasId);
       return true;
     }
     if (action === 'canvas-menu-delete' && canvasId) {
@@ -1234,6 +1230,89 @@ export function initDashboard() {
       }
     }
     return null;
+  };
+
+  const resolveSectionName = (section) => {
+    if (typeof section?.name === 'string' && section.name.trim()) {
+      return section.name.trim();
+    }
+    return DEFAULT_SECTION_NAME;
+  };
+
+  const resolveFolderName = (project) => {
+    if (typeof project?.title === 'string' && project.title.trim()) {
+      return project.title.trim();
+    }
+    return 'Untitled folder';
+  };
+
+  const listFolderTargets = () => {
+    const folders = [];
+    (state.sections || []).forEach((section) => {
+      const sectionName = resolveSectionName(section);
+      (section.projects || []).forEach((project) => {
+        folders.push({
+          sectionId: section.id,
+          sectionName,
+          projectId: project.id,
+          projectTitle: resolveFolderName(project),
+          label: `${sectionName} / ${resolveFolderName(project)}`
+        });
+      });
+    });
+    return folders;
+  };
+
+  const promptFolderTargetSelection = ({ entityTitle, currentProjectId }) => {
+    const folders = listFolderTargets();
+    if (!folders.length) {
+      window.showAppToast?.({
+        title: 'No folders available',
+        message: 'Create a folder before moving canvases.',
+        variant: 'warning'
+      });
+      return null;
+    }
+    const hasAlternative = folders.some((entry) => !idsMatch(entry.projectId, currentProjectId));
+    if (!hasAlternative) {
+      window.showAppToast?.({
+        title: 'Another folder required',
+        message: 'Create a different folder before moving this canvas.',
+        variant: 'info'
+      });
+      return null;
+    }
+    const lines = folders.map((entry, index) => {
+      const isCurrent = idsMatch(entry.projectId, currentProjectId);
+      return `${index + 1}. ${entry.label}${isCurrent ? ' (current)' : ''}`;
+    });
+    const defaultValue =
+      folders.find((entry) => idsMatch(entry.projectId, currentProjectId))?.label || '';
+    const choice = window.prompt(
+      `Move "${entityTitle}" to which folder?\n${lines.join('\n')}`,
+      defaultValue
+    );
+    if (!choice) return null;
+    const trimmed = choice.trim();
+    if (!trimmed) return null;
+    const normalized = trimmed.toLowerCase();
+    const target =
+      folders.find((entry) => idsMatch(entry.projectId, trimmed)) ||
+      folders.find((entry, index) => `${index + 1}` === normalized) ||
+      folders.find((entry) => entry.label.toLowerCase() === normalized) ||
+      folders.find((entry) => entry.projectTitle.toLowerCase() === normalized);
+    if (!target) {
+      window.showAppToast?.({
+        title: 'Folder not found',
+        message: 'Enter the folder number, ID, or full label.',
+        variant: 'warning'
+      });
+      return null;
+    }
+    if (idsMatch(target.projectId, currentProjectId)) {
+      return null;
+    }
+    return target;
   };
 
   const handleCreateProject = async (initialName = null) => {
@@ -1878,6 +1957,43 @@ export function initDashboard() {
     } catch (err) {
       window.showAppToast?.({
         title: 'Unable to duplicate canvas',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleMoveCanvas = async (canvasId) => {
+    const owner = findCanvasOwner(canvasId);
+    if (!owner || !owner.canvas || !owner.project) {
+      window.showAppToast?.({
+        title: 'Canvas not found',
+        message: 'Refresh the dashboard and try again.',
+        variant: 'warning'
+      });
+      return;
+    }
+    const canvasTitle = owner.canvas.title || 'Untitled canvas';
+    const selection = promptFolderTargetSelection({
+      entityTitle: canvasTitle,
+      currentProjectId: owner.project.id
+    });
+    if (!selection) return;
+    const viewContext = getActiveViewContext();
+    try {
+      await updateCanvas(canvasId, { project_id: selection.projectId });
+      window.showAppToast?.({
+        title: 'Canvas moved',
+        message: `Moved to ${selection.label}`,
+        variant: 'success'
+      });
+      await loadSections();
+      applyViewContext(viewContext);
+      render();
+      updateMainTitle();
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to move canvas',
         message: err?.message || String(err),
         variant: 'danger'
       });
