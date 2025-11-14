@@ -309,6 +309,9 @@ export function initDashboard() {
         state.filters.section !== 'all' && idsMatch(state.filters.section, section.id);
       projectRow.className = 'sidebar-project-row';
       const isEditingProject = idsMatch(state.editingSectionId, section.id);
+      const isPinned = section.is_pinned === true;
+      const pinIcon = isPinned ? 'bi-pin-angle-fill' : 'bi-pin-angle';
+      const pinTitle = isPinned ? 'Unpin project' : 'Pin project';
       const projectLabelMarkup = isEditingProject
         ? `
           <div class="sidebar-project-link sidebar-inline-wrapper">
@@ -347,6 +350,9 @@ export function initDashboard() {
         </button>
         ${projectLabelMarkup}
         <span class="sidebar-project-actions">
+          <button type="button" class="sidebar-project-icon${isPinned ? ' is-active' : ''}" data-action="section-pin" data-section="${section.id}" title="${pinTitle}" aria-pressed="${isPinned}">
+            <i class="bi ${pinIcon}"></i>
+          </button>
           <button type="button" class="sidebar-project-icon" data-action="section-add-folder" data-section="${section.id}" title="Create folder">
             <i class="bi bi-folder-plus"></i>
           </button>
@@ -1639,6 +1645,17 @@ export function initDashboard() {
       void handleCreateFolder(targetSectionId);
       return;
     }
+    if (action === 'section-pin' && trigger.dataset.section) {
+      event.stopPropagation();
+      const sectionId = trigger.dataset.section;
+      const section = state.sections.find((item) => idsMatch(item.id, sectionId)) || null;
+      const nextState =
+        section && typeof section.is_pinned === 'boolean'
+          ? !section.is_pinned
+          : trigger.getAttribute('aria-pressed') !== 'true';
+      void handleToggleProjectPin(sectionId, nextState);
+      return;
+    }
     if (action === 'section-delete' && trigger.dataset.section) {
       event.stopPropagation();
       void handleDeleteProject(trigger.dataset.section);
@@ -1893,6 +1910,31 @@ export function initDashboard() {
     } catch (err) {
       window.showAppToast?.({
         title: 'Unable to delete project',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+    }
+  };
+
+  const handleToggleProjectPin = async (sectionId, nextPinned) => {
+    if (!sectionId) return;
+    const section = state.sections.find((item) => idsMatch(item.id, sectionId)) || null;
+    const name = section?.name || 'Untitled project';
+    const viewContext = getActiveViewContext();
+    try {
+      await updateSection(sectionId, { is_pinned: nextPinned });
+      window.showAppToast?.({
+        title: nextPinned ? 'Project pinned' : 'Pin removed',
+        message: name,
+        variant: 'success'
+      });
+      await loadSections();
+      applyViewContext(viewContext);
+      render();
+      updateMainTitle();
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to update pin',
         message: err?.message || String(err),
         variant: 'danger'
       });

@@ -618,6 +618,7 @@ def _serialize_section(section, *, include_projects=False):
         "description": section.description,
         "color": section.color,
         "position": section.position,
+        "is_pinned": bool(getattr(section, "is_pinned", False)),
         "created": _isoformat(section.created_at),
         "updated": _isoformat(section.updated_at),
     }
@@ -695,7 +696,7 @@ def api_dashboard_sections(request):
     user = request.user
     if request.method == "GET":
         include = request.GET.get("include") == "full"
-        sections = WorkspaceSection.objects.filter(owner=user).order_by("position", "created_at")
+        sections = WorkspaceSection.objects.filter(owner=user).order_by("-is_pinned", "position", "created_at")
         return JsonResponse(
             {"items": [_serialize_section(section, include_projects=include) for section in sections]}
         )
@@ -755,6 +756,9 @@ def api_dashboard_section_detail(request, section_id):
     if "position" in payload and isinstance(payload.get("position"), int):
         section.position = max(payload["position"], 0)
         update_fields.append("position")
+    if "is_pinned" in payload:
+        section.is_pinned = bool(payload.get("is_pinned"))
+        update_fields.append("is_pinned")
 
     if update_fields:
         update_fields.append("updated_at")

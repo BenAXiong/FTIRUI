@@ -44,11 +44,12 @@ class WorkspaceSection(models.Model):
     description = models.TextField(blank=True, default="")
     color = models.CharField(max_length=32, blank=True, default="")
     position = models.PositiveIntegerField(default=0)
+    is_pinned = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["position", "created_at"]
+        ordering = ["-is_pinned", "position", "created_at"]
         unique_together = ("owner", "name")
 
     def __str__(self):

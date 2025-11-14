@@ -343,6 +343,12 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   border-radius: 50%;
   display: grid;
   place-items: center;
+  color: inherit;
+}
+.sidebar-project-icon.is-active,
+.sidebar-folder-icon.is-active,
+.table-icon-btn.is-active {
+  color: var(--bs-primary);
 }
 .sidebar-project-row:is(:hover, :focus-within),
 .sidebar-project-row:focus-within {
