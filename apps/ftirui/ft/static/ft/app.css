@@ -823,9 +823,8 @@ body.dashboard-overlay-open {
 }
 .app-tabs-container .tab-content{
   flex:1 1 auto;
-  display:flex;
-  flex-direction:column;
-  min-height:0;
+  min-height: 0;
+  position: relative;
 }
 /* ==========================================================================
    Workspace Pane
@@ -2783,4 +2782,17 @@ pre, code, .pre-like {
     bottom:.85rem;
     right:calc(.85rem + 2.75rem);
   }
+}
+.tab-content > .tab-pane {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.tab-content > .tab-pane.show,
+.tab-content > .tab-pane.active {
+  display: block;
+  position: relative;
+  height: auto;
 }

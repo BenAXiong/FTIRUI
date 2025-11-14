@@ -1,8 +1,8 @@
 Phase 7
 
 solve identation/long page issue
-fix explorer highlights and filtering issues
 latest: nice View all button
+fix explorer highlights and filtering issues
 
 try new canvas from explorer and see if really empty
 
