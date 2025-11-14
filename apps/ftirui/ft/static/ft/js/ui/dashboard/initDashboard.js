@@ -34,6 +34,9 @@ export function initDashboard() {
   const latestContainer = document.querySelector('[data-dashboard-latest]');
   const latestOverlay = document.querySelector('[data-dashboard-latest-overlay]');
   const latestOverlayList = latestOverlay?.querySelector('[data-dashboard-latest-overlay-list]');
+  const latestSection = document.querySelector('[data-dashboard-latest-section]');
+  const latestHeader = document.querySelector('[data-dashboard-latest-header]');
+  const latestContent = document.querySelector('[data-dashboard-latest-content]');
   const viewLatestBtn = document.querySelector('[data-action="view-latest"]');
   const searchInput = document.getElementById('dashboard_filter_search');
   const folderSelect = document.getElementById('dashboard_filter_folder');
@@ -76,6 +79,7 @@ export function initDashboard() {
     activeProjectId: null,
     latestCanvases: [],
     latestCanvasesFull: [],
+    latestCollapsed: false,
     editingSectionId: null,
     editingFolderId: null,
     editingCanvasId: null,
@@ -283,6 +287,24 @@ export function initDashboard() {
       renderSidebarNav();
     }
   };
+
+  const applyLatestCollapsedState = () => {
+    const collapsed = !!state.latestCollapsed;
+    if (latestContent) {
+      latestContent.hidden = collapsed;
+    }
+    if (latestHeader) {
+      latestHeader.setAttribute('aria-expanded', String(!collapsed));
+    }
+    latestSection?.classList.toggle('is-collapsed', collapsed);
+  };
+
+  const toggleLatestCollapsed = () => {
+    state.latestCollapsed = !state.latestCollapsed;
+    applyLatestCollapsedState();
+  };
+
+  applyLatestCollapsedState();
 
   const focusInlineEditors = () => {
     const focusInput = (selector) => {
@@ -2404,6 +2426,24 @@ export function initDashboard() {
       });
     }
   };
+
+  if (latestHeader) {
+    const handleLatestHeaderToggle = (event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-action="view-latest"]')) {
+        return;
+      }
+      event.preventDefault();
+      toggleLatestCollapsed();
+    };
+    latestHeader.addEventListener('click', handleLatestHeaderToggle);
+    latestHeader.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleLatestCollapsed();
+      }
+    });
+  }
 
   searchInput?.addEventListener('input', (event) => {
     state.filters.search = event.target.value || '';

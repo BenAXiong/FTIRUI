@@ -460,6 +460,36 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   padding: 1rem 1.25rem;
   background: var(--bs-tertiary-bg);
 }
+.dashboard-latest-header {
+  gap: .75rem;
+}
+.dashboard-latest-toggle {
+  cursor: pointer;
+  border-radius: .5rem;
+  padding: .25rem .4rem;
+  user-select: none;
+  transition: background-color .2s ease;
+}
+.dashboard-latest-toggle:hover,
+.dashboard-latest-toggle:focus-visible {
+  background: var(--bs-secondary-bg, rgba(0, 0, 0, .05));
+}
+.dashboard-latest-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bs-primary);
+}
+.dashboard-latest-band.is-collapsed {
+  padding-bottom: .75rem;
+}
+.dashboard-latest-band.is-collapsed .dashboard-latest-header {
+  margin-bottom: 0 !important;
+}
+.dashboard-latest-band.is-collapsed .dashboard-latest-content {
+  display: none;
+}
+.dashboard-latest-content[hidden] {
+  display: none;
+}
 .dashboard-latest-track {
   display: flex;
   gap: 1rem;

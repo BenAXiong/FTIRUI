@@ -28,15 +28,23 @@
         </div>
       </aside>
       <div class="dashboard-main flex-grow-1">
-        <section class="dashboard-latest-band mb-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <div class="d-flex align-items-center gap-2">
+        <section class="dashboard-latest-band mb-3" data-dashboard-latest-section>
+          <div class="dashboard-latest-header d-flex align-items-center justify-content-between mb-2">
+            <div class="d-flex align-items-center gap-2 dashboard-latest-toggle"
+                 data-dashboard-latest-header
+                 role="button"
+                 tabindex="0"
+                 aria-expanded="true">
               <i class="bi bi-lightning-charge text-warning"></i>
               <span class="fw-semibold">Latest</span>
             </div>
-            <button class="btn btn-link btn-sm text-decoration-none p-0" type="button" data-action="view-latest">View all</button>
+            <button class="btn btn-outline-primary btn-sm px-3" type="button" data-action="view-latest">
+              View all
+            </button>
           </div>
-          <div class="dashboard-latest-track" data-dashboard-latest></div>
+          <div class="dashboard-latest-content" data-dashboard-latest-content>
+            <div class="dashboard-latest-track" data-dashboard-latest></div>
+          </div>
         </section>
 
         <div class="dashboard-latest-overlay" data-dashboard-latest-overlay hidden>
