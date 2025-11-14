@@ -298,9 +298,15 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   left: calc(100% + .5rem);
 }
 .dashboard-canvas-menu {
-  top: calc(100% + .3rem);
+  top: auto;
   right: auto;
-  left: calc(-100% - .5rem);
+  left: auto;
+}
+.table-menu-anchor .dashboard-canvas-menu {
+  top: 50%;
+  right: 100%;
+  left: auto;
+  transform: translateY(-50%);
 }
 .sidebar-menu-item {
   border: none;
@@ -532,6 +538,12 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .dashboard-gallery-card .table-action-buttons {
   display: flex;
   gap: .35rem;
+  align-items: center;
+}
+.table-menu-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 .table-icon-btn {
   border: none;
