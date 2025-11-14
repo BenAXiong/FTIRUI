@@ -165,11 +165,15 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   border: none;
   background: transparent;
   flex: 1;
+  min-width: 0;
   text-align: left;
   display: flex;
   align-items: center;
   gap: .35rem;
   color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar-folder-entry.is-open .sidebar-folder-label,
 .sidebar-folder-label.is-selected {
@@ -237,12 +241,16 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   border: none;
   background: transparent;
   flex: 1;
+  min-width: 0;
   text-align: left;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: .3rem;
   color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar-project-link.is-selected {
   color: var(--bs-primary);
@@ -361,7 +369,11 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   background: transparent;
   color: inherit;
   flex: 1;
+  min-width: 0;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar-folder-item-actions {
   display: flex;
