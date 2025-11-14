@@ -551,6 +551,13 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
 }
+
+@media (min-width: 992px) {
+  .dashboard-gallery-view {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    justify-content: flex-start;
+  }
+}
 .dashboard-gallery-card {
   border: 1px solid var(--bs-border-color);
   border-radius: .85rem;

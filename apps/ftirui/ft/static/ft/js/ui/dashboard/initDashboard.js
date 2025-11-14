@@ -661,6 +661,16 @@ export function initDashboard() {
     render();
   };
 
+  const resetToAllProjects = () => {
+    state.filters.section = 'all';
+    state.filters.folder = null;
+    state.activeSectionId = null;
+    state.activeProjectId = null;
+    if (folderSelect) {
+      folderSelect.value = 'all';
+    }
+  };
+
   const isInlineInput = (node) =>
     node instanceof HTMLInputElement &&
     (node.dataset.inlineProject || node.dataset.inlineFolder || node.dataset.inlineCanvas);
@@ -1710,9 +1720,17 @@ export function initDashboard() {
   sidebarNav?.addEventListener('click', (event) => {
     const button = resolveClosest(event, '[data-view]');
     if (!button) return;
-    state.sidebarView = button.dataset.view || 'home';
+    const nextView = button.dataset.view || 'home';
+    state.sidebarView = nextView;
     state.activeProjectId = null;
     renderSidebarNav();
+    if (nextView === 'home') {
+      resetToAllProjects();
+      renderSidebar();
+      render();
+      updateMainTitle();
+      return;
+    }
     renderSidebar();
     updateMainTitle();
   });
