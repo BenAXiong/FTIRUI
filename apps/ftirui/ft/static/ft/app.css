@@ -456,30 +456,29 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   color: var(--bs-secondary-color);
 }
 .dashboard-latest-band {
-  border: 1px solid var(--bs-border-color);
   border-radius: 1rem;
   padding: 1rem 1.25rem;
-  background: var(--bs-body-bg);
+  background: var(--bs-tertiary-bg);
 }
 .dashboard-latest-track {
   display: flex;
   gap: 1rem;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  overflow: hidden;
   padding-bottom: .25rem;
   scroll-snap-type: x proximity;
 }
 .latest-card {
-  border: 1px solid var(--bs-border-color);
+  border: none;
   border-radius: .85rem;
   padding: .75rem;
-  min-width: 180px;
-  max-width: 220px;
+  flex: 0 0 calc((100% - 5rem) / 6);
+  min-width: 140px;
   background: var(--bs-body-bg);
   scroll-snap-align: start;
   transition: border-color .2s ease, transform .2s ease;
 }
 .latest-card:is(:hover, :focus-within) {
-  border-color: var(--bs-primary);
   transform: translateY(-2px);
 }
 .latest-card-thumb {
@@ -488,6 +487,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   border-radius: .65rem;
   background: var(--bs-tertiary-bg);
   margin-bottom: .65rem;
+  border: 1px solid var(--bs-border-color);
 }
 .latest-card-title {
   font-weight: 600;
@@ -496,9 +496,17 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.latest-card-time {
+  font-size: .8rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: .1rem;
+}
 .latest-card-meta {
   font-size: .8rem;
   color: var(--bs-secondary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dashboard-empty { display: none; }
 .dashboard-empty.is-visible { display: block; }

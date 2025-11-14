@@ -31,7 +31,7 @@ export function initDashboard() {
   const sidebarNav = document.querySelector('[data-sidebar-nav]');
   const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
   const titleLabel = root.querySelector('[data-dashboard-title]');
-  const latestContainer = root.querySelector('[data-dashboard-latest]');
+  const latestContainer = document.querySelector('[data-dashboard-latest]');
   const searchInput = document.getElementById('dashboard_filter_search');
   const folderSelect = document.getElementById('dashboard_filter_folder');
   const sortSelect = document.getElementById('dashboard_filter_sort');
@@ -820,8 +820,8 @@ export function initDashboard() {
             id: canvas.id,
             title: canvas.title || 'Untitled canvas',
             updated: canvas.updated,
-            projectTitle: project.title || 'Untitled project',
-            sectionName: section.name || 'Folder'
+            folderName: project.title || 'Untitled folder',
+            projectTitle: section.name || 'Untitled project'
           });
         });
       });
@@ -831,7 +831,7 @@ export function initDashboard() {
       const bTime = new Date(b.updated || 0).getTime();
       return bTime - aTime;
     });
-    state.latestCanvases = canvases.slice(0, 30);
+    state.latestCanvases = canvases.slice(0, 6);
     renderLatest();
   };
 
@@ -851,8 +851,9 @@ export function initDashboard() {
       card.innerHTML = `
         <div class="latest-card-thumb" aria-hidden="true"></div>
         <div class="latest-card-title">${escapeHtml(canvas.title)}</div>
+        <div class="latest-card-time">${formatRelative(canvas.updated)}</div>
         <div class="latest-card-meta">
-          ${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}
+          ${escapeHtml(canvas.projectTitle)} &bull; ${escapeHtml(canvas.folderName)}
         </div>
       `;
       card.addEventListener('click', () => navigateToCanvas(canvas.id));

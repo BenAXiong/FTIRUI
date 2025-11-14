@@ -1,16 +1,14 @@
 Phase 7
 
-?mountWorkspace or app.js, since both views share the same functionality.
+sort by last modified by default
+main view - names bold no links
 
-check remaining occurences of "section" and replace with folder when adequate
-New folder should open folder not project
-test option/move for folders and canvases
-create the fav backend, API and all
+remove footer
+solve identation/long page issue
+fix explorer highlights and filtering issues
 
-ellipse long names
-options popup placement
-gallery fixed size 1/4
-main view arrows to sort by name, projects, folders, etc
+DnD
+put filters in main view project header for compactness?
 
 Step 4 – Cleanup & Migration (✅ done)
 
@@ -39,8 +37,6 @@ Step 7 – Optional Bug Sweep
 ___________________________________________________________
 Questions
 
-*Clicking a project still opens its first board so existing flows continue to work.
-*exp pane: placeholders on hover (pin needs new section)
 *Drag-and-drop will arrive later. For now, use the buttons above the list to add content.
 *save and manage snapshots?
 ___________________________________________________________
@@ -55,6 +51,8 @@ Polishing
 - rethink plot types: defaults, changing, etc
 - dash/explorer: extensible to the right?
 - canvas thulbnails (2-3d???)
+- dash main list ... popups: up and bottom position out of bounds
+- login area: move "Sign out" into dropdown, arrange order with d/lmode, load pic, etc
 ___________________________________________________________
 Future work
 
