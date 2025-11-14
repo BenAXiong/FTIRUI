@@ -2,8 +2,6 @@ Phase 7
 
 ?mountWorkspace or app.js, since both views share the same functionality.
 
-canvases thumbnails?
-broken rename and delete
 check remaining occurences of "section" and replace with folder when adequate
 New folder should open folder not project
 test option/move for folders and canvases
@@ -56,6 +54,7 @@ Polishing
 - fix browser popups 
 - rethink plot types: defaults, changing, etc
 - dash/explorer: extensible to the right?
+- canvas thulbnails (2-3d???)
 ___________________________________________________________
 Future work
 

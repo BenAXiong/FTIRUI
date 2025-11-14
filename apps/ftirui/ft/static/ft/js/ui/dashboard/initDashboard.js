@@ -1327,8 +1327,34 @@ export function initDashboard() {
     }
   };
 
+  const resolveSectionIdForNewFolder = () => {
+    const candidates = [];
+    if (state.activeSectionId) candidates.push(state.activeSectionId);
+    if (state.filters.section && state.filters.section !== 'all') {
+      candidates.push(state.filters.section);
+    }
+    if (state.sections.length === 1) {
+      candidates.push(state.sections[0].id);
+    }
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      const section = state.sections.find((item) => idsMatch(item.id, candidate));
+      if (section) return section.id;
+    }
+    return null;
+  };
+
   newSectionBtn?.addEventListener('click', () => {
-    void handleCreateProject();
+    const sectionId = resolveSectionIdForNewFolder();
+    if (!sectionId) {
+      window.showAppToast?.({
+        title: 'Project required',
+        message: 'Select a project in the sidebar before creating a folder.',
+        variant: 'warning'
+      });
+      return;
+    }
+    void handleCreateFolder(sectionId);
   });
 
   newCanvasBtn?.addEventListener('click', () => {
