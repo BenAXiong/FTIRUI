@@ -1,10 +1,15 @@
 Phase 7
 
-dash explorer: DnD
-Top band:  Lastest or else? Papers and reports? + compact styling+ when to display (and fallback when hidden)
-*add graph button direclty in exp/project
+Top band
+*"add graph" button direclty in exp/project
+
+togglable canvas thumbnail (placeholder) in list
 
 main: match lastest and fav icons
+main: hide New folder button when project is not selected or already filtered by folder
+dash: align bottomm of exp and main 
+
+log community feature
 
 Step 4 – Cleanup & Migration (✅ done)
 

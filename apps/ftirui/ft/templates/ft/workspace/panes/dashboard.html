@@ -30,39 +30,40 @@
         </div>
       </aside>
       <div class="dashboard-main flex-grow-1">
-          <section class="dashboard-latest-band mb-3" data-dashboard-latest-section>
-            <div class="dashboard-latest-header d-flex align-items-center justify-content-between mb-2">
-              <div class="d-flex align-items-center gap-2 dashboard-latest-toggle"
-                   data-dashboard-latest-header
-                   role="button"
-                   tabindex="0"
-                 aria-expanded="true">
-              <i class="bi bi-lightning-charge text-warning"></i>
-              <span class="fw-semibold">Latest</span>
-            </div>
-            <button class="btn btn-outline-primary btn-sm px-3" type="button" data-action="view-latest">
-              <i class="bi bi-arrow-right-circle me-1"></i>
-              View all
-            </button>
-          </div>
-          <div class="dashboard-latest-content" data-dashboard-latest-content>
-            <div class="dashboard-latest-track" data-dashboard-latest></div>
+        <section class="dashboard-latest-band mb-3" data-dashboard-latest-section>
+          <div class="dashboard-quick-launch" data-dashboard-latest-content>
+            <article class="dashboard-quick-card">
+              <i class="bi bi-plus-square"></i>
+              <h3>New canvas</h3>
+              <p>Start from a blank workspace.</p>
+            </article>
+            <article class="dashboard-quick-card">
+              <i class="bi bi-clipboard-data"></i>
+              <h3>New report</h3>
+              <p>Generate a structured summary for your team.</p>
+            </article>
+            <article class="dashboard-quick-card">
+              <i class="bi bi-easel"></i>
+              <h3>New presentation</h3>
+              <p>Draft slides directly from your canvases.</p>
+            </article>
+            <article class="dashboard-quick-card">
+              <i class="bi bi-journal-text"></i>
+              <h3>New paper</h3>
+              <p>Kick off a manuscript-ready document.</p>
+            </article>
+            <article class="dashboard-quick-card">
+              <i class="bi bi-lightning"></i>
+              <h3>???</h3>
+              <p>Placeholder action for future tooling.</p>
+            </article>
+            <article class="dashboard-quick-card">
+              <i class="bi bi-stars"></i>
+              <h3>???</h3>
+              <p>Another upcoming workflow shortcut.</p>
+            </article>
           </div>
         </section>
-
-        <div class="dashboard-latest-overlay" data-dashboard-latest-overlay hidden>
-          <div class="dashboard-latest-overlay-backdrop" data-action="close-latest-overlay"></div>
-          <div class="dashboard-latest-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="dashboard_latest_overlay_title">
-            <div class="dashboard-latest-overlay-header">
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-lightning-charge text-warning"></i>
-                <span id="dashboard_latest_overlay_title" class="fw-semibold">Recent canvases</span>
-              </div>
-              <button type="button" class="btn-close" aria-label="Close" data-action="close-latest-overlay"></button>
-            </div>
-            <div class="dashboard-latest-overlay-body" data-dashboard-latest-overlay-list></div>
-          </div>
-        </div>
 
         <div class="dashboard-main-scroll">
           <div id="dashboard_root" class="card shadow-sm mb-3">

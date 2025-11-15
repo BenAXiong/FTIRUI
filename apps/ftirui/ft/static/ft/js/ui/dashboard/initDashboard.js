@@ -33,12 +33,9 @@ export function initDashboard() {
   const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
   const titleLabel = root.querySelector('[data-dashboard-title]');
   const latestContainer = document.querySelector('[data-dashboard-latest]');
-  const latestOverlay = document.querySelector('[data-dashboard-latest-overlay]');
-  const latestOverlayList = latestOverlay?.querySelector('[data-dashboard-latest-overlay-list]');
   const latestSection = document.querySelector('[data-dashboard-latest-section]');
   const latestHeader = document.querySelector('[data-dashboard-latest-header]');
   const latestContent = document.querySelector('[data-dashboard-latest-content]');
-  const viewLatestBtn = document.querySelector('[data-action="view-latest"]');
   const searchInput = document.getElementById('dashboard_filter_search');
   const folderSelect = document.getElementById('dashboard_filter_folder');
   const sortSelect = document.getElementById('dashboard_filter_sort');
@@ -1150,70 +1147,6 @@ export function initDashboard() {
       card.addEventListener('click', () => navigateToCanvas(canvas.id));
       latestContainer.appendChild(card);
     });
-  };
-
-  const renderLatestOverlay = () => {
-    if (!latestOverlayList) return;
-    const canvases = state.latestCanvasesFull || [];
-    if (!canvases.length) {
-      latestOverlayList.innerHTML =
-        '<p class="text-muted small mb-0">No recent canvases to display.</p>';
-      return;
-    }
-    const rows = canvases
-      .map(
-        (canvas) => `
-          <tr>
-            <td>
-              <button type="button" class="btn btn-link p-0 latest-overlay-link" data-latest-canvas="${canvas.id}">
-                ${escapeHtml(canvas.title)}
-              </button>
-            </td>
-            <td>${escapeHtml(canvas.projectTitle)}</td>
-            <td>${escapeHtml(canvas.folderName)}</td>
-            <td>${formatRelative(canvas.updated)}</td>
-            <td>${escapeHtml(canvas.owner || 'You')}</td>
-          </tr>
-        `
-      )
-      .join('');
-    latestOverlayList.innerHTML = `
-      <div class="dashboard-table-wrapper">
-        <table class="dashboard-table dashboard-latest-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Project</th>
-              <th>Folder</th>
-              <th>Last modified</th>
-              <th>Owner</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
-      </div>
-    `;
-  };
-
-  const openLatestOverlay = () => {
-    if (!latestOverlay) return;
-    renderLatestOverlay();
-    latestOverlay.hidden = false;
-    requestAnimationFrame(() => {
-      latestOverlay.classList.add('is-visible');
-    });
-    document.body.classList.add('dashboard-overlay-open');
-  };
-
-  const closeLatestOverlay = () => {
-    if (!latestOverlay) return;
-    latestOverlay.classList.remove('is-visible');
-    document.body.classList.remove('dashboard-overlay-open');
-    setTimeout(() => {
-      latestOverlay.hidden = true;
-    }, 150);
   };
 
   const flattenCanvases = (sections) => {
@@ -2375,9 +2308,6 @@ export function initDashboard() {
       if (state.openCanvasMenuId) {
         closeCanvasMenu();
       }
-      if (latestOverlay && !latestOverlay.hidden) {
-        closeLatestOverlay();
-      }
     }
   });
 
@@ -2906,38 +2836,11 @@ export function initDashboard() {
     renderLatest();
   });
 
-  viewLatestBtn?.addEventListener('click', () => {
-    if (!state.latestCanvasesFull.length) {
-      window.showAppToast?.({
-        title: 'No recent canvases',
-        message: 'Canvases will appear here as you open them.',
-        variant: 'info'
-      });
-      return;
-    }
-    openLatestOverlay();
-  });
-
   viewToggle?.addEventListener('click', (event) => {
     const button = resolveClosest(event, 'button[data-view]');
     if (!button) return;
     state.viewMode = button.dataset.view || 'list';
     updateView();
-  });
-
-  latestOverlay?.addEventListener('click', (event) => {
-    const closeTrigger = resolveClosest(event, '[data-action="close-latest-overlay"]');
-    if (closeTrigger) {
-      event.preventDefault();
-      closeLatestOverlay();
-      return;
-    }
-    const canvasTrigger = resolveClosest(event, '[data-latest-canvas]');
-    if (canvasTrigger?.dataset?.latestCanvas) {
-      event.preventDefault();
-      closeLatestOverlay();
-      navigateToCanvas(canvasTrigger.dataset.latestCanvas);
-    }
   });
 
   void loadSections();
