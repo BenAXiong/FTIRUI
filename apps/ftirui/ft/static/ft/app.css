@@ -498,6 +498,16 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .sidebar-folder-item:is(:hover, :focus-within) .sidebar-folder-item-actions {
   opacity: 1;
 }
+.sidebar-folder-entry.is-drop-target {
+  background: var(--bs-primary-bg-subtle, rgba(13, 110, 253, .12));
+  border-radius: .6rem;
+  box-shadow: inset 0 0 0 1px rgba(13, 110, 253, .4);
+  padding: .15rem;
+}
+.sidebar-folder-entry.is-drop-target .sidebar-folder-row,
+.sidebar-folder-entry.is-drop-target .sidebar-folder-item {
+  background: transparent;
+}
 .sidebar-canvas-list {
   margin-left: 1.75rem;
   display: flex;

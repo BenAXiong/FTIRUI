@@ -99,6 +99,8 @@ export function initDashboard() {
     devMode: new URLSearchParams(window.location.search).get('dev') === 'true',
     listSort: readStoredListSort()
   };
+  const ROOT_FOLDER_SUMMARY = '__ftir_root__';
+  const ROOT_FOLDER_LABEL = 'Loose canvases';
 
   const escapeHtml = (value) =>
     String(value || '')
@@ -320,11 +322,16 @@ export function initDashboard() {
 
   let draggingFolderId = null;
   let draggingFolderRow = null;
+  let draggingCanvasId = null;
+  let draggingCanvasRow = null;
 
   const clearProjectDropIndicators = () => {
     if (!sidebarTree) return;
     sidebarTree
       .querySelectorAll('.sidebar-project-row.is-drop-target')
+      .forEach((row) => row.classList.remove('is-drop-target'));
+    sidebarTree
+      .querySelectorAll('.sidebar-folder-entry.is-drop-target')
       .forEach((row) => row.classList.remove('is-drop-target'));
   };
 
@@ -367,6 +374,25 @@ export function initDashboard() {
   };
 
   const handleProjectDragOver = (event) => {
+    if (draggingCanvasId) {
+      const projectRow = event.target.closest('.sidebar-project-row[data-drop-project]');
+      if (!projectRow) return;
+      const sectionId = projectRow.dataset.dropProject;
+      const owner = findCanvasOwner(draggingCanvasId);
+      if (!owner || idsMatch(owner.section.id, sectionId)) {
+        projectRow.classList.remove('is-drop-target');
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = 'none';
+        }
+        return;
+      }
+      event.preventDefault();
+      projectRow.classList.add('is-drop-target');
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+      return;
+    }
     if (!draggingFolderId) return;
     const projectRow = event.target.closest('.sidebar-project-row[data-drop-project]');
     if (!projectRow) return;
@@ -395,6 +421,20 @@ export function initDashboard() {
   };
 
   const handleProjectDrop = async (event) => {
+    if (draggingCanvasId) {
+      const projectRow = event.target.closest('.sidebar-project-row[data-drop-project]');
+      if (!projectRow) return;
+      event.preventDefault();
+      const targetSectionId = projectRow.dataset.dropProject;
+      const canvasId = draggingCanvasId;
+      const owner = findCanvasOwner(canvasId);
+      handleCanvasDragEnd();
+      if (!owner || idsMatch(owner.section.id, targetSectionId)) {
+        return;
+      }
+      await moveCanvasToFolder(canvasId, owner.project.id, { newSectionId: targetSectionId });
+      return;
+    }
     if (!draggingFolderId) return;
     const projectRow = event.target.closest('.sidebar-project-row[data-drop-project]');
     if (!projectRow) return;
@@ -407,6 +447,79 @@ export function initDashboard() {
       return;
     }
     await moveFolderToSection(folderId, targetSectionId);
+  };
+
+  const handleCanvasDragStart = (event) => {
+    const row = event.target.closest('.sidebar-folder-item[draggable="true"]');
+    if (!row || !row.dataset.canvasEntry) return;
+    if (event.target.closest('.sidebar-folder-item-actions')) {
+      event.preventDefault();
+      return;
+    }
+    draggingCanvasId = row.dataset.canvasEntry;
+    draggingCanvasRow = row;
+    row.classList.add('is-dragging');
+    clearProjectDropIndicators();
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      try {
+        event.dataTransfer.setData('text/plain', draggingCanvasId);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const handleCanvasDragEnd = () => {
+    if (draggingCanvasRow) {
+      draggingCanvasRow.classList.remove('is-dragging');
+    }
+    draggingCanvasId = null;
+    draggingCanvasRow = null;
+    clearProjectDropIndicators();
+  };
+
+  const handleFolderTargetDragOver = (event) => {
+    if (!draggingCanvasId) return;
+    const folderEntryEl = event.target.closest('.sidebar-folder-entry[data-folder-entry]');
+    if (!folderEntryEl) return;
+    const folderId = folderEntryEl.dataset.folderEntry;
+    const owner = findCanvasOwner(draggingCanvasId);
+    if (!owner || idsMatch(owner.project.id, folderId)) {
+      folderEntryEl.classList.remove('is-drop-target');
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'none';
+      }
+      return;
+    }
+    event.preventDefault();
+    folderEntryEl.classList.add('is-drop-target');
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleFolderTargetDragLeave = (event) => {
+    const folderEntryEl = event.target.closest('.sidebar-folder-entry[data-folder-entry]');
+    if (!folderEntryEl) return;
+    if (!folderEntryEl.contains(event.relatedTarget)) {
+      folderEntryEl.classList.remove('is-drop-target');
+    }
+  };
+
+  const handleFolderTargetDrop = async (event) => {
+    if (!draggingCanvasId) return;
+    const folderEntryEl = event.target.closest('.sidebar-folder-entry[data-folder-entry]');
+    if (!folderEntryEl) return;
+    event.preventDefault();
+    const targetFolderId = folderEntryEl.dataset.folderEntry;
+    const canvasId = draggingCanvasId;
+    const owner = findCanvasOwner(canvasId);
+    handleCanvasDragEnd();
+    if (!owner || idsMatch(owner.project.id, targetFolderId)) {
+      return;
+    }
+    await moveCanvasToFolder(canvasId, targetFolderId);
   };
 
   const focusInlineEditors = () => {
@@ -544,6 +657,7 @@ export function initDashboard() {
           const folderEntry = document.createElement('div');
           const folderSelected = idsMatch(state.filters.folder, folder.id);
           folderEntry.className = `sidebar-folder-entry${folderExpanded ? ' is-open' : ''}`;
+          folderEntry.dataset.folderEntry = folder.id;
           const menuOpen = idsMatch(state.openOptionsFolderId, folder.id);
           const isEditingFolder = idsMatch(state.editingFolderId, folder.id);
           const folderLabelMarkup = isEditingFolder
@@ -638,10 +752,16 @@ export function initDashboard() {
           canvases.forEach((canvas) => {
             const canvasRow = document.createElement('div');
             canvasRow.className = 'sidebar-folder-item';
+            canvasRow.dataset.canvasEntry = canvas.id;
             const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'sidebar');
             const canvasFavorite = Boolean(canvas.is_favorite);
             const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
             const isSidebarInline = isEditingCanvas && state.editingCanvasContext === 'sidebar';
+            if (!isSidebarInline) {
+              canvasRow.setAttribute('draggable', 'true');
+            } else {
+              canvasRow.removeAttribute('draggable');
+            }
             const canvasLabelMarkup = isSidebarInline
               ? `
                 <div class="sidebar-folder-link sidebar-inline-wrapper">
@@ -1945,6 +2065,67 @@ export function initDashboard() {
     }
   };
 
+  const moveCanvasToFolder = async (canvasId, targetFolderId, options = {}) => {
+    if (!canvasId) return false;
+    const owner = findCanvasOwner(canvasId);
+    if (!owner || !owner.canvas) {
+      window.showAppToast?.({
+        title: 'Canvas not found',
+        message: 'Refresh the dashboard and try again.',
+        variant: 'warning'
+      });
+      return false;
+    }
+    const newProjectId = targetFolderId || options.newSectionId ? owner.project.id : null;
+    const targetProjectId = targetFolderId || options.newSectionId ? targetFolderId : null;
+    if (!options.newSectionId && targetProjectId && idsMatch(owner.project.id, targetProjectId)) {
+      return false;
+    }
+    exitFavoritesView();
+    exitLatestView();
+    const viewContext = getActiveViewContext();
+    try {
+      const payload = {};
+      if (options.newSectionId) {
+        payload.project_id = null;
+        payload.section_id = options.newSectionId;
+      } else {
+        payload.project_id = targetFolderId;
+      }
+      await updateCanvas(canvasId, payload);
+      const nextSectionId = options.newSectionId || owner.section.id;
+      state.filters.section = nextSectionId;
+      state.filters.folder = options.newSectionId ? null : targetFolderId;
+      state.activeSectionId = nextSectionId;
+      state.activeProjectId = options.newSectionId ? null : targetFolderId;
+      state.expandedProjects.add(nextSectionId);
+      if (!options.newSectionId && targetFolderId) {
+        state.expandedFolders.add(targetFolderId);
+      }
+      await loadSections();
+      applyViewContext(viewContext);
+      render();
+      updateMainTitle();
+      const targetFolder =
+        (targetFolderId ? findFolder(targetFolderId) : null) || { title: 'Project updated' };
+      window.showAppToast?.({
+        title: 'Canvas moved',
+        message: targetFolderId
+          ? `Moved to ${targetFolder.title || 'folder'}.`
+          : 'Moved to project.',
+        variant: 'success'
+      });
+      return true;
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to move canvas',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+      return false;
+    }
+  };
+
   const toggleProject = (sectionId) => {
     if (!sectionId) return;
     if (state.expandedProjects.has(sectionId)) {
@@ -2113,6 +2294,11 @@ export function initDashboard() {
   sidebarTree?.addEventListener('dragover', handleProjectDragOver);
   sidebarTree?.addEventListener('dragleave', handleProjectDragLeave);
   sidebarTree?.addEventListener('drop', handleProjectDrop);
+  sidebarTree?.addEventListener('dragstart', handleCanvasDragStart);
+  sidebarTree?.addEventListener('dragend', handleCanvasDragEnd);
+  sidebarTree?.addEventListener('dragover', handleFolderTargetDragOver);
+  sidebarTree?.addEventListener('dragleave', handleFolderTargetDragLeave);
+  sidebarTree?.addEventListener('drop', handleFolderTargetDrop);
   root.addEventListener('keydown', handleInlineKeydown, true);
   root.addEventListener('focusout', handleInlineBlur, true);
 
