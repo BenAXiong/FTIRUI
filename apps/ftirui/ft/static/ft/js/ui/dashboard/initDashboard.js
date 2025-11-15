@@ -379,7 +379,13 @@ export function initDashboard() {
       if (!projectRow) return;
       const sectionId = projectRow.dataset.dropProject;
       const owner = findCanvasOwner(draggingCanvasId);
-      if (!owner || idsMatch(owner.section.id, sectionId)) {
+      if (!owner) {
+        projectRow.classList.remove('is-drop-target');
+        return;
+      }
+      const isSameSection = idsMatch(owner.section.id, sectionId);
+      const isAlreadyRoot = owner.project?.summary === ROOT_FOLDER_SUMMARY;
+      if (isSameSection && isAlreadyRoot) {
         projectRow.classList.remove('is-drop-target');
         if (event.dataTransfer) {
           event.dataTransfer.dropEffect = 'none';
@@ -429,10 +435,24 @@ export function initDashboard() {
       const canvasId = draggingCanvasId;
       const owner = findCanvasOwner(canvasId);
       handleCanvasDragEnd();
-      if (!owner || idsMatch(owner.section.id, targetSectionId)) {
+      if (!owner) {
         return;
       }
-      await moveCanvasToFolder(canvasId, owner.project.id, { newSectionId: targetSectionId });
+      const isSameSection = idsMatch(owner.section.id, targetSectionId);
+      const isAlreadyRoot = owner.project?.summary === ROOT_FOLDER_SUMMARY;
+      if (isSameSection && isAlreadyRoot) {
+        return;
+      }
+      const rootFolder =
+        isSameSection && owner.project?.summary === ROOT_FOLDER_SUMMARY
+          ? owner.project
+          : await ensureRootFolder(targetSectionId);
+      if (!rootFolder) return;
+      await moveCanvasToFolder(
+        canvasId,
+        rootFolder.id,
+        isSameSection ? {} : { newSectionId: targetSectionId }
+      );
       return;
     }
     if (!draggingFolderId) return;
@@ -1756,6 +1776,42 @@ export function initDashboard() {
     return null;
   };
 
+  const findRootFolderForSection = (sectionId) => {
+    if (!sectionId) return null;
+    for (const section of state.sections || []) {
+      if (!idsMatch(section.id, sectionId)) continue;
+      const project =
+        section.projects?.find(
+          (candidate) => candidate?.summary === ROOT_FOLDER_SUMMARY
+        ) || null;
+      return project || null;
+    }
+    return null;
+  };
+
+  const ensureRootFolder = async (sectionId) => {
+    if (!sectionId) return null;
+    const existing = findRootFolderForSection(sectionId);
+    if (existing) return existing;
+    try {
+      const created = await createProject(sectionId, {
+        title: ROOT_FOLDER_LABEL,
+        summary: ROOT_FOLDER_SUMMARY,
+        position: -100
+      });
+      await loadSections();
+      return created;
+    } catch (err) {
+      console.warn('Failed to create default folder', err);
+      window.showAppToast?.({
+        title: 'Unable to prepare folder',
+        message: 'Try creating a folder manually first.',
+        variant: 'danger'
+      });
+      return null;
+    }
+  };
+
   const findCanvasOwner = (canvasId) => {
     if (!canvasId && canvasId !== 0) return null;
     for (const section of state.sections) {
@@ -2066,7 +2122,7 @@ export function initDashboard() {
   };
 
   const moveCanvasToFolder = async (canvasId, targetFolderId, options = {}) => {
-    if (!canvasId) return false;
+    if (!canvasId || !targetFolderId) return false;
     const owner = findCanvasOwner(canvasId);
     if (!owner || !owner.canvas) {
       window.showAppToast?.({
@@ -2076,43 +2132,30 @@ export function initDashboard() {
       });
       return false;
     }
-    const newProjectId = targetFolderId || options.newSectionId ? owner.project.id : null;
-    const targetProjectId = targetFolderId || options.newSectionId ? targetFolderId : null;
-    if (!options.newSectionId && targetProjectId && idsMatch(owner.project.id, targetProjectId)) {
+    if (!options.newSectionId && idsMatch(owner.project.id, targetFolderId)) {
       return false;
     }
     exitFavoritesView();
     exitLatestView();
     const viewContext = getActiveViewContext();
     try {
-      const payload = {};
-      if (options.newSectionId) {
-        payload.project_id = null;
-        payload.section_id = options.newSectionId;
-      } else {
-        payload.project_id = targetFolderId;
-      }
-      await updateCanvas(canvasId, payload);
+      await updateCanvas(canvasId, { project_id: targetFolderId });
       const nextSectionId = options.newSectionId || owner.section.id;
       state.filters.section = nextSectionId;
-      state.filters.folder = options.newSectionId ? null : targetFolderId;
+      state.filters.folder = targetFolderId;
       state.activeSectionId = nextSectionId;
-      state.activeProjectId = options.newSectionId ? null : targetFolderId;
+      state.activeProjectId = targetFolderId;
       state.expandedProjects.add(nextSectionId);
-      if (!options.newSectionId && targetFolderId) {
-        state.expandedFolders.add(targetFolderId);
-      }
+      state.expandedFolders.add(targetFolderId);
       await loadSections();
       applyViewContext(viewContext);
       render();
       updateMainTitle();
       const targetFolder =
-        (targetFolderId ? findFolder(targetFolderId) : null) || { title: 'Project updated' };
+        findFolder(targetFolderId) || { title: 'Project updated' };
       window.showAppToast?.({
         title: 'Canvas moved',
-        message: targetFolderId
-          ? `Moved to ${targetFolder.title || 'folder'}.`
-          : 'Moved to project.',
+        message: `Moved to ${targetFolder.title || 'folder'}.`,
         variant: 'success'
       });
       return true;
