@@ -4,7 +4,9 @@ fix explorer highlights and filtering issues
 try new canvas from explorer and see if really empty
 
 dash explorer: DnD
+
 put filters in main view project header for compactness?
+main view list row height uneven0
 
 reconsider top band:  Lastest or else? + compact styling
 
