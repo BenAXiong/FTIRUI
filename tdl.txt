@@ -1,13 +1,12 @@
 Phase 7
 
-solve identation/long page issue
-latest: nice View all button
 fix explorer highlights and filtering issues
-
 try new canvas from explorer and see if really empty
 
 dash explorer: DnD
 put filters in main view project header for compactness?
+
+reconsider top band:  Lastest or else? + compact styling
 
 Step 4 – Cleanup & Migration (✅ done)
 

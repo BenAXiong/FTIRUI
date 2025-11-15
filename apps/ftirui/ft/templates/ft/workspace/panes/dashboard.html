@@ -1,30 +1,32 @@
 <!-- Dashboard -->
 <div id="dashboard" class="tab-pane fade{% if not workspace_pane_active %} show active{% endif %}" role="tabpanel">
-  <div class="dashboard-pane mt-3">
+  <div class="dashboard-pane">
     <div class="dashboard-layout">
       <aside class="dashboard-sidebar" id="dashboard_sidebar">
-        <nav class="sidebar-nav mb-3" data-sidebar-nav>
-          <button type="button" class="sidebar-nav-link is-active" data-view="home">
-            <i class="bi bi-house-door"></i>
-            <span>Home</span>
-          </button>
-          <button type="button" class="sidebar-nav-link" data-view="latest">
-            <i class="bi bi-clock-history"></i>
-            <span>Latest</span>
-          </button>
-          <button type="button" class="sidebar-nav-link" data-view="favorites">
-            <i class="bi bi-star"></i>
-            <span>Favorites</span>
-          </button>
-        </nav>
-        <div class="sidebar-section">
-          <div class="sidebar-section-header">
-            <span class="sidebar-section-title">Projects</span>
-            <button type="button" class="icon-button" id="dashboard_sidebar_new_project" title="Create project" aria-label="Create project">
-              <i class="bi bi-plus-lg"></i>
+        <div class="dashboard-sidebar-scroll">
+          <nav class="sidebar-nav mb-3" data-sidebar-nav>
+            <button type="button" class="sidebar-nav-link is-active" data-view="home">
+              <i class="bi bi-house-door"></i>
+              <span>Home</span>
             </button>
+            <button type="button" class="sidebar-nav-link" data-view="latest">
+              <i class="bi bi-clock-history"></i>
+              <span>Latest</span>
+            </button>
+            <button type="button" class="sidebar-nav-link" data-view="favorites">
+              <i class="bi bi-star"></i>
+              <span>Favorites</span>
+            </button>
+          </nav>
+          <div class="sidebar-section">
+            <div class="sidebar-section-header">
+              <span class="sidebar-section-title">Projects</span>
+              <button type="button" class="icon-button" id="dashboard_sidebar_new_project" title="Create project" aria-label="Create project">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+            <div id="dashboard_sidebar_tree" data-dashboard-sidebar class="dashboard-sidebar-tree"></div>
           </div>
-          <div id="dashboard_sidebar_tree" data-dashboard-sidebar class="dashboard-sidebar-tree"></div>
         </div>
       </aside>
       <div class="dashboard-main flex-grow-1">
@@ -39,6 +41,7 @@
               <span class="fw-semibold">Latest</span>
             </div>
             <button class="btn btn-outline-primary btn-sm px-3" type="button" data-action="view-latest">
+              <i class="bi bi-arrow-right-circle me-1"></i>
               View all
             </button>
           </div>
@@ -89,41 +92,44 @@
           </div>
         </section>
 
-        <div id="dashboard_root" class="card shadow-sm mb-3">
-          <div class="card-header d-flex flex-wrap align-items-center gap-2">
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-kanban text-primary"></i>
-              <span class="fw-semibold" data-dashboard-title>All Projects</span>
-              <span class="badge text-bg-warning d-none" data-dashboard-dev-indicator>Dev mode</span>
-            </div>
-            <div class="ms-auto d-flex flex-wrap gap-2 dashboard-quick-actions">
-              <div class="btn-group btn-group-sm dashboard-view-toggle" role="group" data-dashboard-view-toggle aria-label="View toggle">
-                <button type="button" class="btn btn-outline-secondary active" data-view="list" title="List view">
-                  <i class="bi bi-table"></i>
+        <div class="dashboard-main-scroll">
+          <div id="dashboard_root" class="card shadow-sm mb-3">
+            <div class="card-header d-flex flex-wrap align-items-center gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-kanban text-primary"></i>
+                <span class="fw-semibold" data-dashboard-title>All Projects</span>
+                <span class="badge text-bg-warning d-none" data-dashboard-dev-indicator>Dev mode</span>
+              </div>
+              <div class="ms-auto d-flex flex-wrap gap-2 dashboard-quick-actions">
+                <div class="btn-group btn-group-sm dashboard-view-toggle" role="group" data-dashboard-view-toggle aria-label="View toggle">
+                  <button type="button" class="btn btn-outline-secondary active" data-view="list" title="List view">
+                    <i class="bi bi-table"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" data-view="gallery" title="Gallery view">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                  </button>
+                </div>
+                <button id="dashboard_action_new_section" class="btn btn-outline-secondary btn-sm" type="button">
+                  <i class="bi bi-folder-plus me-1"></i>
+                  New folder
                 </button>
-                <button type="button" class="btn btn-outline-secondary" data-view="gallery" title="Gallery view">
-                  <i class="bi bi-grid-3x3-gap"></i>
+                <button id="dashboard_action_new_canvas" class="btn btn-primary btn-sm" type="button">
+                  <i class="bi bi-plus-lg me-1"></i>
+                  New canvas
                 </button>
               </div>
-              <button id="dashboard_action_new_section" class="btn btn-outline-secondary btn-sm" type="button">
-                <i class="bi bi-folder-plus me-1"></i>
-                New folder
-              </button>
-              <button id="dashboard_action_new_canvas" class="btn btn-primary btn-sm" type="button">
-                <i class="bi bi-plus-lg me-1"></i>
-                New canvas
-              </button>
             </div>
-          </div>
-          <div class="card-body">
-            <div class="dashboard-list-view" data-dashboard-list></div>
-            <div class="dashboard-gallery-view d-none" data-dashboard-gallery></div>
-            <div id="dashboard_empty_state" class="dashboard-empty text-muted small text-center py-4" data-dashboard-empty>
-              <p class="mb-1">No sections yet.</p>
-              <p class="mb-0">Create a section to group your projects, then add canvases for each workflow.</p>
+            <div class="card-body">
+              <div class="dashboard-list-view" data-dashboard-list></div>
+              <div class="dashboard-gallery-view d-none" data-dashboard-gallery></div>
+              <div id="dashboard_empty_state" class="dashboard-empty text-muted small text-center py-4" data-dashboard-empty>
+                <p class="mb-1">No sections yet.</p>
+                <p class="mb-0">Create a section to group your projects, then add canvases for each workflow.</p>
+              </div>
             </div>
           </div>
         </div>
+
         <div class="dashboard-lower-grid">
           <div id="cloud_state_card" class="card workspace-card d-none">
             <div class="card-header d-flex align-items-center gap-2">
@@ -149,9 +155,8 @@
                 <button id="workspace_btn_save_local" class="btn btn-outline-primary btn-sm" type="button">
                   Export local copy
                 </button>
-              </div>
-            </div>
-            </div>
+        </div>
+      </div>
           </div>
           <div class="card shadow-sm collapsed-card">
             <button class="btn btn-link text-decoration-none text-start card-header d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#dashboard_papers" aria-expanded="false">
@@ -177,6 +182,7 @@
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
