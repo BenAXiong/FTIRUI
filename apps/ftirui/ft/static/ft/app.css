@@ -765,17 +765,18 @@ body.dashboard-overlay-open {
   font-size: .75rem;
 }
 .dashboard-table .table-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: .35rem;
   position: relative;
+  text-align: right;
+  vertical-align: middle;
+  padding: .65rem .4rem;
 }
 .dashboard-table .table-action-buttons,
 .dashboard-gallery-card .table-action-buttons {
-  display: flex;
+  display: inline-flex;
   gap: .35rem;
   align-items: center;
+  justify-content: flex-end;
+  width: 100%;
 }
 .table-sort-btn {
   border: none;
