@@ -194,6 +194,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .sidebar-folder-row:is(:hover, :focus-within) {
   background: var(--bs-tertiary-bg);
 }
+.sidebar-folder-row.is-dragging {
+  opacity: .6;
+}
 .sidebar-folder-label,
 .sidebar-folder-actions {
   min-width: 0;
@@ -272,6 +275,10 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   border-radius: .5rem;
   padding: .25rem .4rem;
   gap: .4rem;
+}
+.sidebar-project-row.is-drop-target {
+  outline: 2px dashed var(--bs-primary);
+  background: var(--bs-primary-bg-subtle, rgba(13, 110, 253, .12));
 }
 .sidebar-project-toggle {
   border: none;

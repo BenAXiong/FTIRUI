@@ -318,12 +318,95 @@ export function initDashboard() {
   applyLatestCollapsedState();
   applyLatestBandVisibility();
 
+  let draggingFolderId = null;
+  let draggingFolderRow = null;
+
+  const clearProjectDropIndicators = () => {
+    if (!sidebarTree) return;
+    sidebarTree
+      .querySelectorAll('.sidebar-project-row.is-drop-target')
+      .forEach((row) => row.classList.remove('is-drop-target'));
+  };
+
   const exitLatestView = () => {
     if (state.sidebarView !== 'latest') return;
     state.sidebarView = 'home';
     state.filters.sort = 'modified';
     renderSidebarNav();
     applyLatestBandVisibility();
+  };
+
+  const handleFolderDragStart = (event) => {
+    const row = event.target.closest('.sidebar-folder-row[draggable="true"]');
+    if (!row || !row.dataset.folderEntry) return;
+    if (event.target.closest('.sidebar-folder-actions')) {
+      event.preventDefault();
+      return;
+    }
+    draggingFolderId = row.dataset.folderEntry;
+    draggingFolderRow = row;
+    row.classList.add('is-dragging');
+    clearProjectDropIndicators();
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      try {
+        event.dataTransfer.setData('text/plain', draggingFolderId);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const handleFolderDragEnd = () => {
+    if (draggingFolderRow) {
+      draggingFolderRow.classList.remove('is-dragging');
+    }
+    draggingFolderId = null;
+    draggingFolderRow = null;
+    clearProjectDropIndicators();
+  };
+
+  const handleProjectDragOver = (event) => {
+    if (!draggingFolderId) return;
+    const projectRow = event.target.closest('.sidebar-project-row[data-drop-project]');
+    if (!projectRow) return;
+    const sectionId = projectRow.dataset.dropProject;
+    const owner = findFolderOwner(draggingFolderId);
+    if (!owner || idsMatch(owner.section.id, sectionId)) {
+      projectRow.classList.remove('is-drop-target');
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'none';
+      }
+      return;
+    }
+    event.preventDefault();
+    projectRow.classList.add('is-drop-target');
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleProjectDragLeave = (event) => {
+    const projectRow = event.target.closest('.sidebar-project-row[data-drop-project]');
+    if (!projectRow) return;
+    if (!projectRow.contains(event.relatedTarget)) {
+      projectRow.classList.remove('is-drop-target');
+    }
+  };
+
+  const handleProjectDrop = async (event) => {
+    if (!draggingFolderId) return;
+    const projectRow = event.target.closest('.sidebar-project-row[data-drop-project]');
+    if (!projectRow) return;
+    event.preventDefault();
+    const targetSectionId = projectRow.dataset.dropProject;
+    const folderId = draggingFolderId;
+    const owner = findFolderOwner(folderId);
+    handleFolderDragEnd();
+    if (!owner || idsMatch(owner.section.id, targetSectionId)) {
+      return;
+    }
+    await moveFolderToSection(folderId, targetSectionId);
   };
 
   const focusInlineEditors = () => {
@@ -440,6 +523,7 @@ export function initDashboard() {
           </button>
         </span>
       `;
+      projectRow.dataset.dropProject = section.id;
       projectBlock.appendChild(projectRow);
 
       const folderList = document.createElement('div');
@@ -533,6 +617,15 @@ export function initDashboard() {
             <div class="sidebar-canvas-list"${folderExpanded ? '' : ' hidden'}>
             </div>
           `;
+          const folderRowNode = folderEntry.querySelector('.sidebar-folder-row');
+          if (folderRowNode) {
+            folderRowNode.dataset.folderEntry = folder.id;
+            if (!isEditingFolder) {
+              folderRowNode.setAttribute('draggable', 'true');
+            } else {
+              folderRowNode.removeAttribute('draggable');
+            }
+          }
 
           const canvasList = folderEntry.querySelector('.sidebar-canvas-list');
           const canvases = Array.isArray(folder.canvases) ? folder.canvases : [];
@@ -1807,6 +1900,51 @@ export function initDashboard() {
     updateMainTitle();
   };
 
+  const moveFolderToSection = async (folderId, targetSectionId) => {
+    if (!folderId || !targetSectionId) return false;
+    const owner = findFolderOwner(folderId);
+    if (!owner) {
+      window.showAppToast?.({
+        title: 'Folder not found',
+        message: 'Refresh the dashboard and try again.',
+        variant: 'warning'
+      });
+      return false;
+    }
+    if (idsMatch(owner.section.id, targetSectionId)) {
+      return false;
+    }
+    exitFavoritesView();
+    exitLatestView();
+    try {
+        await updateProject(folderId, { section_id: targetSectionId });
+        state.filters.section = targetSectionId;
+        state.filters.folder = folderId;
+        state.activeSectionId = targetSectionId;
+        state.activeProjectId = folderId;
+        state.expandedProjects.add(targetSectionId);
+        state.expandedFolders.add(folderId);
+        await loadSections();
+        const targetSection =
+          state.sections.find((section) => idsMatch(section.id, targetSectionId)) || null;
+        window.showAppToast?.({
+          title: 'Folder moved',
+          message: targetSection
+            ? `Moved to ${targetSection.name || 'project'}.`
+            : 'Folder moved successfully.',
+          variant: 'success'
+        });
+        return true;
+    } catch (err) {
+      window.showAppToast?.({
+        title: 'Unable to move folder',
+        message: err?.message || String(err),
+        variant: 'danger'
+      });
+      return false;
+    }
+  };
+
   const toggleProject = (sectionId) => {
     if (!sectionId) return;
     if (state.expandedProjects.has(sectionId)) {
@@ -1970,6 +2108,11 @@ export function initDashboard() {
 
   sidebarTree?.addEventListener('keydown', handleInlineKeydown);
   sidebarTree?.addEventListener('focusout', handleInlineBlur, true);
+  sidebarTree?.addEventListener('dragstart', handleFolderDragStart);
+  sidebarTree?.addEventListener('dragend', handleFolderDragEnd);
+  sidebarTree?.addEventListener('dragover', handleProjectDragOver);
+  sidebarTree?.addEventListener('dragleave', handleProjectDragLeave);
+  sidebarTree?.addEventListener('drop', handleProjectDrop);
   root.addEventListener('keydown', handleInlineKeydown, true);
   root.addEventListener('focusout', handleInlineBlur, true);
 

@@ -3,6 +3,9 @@ Phase 7
 dash explorer: DnD
 Top band:  Lastest or else? Papers and reports? + compact styling+ when to display (and fallback when hidden)
 *add graph button direclty in exp/project
+
+main: match lastest and fav icons
+
 Step 4 – Cleanup & Migration (✅ done)
 
 - `python apps/ftirui/manage.py migrate_sessions` migrates `/api/session/` saves into the Projects/Folders/Canvases tables (`--dry-run`, `--limit`, and optional `--delete-source` are available).
