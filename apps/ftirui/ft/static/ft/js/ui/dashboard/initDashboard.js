@@ -2029,6 +2029,7 @@ export function initDashboard() {
         folderSelect.value = 'all';
       }
       renderSidebarNav();
+      renderSidebar();
       render();
       updateMainTitle();
       return;
@@ -2037,18 +2038,21 @@ export function initDashboard() {
     if (nextView === 'home') {
       resetToAllProjects();
       renderSidebarNav();
+      renderSidebar();
       render();
       updateMainTitle();
       return;
     }
     if (state.sidebarView === 'latest') {
       renderSidebarNav();
+      renderSidebar();
       render();
       updateMainTitle();
       return;
     }
     renderSidebarNav();
     renderSidebar();
+    render();
     updateMainTitle();
   });
 
