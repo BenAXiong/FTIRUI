@@ -8,7 +8,8 @@ dash explorer: DnD
 put filters in main view project header for compactness?
 main view list row height uneven0
 
-reconsider top band:  Lastest or else? + compact styling
+Latest exp button: filter main (cf Recent canvases overlay)
+reconsider top band:  Lastest or else? Papers and reports? + compact styling
 
 Step 4 – Cleanup & Migration (✅ done)
 
@@ -55,6 +56,7 @@ Polishing
 - thumbnail in list too?
 - dash main list ... popups: up and bottom position out of bounds
 - login area: move "Sign out" into dropdown, arrange order with d/lmode, load pic, etc
+- Papers and reports?
 ___________________________________________________________
 Future work
 

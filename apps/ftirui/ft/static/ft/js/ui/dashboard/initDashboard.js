@@ -28,6 +28,7 @@ export function initDashboard() {
   const newSectionBtn = document.getElementById('dashboard_action_new_section');
   const newCanvasBtn = document.getElementById('dashboard_action_new_canvas');
   const sidebarTree = document.querySelector('[data-dashboard-sidebar]');
+  const sidebarScrollContainer = document.querySelector('.dashboard-sidebar-scroll');
   const sidebarNav = document.querySelector('[data-sidebar-nav]');
   const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
   const titleLabel = root.querySelector('[data-dashboard-title]');
@@ -337,11 +338,18 @@ export function initDashboard() {
   };
 
   const renderSidebar = () => {
+    const previousScrollTop =
+      typeof sidebarScrollContainer?.scrollTop === 'number'
+        ? sidebarScrollContainer.scrollTop
+        : null;
     if (!sidebarTree) return;
     ensureSectionSelection();
     const sections = Array.isArray(state.sections) ? state.sections : [];
     if (!sections.length) {
       sidebarTree.innerHTML = '<p class="text-muted small mb-0">No projects yet.</p>';
+      if (previousScrollTop !== null && sidebarScrollContainer) {
+        sidebarScrollContainer.scrollTop = previousScrollTop;
+      }
       return;
     }
     if (!state.expandedProjects.size && sections.length) {
@@ -605,6 +613,9 @@ export function initDashboard() {
       fragment.appendChild(projectBlock);
     });
     sidebarTree.replaceChildren(fragment);
+    if (previousScrollTop !== null && sidebarScrollContainer) {
+      sidebarScrollContainer.scrollTop = previousScrollTop;
+    }
     focusInlineEditors();
   };
 
