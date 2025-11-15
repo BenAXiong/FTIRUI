@@ -1,12 +1,9 @@
 Phase 7
 
-fix explorer highlights and filtering issues
-try new canvas from explorer and see if really empty
-
 dash explorer: DnD
 
 put filters in main view project header for compactness?
-main view list row height uneven0
+main view list row height uneven
 
 Latest exp button: filter main (cf Recent canvases overlay)
 reconsider top band:  Lastest or else? Papers and reports? + compact styling

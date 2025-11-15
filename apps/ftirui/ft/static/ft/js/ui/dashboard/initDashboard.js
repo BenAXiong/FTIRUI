@@ -140,7 +140,9 @@ export function initDashboard() {
   const updateMainTitle = () => {
     if (!titleLabel) return;
     let nextTitle = 'All Projects';
-    if (state.filters.favoritesOnly) {
+    if (state.sidebarView === 'latest') {
+      nextTitle = 'Latest canvases';
+    } else if (state.filters.favoritesOnly) {
       nextTitle = 'Favorites';
     } else {
       const activeFolder = state.activeProjectId ? findFolder(state.activeProjectId) : null;
@@ -305,7 +307,13 @@ export function initDashboard() {
     applyLatestCollapsedState();
   };
 
+  const applyLatestBandVisibility = () => {
+    if (!latestSection) return;
+    latestSection.classList.toggle('d-none', state.sidebarView === 'latest');
+  };
+
   applyLatestCollapsedState();
+  applyLatestBandVisibility();
 
   const focusInlineEditors = () => {
     const focusInput = (selector) => {
@@ -2038,6 +2046,7 @@ export function initDashboard() {
       state.filters.favoritesOnly = true;
       state.filters.section = 'all';
       state.filters.folder = null;
+      state.filters.sort = 'modified';
       state.activeSectionId = null;
       state.activeProjectId = null;
       if (folderSelect) {
@@ -2052,23 +2061,29 @@ export function initDashboard() {
     state.filters.favoritesOnly = false;
     if (nextView === 'home') {
       resetToAllProjects();
+      state.filters.sort = 'modified';
       renderSidebarNav();
       renderSidebar();
       render();
       updateMainTitle();
+      applyLatestBandVisibility();
       return;
     }
     if (state.sidebarView === 'latest') {
+      state.filters.sort = 'modified';
       renderSidebarNav();
       renderSidebar();
       render();
       updateMainTitle();
+      applyLatestBandVisibility();
       return;
     }
+    state.filters.sort = 'modified';
     renderSidebarNav();
     renderSidebar();
     render();
     updateMainTitle();
+    applyLatestBandVisibility();
   });
 
   sidebarNewProjectBtn?.addEventListener('click', () => {
