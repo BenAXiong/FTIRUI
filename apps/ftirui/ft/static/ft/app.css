@@ -711,9 +711,12 @@ body.dashboard-overlay-open {
 }
 .dashboard-table tbody td {
   padding: .65rem .4rem;
+  vertical-align: middle;
+}
+.dashboard-table tbody tr {
   border-bottom: 1px solid var(--bs-border-color);
 }
-.dashboard-table tbody tr:last-child td {
+.dashboard-table tbody tr:last-child {
   border-bottom: none;
 }
 .dashboard-table .cell-name {
@@ -732,6 +735,7 @@ body.dashboard-overlay-open {
   text-align: left;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: .15rem;
   width: 100%;
   color: inherit;
@@ -763,6 +767,7 @@ body.dashboard-overlay-open {
 .dashboard-table .table-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: .35rem;
   position: relative;
 }
