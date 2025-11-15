@@ -1461,15 +1461,30 @@ export function initDashboard() {
   };
 
   const createEmptyWorkspaceSnapshot = () => ({
-    version: 2,
-    global: {
-      sessionTitle: 'Untitled canvas'
+    sections: {
+      counter: 1,
+      order: ['section_all'],
+      items: [
+        {
+          id: 'section_all',
+          name: 'Group 1',
+          collapsed: false,
+          locked: true,
+          parentId: null,
+          children: [],
+          visible: true
+        }
+      ]
     },
-    order: [],
-    traces: {},
-    folders: {},
-    folderOrder: [],
-    ui: {}
+    panels: {
+      counter: 0,
+      zIndexCursor: 0,
+      items: []
+    },
+    figures: {},
+    uiPrefs: {
+      colorCursor: 0
+    }
   });
 
   const generateDuplicateTitle = (project, baseTitle) => {

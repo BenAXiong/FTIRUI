@@ -374,13 +374,11 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .dashboard-lower-grid {
   flex: 0 0 auto;
 }
-.sidebar-folder-menu {
-  top: 0;
-  left: calc(100% + .5rem);
-}
+.sidebar-folder-menu,
 .sidebar-canvas-menu {
   top: 0;
-  left: calc(100% + .5rem);
+  left: 0;
+  transform: translateX(calc(100% + .5rem));
 }
 .dashboard-canvas-menu {
   top: auto;
@@ -511,6 +509,16 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
+}
+.dashboard-header-search {
+  flex: 0 0 260px;
+  min-width: 200px;
+}
+.dashboard-header-search .form-control {
+  width: 100%;
+}
+.dashboard-header-search .form-control::placeholder {
+  color: var(--bs-secondary-color);
 }
 .dashboard-quick-actions .btn { white-space: nowrap; }
 .dashboard-sections-list {
