@@ -288,6 +288,7 @@ export function initDashboard() {
     if (state.sidebarView === 'favorites') {
       state.sidebarView = 'home';
       renderSidebarNav();
+      applyLatestBandVisibility();
     }
   };
 
@@ -309,11 +310,21 @@ export function initDashboard() {
 
   const applyLatestBandVisibility = () => {
     if (!latestSection) return;
-    latestSection.classList.toggle('d-none', state.sidebarView === 'latest');
+    const hideBand =
+      state.sidebarView === 'latest' || state.sidebarView === 'favorites';
+    latestSection.classList.toggle('d-none', hideBand);
   };
 
   applyLatestCollapsedState();
   applyLatestBandVisibility();
+
+  const exitLatestView = () => {
+    if (state.sidebarView !== 'latest') return;
+    state.sidebarView = 'home';
+    state.filters.sort = 'modified';
+    renderSidebarNav();
+    applyLatestBandVisibility();
+  };
 
   const focusInlineEditors = () => {
     const focusInput = (selector) => {
@@ -1759,6 +1770,7 @@ export function initDashboard() {
   const selectProject = (sectionId) => {
     if (!sectionId) return;
     exitFavoritesView();
+    exitLatestView();
     const section =
       state.sections.find((item) => idsMatch(item.id, sectionId)) || null;
     if (!section) return;
@@ -1778,6 +1790,7 @@ export function initDashboard() {
   const selectFolder = (folderId) => {
     if (!folderId) return;
     exitFavoritesView();
+    exitLatestView();
     const owner = findFolderOwner(folderId);
     if (!owner) return;
     state.filters.section = owner.section.id;
@@ -2056,6 +2069,7 @@ export function initDashboard() {
       renderSidebar();
       render();
       updateMainTitle();
+      applyLatestBandVisibility();
       return;
     }
     state.filters.favoritesOnly = false;
