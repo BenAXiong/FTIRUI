@@ -32,6 +32,7 @@ export function initDashboard() {
   const sidebarNav = document.querySelector('[data-sidebar-nav]');
   const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
   const titleLabel = root.querySelector('[data-dashboard-title]');
+  const titleIcon = root.querySelector('[data-dashboard-title-icon]');
   const latestContainer = document.querySelector('[data-dashboard-latest]');
   const latestSection = document.querySelector('[data-dashboard-latest-section]');
   const latestHeader = document.querySelector('[data-dashboard-latest-header]');
@@ -155,6 +156,15 @@ export function initDashboard() {
       }
     }
     titleLabel.textContent = nextTitle;
+    if (titleIcon) {
+      let iconClass = 'bi-kanban';
+      if (state.sidebarView === 'latest') {
+        iconClass = 'bi-clock-history';
+      } else if (state.sidebarView === 'favorites') {
+        iconClass = 'bi-star';
+      }
+      titleIcon.className = `bi ${iconClass} text-primary`;
+    }
     if (devBadge) {
       devBadge.classList.toggle('d-none', !state.devMode);
     }
