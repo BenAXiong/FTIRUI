@@ -117,25 +117,43 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   overflow-y: auto;
   overflow-x: visible;
   padding-right: .25rem;
+}
+:is(.dashboard-sidebar-scroll,
+    .dashboard-main-scroll,
+    .dashboard-pane,
+    #dashboard_root .card-body,
+    body) {
   scrollbar-width: thin;
   scrollbar-color: rgba(73, 80, 87, .65) transparent;
 }
-.dashboard-sidebar-scroll::-webkit-scrollbar,
-.dashboard-main-scroll::-webkit-scrollbar {
+:is(.dashboard-sidebar-scroll,
+    .dashboard-main-scroll,
+    .dashboard-pane,
+    #dashboard_root .card-body,
+    body)::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-.dashboard-sidebar-scroll::-webkit-scrollbar-track,
-.dashboard-main-scroll::-webkit-scrollbar-track {
+:is(.dashboard-sidebar-scroll,
+    .dashboard-main-scroll,
+    .dashboard-pane,
+    #dashboard_root .card-body,
+    body)::-webkit-scrollbar-track {
   background: transparent;
 }
-.dashboard-sidebar-scroll::-webkit-scrollbar-thumb,
-.dashboard-main-scroll::-webkit-scrollbar-thumb {
+:is(.dashboard-sidebar-scroll,
+    .dashboard-main-scroll,
+    .dashboard-pane,
+    #dashboard_root .card-body,
+    body)::-webkit-scrollbar-thumb {
   background: rgba(73, 80, 87, .65);
   border-radius: 4px;
 }
-.dashboard-sidebar-scroll::-webkit-scrollbar-button,
-.dashboard-main-scroll::-webkit-scrollbar-button {
+:is(.dashboard-sidebar-scroll,
+    .dashboard-main-scroll,
+    .dashboard-pane,
+    #dashboard_root .card-body,
+    body)::-webkit-scrollbar-button {
   display: none;
   width: 0;
   height: 0;
@@ -410,8 +428,6 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   overflow-x: visible;
   padding-right: .25rem;
   margin-top: 1.25rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(73, 80, 87, .65) transparent;
 }
 #dashboard_root {
   flex: 1 1 auto;
