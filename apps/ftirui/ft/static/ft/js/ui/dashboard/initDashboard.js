@@ -144,6 +144,21 @@ export function initDashboard() {
     );
   };
 
+  const shouldShowNewFolder = () =>
+    Boolean(
+      newSectionBtn &&
+        !state.filters.favoritesOnly &&
+        state.sidebarView !== 'latest' &&
+        state.filters.section &&
+        state.filters.section !== 'all' &&
+        !state.filters.folder
+    );
+
+  const updateNewFolderVisibility = () => {
+    if (!newSectionBtn) return;
+    newSectionBtn.classList.toggle('d-none', !shouldShowNewFolder());
+  };
+
   const updateMainTitle = () => {
     if (!titleLabel) return;
     let nextTitle = 'All Projects';
@@ -171,6 +186,7 @@ export function initDashboard() {
       }
       titleIcon.className = `bi ${iconClass} text-primary`;
     }
+    updateNewFolderVisibility();
     if (devBadge) {
       devBadge.classList.toggle('d-none', !state.devMode);
     }
