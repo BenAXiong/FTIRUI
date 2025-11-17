@@ -40,6 +40,8 @@ Key values:
   - Specs live under `tests/unit/` (dashboard harness + workspace autosave bridge).
 - **Playwright smoke tests:** `npm run test:smoke`
   - Specs live under `tests/smoke/` and are skipped unless smoke env vars are provided (see below).
+- **Accessibility scan:** `npm run test:a11y`
+  - Uses axe-core + Playwright to audit the dashboard/workspace flows (requires the same smoke env vars).
 
 ## Smoke test configuration
 
@@ -53,12 +55,10 @@ Environment variables:
 | `SMOKE_USERNAME` | Username for the Django admin/staff account used in smoke runs. |
 | `SMOKE_PASSWORD` | Password for the smoke user. |
 
-When these are set, `npm run test:smoke` will:
+When these are set:
 
-1. Log into `/admin/`.
-2. Seed a dashboard canvas via the public API.
-3. Open the canvas from the dashboard and assert autosave UI state.
-4. Save & restore a workspace snapshot via the modal buttons.
+1. `npm run test:smoke` logs into `/admin/`, seeds a dashboard canvas via the public API, opens it from the dashboard tab, confirms the autosave indicator, and saves/restores a workspace snapshot.
+2. `npm run test:a11y` reuses the same helpers but runs axe-core scans against the dashboard tab and the popped-out workspace canvas, attaching any violations (serious/critical ones fail the run).
 
 Omitting any of the env vars causes the suite to skip gracefully, which keeps local runs fast when you only need unit coverage.
 

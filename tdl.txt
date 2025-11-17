@@ -1,5 +1,7 @@
 Phase 7
 
+main add share button
+
 Step 4 – Cleanup & Migration (✅ done)
 
 - `python apps/ftirui/manage.py migrate_sessions` migrates `/api/session/` saves into the Projects/Folders/Canvases tables (`--dry-run`, `--limit`, and optional `--delete-source` are available).
@@ -19,6 +21,9 @@ Step 6 – QA & Accessibility
 - Frontend: add Vitest cases for initDashboard (sidebar clicks, filters, error toasts) and the autosave bridge, including the new list/gallery toggle behaviour.
 - End-to-end: expand tests/smoke/dashboard.spec.js to log in, open canvases, confirm the “Saved” autosave badge, and exercise snapshot modals; gate the CI job on SMOKE_* secrets and document them in the README.
 - Accessibility: run axe-core (or Playwright’s page.accessibility) on both dashboard and workspace so we catch tab-order/contrast issues.
+
+10:23 79 -- 
+
 ___________________________________________________________
 Questions
 
