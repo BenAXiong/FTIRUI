@@ -1583,7 +1583,7 @@ const clearProjectDropIndicators = () => {
     }
   };
 
-  const renderListHeaderCell = (label, field) => {
+  const renderListHeaderCell = (label, field, extraClass = '') => {
     const sortConfig = getListSortConfig();
     const isActive = sortConfig.field === field;
     const iconClass = isActive
@@ -1592,7 +1592,7 @@ const clearProjectDropIndicators = () => {
         : 'bi-caret-down-fill'
       : 'bi-caret-up';
     return `
-      <th>
+      <th class="${extraClass}">
         <button
           type="button"
           class="table-sort-btn${isActive ? ' is-active' : ''}"
@@ -1757,9 +1757,9 @@ const clearProjectDropIndicators = () => {
                 </button>
               </div>
             </td>
-            <td>${escapeHtml(canvas.projectTitle)}</td>
-            <td>${escapeHtml(canvas.folderName)}</td>
-            <td class="cell-meta">${escapeHtml(canvas.owner)}</td>
+            <td class="cell-project">${escapeHtml(canvas.projectTitle)}</td>
+            <td class="cell-folder">${escapeHtml(canvas.folderName)}</td>
+            <td class="cell-owner cell-meta">${escapeHtml(canvas.owner)}</td>
             <td class="table-actions">
               <div class="table-action-buttons">
                 <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="list" data-canvas="${canvas.id}" title="Duplicate canvas">
@@ -1813,12 +1813,12 @@ const clearProjectDropIndicators = () => {
         <table class="dashboard-table">
           <thead>
             <tr>
-              ${renderListHeaderCell('Name', 'title')}
-              <th class="dashboard-tags-header">tags</th>
-              ${renderListHeaderCell('Project', 'projectTitle')}
-              ${renderListHeaderCell('Folder', 'folderName')}
-              ${renderListHeaderCell('Owner', 'owner')}
-              <th></th>
+              ${renderListHeaderCell('Name', 'title', 'col-name')}
+              <th class="dashboard-tags-header col-tags">tags</th>
+              ${renderListHeaderCell('Project', 'projectTitle', 'col-project')}
+              ${renderListHeaderCell('Folder', 'folderName', 'col-folder')}
+              ${renderListHeaderCell('Owner', 'owner', 'col-owner')}
+              <th class="col-actions"></th>
             </tr>
           </thead>
           <tbody>
