@@ -101,6 +101,12 @@ export function initDashboard() {
   const ROOT_FOLDER_SUMMARY = '__ftir_root__';
   const ROOT_FOLDER_LABEL = 'Loose canvases';
 
+  const isHomeView = () =>
+    state.sidebarView === 'home' &&
+    state.filters.section === 'all' &&
+    !state.filters.folder &&
+    !state.filters.favoritesOnly;
+
   const escapeHtml = (value) =>
     String(value || '')
       .replace(/&/g, '&amp;')
@@ -288,7 +294,14 @@ export function initDashboard() {
   const renderSidebarNav = () => {
     if (!sidebarNav) return;
     sidebarNav.querySelectorAll('.sidebar-nav-link').forEach((btn) => {
-      btn.classList.toggle('is-active', btn.dataset.view === state.sidebarView);
+      const view = btn.dataset.view;
+      let isActive = false;
+      if (view === 'home') {
+        isActive = isHomeView();
+      } else {
+        isActive = view === state.sidebarView;
+      }
+      btn.classList.toggle('is-active', isActive);
     });
   };
 
@@ -320,8 +333,7 @@ export function initDashboard() {
 
   const applyLatestBandVisibility = () => {
     if (!latestSection) return;
-    const hideBand =
-      state.sidebarView === 'latest' || state.sidebarView === 'favorites';
+    const hideBand = !isHomeView();
     latestSection.classList.toggle('d-none', hideBand);
   };
 
@@ -2176,6 +2188,8 @@ const clearProjectDropIndicators = () => {
     renderSidebar();
     render();
     updateMainTitle();
+    renderSidebarNav();
+    applyLatestBandVisibility();
   };
 
   const selectFolder = (folderId) => {
@@ -2196,6 +2210,8 @@ const clearProjectDropIndicators = () => {
     renderSidebar();
     render();
     updateMainTitle();
+    renderSidebarNav();
+    applyLatestBandVisibility();
   };
 
   const moveFolderToSection = async (folderId, targetSectionId) => {
