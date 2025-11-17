@@ -2,7 +2,7 @@ Phase 7
 
 in the main view's list mode, how do the column width currently behave depending on their cells' content?
 
-rename Loose canvases into Untitled folder
+name date: display full time on hover
 
 scroll bars: twice thiner, a shade brighter and no arrows
 *togglable canvas thumbnail (placeholder) in list

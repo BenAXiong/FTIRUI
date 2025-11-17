@@ -138,7 +138,7 @@ export function initDashboard() {
     listSort: readStoredListSort()
   };
   const ROOT_FOLDER_SUMMARY = '__ftir_root__';
-  const ROOT_FOLDER_LABEL = 'Loose canvases';
+  const ROOT_FOLDER_LABEL = 'Untitled folder';
 
   const isHomeView = () =>
     state.sidebarView === 'home' &&
@@ -3336,3 +3336,4 @@ function sortProjects(projects, mode) {
   }
   return copy;
 }
+
