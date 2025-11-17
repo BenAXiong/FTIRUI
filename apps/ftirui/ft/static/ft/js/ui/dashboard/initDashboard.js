@@ -68,7 +68,7 @@ export function initDashboard() {
   const newSectionBtn = document.getElementById('dashboard_action_new_section');
   const newCanvasBtn = document.getElementById('dashboard_action_new_canvas');
   const sidebarTree = document.querySelector('[data-dashboard-sidebar]');
-  const sidebarScrollContainer = document.querySelector('.dashboard-sidebar-scroll');
+  const sidebarScrollContainer = document.querySelector('.dashboard-sidebar-tree-container');
   const sidebarNav = document.querySelector('[data-sidebar-nav]');
   const sidebarNewProjectBtn = document.getElementById('dashboard_sidebar_new_project');
   const titleLabel = root.querySelector('[data-dashboard-title]');
@@ -222,6 +222,13 @@ export function initDashboard() {
   const updateNewFolderVisibility = () => {
     if (!newSectionBtn) return;
     newSectionBtn.classList.toggle('d-none', !shouldShowNewFolder());
+  };
+
+  const createSidebarDivider = (variant = '') => {
+    const divider = document.createElement('div');
+    divider.className = `sidebar-divider${variant ? ` sidebar-divider--${variant}` : ''}`;
+    divider.setAttribute('aria-hidden', 'true');
+    return divider;
   };
 
   const updateThumbnailToggleUI = () => {
@@ -812,16 +819,24 @@ const clearProjectDropIndicators = () => {
     }
 
     const fragment = document.createDocumentFragment();
+    let renderedPinnedSection = false;
+    let insertedPinnedDivider = false;
     sections.forEach((section) => {
       const projectExpanded = state.expandedProjects.has(section.id);
       const projectBlock = document.createElement('div');
-      projectBlock.className = `sidebar-project${projectExpanded ? ' is-open' : ''}`;
+      const isPinned = section.is_pinned === true;
+      if (!isPinned && renderedPinnedSection && !insertedPinnedDivider) {
+        fragment.appendChild(createSidebarDivider('muted'));
+        insertedPinnedDivider = true;
+      }
+      projectBlock.className = `sidebar-project${projectExpanded ? ' is-open' : ''}${
+        isPinned ? ' is-pinned' : ''
+      }`;
       const projectRow = document.createElement('div');
       const projectSelected =
         state.filters.section !== 'all' && idsMatch(state.filters.section, section.id);
       projectRow.className = 'sidebar-project-row';
       const isEditingProject = idsMatch(state.editingSectionId, section.id);
-      const isPinned = section.is_pinned === true;
       const pinIcon = isPinned ? 'bi-pin-angle-fill' : 'bi-pin-angle';
       const pinTitle = isPinned ? 'Unpin project' : 'Pin project';
       const projectLabelMarkup = isEditingProject
@@ -1108,6 +1123,9 @@ const clearProjectDropIndicators = () => {
 
       projectBlock.appendChild(folderList);
       fragment.appendChild(projectBlock);
+      if (isPinned) {
+        renderedPinnedSection = true;
+      }
     });
     sidebarTree.replaceChildren(fragment);
     if (previousScrollTop !== null && sidebarScrollContainer) {

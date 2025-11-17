@@ -1,7 +1,6 @@
 Phase 7
 
-*togglable canvas thumbnail (placeholder) in list
-________________________________________________________________________________________
+take a look at tdl.txt and mark Step 5 as done. then reexplain Steps 6 & 7 to me in simplel terms and reevaluate them: scope and necessity
 
 Step 4 – Cleanup & Migration (✅ done)
 
@@ -9,7 +8,7 @@ Step 4 – Cleanup & Migration (✅ done)
 - `DASHBOARD_V2_ENABLED` toggles the new dashboard; when it’s `false` the template falls back to `dashboard_legacy.html`, and README documents how to flip the flag plus run migrations.
 - README/architecture updated so future devs know how to rehearse the migration + rollback flow.
 
-Step 5 – Dev Experience Boosters
+Step 5 – Dev Experience Boosters (✅ done)
 
 - Shortcuts: make sure /dashboard?dev=true reveals dev-only tooling (already half-done) and ensure /workspace?canvas=<id>&dev=true jumps straight into a canvas without permanently exposing the tab.
 - Tooling: add npm scripts for npm run lint:js and npm run format, plus a Django check shortcut; list the core commands (npm run test:unit, npm run test:smoke, python apps/ftirui/manage.py test ft) in the README’s handoff section. ✅ `package.json` now includes `lint:js`, `format`, and `check:django`.
@@ -22,16 +21,10 @@ Step 6 – QA & Accessibility
 - Frontend: add Vitest cases for initDashboard (sidebar clicks, filters, error toasts) and the autosave bridge, including the new list/gallery toggle behaviour.
 - End-to-end: expand tests/smoke/dashboard.spec.js to log in, open canvases, confirm the “Saved” autosave badge, and exercise snapshot modals; gate the CI job on SMOKE_* secrets and document them in the README.
 - Accessibility: run axe-core (or Playwright’s page.accessibility) on both dashboard and workspace so we catch tab-order/contrast issues.
-
-Step 7 – Optional Bug Sweep
-
-- Track UI bugs (Plotly toolbar cleanup, grid toggles, browser chip styling, etc.) in tdl.txt or GitHub issues but hold off until Steps 4‑6 are done.
-- When ready, spin a dedicated bug-sweep branch, fix the backlog from QA, and add regression tests so those fixes stick.
 ___________________________________________________________
 Questions
 
-*Drag-and-drop will arrive later. For now, use the buttons above the list to add content.
-*save and manage snapshots?
+*
 ___________________________________________________________
 Polishing
 
@@ -50,6 +43,8 @@ Polishing
 - login area: move "Sign out" into dropdown, arrange order with d/lmode, load pic, etc
 - Papers and reports?
 - dash/Top band: rethink, avoid going too  big with new objetc types
+- main view options - curate
+- dash exp scrollbar position
 ___________________________________________________________
 Future work
 
