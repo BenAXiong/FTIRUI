@@ -882,9 +882,8 @@ body.dashboard-overlay-open {
   border-radius: .35rem;
 }
 .dashboard-table .cell-name {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
+  display: table-cell;
+  vertical-align: middle;
 }
 .cell-project,
 .cell-folder,
@@ -907,6 +906,8 @@ body.dashboard-overlay-open {
   justify-content: center;
   gap: .15rem;
   width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   color: inherit;
 }
 .dashboard-list-name:is(:hover, :focus-visible) .dashboard-list-name-title {
