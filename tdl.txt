@@ -1,12 +1,10 @@
 Phase 7
 
-change the styles of the explorer and main view scroll bars: make them twice thinner, slightly darker and remove the arrows
-
-edit tags manually from list
-
-in the main view's list mode, remove the Last modified column (or hide if more convenient to avoid migration)
 in the main view's list mode, how do the column width currently behave depending on their cells' content?
 
+rename Loose canvases into Untitled folder
+
+scroll bars: twice thiner, a shade brighter and no arrows
 *togglable canvas thumbnail (placeholder) in list
 ________________________________________________________________________________________
 

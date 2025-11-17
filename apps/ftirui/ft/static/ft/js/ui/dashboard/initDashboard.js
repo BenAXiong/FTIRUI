@@ -13,6 +13,45 @@ import {
 } from '../../services/dashboard.js';
 
 const LIST_SORT_STORAGE_KEY = 'ftir.dashboard.listSort.v1';
+const DEFAULT_TAG_OPTIONS = ['FT-IR', 'NMR', 'XPS', 'Abs', 'MS', 'XRD', 'Multiple'];
+const TAG_COLOR_PALETTE = [
+  '#1f77b4',
+  '#ff7f0e',
+  '#2ca02c',
+  '#d62728',
+  '#9467bd',
+  '#8c564b',
+  '#e377c2',
+  '#7f7f7f',
+  '#bcbd22',
+  '#17becf'
+];
+let activeTagPickerCleanup = null;
+const tagColorRegistry = new Map();
+
+const normalizeTagLabel = (tag) => `${tag ?? ''}`.trim();
+const tagKey = (tag) => normalizeTagLabel(tag).toLowerCase();
+const registerTagColor = (tag) => {
+  const key = tagKey(tag);
+  if (!key) return;
+  if (!tagColorRegistry.has(key)) {
+    const index = tagColorRegistry.size % TAG_COLOR_PALETTE.length;
+    tagColorRegistry.set(key, TAG_COLOR_PALETTE[index]);
+  }
+};
+DEFAULT_TAG_OPTIONS.forEach((tag, idx) => {
+  const key = tagKey(tag);
+  if (!key || tagColorRegistry.has(key)) return;
+  tagColorRegistry.set(key, TAG_COLOR_PALETTE[idx % TAG_COLOR_PALETTE.length]);
+});
+const getTagColor = (tag) => {
+  const key = tagKey(tag);
+  if (!key) return TAG_COLOR_PALETTE[0];
+  if (!tagColorRegistry.has(key)) {
+    registerTagColor(tag);
+  }
+  return tagColorRegistry.get(key) || TAG_COLOR_PALETTE[0];
+};
 
 const DEFAULT_SECTION_NAME = 'Project';
 const DEFAULT_PROJECT_NAME = 'Folder';
@@ -1155,6 +1194,11 @@ const clearProjectDropIndicators = () => {
       toggleCanvasMenu(canvasId, context);
       return true;
     }
+    if (action === 'canvas-edit-tags' && canvasId) {
+      stop();
+      void promptCanvasTags(canvasId);
+      return true;
+    }
     if (action === 'canvas-menu-open' && canvasId) {
       stop();
       closeCanvasMenu();
@@ -1420,9 +1464,106 @@ const clearProjectDropIndicators = () => {
       return '<span class="dashboard-tag is-empty">—</span>';
     }
     return tags
-      .slice(0, 5)
-      .map((tag) => `<span class="dashboard-tag">${escapeHtml(tag)}</span>`)
+      .map((tag) => {
+        const color = getTagColor(tag);
+        return `<span class="dashboard-tag" style="background:${color};color:#fff;">${escapeHtml(tag)}</span>`;
+      })
       .join('');
+  };
+
+  const promptCanvasTags = async (canvasId) => {
+    const owner = findCanvasOwner(canvasId);
+    if (!owner) return;
+    const currentTags = Array.isArray(owner.canvas.tags) ? owner.canvas.tags : [];
+    const available = Array.from(
+      new Set([...(window.dashboardTagOptions || DEFAULT_TAG_OPTIONS)].map((tag) => `${tag}`))
+    );
+    available.forEach(registerTagColor);
+    currentTags.forEach(registerTagColor);
+    const selection = new Set(currentTags);
+
+    const choices = available
+      .map((tag) => {
+        const isSelected = selection.has(tag);
+        const color = getTagColor(tag);
+        return `<button type="button" class="tag-toggle${isSelected ? ' is-selected' : ''}" data-tag-option="${escapeAttribute(tag)}" style="background:${color};color:#fff;border-color:${color};">${escapeHtml(tag)}</button>`;
+      })
+      .join('');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div class="tag-picker">
+        <p class="small mb-2 text-muted">Toggle tags for this canvas:</p>
+        <div class="tag-picker-options">${choices}</div>
+        <div class="mt-3 d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-sm btn-secondary" data-tag-cancel>Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary" data-tag-confirm>Save</button>
+        </div>
+      </div>
+    `;
+    const picker = wrapper.querySelector('.tag-picker-options');
+    const dialog = window.showAppDialog?.({
+      title: 'Edit tags',
+      body: wrapper,
+      dismissible: true
+    });
+    let backdrop = null;
+    let panel = null;
+    if (!dialog || typeof dialog.show !== 'function') {
+      backdrop = document.createElement('div');
+      panel = document.createElement('div');
+      backdrop.className = 'tag-picker-backdrop';
+      panel.className = 'tag-picker-panel';
+      panel.appendChild(wrapper);
+      backdrop.appendChild(panel);
+      document.body.appendChild(backdrop);
+      backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) closeDialog();
+      });
+      requestAnimationFrame?.(() => backdrop.classList.add('is-visible'));
+    }
+    picker?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-tag-option]');
+      if (!button) return;
+      const tag = button.dataset.tagOption;
+      if (!tag) return;
+      button.classList.toggle('is-selected');
+    });
+    const closeDialog = () => {
+      if (dialog && typeof dialog.hide === 'function') {
+        dialog.hide();
+      } else if (backdrop) {
+        backdrop.classList.remove('is-visible');
+        panel?.remove();
+        backdrop.remove();
+      }
+      activeTagPickerCleanup = null;
+    };
+    wrapper.querySelector('[data-tag-cancel]')?.addEventListener('click', closeDialog);
+    wrapper.querySelector('[data-tag-confirm]')?.addEventListener('click', async () => {
+      const selected = Array.from(
+        picker?.querySelectorAll('.tag-toggle.is-selected') || []
+      ).map((btn) => btn.dataset.tagOption);
+      try {
+        await updateCanvas(canvasId, { tags: selected });
+        owner.canvas.tags = selected;
+        computeLatestCanvases();
+        render();
+        closeDialog();
+      } catch (err) {
+        console.warn('Failed to update tags', err);
+        window.showAppToast?.({
+          title: 'Unable to update tags',
+          message: err?.message || String(err),
+          variant: 'danger'
+        });
+      }
+    });
+    if (dialog && typeof dialog.show === 'function') {
+      dialog.show();
+      activeTagPickerCleanup = () => dialog.hide();
+    } else if (backdrop) {
+      activeTagPickerCleanup = closeDialog;
+    }
   };
 
   const renderListHeaderCell = (label, field) => {
@@ -1584,7 +1725,19 @@ const clearProjectDropIndicators = () => {
               ${titleCell}
             </td>
             <td class="cell-tags">
-              <div class="dashboard-tags-list">${renderTagList(canvas.tags)}</div>
+              <div class="cell-tags-content">
+                <div class="dashboard-tags-list">${renderTagList(canvas.tags)}</div>
+                <button
+                  type="button"
+                  class="table-icon-btn tags-edit-btn"
+                  data-action="canvas-edit-tags"
+                  data-context="list"
+                  data-canvas="${canvas.id}"
+                  title="Edit tags"
+                >
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
             </td>
             <td>${escapeHtml(canvas.projectTitle)}</td>
             <td>${escapeHtml(canvas.folderName)}</td>
