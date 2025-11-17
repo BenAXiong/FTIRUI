@@ -1,0 +1,30 @@
+<aside class="dashboard-sidebar" id="dashboard_sidebar" aria-label="Dashboard navigation">
+  <div class="dashboard-sidebar-scroll">
+    <nav class="sidebar-nav mb-3" data-sidebar-nav>
+      <button type="button" class="sidebar-nav-link is-active" data-view="home">
+        <i class="bi bi-house-door"></i>
+        <span>Home</span>
+      </button>
+      <button type="button" class="sidebar-nav-link" data-view="latest">
+        <i class="bi bi-clock-history"></i>
+        <span>Latest</span>
+      </button>
+      <button type="button" class="sidebar-nav-link" data-view="favorites">
+        <i class="bi bi-star"></i>
+        <span>Favorites</span>
+      </button>
+    </nav>
+    <div class="sidebar-divider sidebar-divider--strong" aria-hidden="true"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-header">
+        <span class="sidebar-section-title">Projects</span>
+        <button type="button" class="icon-button" id="dashboard_sidebar_new_project" title="Create project" aria-label="Create project">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <div class="dashboard-sidebar-tree-container">
+        <div id="dashboard_sidebar_tree" data-dashboard-sidebar class="dashboard-sidebar-tree"></div>
+      </div>
+    </div>
+  </div>
+</aside>

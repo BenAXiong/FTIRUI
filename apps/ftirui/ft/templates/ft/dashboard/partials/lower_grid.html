@@ -1,0 +1,27 @@
+<div class="dashboard-lower-grid">
+  {% include 'ft/partials/cloud_state_card.html' with cloud_card_extra_classes="d-none" %}
+  <div class="card shadow-sm collapsed-card d-none" aria-hidden="true">
+    <button class="btn btn-link text-decoration-none text-start card-header d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#dashboard_papers" aria-expanded="false">
+      <i class="bi bi-file-earmark-text text-primary"></i>
+      <span class="fw-semibold">Papers</span>
+      <span class="ms-auto small text-muted">Placeholder</span>
+    </button>
+    <div class="collapse" id="dashboard_papers">
+      <div class="card-body">
+        <p class="text-muted small mb-0">This area will collect manuscript-ready canvases. For now it is hidden to keep the focus on Projects.</p>
+      </div>
+    </div>
+  </div>
+  <div class="card shadow-sm collapsed-card d-none" aria-hidden="true">
+    <button class="btn btn-link text-decoration-none text-start card-header d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#dashboard_reports" aria-expanded="false">
+      <i class="bi bi-clipboard-data text-primary"></i>
+      <span class="fw-semibold">Reports</span>
+      <span class="ms-auto small text-muted">Placeholder</span>
+    </button>
+    <div class="collapse" id="dashboard_reports">
+      <div class="card-body">
+        <p class="text-muted small mb-0">Reports will eventually group recurring updates (daily, weekly). Hidden by default for the MVP.</p>
+      </div>
+    </div>
+  </div>
+</div>

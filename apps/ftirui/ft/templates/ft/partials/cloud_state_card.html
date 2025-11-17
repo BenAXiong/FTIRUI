@@ -1,5 +1,5 @@
-{% with extra=cloud_card_extra_classes|default:"d-none" %}
-<div id="cloud_state_card" class="card workspace-card {{ extra }}">
+{% with extra=cloud_card_extra_classes|default:"" %}
+<div id="cloud_state_card" class="card workspace-card {% if extra %}{{ extra }}{% endif %}">
   <div class="card-header d-flex align-items-center gap-2">
     <i class="bi bi-cloud-check text-primary"></i>
     <span class="fw-semibold">Cloud state</span>
