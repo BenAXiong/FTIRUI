@@ -1459,6 +1459,23 @@ const clearProjectDropIndicators = () => {
     return `Modified by ${owner} • ${day}`;
   };
 
+  const formatFullTimestamp = (iso) => {
+    if (!iso) return 'Unknown date';
+    try {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return 'Unknown date';
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Unknown date';
+    }
+  };
+
   const renderTagList = (tags) => {
     if (!Array.isArray(tags) || !tags.length) {
       return '<span class="dashboard-tag is-empty">—</span>';
@@ -1696,6 +1713,7 @@ const clearProjectDropIndicators = () => {
         const isFavorite = Boolean(canvas.isFavorite);
         const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
         const showInline = isEditingCanvas && state.editingCanvasContext === 'list';
+        const fullDateTime = formatFullTimestamp(canvas.updated);
         const titleCell = showInline
           ? `
             <div class="sidebar-inline-wrapper w-100">
@@ -1714,7 +1732,7 @@ const clearProjectDropIndicators = () => {
             </div>
           `
           : `
-            <button type="button" class="dashboard-list-name" data-action="open-canvas" data-canvas="${canvas.id}">
+            <button type="button" class="dashboard-list-name" data-action="open-canvas" data-canvas="${canvas.id}" title="${escapeHtml(fullDateTime)}">
               <span class="dashboard-list-name-title">${escapeHtml(canvas.title)}</span>
               <span class="dashboard-list-name-meta">${formatModifiedSummary(canvas)}</span>
             </button>
