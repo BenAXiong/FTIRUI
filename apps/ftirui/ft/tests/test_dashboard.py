@@ -1,8 +1,14 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
 
+from ..management.commands.seed_dashboard_demo import (
+    PROJECT_NAME as DEMO_PROJECT_NAME,
+    SECTION_NAME as DEMO_SECTION_NAME,
+    SAMPLE_CANVASES as DEMO_SAMPLE_CANVASES,
+)
 from ..models import WorkspaceCanvas, WorkspaceProject, WorkspaceSection
 
 User = get_user_model()
@@ -159,3 +165,117 @@ class DashboardApiTests(TestCase):
         self.canvas.refresh_from_db()
         self.assertEqual(self.canvas.state_json["order"], initial_state["order"])
         self.assertEqual(self.canvas.version_label, "Snapshot A (restored)")
+
+    def test_seed_dashboard_demo_populates_sample_canvases(self):
+        call_command("seed_dashboard_demo", self.user.username, replace=True)
+        section = WorkspaceSection.objects.get(owner=self.user, name=DEMO_SECTION_NAME)
+        project = section.projects.get(title=DEMO_PROJECT_NAME)
+        canvases = list(project.canvases.order_by("title"))
+
+        expected_count = len(DEMO_SAMPLE_CANVASES)
+        expected_titles = sorted(sample["title"] for sample in DEMO_SAMPLE_CANVASES)
+        self.assertEqual(len(canvases), expected_count)
+        self.assertEqual([canvas.title for canvas in canvases], expected_titles)
+
+        for canvas in canvases:
+            sample = next(item for item in DEMO_SAMPLE_CANVASES if item["title"] == canvas.title)
+            self.assertEqual(canvas.state_json["global"]["sessionTitle"], sample["title"])
+            self.assertEqual(canvas.version_label, sample.get("version") or "")
+            self.assertGreater(canvas.state_size, 0)
+
+        resp = self.client.get("/api/dashboard/sections/?include=full")
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+        seeded_section = next((item for item in payload["items"] if item["id"] == str(section.id)), None)
+        self.assertIsNotNone(seeded_section)
+        self.assertEqual(seeded_section["name"], DEMO_SECTION_NAME)
+        seeded_projects = seeded_section.get("projects", [])
+        project_payload = next((item for item in seeded_projects if item["id"] == str(project.id)), None)
+        self.assertIsNotNone(project_payload)
+        self.assertEqual(project_payload["canvas_count"], expected_count)
+        returned_titles = sorted(canvas["title"] for canvas in project_payload.get("canvases", []))
+        self.assertEqual(returned_titles, expected_titles)
+
+    def test_snapshot_create_with_custom_state_and_restore(self):
+        inline_state = self._canvas_state("Snapshot inline", trace_id="inline-1")
+        create = self.client.post(
+            f"/api/dashboard/canvases/{self.canvas.id}/versions/",
+            data=json.dumps(
+                {
+                    "label": "Inline",
+                    "state": inline_state,
+                    "thumbnail_url": "https://example.com/thumb.png",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(create.status_code, 201, create.content)
+        version_id = create.json()["id"]
+
+        listing = self.client.get(f"/api/dashboard/canvases/{self.canvas.id}/versions/")
+        self.assertEqual(listing.status_code, 200)
+        items = listing.json()["items"]
+        self.assertTrue(any(item["id"] == version_id for item in items))
+
+        mutated_state = self._canvas_state("Mutated", trace_id="mutated")
+        self._put_canvas_state(self.canvas, state=mutated_state, version_label="Mutated")
+
+        detail = self.client.get(f"/api/dashboard/canvases/{self.canvas.id}/versions/{version_id}/")
+        self.assertEqual(detail.status_code, 200)
+        snapshot_payload = detail.json()
+        self.assertEqual(snapshot_payload["label"], "Inline")
+        self.assertEqual(snapshot_payload["state"]["order"], inline_state["order"])
+
+        restore = self._put_canvas_state(
+            self.canvas,
+            state=snapshot_payload["state"],
+            version_label="Inline Restore",
+            thumbnail_url="https://example.com/restore.png",
+        )
+        self.assertEqual(restore.status_code, 200)
+        self.canvas.refresh_from_db()
+        self.assertEqual(self.canvas.state_json["order"], inline_state["order"])
+        self.assertEqual(self.canvas.version_label, "Inline Restore")
+
+    def test_sections_payload_includes_nested_projects_for_filters(self):
+        second_section = WorkspaceSection.objects.create(owner=self.user, name="Process", position=2)
+        folder_project = WorkspaceProject.objects.create(
+            owner=self.user,
+            section=second_section,
+            title="Folder B",
+            summary="Sub analyses",
+        )
+        folder_canvas = WorkspaceCanvas.objects.create(
+            owner=self.user,
+            project=folder_project,
+            title="Folder canvas",
+            state_json={
+                "version": 2,
+                "order": ["trace-99"],
+                "traces": {"trace-99": {"id": "trace-99"}},
+                "folders": {},
+                "folderOrder": [],
+            },
+            state_size=42,
+            tags=["B"],
+        )
+
+        resp = self.client.get("/api/dashboard/sections/?include=full")
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+
+        sections_by_id = {item["id"]: item for item in payload["items"]}
+        self.assertIn(str(second_section.id), sections_by_id)
+        second_payload = sections_by_id[str(second_section.id)]
+        projects = second_payload.get("projects", [])
+        self.assertEqual(len(projects), 1)
+        project_payload = projects[0]
+        self.assertEqual(project_payload["id"], str(folder_project.id))
+        self.assertEqual(project_payload["section_id"], str(second_section.id))
+        self.assertEqual(project_payload["canvas_count"], 1)
+        canvases = project_payload.get("canvases", [])
+        self.assertEqual(len(canvases), 1)
+        canvas_payload = canvases[0]
+        self.assertEqual(canvas_payload["id"], str(folder_canvas.id))
+        self.assertEqual(canvas_payload["project_id"], str(folder_project.id))
+        self.assertEqual(canvas_payload["title"], folder_canvas.title)
