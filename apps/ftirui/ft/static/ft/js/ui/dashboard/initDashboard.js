@@ -1588,7 +1588,6 @@ const clearProjectDropIndicators = () => {
             </td>
             <td>${escapeHtml(canvas.projectTitle)}</td>
             <td>${escapeHtml(canvas.folderName)}</td>
-            <td class="cell-meta">${formatRelative(canvas.updated)}</td>
             <td class="cell-meta">${escapeHtml(canvas.owner)}</td>
             <td class="table-actions">
               <div class="table-action-buttons">
@@ -1647,7 +1646,6 @@ const clearProjectDropIndicators = () => {
               <th class="dashboard-tags-header">tags</th>
               ${renderListHeaderCell('Project', 'projectTitle')}
               ${renderListHeaderCell('Folder', 'folderName')}
-              ${renderListHeaderCell('Last modified', 'updated')}
               ${renderListHeaderCell('Owner', 'owner')}
               <th></th>
             </tr>
