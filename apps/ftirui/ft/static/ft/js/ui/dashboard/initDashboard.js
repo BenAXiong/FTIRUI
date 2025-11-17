@@ -13,6 +13,7 @@ import {
 } from '../../services/dashboard.js';
 
 const LIST_SORT_STORAGE_KEY = 'ftir.dashboard.listSort.v1';
+const LIST_THUMBNAIL_STORAGE_KEY = 'ftir.dashboard.listThumbnails.v1';
 const DEFAULT_TAG_OPTIONS = ['FT-IR', 'NMR', 'XPS', 'Abs', 'MS', 'XRD', 'Multiple'];
 const TAG_COLOR_PALETTE = [
   '#1f77b4',
@@ -81,6 +82,9 @@ export function initDashboard() {
   const sortSelect = document.getElementById('dashboard_filter_sort');
   const viewToggle = document.querySelector('[data-dashboard-view-toggle]');
   const devBadge = document.querySelector('[data-dashboard-dev-indicator]');
+  const thumbnailToggleBtn = root.querySelector('[data-action="dashboard-toggle-thumbnails"]');
+  const thumbnailToggleLabel = thumbnailToggleBtn?.querySelector('[data-thumb-toggle-label]');
+  const thumbnailToggleIndicator = thumbnailToggleBtn?.querySelector('[data-thumb-toggle-indicator]');
 
   const workspaceTabEnabled =
     document.body?.dataset?.workspaceTabEnabled === 'true';
@@ -105,6 +109,27 @@ export function initDashboard() {
       /* ignore */
     }
     return { field: 'title', direction: 'asc' };
+  };
+
+  const readThumbnailPreference = () => {
+    if (typeof window === 'undefined' || !window.localStorage) return true;
+    try {
+      const raw = window.localStorage.getItem(LIST_THUMBNAIL_STORAGE_KEY);
+      if (raw === '0') return false;
+      if (raw === '1') return true;
+    } catch {
+      /* ignore */
+    }
+    return true;
+  };
+
+  const persistThumbnailPreference = (value) => {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      window.localStorage.setItem(LIST_THUMBNAIL_STORAGE_KEY, value ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   };
 
   const state = {
@@ -135,7 +160,8 @@ export function initDashboard() {
     },
     viewMode: 'list',
     devMode: new URLSearchParams(window.location.search).get('dev') === 'true',
-    listSort: readStoredListSort()
+    listSort: readStoredListSort(),
+    showThumbnails: readThumbnailPreference()
   };
   const ROOT_FOLDER_SUMMARY = '__ftir_root__';
   const ROOT_FOLDER_LABEL = 'Untitled folder';
@@ -197,6 +223,25 @@ export function initDashboard() {
     if (!newSectionBtn) return;
     newSectionBtn.classList.toggle('d-none', !shouldShowNewFolder());
   };
+
+  const updateThumbnailToggleUI = () => {
+    if (!thumbnailToggleBtn) return;
+    const labelText = state.showThumbnails ? 'Hide thumbnails' : 'Show thumbnails';
+    if (thumbnailToggleLabel) {
+      thumbnailToggleLabel.textContent = labelText;
+    }
+    if (thumbnailToggleIndicator) {
+      thumbnailToggleIndicator.classList.toggle('bi-toggle-on', state.showThumbnails);
+      thumbnailToggleIndicator.classList.toggle('bi-toggle-off', !state.showThumbnails);
+    }
+  };
+
+  const applyThumbnailPreference = () => {
+    root.classList.toggle('dashboard-hide-thumbs', !state.showThumbnails);
+    updateThumbnailToggleUI();
+  };
+
+  applyThumbnailPreference();
 
   const updateMainTitle = () => {
     if (!titleLabel) return;
@@ -1740,7 +1785,10 @@ const clearProjectDropIndicators = () => {
         return `
           <tr>
             <td class="cell-name">
-              ${titleCell}
+              <div class="cell-name-content">
+                <span class="dashboard-list-thumb" aria-hidden="true"></span>
+                ${titleCell}
+              </div>
             </td>
             <td class="cell-tags">
               <div class="cell-tags-content">
@@ -1813,8 +1861,8 @@ const clearProjectDropIndicators = () => {
         <table class="dashboard-table">
           <thead>
             <tr>
-              ${renderListHeaderCell('Name', 'title', 'col-name')}
-              <th class="dashboard-tags-header col-tags">tags</th>
+              ${renderListHeaderCell('Canvases', 'title', 'col-name')}
+              <th class="dashboard-tags-header col-tags">Tags</th>
               ${renderListHeaderCell('Project', 'projectTitle', 'col-project')}
               ${renderListHeaderCell('Folder', 'folderName', 'col-folder')}
               ${renderListHeaderCell('Owner', 'owner', 'col-owner')}
@@ -2367,6 +2415,12 @@ const clearProjectDropIndicators = () => {
 
   newCanvasBtn?.addEventListener('click', () => {
     void handleCreateCanvas();
+  });
+
+  thumbnailToggleBtn?.addEventListener('click', () => {
+    state.showThumbnails = !state.showThumbnails;
+    persistThumbnailPreference(state.showThumbnails);
+    applyThumbnailPreference();
   });
 
   const selectProject = (sectionId) => {

@@ -74,7 +74,7 @@
                        placeholder="Find canvases"
                        aria-label="Search canvases or projects" />
               </div>
-              <div class="ms-auto d-flex flex-wrap gap-2 dashboard-quick-actions">
+              <div class="ms-auto d-flex flex-wrap gap-2 dashboard-quick-actions align-items-center">
                 <div class="btn-group btn-group-sm dashboard-view-toggle" role="group" data-dashboard-view-toggle aria-label="View toggle">
                   <button type="button" class="btn btn-outline-secondary active" data-view="list" title="List view">
                     <i class="bi bi-table"></i>
@@ -91,6 +91,30 @@
                   <i class="bi bi-plus-lg me-1"></i>
                   New canvas
                 </button>
+                <div class="dropdown dashboard-main-options">
+                  <button class="btn btn-outline-secondary btn-sm" type="button" id="dashboard_main_options_btn" data-bs-toggle="dropdown" aria-expanded="false" title="More options">
+                    <i class="bi bi-three-dots"></i>
+                  </button>
+                  <div class="dropdown-menu dropdown-menu-end" aria-labelledby="dashboard_main_options_btn">
+                    <button class="dropdown-item" type="button" data-action="dashboard-toggle-thumbnails">
+                      <span class="me-2" data-thumb-toggle-label>Show thumbnails</span>
+                      <i class="bi bi-toggle-on ms-auto" data-thumb-toggle-indicator></i>
+                    </button>
+                    <button class="dropdown-item" type="button" data-action="dashboard-open-new-tab">
+                      Open in new tab
+                    </button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item" type="button" data-action="dashboard-share-project">
+                      Share project
+                    </button>
+                    <button class="dropdown-item" type="button" data-action="dashboard-download-all">
+                      Download all
+                    </button>
+                    <button class="dropdown-item text-danger" type="button" data-action="dashboard-delete-project">
+                      Delete project
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="card-body">
