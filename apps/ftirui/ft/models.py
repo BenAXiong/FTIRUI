@@ -3,6 +3,8 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.db import models
 
+from .tagging import generate_placeholder_tags
+
 
 class PlotSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -108,6 +110,7 @@ class WorkspaceCanvas(models.Model):
     version_label = models.CharField(max_length=120, blank=True, default="")
     autosave_token = models.CharField(max_length=64, blank=True, default="")
     is_favorite = models.BooleanField(default=False)
+    tags = models.JSONField(default=generate_placeholder_tags, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

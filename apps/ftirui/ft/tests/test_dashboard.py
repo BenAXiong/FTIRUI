@@ -25,6 +25,7 @@ class DashboardApiTests(TestCase):
             title="Initial canvas",
             state_json={"order": []},
             state_size=2,
+            tags=["FT-IR", "NMR"],
         )
 
     def _canvas_state(self, title="Autosave Title", *, trace_id="trace-1"):
@@ -78,6 +79,10 @@ class DashboardApiTests(TestCase):
         project = section["projects"][0]
         self.assertEqual(project["title"], "Week 42")
         self.assertEqual(project["canvas_count"], 1)
+        self.assertTrue(project["canvases"])
+        canvas_payload = project["canvases"][0]
+        self.assertIn("tags", canvas_payload)
+        self.assertEqual(canvas_payload["tags"], self.canvas.tags)
 
     def test_create_canvas(self):
         url = f"/api/dashboard/projects/{self.project.id}/canvases/"
@@ -88,6 +93,12 @@ class DashboardApiTests(TestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertEqual(WorkspaceCanvas.objects.filter(project=self.project).count(), 2)
+        data = resp.json()
+        self.assertIn("tags", data)
+        self.assertGreaterEqual(len(data["tags"]), 1)
+        self.assertLessEqual(len(data["tags"]), 5)
+        created = WorkspaceCanvas.objects.get(id=data["id"])
+        self.assertEqual(created.tags, data["tags"])
 
     def test_canvas_version_detail_includes_state(self):
         url = f"/api/dashboard/canvases/{self.canvas.id}/versions/"

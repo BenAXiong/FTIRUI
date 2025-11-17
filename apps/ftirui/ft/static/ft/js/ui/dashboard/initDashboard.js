@@ -1415,6 +1415,16 @@ const clearProjectDropIndicators = () => {
     return `Modified by ${owner} • ${day}`;
   };
 
+  const renderTagList = (tags) => {
+    if (!Array.isArray(tags) || !tags.length) {
+      return '<span class="dashboard-tag is-empty">—</span>';
+    }
+    return tags
+      .slice(0, 5)
+      .map((tag) => `<span class="dashboard-tag">${escapeHtml(tag)}</span>`)
+      .join('');
+  };
+
   const renderListHeaderCell = (label, field) => {
     const sortConfig = getListSortConfig();
     const isActive = sortConfig.field === field;
@@ -1573,6 +1583,9 @@ const clearProjectDropIndicators = () => {
             <td class="cell-name">
               ${titleCell}
             </td>
+            <td class="cell-tags">
+              <div class="dashboard-tags-list">${renderTagList(canvas.tags)}</div>
+            </td>
             <td>${escapeHtml(canvas.projectTitle)}</td>
             <td>${escapeHtml(canvas.folderName)}</td>
             <td class="cell-meta">${formatRelative(canvas.updated)}</td>
@@ -1631,6 +1644,7 @@ const clearProjectDropIndicators = () => {
           <thead>
             <tr>
               ${renderListHeaderCell('Name', 'title')}
+              <th class="dashboard-tags-header">tags</th>
               ${renderListHeaderCell('Project', 'projectTitle')}
               ${renderListHeaderCell('Folder', 'folderName')}
               ${renderListHeaderCell('Last modified', 'updated')}

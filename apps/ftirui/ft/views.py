@@ -38,6 +38,7 @@ from .models import (
     WorkspaceCanvasVersion,
 )
 from .sessions_repository import SessionStorageError, SessionTooLargeError
+from .tagging import generate_placeholder_tags, normalize_tags
 
 BASE_DIR = Path(__file__).resolve().parents[1]          # apps/ftirui
 REPO_ROOT = BASE_DIR.parent                              # mlirui/
@@ -592,9 +593,17 @@ def _serialize_canvas(canvas):
         "thumbnail_url": canvas.thumbnail_url,
         "version_label": canvas.version_label,
         "state_size": canvas.state_size,
+        "tags": list(getattr(canvas, "tags", []) or []),
         "updated": _isoformat(canvas.updated_at),
         "created": _isoformat(canvas.created_at),
     }
+
+
+def _parse_tags_value(value):
+    tags = normalize_tags(value)
+    if tags is None:
+        raise ValueError("Tags must be provided as a list of strings.")
+    return tags
 
 def _serialize_project(project, *, include_canvases=False):
     data = {
@@ -872,6 +881,14 @@ def api_dashboard_project_canvases(request, project_id):
         raw_state = {}
     state, state_size = _compute_state_size(raw_state if isinstance(raw_state, dict) else {})
 
+    if "tags" in payload:
+        try:
+            tags = _parse_tags_value(payload.get("tags"))
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+    else:
+        tags = generate_placeholder_tags()
+
     canvas = WorkspaceCanvas.objects.create(
         owner=user,
         project=project,
@@ -881,6 +898,7 @@ def api_dashboard_project_canvases(request, project_id):
         thumbnail_url=payload.get("thumbnail_url") or "",
         version_label=payload.get("version_label") or "",
         autosave_token=payload.get("autosave_token") or "",
+        tags=tags,
     )
     return JsonResponse(_serialize_canvas(canvas), status=201)
 
@@ -919,6 +937,12 @@ def api_dashboard_canvas_detail(request, canvas_id):
     if "is_favorite" in payload:
         canvas.is_favorite = bool(payload.get("is_favorite"))
         update_fields.append("is_favorite")
+    if "tags" in payload:
+        try:
+            canvas.tags = _parse_tags_value(payload.get("tags"))
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+        update_fields.append("tags")
     if "project_id" in payload:
         new_project = _get_project_for_user(user, payload["project_id"])
         if not new_project:
