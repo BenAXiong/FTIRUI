@@ -323,6 +323,8 @@ let draggingFolderRow = null;
 let draggingCanvasId = null;
 let draggingCanvasRow = null;
 let sectionMenuPositionQueue = null;
+let folderMenuPositionQueue = null;
+let canvasMenuPositionQueue = null;
 
 const clearProjectDropIndicators = () => {
   if (!sidebarTree) return;
@@ -537,12 +539,7 @@ const clearProjectDropIndicators = () => {
     await moveCanvasToFolder(canvasId, targetFolderId);
   };
 
-  function positionSectionMenu(sectionId) {
-    if (!sectionId) return;
-    const menu = document.querySelector(`[data-section-menu="${sectionId}"]`);
-    if (!menu) return;
-    const anchor = menu.closest('.table-menu-anchor');
-    if (!anchor) return;
+  function applyFloatingMenuPosition(menu, anchor) {
     const rect = anchor.getBoundingClientRect();
     menu.style.display = 'flex';
     menu.style.position = 'fixed';
@@ -551,17 +548,10 @@ const clearProjectDropIndicators = () => {
     menu.style.transformOrigin = '';
     menu.style.transform = '';
     menu.style.zIndex = '2000';
-    console.log('positionSectionMenu', sectionId, {
-      rect,
-      top: menu.style.top,
-      left: menu.style.left,
-      classList: [...menu.classList],
-    });
+    return rect;
   }
 
-  function resetSectionMenuPosition(sectionId) {
-    if (!sectionId) return;
-    const menu = document.querySelector(`[data-section-menu="${sectionId}"]`);
+  function resetFloatingMenuPosition(menu) {
     if (!menu) return;
     menu.style.display = '';
     menu.style.position = '';
@@ -572,6 +562,22 @@ const clearProjectDropIndicators = () => {
     menu.style.zIndex = '';
   }
 
+  function positionSectionMenu(sectionId) {
+    if (!sectionId) return;
+    const menu = document.querySelector(`[data-section-menu="${sectionId}"]`);
+    if (!menu) return;
+    const anchor = menu.closest('.table-menu-anchor');
+    if (!anchor) return;
+    applyFloatingMenuPosition(menu, anchor);
+  }
+
+  function resetSectionMenuPosition(sectionId) {
+    if (!sectionId) return;
+    const menu = document.querySelector(`[data-section-menu="${sectionId}"]`);
+    if (!menu) return;
+    resetFloatingMenuPosition(menu);
+  }
+
   function queueSectionMenuPosition(sectionId) {
     sectionMenuPositionQueue = sectionId;
     window.requestAnimationFrame(() => {
@@ -579,6 +585,58 @@ const clearProjectDropIndicators = () => {
       const target = sectionMenuPositionQueue;
       sectionMenuPositionQueue = null;
       positionSectionMenu(target);
+    });
+  }
+
+  function positionFolderMenu(folderId) {
+    if (!folderId) return;
+    const menu = document.querySelector(`[data-folder-menu="${folderId}"]`);
+    if (!menu) return;
+    const anchor = menu.closest('.table-menu-anchor');
+    if (!anchor) return;
+    applyFloatingMenuPosition(menu, anchor);
+  }
+
+  function resetFolderMenuPosition(folderId) {
+    if (!folderId) return;
+    const menu = document.querySelector(`[data-folder-menu="${folderId}"]`);
+    if (!menu) return;
+    resetFloatingMenuPosition(menu);
+  }
+
+  function queueFolderMenuPosition(folderId) {
+    folderMenuPositionQueue = folderId;
+    window.requestAnimationFrame(() => {
+      if (!folderMenuPositionQueue) return;
+      const target = folderMenuPositionQueue;
+      folderMenuPositionQueue = null;
+      positionFolderMenu(target);
+    });
+  }
+
+  function positionCanvasMenu(canvasId) {
+    if (!canvasId) return;
+    const menu = document.querySelector(`.sidebar-folder-item [data-canvas-menu="${canvasId}"]`);
+    if (!menu) return;
+    const anchor = menu.closest('.table-menu-anchor');
+    if (!anchor) return;
+    applyFloatingMenuPosition(menu, anchor);
+  }
+
+  function resetCanvasMenuPosition(canvasId) {
+    if (!canvasId) return;
+    const menu = document.querySelector(`.sidebar-folder-item [data-canvas-menu="${canvasId}"]`);
+    if (!menu) return;
+    resetFloatingMenuPosition(menu);
+  }
+
+  function queueCanvasMenuPosition(canvasId) {
+    canvasMenuPositionQueue = canvasId;
+    window.requestAnimationFrame(() => {
+      if (!canvasMenuPositionQueue) return;
+      const target = canvasMenuPositionQueue;
+      canvasMenuPositionQueue = null;
+      positionCanvasMenu(target);
     });
   }
 
@@ -936,6 +994,12 @@ const clearProjectDropIndicators = () => {
     if (state.openSectionMenuId) {
       queueSectionMenuPosition(state.openSectionMenuId);
     }
+    if (state.openOptionsFolderId) {
+      queueFolderMenuPosition(state.openOptionsFolderId);
+    }
+    if (state.openCanvasMenuId && state.openCanvasMenuContext === 'sidebar') {
+      queueCanvasMenuPosition(state.openCanvasMenuId);
+    }
     focusInlineEditors();
   };
 
@@ -948,6 +1012,7 @@ const clearProjectDropIndicators = () => {
 
   const closeFolderMenu = () => {
     if (state.openOptionsFolderId !== null) {
+      resetFolderMenuPosition(state.openOptionsFolderId);
       state.openOptionsFolderId = null;
       renderSidebar();
     }
@@ -955,12 +1020,23 @@ const clearProjectDropIndicators = () => {
 
   const toggleFolderMenu = (folderId) => {
     if (!folderId) return;
-    state.openOptionsFolderId = idsMatch(state.openOptionsFolderId, folderId) ? null : folderId;
+    const isSame = idsMatch(state.openOptionsFolderId, folderId);
+    if (isSame) {
+      resetFolderMenuPosition(folderId);
+      state.openOptionsFolderId = null;
+      renderSidebar();
+      return;
+    }
+    state.openOptionsFolderId = folderId;
     renderSidebar();
+    queueFolderMenuPosition(folderId);
   };
 
   const closeCanvasMenu = () => {
     if (state.openCanvasMenuId !== null) {
+      if (state.openCanvasMenuContext === 'sidebar') {
+        resetCanvasMenuPosition(state.openCanvasMenuId);
+      }
       state.openCanvasMenuId = null;
       state.openCanvasMenuContext = null;
       render();
@@ -977,8 +1053,6 @@ const clearProjectDropIndicators = () => {
 
   const toggleSectionMenu = (sectionId) => {
     if (!sectionId) return;
-    // Debug log to confirm whether the menu toggle flow is running
-    console.log('toggleSectionMenu invoked', sectionId);
     const isSame = idsMatch(state.openSectionMenuId, sectionId);
     if (isSame) {
       closeSectionMenu();
@@ -994,13 +1068,20 @@ const clearProjectDropIndicators = () => {
     const isSame =
       idsMatch(state.openCanvasMenuId, canvasId) && state.openCanvasMenuContext === context;
     if (isSame) {
+      if (context === 'sidebar') {
+        resetCanvasMenuPosition(canvasId);
+      }
       state.openCanvasMenuId = null;
       state.openCanvasMenuContext = null;
-    } else {
-      state.openCanvasMenuId = canvasId;
-      state.openCanvasMenuContext = context;
+      render();
+      return;
     }
+    state.openCanvasMenuId = canvasId;
+    state.openCanvasMenuContext = context;
     render();
+    if (context === 'sidebar') {
+      queueCanvasMenuPosition(canvasId);
+    }
   };
 
   const isCanvasMenuOpen = (canvasId, context) =>
