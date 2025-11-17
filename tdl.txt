@@ -1,28 +1,6 @@
-Phase 7
+Phase 8
 
-main add share button
-
-Step 4 – Cleanup & Migration (✅ done)
-
-- `python apps/ftirui/manage.py migrate_sessions` migrates `/api/session/` saves into the Projects/Folders/Canvases tables (`--dry-run`, `--limit`, and optional `--delete-source` are available).
-- `DASHBOARD_V2_ENABLED` toggles the new dashboard; when it’s `false` the template falls back to `dashboard_legacy.html`, and README documents how to flip the flag plus run migrations.
-- README/architecture updated so future devs know how to rehearse the migration + rollback flow.
-
-Step 5 – Dev Experience Boosters (✅ done)
-
-- Shortcuts: make sure /dashboard?dev=true reveals dev-only tooling (already half-done) and ensure /workspace?canvas=<id>&dev=true jumps straight into a canvas without permanently exposing the tab.
-- Tooling: add npm scripts for npm run lint:js and npm run format, plus a Django check shortcut; list the core commands (npm run test:unit, npm run test:smoke, python apps/ftirui/manage.py test ft) in the README’s handoff section. ✅ `package.json` now includes `lint:js`, `format`, and `check:django`.
-- Fixtures: create sample sections/projects/canvases under something like apps/ftirui/ft/tests/fixtures/ so backend and Playwright tests can seed realistic dashboards quickly. ✅ Use `python apps/ftirui/manage.py seed_dashboard_demo <username> [--replace]` to create demo data.
-- Explorer CRUD: wire rename/delete/move actions for sections/folders and projects in the sidebar, replacing the placeholder toasts once APIs are ready. ✅ Rename/move/delete now available via the folder actions (prompts + API calls).
-
-Step 6 – QA & Accessibility
-
-- Backend: extend apps/ftirui/ft/tests/ to cover autosave fixtures, snapshot restore, and the project/folder filters we added.
-- Frontend: add Vitest cases for initDashboard (sidebar clicks, filters, error toasts) and the autosave bridge, including the new list/gallery toggle behaviour.
-- End-to-end: expand tests/smoke/dashboard.spec.js to log in, open canvases, confirm the “Saved” autosave badge, and exercise snapshot modals; gate the CI job on SMOKE_* secrets and document them in the README.
-- Accessibility: run axe-core (or Playwright’s page.accessibility) on both dashboard and workspace so we catch tab-order/contrast issues.
-
-10:23 79 -- 
+x
 
 ___________________________________________________________
 Questions

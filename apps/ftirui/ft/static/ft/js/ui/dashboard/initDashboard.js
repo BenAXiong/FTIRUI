@@ -1227,6 +1227,14 @@ const clearProjectDropIndicators = () => {
   const isCanvasMenuOpen = (canvasId, context) =>
     idsMatch(state.openCanvasMenuId, canvasId) && state.openCanvasMenuContext === context;
 
+  const announceSharePlaceholder = () => {
+    window.showAppToast?.({
+      title: 'Share coming soon',
+      message: 'Sharing workflow is not enabled yet.',
+      variant: 'info',
+    });
+  };
+
   const handleCanvasAction = (action, trigger, event = null) => {
     if (!action || !trigger) return false;
     const canvasId = trigger.dataset.canvas;
@@ -1294,11 +1302,12 @@ const clearProjectDropIndicators = () => {
     if (action === 'canvas-menu-share' && canvasId) {
       stop();
       closeCanvasMenu();
-      window.showAppToast?.({
-        title: 'Share coming soon',
-        message: 'Sharing workflow is not enabled yet.',
-        variant: 'info'
-      });
+      announceSharePlaceholder();
+      return true;
+    }
+    if (action === 'canvas-share' && canvasId) {
+      stop();
+      announceSharePlaceholder();
       return true;
     }
     return false;
@@ -1828,14 +1837,17 @@ const clearProjectDropIndicators = () => {
             <td class="cell-owner cell-meta">${escapeHtml(canvas.owner)}</td>
             <td class="table-actions">
               <div class="table-action-buttons">
+                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="list" data-canvas="${canvas.id}" title="Rename canvas">
+                  <i class="bi bi-pencil"></i>
+                </button>
                 <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="list" data-canvas="${canvas.id}" title="Duplicate canvas">
                   <i class="bi bi-files"></i>
                 </button>
+                <button type="button" class="table-icon-btn" data-action="canvas-share" data-context="list" data-canvas="${canvas.id}" title="Share canvas">
+                  <i class="bi bi-share"></i>
+                </button>
                 <button type="button" class="table-icon-btn${isFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="list" data-canvas="${canvas.id}" title="Favorite canvas" aria-pressed="${isFavorite}" data-favorite="${isFavorite ? '1' : '0'}">
                   <i class="bi bi-star"></i>
-                </button>
-                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="list" data-canvas="${canvas.id}" title="Rename canvas">
-                  <i class="bi bi-pencil"></i>
                 </button>
                 <div class="table-menu-anchor">
                   <button type="button" class="table-icon-btn" data-action="canvas-options" data-context="list" data-canvas="${canvas.id}" title="Canvas options">
