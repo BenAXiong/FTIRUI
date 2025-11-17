@@ -74,10 +74,25 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
   gap: 1.5rem;
+  align-items: stretch;
+}
+@media (max-width: 992px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .dashboard-sidebar {
+    height: auto;
+  }
+  .dashboard-main {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    grid-template-rows: none;
+  }
 }
 .dashboard-sidebar {
   flex: 0 0 280px;
@@ -86,7 +101,8 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: 1rem;
-  padding: 1rem;
+  padding: 1rem 1rem 0;
+  box-sizing: border-box;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -349,22 +365,21 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   gap: .1rem;
 }
 .dashboard-main {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .dashboard-main-scroll {
-  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  max-height: 100%;
   overflow-y: auto;
   overflow-x: visible;
   padding-right: .25rem;
+  margin-top: 1.25rem;
 }
 #dashboard_root {
   flex: 1 1 auto;
@@ -381,10 +396,19 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .dashboard-lower-grid {
   flex: 0 0 auto;
 }
+.dashboard-lower-grid > * {
+  margin-top: 1.25rem;
+}
 .sidebar-folder-menu,
 .sidebar-canvas-menu {
   top: 0;
-  left: 0;
+  left: auto;
+  right: calc(100% - .5rem);
+}
+.sidebar-project-menu {
+  top: 0;
+  right: 0;
+  left: auto;
   transform: translateX(calc(100% + .5rem));
 }
 .dashboard-canvas-menu {
@@ -519,7 +543,6 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   display: none;
 }
 .dashboard-main {
-  flex: 1 1 0%;
   min-width: 260px;
 }
 .dashboard-lower-grid {

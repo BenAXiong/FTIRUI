@@ -85,6 +85,7 @@ export function initDashboard() {
     openCanvasMenuId: null,
     openCanvasMenuContext: null,
     openOptionsFolderId: null,
+    openSectionMenuId: null,
     filters: {
       search: '',
       section: 'all',
@@ -317,14 +318,15 @@ export function initDashboard() {
   applyLatestCollapsedState();
   applyLatestBandVisibility();
 
-  let draggingFolderId = null;
-  let draggingFolderRow = null;
-  let draggingCanvasId = null;
-  let draggingCanvasRow = null;
+let draggingFolderId = null;
+let draggingFolderRow = null;
+let draggingCanvasId = null;
+let draggingCanvasRow = null;
+let sectionMenuPositionQueue = null;
 
-  const clearProjectDropIndicators = () => {
-    if (!sidebarTree) return;
-    sidebarTree
+const clearProjectDropIndicators = () => {
+  if (!sidebarTree) return;
+  sidebarTree
       .querySelectorAll('.sidebar-project-row.is-drop-target')
       .forEach((row) => row.classList.remove('is-drop-target'));
     sidebarTree
@@ -445,11 +447,7 @@ export function initDashboard() {
           ? owner.project
           : await ensureRootFolder(targetSectionId);
       if (!rootFolder) return;
-      await moveCanvasToFolder(
-        canvasId,
-        rootFolder.id,
-        isSameSection ? {} : { newSectionId: targetSectionId }
-      );
+      await moveCanvasToFolder(canvasId, rootFolder.id);
       return;
     }
     if (!draggingFolderId) return;
@@ -539,6 +537,39 @@ export function initDashboard() {
     await moveCanvasToFolder(canvasId, targetFolderId);
   };
 
+  function positionSectionMenu(sectionId) {
+    if (!sectionId) return;
+    const menu = document.querySelector(`[data-section-menu="${sectionId}"]`);
+    if (!menu) return;
+    const anchor = menu.closest('.table-menu-anchor');
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.top + window.scrollY}px`;
+    menu.style.left = `${rect.right + 8 + window.scrollX}px`;
+    menu.style.zIndex = '2000';
+  }
+
+  function resetSectionMenuPosition(sectionId) {
+    if (!sectionId) return;
+    const menu = document.querySelector(`[data-section-menu="${sectionId}"]`);
+    if (!menu) return;
+    menu.style.position = '';
+    menu.style.top = '';
+    menu.style.left = '';
+    menu.style.zIndex = '';
+  }
+
+  function queueSectionMenuPosition(sectionId) {
+    sectionMenuPositionQueue = sectionId;
+    window.requestAnimationFrame(() => {
+      if (!sectionMenuPositionQueue) return;
+      const target = sectionMenuPositionQueue;
+      sectionMenuPositionQueue = null;
+      positionSectionMenu(target);
+    });
+  }
+
   const focusInlineEditors = () => {
     const focusInput = (selector) => {
       const node = document.querySelector(selector);
@@ -627,6 +658,7 @@ export function initDashboard() {
             <span>${escapeHtml(section.name)}</span>
           </button>
         `;
+      const sectionMenuOpen = idsMatch(state.openSectionMenuId, section.id);
       projectRow.innerHTML = `
         <button
           type="button"
@@ -645,12 +677,32 @@ export function initDashboard() {
           <button type="button" class="sidebar-project-icon" data-action="section-add-folder" data-section="${section.id}" title="Create folder">
             <i class="bi bi-folder-plus"></i>
           </button>
-          <button type="button" class="sidebar-project-icon" data-action="section-rename" data-section="${section.id}" title="Rename project">
-            <i class="bi bi-pencil"></i>
+          <button type="button" class="sidebar-project-icon" data-action="section-create-canvas" data-section="${section.id}" title="New canvas">
+            <i class="bi bi-plus-square"></i>
           </button>
-          <button type="button" class="sidebar-project-icon" data-action="section-delete" data-section="${section.id}" title="Delete project">
-            <i class="bi bi-trash"></i>
-          </button>
+          <div class="table-menu-anchor">
+            <button type="button" class="sidebar-project-icon" data-action="section-options" data-section="${section.id}" title="More options">
+              <i class="bi bi-three-dots"></i>
+            </button>
+            <div class="canvas-menu sidebar-project-menu${sectionMenuOpen ? ' is-open' : ''}" data-section-menu="${section.id}">
+              <button type="button" class="sidebar-menu-item" data-action="section-rename" data-section="${section.id}">
+                <i class="bi bi-pencil"></i>
+                <span>Rename</span>
+              </button>
+              <button type="button" class="sidebar-menu-item" data-action="section-delete" data-section="${section.id}">
+                <i class="bi bi-trash"></i>
+                <span>Delete</span>
+              </button>
+              <button type="button" class="sidebar-menu-item" data-action="section-share" data-section="${section.id}">
+                <i class="bi bi-share"></i>
+                <span>Share</span>
+              </button>
+              <button type="button" class="sidebar-menu-item" data-action="section-details" data-section="${section.id}">
+                <i class="bi bi-info-circle"></i>
+                <span>Details</span>
+              </button>
+            </div>
+          </div>
         </span>
       `;
       projectRow.dataset.dropProject = section.id;
@@ -865,6 +917,9 @@ export function initDashboard() {
     if (previousScrollTop !== null && sidebarScrollContainer) {
       sidebarScrollContainer.scrollTop = previousScrollTop;
     }
+    if (state.openSectionMenuId) {
+      queueSectionMenuPosition(state.openSectionMenuId);
+    }
     focusInlineEditors();
   };
 
@@ -894,6 +949,26 @@ export function initDashboard() {
       state.openCanvasMenuContext = null;
       render();
     }
+  };
+
+  const closeSectionMenu = () => {
+    if (state.openSectionMenuId !== null) {
+      resetSectionMenuPosition(state.openSectionMenuId);
+      state.openSectionMenuId = null;
+      renderSidebar();
+    }
+  };
+
+  const toggleSectionMenu = (sectionId) => {
+    if (!sectionId) return;
+    const isSame = idsMatch(state.openSectionMenuId, sectionId);
+    if (isSame) {
+      closeSectionMenu();
+      return;
+    }
+    state.openSectionMenuId = sectionId;
+    renderSidebar();
+    queueSectionMenuPosition(sectionId);
   };
 
   const toggleCanvasMenu = (canvasId, context = 'sidebar') => {
@@ -1790,8 +1865,11 @@ export function initDashboard() {
     return folders;
   };
 
-  const promptFolderTargetSelection = ({ entityTitle, currentProjectId }) => {
-    const folders = listFolderTargets();
+  const promptFolderTargetSelection = ({ entityTitle, currentProjectId, sectionId = null }) => {
+    let folders = listFolderTargets();
+    if (sectionId) {
+      folders = folders.filter((entry) => idsMatch(entry.sectionId, sectionId));
+    }
     if (!folders.length) {
       window.showAppToast?.({
         title: 'No folders available',
@@ -1800,7 +1878,9 @@ export function initDashboard() {
       });
       return null;
     }
-    const hasAlternative = folders.some((entry) => !idsMatch(entry.projectId, currentProjectId));
+    const hasAlternative = folders.some((entry) =>
+      currentProjectId ? !idsMatch(entry.projectId, currentProjectId) : true
+    );
     if (!hasAlternative) {
       window.showAppToast?.({
         title: 'Another folder required',
@@ -2054,6 +2134,36 @@ export function initDashboard() {
     }
   };
 
+  const createCanvasForSection = async (sectionId) => {
+    if (!sectionId) return;
+    exitFavoritesView();
+    exitLatestView();
+    const targetFolder = await ensureRootFolder(sectionId);
+    if (!targetFolder?.id) return;
+    void handleCreateCanvas(targetFolder.id);
+  };
+
+  const handleSectionShare = (sectionId) => {
+    const section = state.sections.find((item) => idsMatch(item.id, sectionId));
+    if (!section) return;
+    window.showAppToast?.({
+      title: 'Sharing coming soon',
+      message: `Project "${section.name || 'Untitled'}" sharing will be available soon.`,
+      variant: 'info'
+    });
+  };
+
+  const handleSectionDetails = (sectionId) => {
+    const section = state.sections.find((item) => idsMatch(item.id, sectionId));
+    if (!section) return;
+    const folderCount = section.projects?.length || 0;
+    window.showAppToast?.({
+      title: section.name || 'Project details',
+      message: `${folderCount} folder${folderCount === 1 ? '' : 's'} in this project.`,
+      variant: 'primary'
+    });
+  };
+
   const moveCanvasToFolder = async (canvasId, targetFolderId, options = {}) => {
     if (!canvasId || !targetFolderId) return false;
     const owner = findCanvasOwner(canvasId);
@@ -2156,6 +2266,7 @@ export function initDashboard() {
     }
     if (action === 'section-rename' && trigger.dataset.section) {
       event.stopPropagation();
+      closeSectionMenu();
       beginProjectRename(trigger.dataset.section);
       return;
     }
@@ -2172,6 +2283,28 @@ export function initDashboard() {
       void handleCreateFolder(targetSectionId);
       return;
     }
+    if (action === 'section-create-canvas' && trigger.dataset.section) {
+      event.stopPropagation();
+      createCanvasForSection(trigger.dataset.section);
+      return;
+    }
+    if (action === 'section-options' && trigger.dataset.section) {
+      event.stopPropagation();
+      toggleSectionMenu(trigger.dataset.section);
+      return;
+    }
+    if (action === 'section-share' && trigger.dataset.section) {
+      event.stopPropagation();
+      closeSectionMenu();
+      handleSectionShare(trigger.dataset.section);
+      return;
+    }
+    if (action === 'section-details' && trigger.dataset.section) {
+      event.stopPropagation();
+      closeSectionMenu();
+      handleSectionDetails(trigger.dataset.section);
+      return;
+    }
     if (action === 'section-pin' && trigger.dataset.section) {
       event.stopPropagation();
       const sectionId = trigger.dataset.section;
@@ -2185,6 +2318,7 @@ export function initDashboard() {
     }
     if (action === 'section-delete' && trigger.dataset.section) {
       event.stopPropagation();
+      closeSectionMenu();
       void handleDeleteProject(trigger.dataset.section);
       return;
     }
@@ -2298,6 +2432,15 @@ export function initDashboard() {
     ) {
       closeCanvasMenu();
     }
+    if (
+      state.openSectionMenuId &&
+      !(
+        target &&
+        (target.closest?.('[data-section-menu]') || target.closest?.('[data-action="section-options"]'))
+      )
+    ) {
+      closeSectionMenu();
+    }
   });
 
   document.addEventListener('keydown', (event) => {
@@ -2307,6 +2450,9 @@ export function initDashboard() {
       }
       if (state.openCanvasMenuId) {
         closeCanvasMenu();
+      }
+      if (state.openSectionMenuId) {
+        closeSectionMenu();
       }
     }
   });
