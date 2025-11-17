@@ -103,6 +103,9 @@ const userStatusCard = el('user_status');
 let currentUserState = null;
 const userSignInLink = el('user_sign_in');
 const userSignOutLink = el('user_sign_out');
+const userDropdownMenu = userStatusCard ? userStatusCard.querySelector('[data-user-dropdown]') : null;
+const userDropdownName = userStatusCard ? userStatusCard.querySelector('[data-dropdown-name]') : null;
+const userDropdownEmail = userStatusCard ? userStatusCard.querySelector('[data-dropdown-email]') : null;
 
 userSignInLink?.addEventListener('click', () => {
   showAppToast({
@@ -128,7 +131,7 @@ function applyUserStatus(data) {
   currentUserState = data;
   const nameEl = userStatusCard.querySelector('.user-primary');
   const secondaryEl = userStatusCard.querySelector('.user-secondary');
-  const avatarEl = userStatusCard.querySelector('.user-avatar');
+  const avatarEl = userStatusCard.querySelector('[data-user-avatar]') || userStatusCard.querySelector('.user-avatar');
   const signInBtn = el('user_sign_in');
   const signOutBtn = el('user_sign_out');
 
@@ -155,6 +158,15 @@ function applyUserStatus(data) {
         avatarEl.classList.add('placeholder');
       }
     }
+    if (userDropdownMenu) {
+      userDropdownMenu.classList.remove('d-none');
+    }
+    if (userDropdownName) {
+      userDropdownName.textContent = data.username || 'Account';
+    }
+    if (userDropdownEmail) {
+      userDropdownEmail.textContent = (data.email || '').trim() || (data.username || 'Signed in');
+    }
     userStatusCard.dataset.authenticated = '1';
   } else {
     if (nameEl) nameEl.textContent = 'Guest';
@@ -170,6 +182,15 @@ function applyUserStatus(data) {
     if (avatarEl) {
       avatarEl.innerHTML = '<i class="bi bi-person-circle"></i>';
       avatarEl.classList.add('placeholder');
+    }
+    if (userDropdownMenu) {
+      userDropdownMenu.classList.add('d-none');
+    }
+    if (userDropdownName) {
+      userDropdownName.textContent = 'Guest';
+    }
+    if (userDropdownEmail) {
+      userDropdownEmail.textContent = 'Not signed in';
     }
     userStatusCard.dataset.authenticated = '0';
   }

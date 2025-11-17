@@ -43,6 +43,10 @@ Key values:
 - **Accessibility scan:** `npm run test:a11y`
   - Uses axe-core + Playwright to audit the dashboard/workspace flows (requires the same smoke env vars).
 
+## User profile
+
+Click the avatar in the header to open the account dropdown. Signed-in users can jump to the new `/profile/` page, which surfaces your account details plus the Cloud State card so you can review autosave/guest status without opening the dashboard. Guests continue to see the Sign in button in the same spot.
+
 ## Smoke test configuration
 
 Playwright relies on a running FTIRUI deployment and a staff user that can access Django admin (smoke scripts log in there to reuse the resulting session cookie).

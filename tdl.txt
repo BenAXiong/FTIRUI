@@ -1,6 +1,8 @@
-Phase 8
-
-x
+Phase 8 – Profile Dropdown & Page Plan
+1. Refactor `header_nav.html` user status block into a Bootstrap dropdown: avatar becomes the toggle, showing the current user name/email plus menu entries (Profile, Settings placeholder, Sign out) while keeping Sign in visible for guests.
+2. Wire the dropdown actions in `app.js`/workspace init so guest vs authenticated states toggle appropriately (show Sign in button vs dropdown), and ensure the “Profile” menu item navigates to a new `/profile/` route.
+3. Implement a minimal `profile` view/template (requires login) showing user info (avatar, username, email, links to change password) and embed the existing Cloud State card (extract the `cloud_state_card` markup into a reusable partial so both dashboard + profile can include it).
+4. Update `urls.py` to expose the profile route, add tests (template smoke + permission check), and mention the new dropdown/profile page in README so folks know how to reach cloud states outside the dashboard.
 
 ___________________________________________________________
 Questions

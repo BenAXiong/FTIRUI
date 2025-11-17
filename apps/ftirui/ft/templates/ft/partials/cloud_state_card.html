@@ -1,0 +1,30 @@
+{% with extra=cloud_card_extra_classes|default:"d-none" %}
+<div id="cloud_state_card" class="card workspace-card {{ extra }}">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="bi bi-cloud-check text-primary"></i>
+    <span class="fw-semibold">Cloud state</span>
+    <span id="workspace_status_badge" class="badge text-bg-secondary ms-auto">Guest</span>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-3 align-items-center">
+      <div class="workspace-profile">
+        <div id="workspace_user_name" class="fw-semibold">Guest</div>
+        <div id="workspace_user_desc" class="small text-muted">Not signed in</div>
+      </div>
+      <div class="workspace-divider d-none d-md-block"></div>
+      <div class="workspace-stats">
+        <span class="small text-muted text-uppercase">Cloud sessions</span>
+        <div id="workspace_session_count" class="fs-5 fw-semibold">0</div>
+      </div>
+      <div class="workspace-actions ms-md-auto d-flex flex-wrap gap-2">
+        <button id="workspace_btn_open_cloud" class="btn btn-outline-secondary btn-sm" type="button">
+          Manage cloud sessions
+        </button>
+        <button id="workspace_btn_save_local" class="btn btn-outline-primary btn-sm" type="button">
+          Export local copy
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}

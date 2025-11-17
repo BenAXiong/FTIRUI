@@ -1,0 +1,61 @@
+{% extends 'ft/layouts/app_shell.html' %}
+{% load static %}
+
+{% block title %}Profile · FT-IR UI{% endblock %}
+
+{% block page_header %}
+  {% include 'ft/partials/header_nav.html' %}
+{% endblock %}
+
+{% block page_body %}
+  <div class="row gy-4">
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">
+          <h2 class="h5 mb-0">Profile</h2>
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="profile-avatar rounded-circle bg-body-secondary d-flex align-items-center justify-content-center" style="width:64px; height:64px;">
+              <i class="bi bi-person-circle fs-2 text-muted"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">{{ profile_user.get_full_name|default:profile_user.username }}</div>
+              <div class="text-muted small">{{ profile_user.email|default:"No email on file" }}</div>
+            </div>
+          </div>
+
+          <dl class="row small mb-4">
+            <dt class="col-5 text-muted">Username</dt>
+            <dd class="col-7">{{ profile_user.username }}</dd>
+            <dt class="col-5 text-muted">Member since</dt>
+            <dd class="col-7">{{ profile_user.date_joined|date:"M j, Y" }}</dd>
+            <dt class="col-5 text-muted">Last login</dt>
+            <dd class="col-7">
+              {% if profile_user.last_login %}
+                {{ profile_user.last_login|date:"M j, Y H:i" }}
+              {% else %}
+                Never
+              {% endif %}
+            </dd>
+          </dl>
+
+          <div class="d-flex flex-column gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'ft:home' %}">
+              <i class="bi bi-arrow-left-circle me-1"></i> Back to dashboard
+            </a>
+            <a class="btn btn-outline-primary btn-sm" href="/admin/" target="_blank" rel="noreferrer">
+              <i class="bi bi-gear me-1"></i> Manage account
+            </a>
+            <a class="btn btn-outline-danger btn-sm" href="/accounts/logout/">
+              <i class="bi bi-box-arrow-right me-1"></i> Sign out
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      {% include 'ft/partials/cloud_state_card.html' with cloud_card_extra_classes="" %}
+    </div>
+  </div>
+{% endblock %}

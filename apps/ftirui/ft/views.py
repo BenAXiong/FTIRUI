@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth import get_user
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -83,6 +84,17 @@ def workspace_page(request):
         "active_canvas": canvas,
     }
     return render(request, "ft/base.html", context)
+
+
+@login_required
+def profile(request):
+    context = {
+        "profile_user": request.user,
+        "active_canvas": None,
+        "workspace_pane_active": False,
+        "profile_page": True,
+    }
+    return render(request, "ft/profile/detail.html", context)
 
 @require_http_methods(["POST"])
 def preview(request):
