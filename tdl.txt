@@ -2,11 +2,15 @@ Phase 7
 
 *togglable canvas thumbnail (placeholder) in list
 
-exp: ... dropdown position
-main: match lastest and fav icons
+in the main view: I want the whole tr cell to be highlighted (not the name like currently) when it is hovered. round very slightly the highlighted corners
+
+when the Latest and Favorites views are active, make the main view's header's icons match the ones in the explorer
+
+
 main: hide New folder button when project is not selected or already filtered by folder
-main: whole row shading on hover but rounded
-main: add tabs columns
+main: add tags columns
+main: deal with colomn width
+________________________________________________________________________________________
 
 Step 4 – Cleanup & Migration (✅ done)
 

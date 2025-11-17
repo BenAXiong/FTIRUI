@@ -544,19 +544,31 @@ const clearProjectDropIndicators = () => {
     const anchor = menu.closest('.table-menu-anchor');
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
+    menu.style.display = 'flex';
     menu.style.position = 'fixed';
     menu.style.top = `${rect.top + window.scrollY}px`;
-    menu.style.left = `${rect.right + 8 + window.scrollX}px`;
+    menu.style.left = `${rect.right + window.scrollX}px`;
+    menu.style.transformOrigin = '';
+    menu.style.transform = '';
     menu.style.zIndex = '2000';
+    console.log('positionSectionMenu', sectionId, {
+      rect,
+      top: menu.style.top,
+      left: menu.style.left,
+      classList: [...menu.classList],
+    });
   }
 
   function resetSectionMenuPosition(sectionId) {
     if (!sectionId) return;
     const menu = document.querySelector(`[data-section-menu="${sectionId}"]`);
     if (!menu) return;
+    menu.style.display = '';
     menu.style.position = '';
     menu.style.top = '';
     menu.style.left = '';
+    menu.style.transform = '';
+    menu.style.transformOrigin = '';
     menu.style.zIndex = '';
   }
 
@@ -670,7 +682,7 @@ const clearProjectDropIndicators = () => {
           <i class="bi bi-chevron-right sidebar-project-chevron"></i>
         </button>
         ${projectLabelMarkup}
-        <span class="sidebar-project-actions">
+        <span class="sidebar-project-actions${sectionMenuOpen ? ' is-menu-open' : ''}">
           <button type="button" class="sidebar-project-icon${isPinned ? ' is-active' : ''}" data-action="section-pin" data-section="${section.id}" title="${pinTitle}" aria-pressed="${isPinned}">
             <i class="bi ${pinIcon}"></i>
           </button>
@@ -767,18 +779,18 @@ const clearProjectDropIndicators = () => {
                 <i class="bi bi-chevron-right sidebar-folder-chevron"></i>
               </button>
               ${folderLabelMarkup}
-              <span class="sidebar-folder-actions">
-              <button type="button" class="sidebar-folder-icon" data-action="folder-create-canvas" data-project="${folder.id}" title="New canvas">
-                <i class="bi bi-plus-lg"></i>
-              </button>
-              <button type="button" class="sidebar-folder-icon" data-action="folder-rename" data-folder="${folder.id}" title="Rename folder">
-                <i class="bi bi-pencil"></i>
-              </button>
-                <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-folder="${folder.id}" title="More options">
-                  <i class="bi bi-three-dots"></i>
+              <div class="sidebar-folder-actions${menuOpen ? ' is-menu-open' : ''}">
+                <button type="button" class="sidebar-folder-icon" data-action="folder-create-canvas" data-project="${folder.id}" title="New canvas">
+                  <i class="bi bi-plus-lg"></i>
                 </button>
-              </span>
-              <div class="canvas-menu sidebar-folder-menu${menuOpen ? ' is-open' : ''}" data-folder-menu="${folder.id}">
+                <button type="button" class="sidebar-folder-icon" data-action="folder-rename" data-folder="${folder.id}" title="Rename folder">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <div class="table-menu-anchor">
+                  <button type="button" class="sidebar-folder-icon" data-action="folder-options" data-folder="${folder.id}" title="More options">
+                    <i class="bi bi-three-dots"></i>
+                  </button>
+                  <div class="canvas-menu sidebar-folder-menu${menuOpen ? ' is-open' : ''}" data-folder-menu="${folder.id}">
                 <button type="button" class="sidebar-menu-item" data-action="folder-menu-move" data-folder="${folder.id}">
                   <i class="bi bi-arrow-left-right"></i>
                   <span>Move to project</span>
@@ -795,6 +807,8 @@ const clearProjectDropIndicators = () => {
                   <i class="bi bi-share"></i>
                   <span>Share</span>
                 </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="sidebar-canvas-list"${folderExpanded ? '' : ' hidden'}>
@@ -861,7 +875,7 @@ const clearProjectDropIndicators = () => {
               `;
             canvasRow.innerHTML = `
                 ${canvasLabelMarkup}
-                <span class="sidebar-folder-item-actions">
+                <div class="sidebar-folder-item-actions${canvasMenuOpen ? ' is-menu-open' : ''}">
                   <button type="button" class="sidebar-folder-icon" data-action="canvas-duplicate" data-context="sidebar" data-canvas="${canvas.id}" title="Duplicate canvas">
                     <i class="bi bi-files"></i>
                   </button>
@@ -871,11 +885,11 @@ const clearProjectDropIndicators = () => {
                   <button type="button" class="sidebar-folder-icon" data-action="canvas-rename" data-context="sidebar" data-canvas="${canvas.id}" title="Rename canvas">
                     <i class="bi bi-pencil"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="canvas-options" data-context="sidebar" data-canvas="${canvas.id}" title="Canvas options">
-                    <i class="bi bi-three-dots"></i>
-                  </button>
-                </span>
-                <div class="canvas-menu sidebar-canvas-menu${canvasMenuOpen ? ' is-open' : ''}" data-canvas-menu="${canvas.id}">
+                  <div class="table-menu-anchor">
+                    <button type="button" class="sidebar-folder-icon" data-action="canvas-options" data-context="sidebar" data-canvas="${canvas.id}" title="Canvas options">
+                      <i class="bi bi-three-dots"></i>
+                    </button>
+                    <div class="canvas-menu sidebar-canvas-menu${canvasMenuOpen ? ' is-open' : ''}" data-canvas-menu="${canvas.id}">
                   <button type="button" class="sidebar-menu-item" data-action="canvas-menu-open" data-context="sidebar" data-canvas="${canvas.id}">
                     <i class="bi bi-box-arrow-up-right"></i>
                     <span>Open canvas</span>
@@ -900,6 +914,8 @@ const clearProjectDropIndicators = () => {
                     <i class="bi bi-share"></i>
                     <span>Share canvas</span>
                   </button>
+                    </div>
+                  </div>
                 </div>
               `;
               canvasList?.appendChild(canvasRow);
@@ -961,6 +977,8 @@ const clearProjectDropIndicators = () => {
 
   const toggleSectionMenu = (sectionId) => {
     if (!sectionId) return;
+    // Debug log to confirm whether the menu toggle flow is running
+    console.log('toggleSectionMenu invoked', sectionId);
     const isSame = idsMatch(state.openSectionMenuId, sectionId);
     if (isSame) {
       closeSectionMenu();

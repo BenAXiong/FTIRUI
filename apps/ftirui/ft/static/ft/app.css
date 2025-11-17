@@ -107,6 +107,8 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+  z-index: 2;
 }
 .dashboard-sidebar-scroll {
   flex: 1 1 auto;
@@ -256,8 +258,12 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   opacity: 0;
   transition: opacity .15s ease;
   margin-left: auto;
+  overflow: visible;
 }
 .sidebar-folder-entry:is(:hover, :focus-within) .sidebar-folder-actions {
+  opacity: 1;
+}
+.sidebar-folder-actions.is-menu-open {
   opacity: 1;
 }
 .sidebar-folder-icon {
@@ -357,7 +363,7 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   padding: .35rem;
   display: none;
   min-width: 180px;
-  z-index: 20;
+  z-index: 200;
 }
 .canvas-menu.is-open {
   display: flex;
@@ -371,6 +377,8 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 .dashboard-main-scroll {
   min-height: 0;
@@ -399,17 +407,13 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .dashboard-lower-grid > * {
   margin-top: 1.25rem;
 }
+.sidebar-project-menu,
 .sidebar-folder-menu,
 .sidebar-canvas-menu {
   top: 0;
-  left: auto;
-  right: calc(100% - .5rem);
-}
-.sidebar-project-menu {
-  top: 0;
-  right: 0;
-  left: auto;
-  transform: translateX(calc(100% + .5rem));
+  right: auto;
+  left: 100%;
+  transform: none;
 }
 .dashboard-canvas-menu {
   top: auto;
@@ -448,6 +452,9 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   opacity: 0;
   transition: opacity .15s ease;
   margin-left: auto;
+}
+.sidebar-project-actions.is-menu-open {
+  opacity: 1;
 }
 .sidebar-project-icon {
   border: none;
@@ -515,11 +522,15 @@ table.preview-table { font-variant-numeric: tabular-nums; }
   gap: .2rem;
   opacity: 0;
   transition: opacity .15s ease;
+  overflow: visible;
 }
 .sidebar-folder-item:is(:hover, :focus-within) {
   background: var(--bs-tertiary-bg);
 }
 .sidebar-folder-item:is(:hover, :focus-within) .sidebar-folder-item-actions {
+  opacity: 1;
+}
+.sidebar-folder-item-actions.is-menu-open {
   opacity: 1;
 }
 .sidebar-folder-entry.is-drop-target {
