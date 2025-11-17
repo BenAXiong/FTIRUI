@@ -1,7 +1,5 @@
 Phase 7
 
-take a look at tdl.txt and mark Step 5 as done. then reexplain Steps 6 & 7 to me in simplel terms and reevaluate them: scope and necessity
-
 Step 4 – Cleanup & Migration (✅ done)
 
 - `python apps/ftirui/manage.py migrate_sessions` migrates `/api/session/` saves into the Projects/Folders/Canvases tables (`--dry-run`, `--limit`, and optional `--delete-source` are available).
@@ -32,19 +30,21 @@ Polishing
 - canvas: extract unredo from toolbar or extra unnumbered
 - solve popup width (increase or auto)
 - legend button state inits on on while legend is off
-- remove screenshot icon from polotly area
+- remove screenshot icon from plotly area
     also zooms & "produced with...."
 - fix browser popups 
 - rethink plot types: defaults, changing, etc
 - dash/explorer: extensible to the right?
 - canvas thulbnails (2-3d???)
-- thumbnail in list too?
 - dash main list ... popups: up and bottom position out of bounds
 - login area: move "Sign out" into dropdown, arrange order with d/lmode, load pic, etc
 - Papers and reports?
 - dash/Top band: rethink, avoid going too  big with new objetc types
 - main view options - curate
 - dash exp scrollbar position
+- dash project icons
+- dash exp: clearer pins
+- dash main: extra column = contributors
 ___________________________________________________________
 Future work
 
@@ -57,5 +57,5 @@ Future work
 
 Bugs
 
-- grids: minor become major when major runed off
-- browser: stying chips, only thickness wired
+- grids: minor become major when major turned off
+- browser: styling chips, only thickness wired

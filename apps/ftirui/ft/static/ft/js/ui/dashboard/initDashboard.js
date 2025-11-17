@@ -2629,8 +2629,49 @@ const clearProjectDropIndicators = () => {
     }
     renderSidebar();
   };
+  const handleTitleDoubleClick = (event) => {
+    if (!titleLabel) return;
+    const targetSectionId =
+      state.filters.section && state.filters.section !== 'all' ? state.filters.section : null;
+    if (
+      !targetSectionId ||
+      state.sidebarView === 'latest' ||
+      state.filters.favoritesOnly ||
+      state.filters.folder
+    ) {
+      return;
+    }
+    event.preventDefault();
+    beginProjectRename(targetSectionId);
+  };
 
   sidebarTree?.addEventListener('click', (event) => {
+    if (event.detail === 2) {
+      const inlineInput = resolveClosest(event, '.sidebar-inline-input');
+      if (!inlineInput) {
+        const projectButton = resolveClosest(event, '.sidebar-project-link[data-section]');
+        if (projectButton?.dataset?.section) {
+          event.preventDefault();
+          event.stopPropagation();
+          beginProjectRename(projectButton.dataset.section);
+          return;
+        }
+        const folderButton = resolveClosest(event, '.sidebar-folder-label[data-folder]');
+        if (folderButton?.dataset?.folder) {
+          event.preventDefault();
+          event.stopPropagation();
+          beginFolderRename(folderButton.dataset.folder);
+          return;
+        }
+        const canvasButton = resolveClosest(event, '.sidebar-folder-link[data-canvas]');
+        if (canvasButton?.dataset?.canvas) {
+          event.preventDefault();
+          event.stopPropagation();
+          beginCanvasRename(canvasButton.dataset.canvas, 'sidebar');
+          return;
+        }
+      }
+    }
     const trigger = resolveClosest(event, 'button[data-action]');
     if (!trigger) return;
     const { action } = trigger.dataset;
@@ -2807,6 +2848,7 @@ const clearProjectDropIndicators = () => {
   sidebarTree?.addEventListener('drop', handleFolderTargetDrop);
   root.addEventListener('keydown', handleInlineKeydown, true);
   root.addEventListener('focusout', handleInlineBlur, true);
+  titleLabel?.addEventListener('dblclick', handleTitleDoubleClick);
 
   document.addEventListener('click', (event) => {
     const target = event.target;
