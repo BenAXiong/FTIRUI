@@ -798,9 +798,14 @@ body.dashboard-overlay-open {
 }
 .dashboard-table tbody tr {
   border-bottom: 1px solid var(--bs-border-color);
+  transition: background-color .15s ease;
 }
 .dashboard-table tbody tr:last-child {
   border-bottom: none;
+}
+.dashboard-table tbody tr:is(:hover, :focus-within) {
+  background: var(--bs-tertiary-bg);
+  border-radius: .35rem;
 }
 .dashboard-table .cell-name {
   display: flex;
