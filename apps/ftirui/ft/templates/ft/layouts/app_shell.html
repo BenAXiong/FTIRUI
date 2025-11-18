@@ -30,7 +30,8 @@
         data-workspace-dev="{% if workspace_dev_active %}true{% else %}false{% endif %}"
         data-dashboard-v2="{% if dashboard_v2_enabled %}true{% else %}false{% endif %}"
         data-active-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
-        data-active-canvas-title="{% if active_canvas %}{{ active_canvas.title|default_if_none:'' }}{% endif %}">
+        data-active-canvas-title="{% if active_canvas %}{{ active_canvas.title|default_if_none:'' }}{% endif %}"
+        data-active-canvas-primary-tag="{% if active_canvas and active_canvas.tags %}{{ active_canvas.tags.0 }}{% endif %}">
     <div class="container-fluid app-frame-main {% if workspace_only %}workspace-frame{% else %}py-3 px-3 px-lg-4{% endif %}">
       {% block page_header %}{% endblock %}
       {% block page_body %}{% endblock %}

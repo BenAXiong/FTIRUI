@@ -1,6 +1,7 @@
 import { render as renderTreeView } from '../../../../workspace/browser/treeView.js';
 import { escapeHtml } from '../../../../utils/dom.js';
 import { toHexColor } from '../../../../utils/styling.js';
+import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
 
 /**
  * Render the workspace browser DOM using the prepared tree state.
@@ -112,6 +113,8 @@ export function renderBrowserTree(ctx, state) {
   }
 
   const panelsBySection = new Map();
+  const canvasPrimaryTag = (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasPrimaryTag) || '';
+  const canvasPrimaryTagColor = canvasPrimaryTag ? getWorkspaceTagColor(canvasPrimaryTag) : null;
   sections.forEach((section, id) => {
     panelsBySection.set(id, []);
   });
@@ -377,6 +380,15 @@ export function renderBrowserTree(ctx, state) {
     }
     if (term && !traceInfo.graphMatches) {
       name.classList.add('is-muted');
+    }
+    if (canvasPrimaryTag && canvasPrimaryTagColor) {
+      const tagBadge = document.createElement('span');
+      tagBadge.className = 'dashboard-tag graph-canvas-tag';
+      tagBadge.textContent = canvasPrimaryTag;
+      tagBadge.title = `Canvas tag: ${canvasPrimaryTag}`;
+      tagBadge.style.background = canvasPrimaryTagColor;
+      tagBadge.style.color = '#fff';
+      header.appendChild(tagBadge);
     }
     header.appendChild(name);
 

@@ -1,3 +1,5 @@
+import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
+
 export function createPanelDomFacade({
   canvas,
   registerPanelDom,
@@ -24,6 +26,8 @@ export function createPanelDomFacade({
   const safeBringPanelToFront = typeof bringPanelToFront === 'function' ? bringPanelToFront : () => {};
   const safeUpdateToolbarMetrics = typeof updateToolbarMetrics === 'function' ? updateToolbarMetrics : () => {};
   const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
+  const canvasPrimaryTag = (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasPrimaryTag) || '';
+  const canvasPrimaryTagColor = canvasPrimaryTag ? getWorkspaceTagColor(canvasPrimaryTag) : null;
 
   const mountPanel = ({ panelId, panelState, runtime } = {}) => {
     if (!panelId || !panelState) return null;
@@ -38,6 +42,18 @@ export function createPanelDomFacade({
 
         const header = document.createElement('div');
         header.className = 'workspace-panel-header';
+        const headerTagBadge = canvasPrimaryTag && canvasPrimaryTagColor
+          ? (() => {
+            const badge = document.createElement('span');
+            badge.className = 'dashboard-tag graph-canvas-tag';
+            badge.textContent = canvasPrimaryTag;
+            badge.title = `Canvas tag: ${canvasPrimaryTag}`;
+            badge.dataset.canvasTag = canvasPrimaryTag;
+            badge.style.background = canvasPrimaryTagColor;
+            badge.style.color = '#fff';
+            return badge;
+          })()
+          : null;
 
         const title = document.createElement('div');
         title.className = 'workspace-panel-title';
@@ -1559,6 +1575,9 @@ export function createPanelDomFacade({
         actions.appendChild(overflowBtn);
         actions.appendChild(settingsBtn);
         actions.appendChild(closeBtn);
+        if (headerTagBadge) {
+          header.appendChild(headerTagBadge);
+        }
         header.appendChild(title);
         header.appendChild(actions);
         refreshActionOverflow();

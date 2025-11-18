@@ -2623,6 +2623,22 @@ pre, code, .pre-like {
   white-space: nowrap;
 }
 
+.graph-canvas-tag{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 .4rem;
+  margin-right: .35rem;
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.graph-canvas-tag:last-child{
+  margin-right: .15rem;
+}
+
 .folder-header .folder-actions{
   display: flex;
   gap: .25rem;

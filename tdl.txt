@@ -1,10 +1,6 @@
 Phase 1 – Broad UI optimization
-    color picker super slow
-above the canvas name, without changing its position, add a dim grey text: project_name/folder_name
-shirnk browser
-remove project X
-search input
-add tags to graphs
+
+activate trace info popup on click, not hover
 filter tags
 Step 5 Documentation & guard rails
 ___________________________________________________________
@@ -14,15 +10,16 @@ plotly remove all icons
 rename toolbars?
 Global toolbar
 - unredo // 1 to 9 // ... (0)
-___________________________________________________________
-Questions
 
-*
+graphs: limit rename to jsut the name area + double click of header triggers full screen
 ___________________________________________________________
 Polishing
 
 - wks/br: consider floating draggable pill to avoid canvas resizing
+- wks/br: color palette selection x3
+- wks/br: custom color swatched extra row
 - wks/gr: solve popup width (increase or auto)
+- wks/gr: x
 - wks/gr: remove titles
 - dash/exp: extensible to the right?
 - dash/exp: scrollbar position
@@ -32,6 +29,7 @@ Polishing
 - dash/main: options - curate
 - dash/main: project icons
 - dash/main: extra column = contributors
+- dash/main: open canvas on row click, not just name
 
 ___________________________________________________________
 Workflow
@@ -54,3 +52,6 @@ Bugs
 
 - grids: minor become major when major turned off
 - dragging graph from sub to group
+- coloris displays but buggy and native picker couldn't be desactivated
+    "Vendor bundle (apps/ftirui/ft/static/ft/vendor/coloris/…) remains untracked so you can add it when ready." ?
+- pinned browser header wraps
