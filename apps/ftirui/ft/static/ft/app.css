@@ -1318,7 +1318,7 @@ body.dashboard-overlay-open {
 .workspace-hud-logo{
   width:2rem;
   height:2rem;
-  border-radius:50%;
+  border-radius:.65rem;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1336,6 +1336,22 @@ body.dashboard-overlay-open {
   align-items:center;
   gap:.5rem;
 }
+.workspace-hud-menu__toggle{
+  color:var(--bs-body-color);
+  font-size:1.25rem;
+  line-height:1;
+}
+.workspace-hud-menu__list{
+  min-width:220px;
+  border-radius:.75rem;
+  padding:.35rem 0;
+}
+.workspace-hud-menu__list .dropend{
+  position:relative;
+}
+.workspace-hud-menu__list .dropdown-menu{
+  border-radius:.75rem;
+}
 .workspace-hud-card--secondary{
   gap:1rem;
   min-height:48px;
@@ -1352,6 +1368,9 @@ body.dashboard-overlay-open {
 }
 .workspace-hud-theme-btn{
   min-width:0;
+  border:none;
+  background:color-mix(in srgb, var(--bs-body-bg) 70%, transparent);
+  box-shadow:0 10px 25px rgba(15,23,42,.15);
 }
 @media (max-width: 768px){
   .workspace-page .workspace-hud{
@@ -1442,14 +1461,16 @@ body.dashboard-overlay-open {
 .workspace-canvas-title{
   font-weight:600;
   font-size:1rem;
-  padding:.4rem 1rem;
+  padding:.35rem .85rem;
   border:1px solid transparent;
   border-radius:.75rem;
   background:color-mix(in srgb, var(--bs-body-bg) 85%, transparent);
   cursor:pointer;
   user-select:none;
-  min-width:160px;
-  text-align:left;
+  min-width:auto;
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
   box-shadow:0 10px 30px rgba(15,23,42,.12);
 }
 .workspace-canvas-title[aria-disabled="true"]{

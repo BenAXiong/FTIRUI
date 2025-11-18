@@ -5,17 +5,11 @@ Plan
 
 Layout mode switch
 
-Step 3 Canvas title / rename affordance
-Step 4 
-Step 5 
-Step 6 
+Step 4 Documentation & guard rails
 ___________________________________________________________
 
 browser
-
-menus: graphs, ???, ???
-change title into scisci
-change logo to Sci^2
+autosave indicator?
 
 display tags next to name pill
 option to hide all menus ? eye pill?

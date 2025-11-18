@@ -392,7 +392,8 @@ function initWorkspaceTitleEditor() {
     });
   };
 
-  titleEl.addEventListener('dblclick', (event) => {
+  titleEl.addEventListener('click', (event) => {
+    if (titleEl.dataset.editing === 'true') return;
     event.preventDefault();
     startEdit();
   });
@@ -405,6 +406,54 @@ function initWorkspaceTitleEditor() {
 }
 
 initWorkspaceTitleEditor();
+
+function initWorkspaceHudMenu() {
+  if (!isWorkspacePage) return;
+  const root = document.querySelector('.workspace-hud-menu');
+  if (!root) return;
+  const dropendItems = Array.from(root.querySelectorAll('.dropend'));
+  const closeItem = (item) => {
+    item.classList.remove('show');
+    const submenu = item.querySelector('.dropdown-menu');
+    submenu?.classList.remove('show');
+  };
+  const closeAll = () => {
+    dropendItems.forEach((item) => closeItem(item));
+  };
+  dropendItems.forEach((item) => {
+    const toggle = item.querySelector('.dropdown-item.dropdown-toggle');
+    const submenu = item.querySelector('.dropdown-menu');
+    if (!toggle || !submenu) return;
+    const openItem = () => {
+      dropendItems.forEach((other) => {
+        if (other !== item) closeItem(other);
+      });
+      item.classList.add('show');
+      submenu.classList.add('show');
+    };
+    const toggleOpen = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (item.classList.contains('show')) {
+        closeItem(item);
+      } else {
+        openItem();
+      }
+    };
+    toggle.addEventListener('click', toggleOpen);
+    item.addEventListener('mouseenter', () => {
+      openItem();
+    });
+    item.addEventListener('mouseleave', () => {
+      closeItem(item);
+    });
+  });
+  root.addEventListener('hide.bs.dropdown', () => {
+    closeAll();
+  });
+}
+
+initWorkspaceHudMenu();
 
 let workspaceMounted = false;
 let workspaceMountScheduled = false;
