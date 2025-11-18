@@ -78,6 +78,12 @@ mlirui/
 - `static/ft/js/core/parse.js` (legacy) contains preview parsing utilities (distinct from backend parsing).
 - Legacy Option B UI (`static/ft/js/ui/interfaceB.js`) has been retired. The active workspace experience now lives under `static/ft/js/ui/interface/controller/runtime/`, which orchestrates uploads, plotting, history, and persistence through modular facades.
 - `static/ft/app.js` bootstraps shared UI chrome (theme toggle, account widget, toast notifications) and hands off to the dashboard/workspace modules. It consumes `/api/me/`, emits `ftir:user-status` events, and exposes `window.showAppToast` so feature modules can surface consistent feedback.
+
+### 4.3 Workspace Tags & Chip Panels
+
+- Tag colours are centralised in `static/ft/js/ui/utils/tagColors.js`. The helper exposes `getWorkspaceTagColor(tag)` so every surface (dashboard lists, HUD badges, browser nodes, on-canvas panel headers) shares the same palette. When you add new tag surfaces, import this helper instead of duplicating colour arrays.
+- The active canvas shares its primary tag with the client via `<body data-active-canvas-primary-tag="…">` (see `templates/ft/layouts/app_shell.html`). Browser graph nodes (`browser/renderTree.js`) and floating graph panels (`panels/panelDomFacade.js`) read that attribute to prepend a pill badge. Keep this attribute in sync whenever you mutate canvas tags server-side; otherwise, the badge will fall back to the grey placeholder.
+- Chip panels (`ui/interface/chipPanels.js`) now open their Info view only on click (line chip or info icon). Hover remains reserved for previewing styles. If you reintroduce hover interactions, ensure they respect the panel pin state and don’t interfere with keyboard accessibility.
 - `static/ft/js/ui/dashboard/initDashboard.js` pulls `/api/dashboard/...` data, renders sections/projects/canvases, and routes “open canvas” actions by navigating to `/?canvas=<uuid>#pane-plotC` so the workspace loads that canvas.
 - `static/ft/js/ui/interface/canvasSnapshots.js` powers the workspace “Save snapshot / Manage snapshots” actions, calling `/api/dashboard/canvases/<id>/versions/` to persist and restore immutable snapshots.
 - Additional UI helpers under `static/ft/js/lib/` provide CSRF handling, etc.
