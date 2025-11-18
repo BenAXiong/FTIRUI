@@ -1,25 +1,41 @@
 Phase 1 – Broad UI optimization
 
+
+Plan
+
+Layout mode switch
+
+Add a workspace-specific body class (or reuse workspace_only) that suppresses the current header/footer and lets the workspace shell span 100vh (flex column, no padding).
+Ensure the tabbed dashboard view is untouched; this mode only applies on the standalone workspace route.
+Floating HUD scaffolding
+
+Introduce a workspace-hud container positioned over the canvas with slots for top-left (logo + canvas title + menu) and top-right (user status, autosave indicator, theme toggle).
+Style these slots as rounded bars with backdrop blur/shadow; add responsive rules so they stack or collapse into menus on narrow screens.
+Canvas title / rename affordance
+
+Move the existing [data-workspace-canvas-title] element into the top-left bar.
+Update the JS (app.js) so single-click enters rename mode, set cursor: pointer, and add a “Rename canvas” tooltip/aria-label.
+Global controls integration
+
+Relocate the user status dropdown, autosave indicator, and theme toggle into the top-right bar; keep their behaviour intact by reusing the same DOM IDs and event wiring.
+Ensure focus order and ARIA attributes still work (e.g., bars remain keyboard-accessible, dropdowns announce correctly).
+Runtime padding adjustments
+
+Since fixed toolbars are moving out of the canvas wrapper, remove or adapt the logic that reads toolbar heights (updateToolbarMetrics in workspaceRuntime.js) so the canvas truly fills the viewport and doesn’t reserve extra padding.
+Documentation & guard rails
+
+Document in tdl.txt or a new README that workspace-only pages now assume the HUD markup exists outside the shared header. This helps future contributors know where to put workspace-specific controls.
+___________________________________________________________
+
 display tags next to name pill
-start with broad opti: browser & canvas area
-    full screen + floating logo/name bar + login right most and thinner
-        menus: graphs, ???, ???
+menus: graphs, ???, ???
 
-I want to substancially change the way Workspace's top section is designed.
-I'm note sure what I want the dashboard to look like yet, so this change must affect only the Worspace, although I'm afraid that it'll bring out much complexities0 please advise.
-the idea is to remove the header section and add floating "bars" instead, like excalidraw, Miro and other canvas/board-based tools.
-The "bars" (don't know what's the proper term) are like rounded rectangle containing info like "logo, canvas name, menu options and others buttons" (top left) or "login, d/l mode" (top right)
-
+option to hide all menus ? eye pill?
 
 Global toolbar
 - unredo // 1 to 9 // ... (0)
 
 
-A few thoughts:
-
-The runtime directory is large but logical; when adding features it’s worth keeping that facade approach so orchestration doesn’t bloat. Maybe consider surfacing a quick index (e.g., README linking to each facade) for future contributors.
-The legacy initControls.js still mixes API calls, DOM tweaks, and Plotly hooks. As workspace panels mature, migrating those responsibilities into the runtime (or killing the old preview panel) will simplify things.
-The template split between tabbed vs. standalone works, but note that any header/back-button tweaks live outside the workspace include. If you ever add workspace-specific controls there, documenting that dependency will help avoid confusion.
 ___________________________________________________________
 
 Questions

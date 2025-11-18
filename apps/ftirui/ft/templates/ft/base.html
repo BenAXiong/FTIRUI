@@ -1,8 +1,18 @@
 {% extends 'ft/layouts/app_shell.html' %}
 {% load static %}
 
+{% block body_class %}
+  {% if workspace_only %}
+    app-frame workspace-page
+  {% else %}
+    bg-body app-frame
+  {% endif %}
+{% endblock %}
+
 {% block page_header %}
-  {% include 'ft/partials/header_nav.html' %}
+  {% if not workspace_only %}
+    {% include 'ft/partials/header_nav.html' %}
+  {% endif %}
 {% endblock %}
 
 {% block page_body %}
@@ -26,6 +36,12 @@
         {% include 'ft/workspace/panes/about.html' %}
       </div>
     </div>
+  {% endif %}
+{% endblock %}
+
+{% block footer %}
+  {% if not workspace_only %}
+    {{ block.super }}
   {% endif %}
 {% endblock %}
 

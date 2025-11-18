@@ -28,6 +28,9 @@
 table.preview-table { font-variant-numeric: tabular-nums; }
 .toolbar .btn { white-space: nowrap; }
 .header-actions{ flex-wrap:wrap; }
+.js-plotly-plot .plotly a[href^="https://plotly.com"]{
+  display:none !important;
+}
 /* --------------------------------------------------------------------------
    Header / User Profile Widget
    -------------------------------------------------------------------------- */
@@ -1273,6 +1276,73 @@ body.dashboard-overlay-open {
   display:flex;
   flex-direction:column;
   gap:1rem;
+}
+.workspace-page .app-frame-main{
+  min-height:100vh;
+  padding:0;
+}
+.workspace-page .workspace-shell{
+  flex:1 1 auto;
+  min-height:100vh;
+  gap:0;
+  width:100%;
+  padding:0;
+}
+.workspace-page #pane-plotC.workspace-pane-standalone{
+  border:none;
+  border-radius:0;
+  background:transparent;
+  padding:0;
+  flex:1 1 auto;
+  height:100%;
+}
+.workspace-page #pane-plotC.workspace-pane-standalone .plot-b-wrapper{
+  min-height:100vh;
+  height:100%;
+  margin-top:0;
+}
+.workspace-page .plot-b-wrapper{
+  width:100%;
+  min-height:100vh;
+  gap:0;
+}
+.workspace-page .workspace-canvas-wrapper{
+  padding-top:0;
+  padding-right:0;
+  --workspace-toolbar-height:0px;
+  --workspace-toolbar-vertical-width:0px;
+}
+.workspace-page .plot-b-panel{
+  margin-right:1rem;
+}
+.workspace-page .plot-b-panel.collapsed{
+  width:0;
+  margin-right:0;
+  position:absolute;
+  left:1rem;
+  top:1rem;
+  height:auto;
+  pointer-events:none;
+}
+.workspace-page .plot-b-panel.collapsed .panel-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(15,23,42,0.85);
+  border-radius:999px;
+  padding:.35rem;
+  box-shadow:0 18px 32px rgba(15,23,42,0.28);
+  pointer-events:auto;
+}
+.workspace-page .plot-b-panel.collapsed .panel-toolbar > *:not(#c_panel_toggle){
+  display:none;
+}
+.workspace-page .plot-b-panel.collapsed #c_panel_toggle{
+  width:2.5rem;
+  height:2.5rem;
+  border-radius:999px;
+  background:rgba(255,255,255,0.15);
+  color:#fff;
 }
 .workspace-back-btn{
   white-space:nowrap;

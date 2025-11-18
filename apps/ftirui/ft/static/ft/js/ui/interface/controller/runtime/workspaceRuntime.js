@@ -954,7 +954,11 @@ let updateCanvasState = () => {};
     const footerRect = appFooter?.getBoundingClientRect();
     const rawFooterHeight = footerRect?.height ?? 0;
     const footerHeight = Number.isFinite(rawFooterHeight) ? Math.max(rawFooterHeight, 0) : 0;
-    const safetyGap = 16;
+    const isFullBleedWorkspace =
+      typeof document !== 'undefined'
+        ? document.body?.dataset?.workspacePage === 'true'
+        : false;
+    const safetyGap = isFullBleedWorkspace ? 0 : 16;
 
     let availableHeight = window.innerHeight - paneRect.top - footerHeight - paddingBottom - safetyGap;
     if (!Number.isFinite(availableHeight) || availableHeight <= 0) {
