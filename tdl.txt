@@ -1,10 +1,27 @@
-Phase 9 – Dashboard Template Refactor
-1. Split `apps/ftirui/ft/templates/ft/workspace/panes/dashboard.html` into smaller partials (cloud card, list shell, Papers/Reports placeholders) so each component maintains its own markup balance.
-2. Move the existing cloud-state section into the reusable partial (already shared with the profile page) and create similar includes for collapsed cards; add a simple lint script (e.g. Python div counter) to CI/TDL for future edits.
-3. Ensure tab panes (`workspace`, `dashboard`, `live`, `tools`, `about`) remain direct children of `.tab-content` and document the structure in README/TDL to prevent regressions.
-4. Run Vitest + Django tests after the refactor to confirm no behavioural changes; update `tdl.txt` once the refactor is complete.
+Phase 1 – Broad UI optimization
 
+display tags next to name pill
+start with broad opti: browser & canvas area
+    full screen + floating logo/name bar + login right most and thinner
+        menus: graphs, ???, ???
+
+I want to substancially change the way Workspace's top section is designed.
+I'm note sure what I want the dashboard to look like yet, so this change must affect only the Worspace, although I'm afraid that it'll bring out much complexities0 please advise.
+the idea is to remove the header section and add floating "bars" instead, like excalidraw, Miro and other canvas/board-based tools.
+The "bars" (don't know what's the proper term) are like rounded rectangle containing info like "logo, canvas name, menu options and others buttons" (top left) or "login, d/l mode" (top right)
+
+
+Global toolbar
+- unredo // 1 to 9 // ... (0)
+
+
+A few thoughts:
+
+The runtime directory is large but logical; when adding features it’s worth keeping that facade approach so orchestration doesn’t bloat. Maybe consider surfacing a quick index (e.g., README linking to each facade) for future contributors.
+The legacy initControls.js still mixes API calls, DOM tweaks, and Plotly hooks. As workspace panels mature, migrating those responsibilities into the runtime (or killing the old preview panel) will simplify things.
+The template split between tabbed vs. standalone works, but note that any header/back-button tweaks live outside the workspace include. If you ever add workspace-specific controls there, documenting that dependency will help avoid confusion.
 ___________________________________________________________
+
 Questions
 
 *
@@ -12,7 +29,6 @@ ___________________________________________________________
 Polishing
 
 - browser: consider floating draggable pill to avoid canvas resizing
-- canvas: extract unredo from toolbar or extra unnumbered
 - solve popup width (increase or auto)
 - legend button state inits on on while legend is off
 - remove screenshot icon from plotly area
