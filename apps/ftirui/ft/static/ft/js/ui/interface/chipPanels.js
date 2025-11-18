@@ -348,23 +348,6 @@ export function createChipPanels(root = document.body) {
       }, 140);
     }, true);
 
-    opts.tree.addEventListener('pointerover', (e) => {
-      const row = e.target.closest?.('.folder-trace');
-      if (!row) return;
-      const anchor = e.target.closest?.('.trace-name, .file-name, .rename, .trace-info-icon');
-      if (!anchor) return;
-      clearTimeout(panels.timers.open);
-      panels.timers.open = setTimeout(() => {
-        const trace = opts.getTraceById(row.dataset.id);
-        populate(trace, opts);
-        const chip = row.querySelector('.line-chip');
-        const infoAnchor = row.querySelector('.trace-info-icon') || anchor || chip;
-        place({ mainAnchor: anchorRefs.main || chip, infoAnchor });
-        show(true, { color: false, style: false, info: true });
-        panels.rowId = row.dataset.id;
-      }, 120);
-    }, true);
-
     opts.tree.addEventListener('pointerout', (e) => {
       const row = e.target.closest?.('.folder-trace');
       if (!row) return;

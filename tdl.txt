@@ -1,8 +1,5 @@
 Phase 1 – Broad UI optimization
 
-activate trace info popup on click, not hover
-filter tags
-Step 5 Documentation & guard rails
 ___________________________________________________________
 Next
 
@@ -18,6 +15,7 @@ Polishing
 - wks/br: consider floating draggable pill to avoid canvas resizing
 - wks/br: color palette selection x3
 - wks/br: custom color swatched extra row
+- wks/br: filetr by tag? maybe in header option menu
 - wks/gr: solve popup width (increase or auto)
 - wks/gr: x
 - wks/gr: remove titles
