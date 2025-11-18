@@ -5,31 +5,19 @@ Plan
 
 Layout mode switch
 
-Add a workspace-specific body class (or reuse workspace_only) that suppresses the current header/footer and lets the workspace shell span 100vh (flex column, no padding).
-Ensure the tabbed dashboard view is untouched; this mode only applies on the standalone workspace route.
-Floating HUD scaffolding
-
-Introduce a workspace-hud container positioned over the canvas with slots for top-left (logo + canvas title + menu) and top-right (user status, autosave indicator, theme toggle).
-Style these slots as rounded bars with backdrop blur/shadow; add responsive rules so they stack or collapse into menus on narrow screens.
-Canvas title / rename affordance
-
-Move the existing [data-workspace-canvas-title] element into the top-left bar.
-Update the JS (app.js) so single-click enters rename mode, set cursor: pointer, and add a “Rename canvas” tooltip/aria-label.
-Global controls integration
-
-Relocate the user status dropdown, autosave indicator, and theme toggle into the top-right bar; keep their behaviour intact by reusing the same DOM IDs and event wiring.
-Ensure focus order and ARIA attributes still work (e.g., bars remain keyboard-accessible, dropdowns announce correctly).
-Runtime padding adjustments
-
-Since fixed toolbars are moving out of the canvas wrapper, remove or adapt the logic that reads toolbar heights (updateToolbarMetrics in workspaceRuntime.js) so the canvas truly fills the viewport and doesn’t reserve extra padding.
-Documentation & guard rails
-
-Document in tdl.txt or a new README that workspace-only pages now assume the HUD markup exists outside the shared header. This helps future contributors know where to put workspace-specific controls.
+Step 3 Canvas title / rename affordance
+Step 4 
+Step 5 
+Step 6 
 ___________________________________________________________
 
-display tags next to name pill
-menus: graphs, ???, ???
+browser
 
+menus: graphs, ???, ???
+change title into scisci
+change logo to Sci^2
+
+display tags next to name pill
 option to hide all menus ? eye pill?
 
 Global toolbar

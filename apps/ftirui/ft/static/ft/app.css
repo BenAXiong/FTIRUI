@@ -1277,6 +1277,98 @@ body.dashboard-overlay-open {
   flex-direction:column;
   gap:1rem;
 }
+.workspace-page .workspace-hud{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  padding:1.5rem;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:1rem;
+  pointer-events:none;
+  z-index:20;
+}
+.workspace-hud__slot{
+  display:flex;
+  flex-direction:column;
+  gap:.75rem;
+  pointer-events:none;
+}
+.workspace-hud-card{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  padding:.5rem .85rem;
+  border-radius:1rem;
+  backdrop-filter:blur(10px);
+  background:color-mix(in srgb, var(--bs-body-bg) 60%, transparent);
+  border:1px solid color-mix(in srgb, var(--bs-border-color) 45%, transparent);
+  box-shadow:0 18px 35px rgba(15,23,42,.22);
+  min-height:48px;
+  pointer-events:auto;
+}
+.workspace-hud-card__brand{
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  font-weight:600;
+}
+.workspace-hud-logo{
+  width:2rem;
+  height:2rem;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--bs-primary);
+  color:#fff;
+  font-size:1.1rem;
+  box-shadow:0 10px 20px rgba(37,99,235,.35);
+}
+.workspace-hud-card__title{
+  display:flex;
+  align-items:center;
+}
+.workspace-hud-card__actions{
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+}
+.workspace-hud-card--secondary{
+  gap:1rem;
+  min-height:48px;
+  align-items:center;
+}
+.user-status--hud{
+  background:transparent;
+  box-shadow:none;
+  padding:0;
+}
+.user-status--hud .user-body{
+  gap:.75rem;
+  align-items:center;
+}
+.workspace-hud-theme-btn{
+  min-width:0;
+}
+@media (max-width: 768px){
+  .workspace-page .workspace-hud{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .workspace-hud-card{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .workspace-hud-card__actions{
+    width:100%;
+  }
+  .workspace-hud-card--secondary{
+    width:100%;
+  }
+}
 .workspace-page .app-frame-main{
   min-height:100vh;
   padding:0;
@@ -1350,14 +1442,15 @@ body.dashboard-overlay-open {
 .workspace-canvas-title{
   font-weight:600;
   font-size:1rem;
-  padding:.25rem .85rem;
-  border:1px solid var(--bs-border-color);
-  border-radius:999px;
-  background:var(--bs-body-bg);
-  cursor:text;
+  padding:.4rem 1rem;
+  border:1px solid transparent;
+  border-radius:.75rem;
+  background:color-mix(in srgb, var(--bs-body-bg) 85%, transparent);
+  cursor:pointer;
   user-select:none;
-  min-width:120px;
-  text-align:center;
+  min-width:160px;
+  text-align:left;
+  box-shadow:0 10px 30px rgba(15,23,42,.12);
 }
 .workspace-canvas-title[aria-disabled="true"]{
   cursor:default;

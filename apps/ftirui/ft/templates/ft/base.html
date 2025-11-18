@@ -17,6 +17,7 @@
 
 {% block page_body %}
   {% if workspace_only %}
+    {% include 'ft/workspace/components/workspace_hud.html' %}
     <div class="workspace-shell">
       {% include 'ft/workspace/panes/workspace.html' with workspace_standalone=True %}
     </div>
