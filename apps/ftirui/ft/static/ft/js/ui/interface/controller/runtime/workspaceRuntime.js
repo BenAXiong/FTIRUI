@@ -47,6 +47,7 @@ const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
+const MIN_BROWSER_HOTSPOT_WIDTH = 48;
 const OPERATIONS_LOG_LIMIT = 100;
 const operationsLog = [];
 let operationsPanelHandles = null;
@@ -983,11 +984,12 @@ let updateCanvasState = () => {};
     if (browserHotspot) {
       const pinned = panelPreferences?.isPanelPinned?.() ?? false;
       const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root?.classList.contains('collapsed');
-      const showHotspot = (!pinned || collapsed) && left > 0;
+      const showHotspot = (!pinned || collapsed);
       if (showHotspot) {
         browserHotspot.style.top = `${top}px`;
         browserHotspot.style.height = `${paneHeight}px`;
-        browserHotspot.style.width = `${left}px`;
+        const hotspotWidth = left > 0 ? left : MIN_BROWSER_HOTSPOT_WIDTH;
+        browserHotspot.style.width = `${hotspotWidth}px`;
       } else {
         browserHotspot.style.width = '0px';
         browserHotspot.style.height = '0px';
