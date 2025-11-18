@@ -3438,7 +3438,8 @@ body.workspace-ghost-mode .workspace-hud,
 body.workspace-ghost-mode .workspace-toolbar,
 body.workspace-ghost-mode .workspace-toolbar-vertical,
 body.workspace-ghost-mode .workspace-operations-panel,
-body.workspace-ghost-mode #pane-plotC .workspace-browser{
+body.workspace-ghost-mode #pane-plotC .workspace-browser,
+body.workspace-ghost-mode .workspace-cdp-panel{
   opacity:0;
   pointer-events:none;
 }
@@ -3447,6 +3448,71 @@ body.workspace-ghost-mode .workspace-hud-fab-container{
 }
 body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   opacity:1;
+}
+
+.workspace-cdp-panel{
+  position:fixed;
+  top:1.25rem;
+  right:1.25rem;
+  width:540px;
+  max-height:82vh;
+  background:var(--bs-body-bg);
+  border:1px solid var(--bs-border-color);
+  border-radius:1rem;
+  box-shadow:0 30px 60px rgba(15,23,42,.3);
+  display:flex;
+  flex-direction:column;
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(-0.5rem);
+  transition:opacity .25s ease, transform .25s ease;
+  z-index:2100;
+}
+.workspace-cdp-panel.is-visible{
+  opacity:1;
+  pointer-events:auto;
+  transform:translateY(0);
+}
+.workspace-cdp-panel__header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:.85rem 1rem;
+  border-bottom:1px solid var(--bs-border-color);
+  font-weight:600;
+}
+.workspace-cdp-panel__content{
+  padding:1rem;
+  overflow:auto;
+}
+.workspace-cdp-panel__section + .workspace-cdp-panel__section{
+  margin-top:1rem;
+  padding-top:1rem;
+  border-top:1px solid rgba(148,163,184,0.35);
+}
+.workspace-cdp-panel__section-title{
+  font-size:.75rem;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--bs-secondary-color);
+  margin-bottom:.35rem;
+}
+.workspace-cdp-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:.85rem;
+}
+.workspace-cdp-table th,
+.workspace-cdp-table td{
+  padding:.35rem .5rem;
+  border-bottom:1px solid rgba(148,163,184,0.35);
+  text-align:left;
+}
+.workspace-cdp-panel__empty{
+  text-align:center;
+  color:var(--bs-secondary-color);
+  padding:1rem;
+  font-size:.85rem;
 }
 
 @media (max-width: 992px){

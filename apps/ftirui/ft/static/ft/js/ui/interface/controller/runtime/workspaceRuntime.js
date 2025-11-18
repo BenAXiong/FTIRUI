@@ -59,6 +59,8 @@ let devToggleButton = null;
 let cdpToggleButton = null;
 let ghostToggleButton = null;
 let hudButtonsHandles = null;
+let cdpPanelEl = null;
+let cdpVisible = false;
 let ghostModeEnabled = false;
 let cdpModeEnabled = false;
 let devModeEnabled =
@@ -377,11 +379,25 @@ export function initWorkspaceRuntime(context = {}) {
   }
 
   function toggleCdpPanel() {
-    cdpModeEnabled = !cdpModeEnabled;
+    setCdpPanelVisible(!cdpVisible);
+  }
+
+  function setCdpPanelVisible(enabled) {
+    if (cdpVisible === enabled) return;
+    cdpVisible = enabled;
+    cdpModeEnabled = enabled;
     if (cdpToggleButton) {
-      cdpToggleButton.classList.toggle('is-active', cdpModeEnabled);
+      cdpToggleButton.classList.toggle('is-active', enabled);
+      cdpToggleButton.setAttribute('aria-pressed', String(enabled));
     }
-    showToast('Canvas Data Peeker coming soon.', 'info');
+    const panel = enabled ? ensureCdpPanel() : cdpPanelEl;
+    if (!panel) return;
+    if (enabled) {
+      renderCdpPanel(panel);
+      panel.classList.add('is-visible');
+    } else {
+      panel.classList.remove('is-visible');
+    }
   }
 
   function toggleGhostMode() {
@@ -416,6 +432,343 @@ export function initWorkspaceRuntime(context = {}) {
         document.body.classList.remove('workspace-ghost-hover');
       }
     });
+  }
+
+  function ensureCdpPanel() {
+    if (cdpPanelEl?.isConnected) return cdpPanelEl;
+    if (typeof document === 'undefined') return null;
+    const panel = document.createElement('section');
+    panel.className = 'workspace-cdp-panel';
+    const header = document.createElement('div');
+    header.className = 'workspace-cdp-panel__header';
+    const title = document.createElement('span');
+    title.textContent = 'Canvas data';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn btn-sm btn-outline-secondary';
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', () => setCdpPanelVisible(false));
+    header.append(title, closeBtn);
+    const content = document.createElement('div');
+    content.className = 'workspace-cdp-panel__content';
+    panel.append(header, content);
+    document.body.appendChild(panel);
+    cdpPanelEl = panel;
+    return panel;
+  }
+
+  function renderCdpPanel(panel) {
+    if (!panel) return;
+    const content = panel.querySelector('.workspace-cdp-panel__content');
+    if (!content) return;
+    content.innerHTML = '';
+    const snapshot = snapshotManager?.snapshot?.();
+    if (!snapshot) {
+      const empty = document.createElement('div');
+      empty.className = 'workspace-cdp-panel__empty';
+      empty.textContent = 'No canvas snapshot available.';
+      content.appendChild(empty);
+      return;
+    }
+    const panelRows = buildCdpPanelRows(snapshot);
+    const traceRows = buildCdpTraceRows(panelRows);
+    const sectionRows = buildCdpSectionRows(snapshot);
+    const figureRows = buildCdpFigureRows(snapshot);
+    const uiPrefRows = buildCdpUiPrefRows(snapshot);
+    const layoutRows = buildCdpLayoutRows(panelRows);
+    const axisRows = buildCdpAxisRows(panelRows);
+    const metadataRows = buildCdpMetadataRows(snapshot);
+
+    const sections = [
+      buildCdpTableSection('Panels', panelRows, ['ID', 'Title', 'Section', 'Geometry', 'Traces', 'Files'], (row) => [
+        row.id,
+        row.title,
+        row.section,
+        row.geometry,
+        String(row.traceCount),
+        row.files || '—'
+      ], 'Add graphs to inspect their metadata.'),
+      buildCdpTableSection('Traces', traceRows, ['Panel', 'Trace ID', 'Name', 'File', 'Color'], (row) => [
+        row.panel,
+        row.id,
+        row.name,
+        row.file || '—',
+        row.color || '—'
+      ], 'No trace data yet.'),
+      buildCdpTableSection('Sections', sectionRows, ['ID', 'Name', 'Description', 'Panels'], (row) => [
+        row.id,
+        row.name,
+        row.description || '—',
+        String(row.panelCount)
+      ], 'No sections available.'),
+      buildCdpTableSection('Figures', figureRows, ['Key', 'Series', 'Approx. points', 'Layout keys'], (row) => [
+        row.key,
+        String(row.series),
+        String(row.points),
+        String(row.layoutKeys)
+      ], 'No cached figure data.'),
+      buildCdpTableSection('Layout', layoutRows, ['Panel', 'Mode', 'Legend', 'Margin'], (row) => [
+        row.panel,
+        row.mode,
+        row.legend,
+        row.margin
+      ], 'No layout data recorded.'),
+      buildCdpTableSection('Axes', axisRows, ['Panel', 'Axis', 'Range', 'Title', 'Options'], (row) => [
+        row.panel,
+        row.axis,
+        row.range,
+        row.title,
+        row.options
+      ], 'No axis data available.'),
+      buildCdpTableSection('UI Preferences', uiPrefRows, ['Preference', 'Value'], (row) => [
+        row.key,
+        row.value
+      ], 'No UI preferences recorded.'),
+      buildCdpTableSection('Snapshot metadata', metadataRows, ['Key', 'Value'], (row) => [
+        row.key,
+        row.value
+      ], 'No snapshot metadata.')
+    ];
+    sections.forEach((section) => content.appendChild(section));
+  }
+
+  function buildCdpPanelRows(snapshot) {
+    const panels = resolveArray(snapshot?.panels?.items) || resolveArray(snapshot?.panels) || [];
+    const sections = resolveArray(snapshot?.sections?.items) || resolveArray(snapshot?.sections) || [];
+    const sectionMap = new Map();
+    sections.forEach((section) => {
+      sectionMap.set(section?.id, section?.name || 'Untitled');
+    });
+    return panels.map((panel, index) => {
+      const traces = resolveTraces(panel);
+      const layout = panel?.layout || panel?.figure?.layout || null;
+      const fileNames = traces
+        .map((trace) => trace?.file?.name || trace?.name || null)
+        .filter(Boolean);
+      const filesDisplay =
+        fileNames.length > 3
+          ? `${fileNames.slice(0, 3).join(', ')}…`
+          : fileNames.join(', ');
+      return {
+        id: panel?.id || `panel_${index + 1}`,
+        title: panel?.title || `Panel ${index + 1}`,
+        section: sectionMap.get(panel?.sectionId) || 'Unassigned',
+        geometry: formatGeometry(panel?.geometry),
+        traceCount: traces.length,
+        files: filesDisplay || (traces.length ? '—' : ''),
+        traces,
+        layout,
+        axes: layout ? extractAxes(layout) : [],
+        metadata: panel?.meta || panel?.metadata || null
+      };
+    });
+  }
+
+  function buildCdpTraceRows(panelRows) {
+    const rows = [];
+    panelRows.forEach((panel) => {
+      panel.traces.forEach((trace, idx) => {
+        rows.push({
+          panel: panel.title,
+          id: trace?.id || `${panel.id}_trace_${idx + 1}`,
+          name: trace?.name || 'Untitled trace',
+          file: trace?.file?.name || trace?.file?.path || '',
+          color: trace?.style?.color || trace?.line?.color || trace?.marker?.color || ''
+        });
+      });
+    });
+    return rows;
+  }
+
+  function buildCdpSectionRows(snapshot) {
+    const sections = resolveArray(snapshot?.sections?.items) || resolveArray(snapshot?.sections) || [];
+    const panels = resolveArray(snapshot?.panels?.items) || resolveArray(snapshot?.panels) || [];
+    const panelCounts = new Map();
+    panels.forEach((panel) => {
+      const sectionId = panel?.sectionId || 'unassigned';
+      panelCounts.set(sectionId, (panelCounts.get(sectionId) || 0) + 1);
+    });
+    return sections.map((section) => ({
+      id: section?.id || 'section',
+      name: section?.name || 'Untitled',
+      description: section?.description || '',
+      panelCount: panelCounts.get(section?.id) || 0
+    }));
+  }
+
+  function buildCdpFigureRows(snapshot) {
+    const figures = snapshot?.figures && typeof snapshot.figures === 'object' ? snapshot.figures : {};
+    return Object.keys(figures).map((key) => {
+      const figure = figures[key];
+      const series = Array.isArray(figure?.data) ? figure.data.length : 0;
+      const points = Array.isArray(figure?.data)
+        ? figure.data.reduce((sum, trace) => {
+            const xLen = Array.isArray(trace?.x) ? trace.x.length : 0;
+            const yLen = Array.isArray(trace?.y) ? trace.y.length : 0;
+            return sum + Math.max(xLen, yLen);
+          }, 0)
+        : 0;
+      const layoutKeys = figure?.layout && typeof figure.layout === 'object' ? Object.keys(figure.layout).length : 0;
+      return {
+        key,
+        series,
+        points,
+        layoutKeys
+      };
+    });
+  }
+
+  function buildCdpUiPrefRows(snapshot) {
+    const prefs = snapshot?.uiPrefs && typeof snapshot.uiPrefs === 'object' ? snapshot.uiPrefs : {};
+    const rows = [];
+    const traverse = (value, prefix) => {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        Object.keys(value).forEach((innerKey) => traverse(value[innerKey], `${prefix}${innerKey}.`));
+      } else {
+        rows.push({
+          key: prefix.replace(/\.$/, ''),
+          value: formatValue(value)
+        });
+      }
+    };
+    Object.keys(prefs).forEach((key) => traverse(prefs[key], `${key}.`));
+    return rows;
+  }
+
+  function buildCdpLayoutRows(panelRows) {
+    return panelRows
+      .filter((panel) => panel.layout)
+      .map((panel) => ({
+        panel: panel.title,
+        mode: panel.layout?.dragmode || panel.layout?.hovermode || 'default',
+        legend: formatValue(panel.layout?.legend),
+        margin: formatValue(panel.layout?.margin)
+      }));
+  }
+
+  function buildCdpAxisRows(panelRows) {
+    const rows = [];
+    panelRows.forEach((panel) => {
+      panel.axes.forEach((axis) => {
+        rows.push({
+          panel: panel.title,
+          axis: axis.id,
+          range: axis.range,
+          title: axis.title,
+          options: axis.options
+        });
+      });
+    });
+    return rows;
+  }
+
+  function buildCdpMetadataRows(snapshot) {
+    const base = { ...snapshot };
+    ['panels', 'sections', 'figures', 'uiPrefs'].forEach((key) => delete base[key]);
+    return Object.keys(base).map((key) => ({
+      key,
+      value: formatValue(base[key])
+    }));
+  }
+
+  function resolveTraces(panel) {
+    if (Array.isArray(panel?.traces?.items)) return panel.traces.items;
+    if (Array.isArray(panel?.traces)) return panel.traces;
+    if (Array.isArray(panel?.figure?.traces)) return panel.figure.traces;
+    if (Array.isArray(panel?.figure?.data)) {
+      return panel.figure.data.map((trace) => ({
+        id: trace?.id,
+        name: trace?.name,
+        file: trace?.file,
+        style: {
+          color: trace?.line?.color || trace?.marker?.color
+        }
+      }));
+    }
+    return [];
+  }
+
+  function extractAxes(layout) {
+    const axes = [];
+    Object.keys(layout).forEach((key) => {
+      if (!key.startsWith('xaxis') && !key.startsWith('yaxis')) return;
+      const axis = layout[key];
+      if (!axis) return;
+      axes.push({
+        id: key.toUpperCase(),
+        range: formatValue(axis.range || axis.autorange),
+        title: axis.title?.text || '—',
+        options: formatValue({
+          showgrid: axis.showgrid,
+          zeroline: axis.zeroline,
+          ticks: axis.ticks,
+          mirror: axis.mirror
+        })
+      });
+    });
+    return axes;
+  }
+
+  function buildCdpTableSection(title, rows, headers, mapRow, emptyText) {
+    const section = document.createElement('section');
+    section.className = 'workspace-cdp-panel__section';
+    const heading = document.createElement('div');
+    heading.className = 'workspace-cdp-panel__section-title';
+    heading.textContent = `${title} (${rows.length})`;
+    section.appendChild(heading);
+    if (!rows.length) {
+      const empty = document.createElement('div');
+      empty.className = 'workspace-cdp-panel__empty';
+      empty.textContent = emptyText || 'No data available.';
+      section.appendChild(empty);
+      return section;
+    }
+    const table = document.createElement('table');
+    table.className = 'workspace-cdp-table table table-sm mb-0';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headers.forEach((label) => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    const tbody = document.createElement('tbody');
+    rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      mapRow(row).forEach((cell) => {
+        const td = document.createElement('td');
+        td.textContent = cell;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.append(thead, tbody);
+    section.appendChild(table);
+    return section;
+  }
+
+  function resolveArray(value) {
+    if (Array.isArray(value)) return value;
+    return [];
+  }
+
+  function formatGeometry(geometry) {
+    if (!geometry || typeof geometry !== 'object') return '—';
+    const { x = 0, y = 0, w = 0, h = 0 } = geometry;
+    return `x:${x} y:${y} w:${w} h:${h}`;
+  }
+
+  function formatValue(value) {
+    if (value == null) return '—';
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
   }
 
   function ensureOperationsPanel() {
@@ -2512,6 +2865,11 @@ let updateCanvasState = () => {};
     ghostToggleButton = null;
     cdpModeEnabled = false;
     ghostModeEnabled = false;
+    if (cdpPanelEl?.parentNode) {
+      cdpPanelEl.parentNode.removeChild(cdpPanelEl);
+    }
+    cdpPanelEl = null;
+    cdpVisible = false;
     if (typeof document !== 'undefined' && document.body) {
       document.body.classList.remove('workspace-ghost-mode', 'workspace-ghost-hover');
     }

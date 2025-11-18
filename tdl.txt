@@ -1,15 +1,11 @@
 Phase 1 – Broad UI optimization
 
-option to hide all menus ? eye pill?
-canvas data peeker pill
-autosave indicator?
 
 Step 5 Documentation & guard rails
 ___________________________________________________________
 
 Global toolbar
 - unredo // 1 to 9 // ... (0)
-
 
 ___________________________________________________________
 
