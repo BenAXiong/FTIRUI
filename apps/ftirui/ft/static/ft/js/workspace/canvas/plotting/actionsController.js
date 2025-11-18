@@ -129,3 +129,34 @@ export function setTraceLineWidth(panelId, traceIndex, widthPx = 2) {
   _renderNow(panelId);
 }
 
+export function setTraceColor(panelId, traceIndex, color) {
+  if (!_getFigureById || !_setFigureById || !_renderNow) return;
+  const fig = _getFigureById(panelId);
+  if (!fig) return;
+  const next = cloneFigure(fig);
+  const resolved = typeof color === 'string' && color ? color : '#1f77b4';
+  next.data = (next.data || []).map((trace, idx) => {
+    if (idx !== traceIndex) return trace;
+    const line = { ...(trace?.line || {}), color: resolved };
+    const marker = trace?.marker ? { ...trace.marker, color: resolved } : { color: resolved };
+    return { ...trace, color: resolved, line, marker };
+  });
+  _setFigureById(panelId, next);
+  _renderNow(panelId);
+}
+
+export function setTraceOpacity(panelId, traceIndex, opacity) {
+  if (!_getFigureById || !_setFigureById || !_renderNow) return;
+  const fig = _getFigureById(panelId);
+  if (!fig) return;
+  const next = cloneFigure(fig);
+  const numeric = Number(opacity);
+  const resolved = Number.isFinite(numeric) ? Math.min(1, Math.max(0.05, numeric)) : 1;
+  next.data = (next.data || []).map((trace, idx) => {
+    if (idx !== traceIndex) return trace;
+    return { ...trace, opacity: resolved };
+  });
+  _setFigureById(panelId, next);
+  _renderNow(panelId);
+}
+

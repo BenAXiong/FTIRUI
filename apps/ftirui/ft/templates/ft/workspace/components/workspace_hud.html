@@ -8,19 +8,28 @@
         <span class="workspace-hud-label">sci<sup>2</sup></span>
       </div>
       <div class="workspace-hud-card__title">
-        <span class="workspace-canvas-title badge rounded-pill"
-              data-workspace-canvas-title
-              data-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
-              {% if active_canvas %}title="Rename canvas"{% endif %}
-              aria-disabled="{% if active_canvas %}false{% else %}true{% endif %}"
-              role="button"
-              tabindex="0">
-          {% if active_canvas %}
-            {{ active_canvas.title|default:"Untitled canvas" }}
-          {% else %}
-            Untitled canvas
-          {% endif %}
-        </span>
+        <div class="workspace-canvas-title-group">
+          <span class="workspace-canvas-path">
+            {% if active_canvas %}
+              {{ active_canvas.project.section.name|default_if_none:"Project"|default:"Project" }}/{{ active_canvas.project.title|default_if_none:"Folder"|default:"Folder" }}
+            {% else %}
+              Project/Folder
+            {% endif %}
+          </span>
+          <span class="workspace-canvas-title badge rounded-pill"
+                data-workspace-canvas-title
+                data-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
+                {% if active_canvas %}title="Rename canvas"{% endif %}
+                aria-disabled="{% if active_canvas %}false{% else %}true{% endif %}"
+                role="button"
+                tabindex="0">
+            {% if active_canvas %}
+              {{ active_canvas.title|default:"Untitled canvas" }}
+            {% else %}
+              Untitled canvas
+            {% endif %}
+          </span>
+        </div>
       </div>
       <div class="workspace-hud-card__actions">
         {% if active_canvas and active_canvas.tags %}

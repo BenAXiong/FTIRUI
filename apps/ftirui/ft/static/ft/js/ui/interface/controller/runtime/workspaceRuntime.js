@@ -1671,6 +1671,45 @@ let updateCanvasState = () => {};
               target.line.width = widthPx;
               return true;
             }
+            if (prop === 'color') {
+              const colorValue = typeof value === 'string' && value ? toHexColor(value) : FALLBACK_COLOR;
+              const currentTraces = getPanelTraces(handle.panelId);
+              const current = currentTraces[handle.traceIndex];
+              const prevColor = toHexColor(
+                (current?.line && current.line.color)
+                || current?.color
+                || FALLBACK_COLOR
+              );
+              if (colorValue && prevColor && colorValue.toLowerCase() !== prevColor.toLowerCase()) {
+                pushHistory();
+                Actions.setTraceColor(handle.panelId, handle.traceIndex, colorValue);
+                persist();
+              }
+              target.color = colorValue;
+              target.line = target.line || {};
+              target.line.color = colorValue;
+              if (target.marker) {
+                target.marker.color = colorValue;
+              }
+              return true;
+            }
+            if (prop === 'opacity') {
+              const numeric = Number(value);
+              if (!Number.isFinite(numeric)) {
+                return true;
+              }
+              const clamped = Math.min(1, Math.max(0.05, numeric));
+              const currentTraces = getPanelTraces(handle.panelId);
+              const current = currentTraces[handle.traceIndex];
+              const prevOpacity = Number(current?.opacity);
+              if (!Number.isFinite(prevOpacity) || Math.abs(prevOpacity - clamped) > 1e-3) {
+                pushHistory();
+                Actions.setTraceOpacity(handle.panelId, handle.traceIndex, clamped);
+                persist();
+              }
+              target.opacity = clamped;
+              return true;
+            }
             target[prop] = value;
             return true;
           }

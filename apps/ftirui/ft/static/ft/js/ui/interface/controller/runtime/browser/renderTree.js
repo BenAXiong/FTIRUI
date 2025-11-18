@@ -174,11 +174,10 @@ export function renderBrowserTree(ctx, state) {
     row.innerHTML = `
       <span class="drag-handle bi bi-grip-vertical" title="Drag trace"></span>
       <input class="form-check-input vis" type="checkbox" ${trace.visible !== false ? 'checked' : ''} title="Toggle visibility">
+      <input class="form-control form-control-sm rename" type="text" value="${safeName}" title="Double-click to rename" readonly>
       <button class="line-chip" type="button" aria-label="Edit line style"></button>
       <button class="color-dot" type="button" style="--c:${toHexColor(trace.line?.color || '#1f77b4')}" title="Pick colour" hidden></button>
       <input class="color form-control form-control-color form-control-sm" type="color" value="${toHexColor(trace.line?.color || '#1f77b4')}" title="Colour picker" hidden>
-      <input class="form-control form-control-sm rename" type="text" value="${safeName}" title="Double-click to rename" readonly>
-      <button class="trace-info-icon" type="button" title="Trace info"><i class="bi bi-info-circle"></i></button>
       <select class="dash form-select form-select-sm" title="Line style" hidden>
         <option value="solid" ${trace.line?.dash === 'solid' ? 'selected' : ''}>Solid</option>
         <option value="dot" ${trace.line?.dash === 'dot' ? 'selected' : ''}>Dots</option>
@@ -188,6 +187,7 @@ export function renderBrowserTree(ctx, state) {
         <option value="longdashdot" ${trace.line?.dash === 'longdashdot' ? 'selected' : ''}>Long dash + dot</option>
       </select>
       <input class="opacity form-range" type="range" min="0.1" max="1" step="0.05" value="${trace.opacity ?? 1}" title="Opacity" hidden>
+      <button class="trace-info-icon" type="button" title="Trace info"><i class="bi bi-info-circle"></i></button>
       <button class="trace-remove" type="button" title="Remove trace"><i class="bi bi-x-circle"></i></button>
     `;
 

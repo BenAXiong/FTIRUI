@@ -1,0 +1,41 @@
+    `;
+    ensureColorisConfigured();
+    wireColorPickerToggle(panels.main.querySelector('.chip-color-inline'));
+
+    const meta = trace.meta && typeof trace.meta === 'object'
+      ? Object.entries(trace.meta).map(([k, v]) => `<div><b>${k}</b>: ${String(v)}</div>`).join('')
+      : (trace.meta ? String(trace.meta) : '<i>No metadata</i>');
+    panels.info.innerHTML = `
+      <div class="chip-title">Info</div>
+      <div style="max-height:160px; overflow:auto">${meta}</div>
+      <div style="margin-top:8px; display:flex; gap:6px; justify-content:flex-end">
+        <button class="btn btn-sm btn-outline-secondary" data-act="i-raw">Raw data</button>
+      </div>
+    `;
+
+    if (!panels._wired) {
+      panels.wrap.addEventListener('input', (e) => {
+        const act = e.target?.dataset?.act;
+        if (!act || !panels.rowId) return;
+        const rowId = panels.rowId;
+        const rowEl = opts.tree.querySelector(`.folder-trace[data-id="${rowId}"]`);
+        const t = opts.getTraceById(rowId);
+        if (!rowEl || !t) return;
+
+        if (act === 'c-hex' || act === 'c-native-inline') {
+          t.color = e.target.value;
+        } else if (act === 's-width') {
+          t.width = Number(e.target.value) || 2;
+          panels.main.querySelector('.s-width-val')?.replaceChildren(`${t.width.toFixed(1)} pt`);
+        } else if (act === 's-opacity') {
+          t.opacity = Number(e.target.value) || 1;
+          panels.main.querySelector('.s-opacity-val')?.replaceChildren(t.opacity.toFixed(2));
+        } else {
+          return;
+        }
+        opts.repaintChip(rowEl);
+        opts.renderPlot();
+      });
+
+      panels.wrap.addEventListener('click', (e) => {
+        const act = e.target?.dataset?.act;

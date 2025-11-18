@@ -1,39 +1,44 @@
 Phase 1 – Broad UI optimization
-browser fix color picker
-fix popups
-
+    color picker super slow
+above the canvas name, without changing its position, add a dim grey text: project_name/folder_name
+shirnk browser
+remove project X
+search input
+add tags to graphs
+filter tags
 Step 5 Documentation & guard rails
 ___________________________________________________________
+Next
 
+plotly remove all icons
+rename toolbars?
 Global toolbar
 - unredo // 1 to 9 // ... (0)
-
 ___________________________________________________________
-
 Questions
 
 *
 ___________________________________________________________
 Polishing
 
-- browser: consider floating draggable pill to avoid canvas resizing
-- solve popup width (increase or auto)
-- legend button state inits on on while legend is off
-- remove screenshot icon from plotly area
-    also zooms & "produced with...."
-- fix browser popups 
+- wks/br: consider floating draggable pill to avoid canvas resizing
+- wks/gr: solve popup width (increase or auto)
+- wks/gr: remove titles
+- dash/exp: extensible to the right?
+- dash/exp: scrollbar position
+- dash/exp: clearer pins
+- dash/main: canvas thumbnails (2-3d???)
+- dash main: list ... popups: up and bottom position out of bounds
+- dash/main: options - curate
+- dash/main: project icons
+- dash/main: extra column = contributors
+
+___________________________________________________________
+Workflow
 - rethink plot types: defaults, changing, etc
-- dash/explorer: extensible to the right?
-- canvas thumbnails (2-3d???)
-- dash main list ... popups: up and bottom position out of bounds
-- login area: move "Sign out" into dropdown, arrange order with d/lmode, load pic, etc
 - Papers and reports?
-- dash/Top band: rethink, avoid going too  big with new objetc types
-- main view options - curate
-- dash exp scrollbar position
-- dash project icons
-- dash exp: clearer pins
-- dash main: extra column = contributors
+- dash/Top band: rethink, avoid going too big with new objetc types
+
 ___________________________________________________________
 Future work
 
@@ -48,4 +53,4 @@ Future work
 Bugs
 
 - grids: minor become major when major turned off
-- browser: styling chips, only thickness wired
+- dragging graph from sub to group

@@ -707,7 +707,9 @@ def _get_project_for_user(user, project_id):
 
 def _get_canvas_for_user(user, canvas_id):
     try:
-        return WorkspaceCanvas.objects.get(owner=user, id=canvas_id)
+        return WorkspaceCanvas.objects.select_related("project__section").get(
+            owner=user, id=canvas_id
+        )
     except WorkspaceCanvas.DoesNotExist:
         return None
 

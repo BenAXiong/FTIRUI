@@ -1490,6 +1490,23 @@ body.dashboard-overlay-open {
 .workspace-back-btn{
   white-space:nowrap;
 }
+.workspace-canvas-title-group{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:.15rem;
+}
+.workspace-canvas-path{
+  font-size:.7rem;
+  font-weight:500;
+  line-height:1;
+  color:var(--bs-secondary-color, #6c757d);
+  white-space:nowrap;
+}
+.workspace-page .workspace-canvas-path{
+  text-transform:none;
+  letter-spacing:.03em;
+}
 .workspace-canvas-title{
   font-weight:600;
   font-size:1rem;
@@ -2682,7 +2699,7 @@ pre, code, .pre-like {
 }
 
 .folder-trace .trace-info-icon{
-  display: none;
+  display: inline-flex;
   border: 0;
   background: transparent;
   color: var(--bs-body-color);
@@ -2693,7 +2710,6 @@ pre, code, .pre-like {
   justify-content: center;
   padding: 0;
 }
-.folder-trace:hover .trace-info-icon{ display: inline-flex; }
 .folder-trace .trace-info-icon:hover{ color: var(--bs-primary); cursor: pointer; }
 
 .folder-trace .color-dot{
@@ -2839,11 +2855,21 @@ pre, code, .pre-like {
 
 /* color picker */
 .swatch-grid{
-  display:grid; grid-template-columns:repeat(6, 22px); gap:6px; margin-top:8px;
+  display:flex;
+  gap:6px;
+  margin-top:8px;
+  overflow-x:auto;
+  padding-bottom:4px;
 }
 .chip-swatch{
-  width:22px; height:22px; border-radius:4px; border:1px solid #00000022;
-  background: var(--c); cursor:pointer; padding:0;
+  width:22px;
+  height:22px;
+  border-radius:4px;
+  border:1px solid #00000022;
+  background: var(--c);
+  cursor:pointer;
+  padding:0;
+  flex:0 0 auto;
 }
 .chip-swatch:focus-visible{ outline:2px solid #fff8; outline-offset:2px; }
 
@@ -2859,9 +2885,36 @@ pre, code, .pre-like {
 }
 /* if you later add bottom/left placements, add matching rules */
 
+/* Coloris overrides */
+.clr-picker{
+  transform: translateY(calc(-100% - 12px));
+  margin-top: 0;
+}
+.clr-picker.clr-top{
+  transform: none;
+}
+
 
 .row-line{display:flex; align-items:center; gap:8px; min-width: 0;}
 .row-line .lbl{flex: 0 0 84px; width:84px; opacity:.8;}
+.row-line.color-row{
+  flex-wrap:nowrap;
+  align-items:center;
+  gap:10px;
+}
+.row-line.color-row .chip-color-inline{
+  flex:0 0 46px;
+  width:46px;
+  height:32px;
+  border-radius:8px;
+  border:1px solid #ffffff22;
+  background:transparent;
+  padding:0;
+  cursor:pointer;
+}
+.row-line.color-row .chip-input{
+  flex:1 1 auto;
+}
 .dash-choices{display:flex; gap:6px;}
 .dash-btn{padding:4px 6px; border-radius:8px; border:1px solid #ffffff22; background:#0000; color:var(--bs-body-color,#eee);}
 .dash-btn.is-active{outline:2px solid var(--bs-primary,#0d6efd);}
