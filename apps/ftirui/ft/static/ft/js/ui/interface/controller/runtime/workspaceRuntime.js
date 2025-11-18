@@ -31,6 +31,7 @@ import { createIoFacade } from './io/facade.js';
 import { createRuntimeState } from './context/runtimeState.js';
 import { createUiPreferencesFacade } from './preferences/facade.js';
 import { createSectionManager } from './sections/manager.js';
+import { createHudButtons } from './controls/createHudButtons.js';
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -55,6 +56,11 @@ let operationsToggleButton = null;
 let operationsVisible = false;
 let operationsRenderQueued = false;
 let devToggleButton = null;
+let cdpToggleButton = null;
+let ghostToggleButton = null;
+let hudButtonsHandles = null;
+let ghostModeEnabled = false;
+let cdpModeEnabled = false;
 let devModeEnabled =
   typeof document !== 'undefined' ? document.body?.dataset?.workspaceDev === 'true' : false;
 let operationSequence = 0;
@@ -302,49 +308,44 @@ export function initWorkspaceRuntime(context = {}) {
     syncOperationsVisibility();
   }
 
-  function ensureOperationsToggle() {
+  function ensureHudButtons() {
     if (!canvasWrapper) return null;
-    if (operationsToggleButton?.isConnected) {
-      updateOperationsToggleState();
-      return operationsToggleButton;
+    if (hudButtonsHandles?.container?.isConnected) {
+      return hudButtonsHandles;
     }
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'workspace-operations-toggle';
-    btn.addEventListener('click', () => toggleOperationsVisibility());
-    canvasWrapper.appendChild(btn);
-    operationsToggleButton = btn;
+    hudButtonsHandles = createHudButtons({
+      canvasWrapper,
+      onToggleOperations: () => toggleOperationsVisibility(),
+      onToggleDevMode: () => handleDevToggle(),
+      onToggleCdp: () => toggleCdpPanel(),
+      onToggleGhost: () => toggleGhostMode(),
+      onToggleCollapse: (collapsed) => {
+        /* no-op for now; reserved for future behavior */
+      },
+      devModeEnabled,
+      ghostModeEnabled
+    });
+    operationsToggleButton = hudButtonsHandles?.operationsBtn ?? operationsToggleButton;
+    devToggleButton = hudButtonsHandles?.devBtn ?? devToggleButton;
+    cdpToggleButton = hudButtonsHandles?.cdpBtn ?? cdpToggleButton;
+    ghostToggleButton = hudButtonsHandles?.ghostBtn ?? ghostToggleButton;
+    registerGhostHoverHandlers(hudButtonsHandles?.container);
     updateOperationsToggleState();
+    updateDevToggleState();
+    hudButtonsHandles?.updateGhostState?.(ghostModeEnabled);
+    if (cdpToggleButton) {
+      cdpToggleButton.classList.toggle('is-active', cdpModeEnabled);
+    }
+    return hudButtonsHandles;
+  }
+
+  function ensureOperationsToggle() {
+    ensureHudButtons();
     return operationsToggleButton;
   }
 
   function ensureDevToggle() {
-    if (!canvasWrapper) return null;
-    if (devToggleButton?.isConnected) {
-      updateDevToggleState();
-      return devToggleButton;
-    }
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'workspace-dev-toggle';
-    btn.textContent = 'Dev';
-    btn.addEventListener('click', () => {
-      if (typeof window === 'undefined') return;
-      const url = new URL(window.location.href);
-      const hasDev = url.searchParams.get('dev') === 'true';
-      if (hasDev) {
-        url.searchParams.delete('dev');
-      } else {
-        url.searchParams.set('dev', 'true');
-      }
-      devModeEnabled = !hasDev;
-      updateDevToggleState();
-      btn.disabled = true;
-      window.location.assign(url.toString());
-    });
-    canvasWrapper.appendChild(btn);
-    devToggleButton = btn;
-    updateDevToggleState();
+    ensureHudButtons();
     return devToggleButton;
   }
 
@@ -355,10 +356,71 @@ export function initWorkspaceRuntime(context = {}) {
     devToggleButton.setAttribute('aria-label', label);
     devToggleButton.setAttribute('title', label);
     devToggleButton.classList.toggle('is-active', devModeEnabled);
+    hudButtonsHandles?.updateDevState?.(devModeEnabled);
+  }
+
+  function handleDevToggle() {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const hasDev = url.searchParams.get('dev') === 'true';
+    if (hasDev) {
+      url.searchParams.delete('dev');
+    } else {
+      url.searchParams.set('dev', 'true');
+    }
+    devModeEnabled = !hasDev;
+    updateDevToggleState();
+    if (devToggleButton) {
+      devToggleButton.disabled = true;
+    }
+    window.location.assign(url.toString());
+  }
+
+  function toggleCdpPanel() {
+    cdpModeEnabled = !cdpModeEnabled;
+    if (cdpToggleButton) {
+      cdpToggleButton.classList.toggle('is-active', cdpModeEnabled);
+    }
+    showToast('Canvas Data Peeker coming soon.', 'info');
+  }
+
+  function toggleGhostMode() {
+    setGhostMode(!ghostModeEnabled);
+  }
+
+  function setGhostMode(enabled) {
+    if (ghostModeEnabled === enabled) return;
+    ghostModeEnabled = enabled;
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.toggle('workspace-ghost-mode', enabled);
+      if (!enabled) {
+        document.body.classList.remove('workspace-ghost-hover');
+      }
+    }
+    hudButtonsHandles?.updateGhostState?.(enabled);
+  }
+
+  function registerGhostHoverHandlers(container) {
+    if (!container || container.dataset.ghostHover === 'true') return;
+    if (typeof document === 'undefined') return;
+    container.dataset.ghostHover = 'true';
+    container.addEventListener('mouseenter', () => {
+      if (!ghostModeEnabled) return;
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.classList.add('workspace-ghost-hover');
+      }
+    });
+    container.addEventListener('mouseleave', () => {
+      if (!ghostModeEnabled) return;
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.classList.remove('workspace-ghost-hover');
+      }
+    });
   }
 
   function ensureOperationsPanel() {
     if (!canvasWrapper) return null;
+    ensureHudButtons();
     if (operationsPanelHandles?.root?.isConnected) {
       ensureOperationsToggle();
       ensureDevToggle();
@@ -2441,6 +2503,18 @@ let updateCanvasState = () => {};
     }
     operationsToggleButton = null;
     operationsVisible = true;
+    if (hudButtonsHandles?.container?.parentNode) {
+      hudButtonsHandles.container.parentNode.removeChild(hudButtonsHandles.container);
+    }
+    hudButtonsHandles = null;
+    devToggleButton = null;
+    cdpToggleButton = null;
+    ghostToggleButton = null;
+    cdpModeEnabled = false;
+    ghostModeEnabled = false;
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.remove('workspace-ghost-mode', 'workspace-ghost-hover');
+    }
   };
 
   return {
