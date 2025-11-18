@@ -1341,6 +1341,11 @@ body.dashboard-overlay-open {
   align-items:center;
   gap:1rem;
 }
+.workspace-hud__slot--right{
+  flex-direction:row;
+  align-items:center;
+  gap:1rem;
+}
 .workspace-hud-card--primary{
   flex:0 1 auto;
 }
@@ -1397,6 +1402,17 @@ body.dashboard-overlay-open {
   gap:1rem;
   min-height:48px;
   align-items:center;
+}
+.workspace-hud-meta{
+  display:flex;
+  align-items:center;
+  pointer-events:none;
+}
+.workspace-hud-meta--autosave .autosave-status{
+  margin:0;
+}
+.workspace-hud-card--secondary .autosave-status{
+  color:var(--bs-body-color);
 }
 .user-status--hud{
   background:transparent;

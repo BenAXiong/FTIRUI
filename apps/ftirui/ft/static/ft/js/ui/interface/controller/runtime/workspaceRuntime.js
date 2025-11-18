@@ -238,6 +238,8 @@ const resolvePanelTitle = (record) => {
 
 
 export function initWorkspaceRuntime(context = {}) {
+  const autosaveIndicatorController = createAutosaveIndicatorController();
+  autosaveIndicatorController?.setStatus?.('idle');
   colorCursorManager.reset();
   sectionManager.reset();
   chipPanelsInstance = null;
@@ -769,6 +771,70 @@ export function initWorkspaceRuntime(context = {}) {
       }
     }
     return String(value);
+  }
+
+  function createAutosaveIndicatorController() {
+    if (typeof document === 'undefined') return null;
+    const container = document.getElementById('autosave_indicator');
+    if (!container) return null;
+    const icon = container.querySelector('.autosave-icon');
+    const text = container.querySelector('.autosave-text');
+    let hideTimer = null;
+
+    const setStatus = (status, message) => {
+      if (!container) return;
+      const normalized = status || 'idle';
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+      const defaultText =
+        normalized === 'saving'
+          ? 'Autosaving...'
+          : normalized === 'saved'
+            ? 'Autosaved'
+            : normalized === 'error'
+              ? 'Autosave failed'
+              : '';
+      if (text) {
+        text.textContent = message || defaultText;
+      }
+      if (icon) {
+        const base = ['autosave-icon', 'bi'];
+        let iconName = '';
+        let spinning = false;
+        if (normalized === 'saving') {
+          iconName = 'bi-cloud-arrow-up';
+          spinning = true;
+        } else if (normalized === 'saved') {
+          iconName = 'bi-cloud-check';
+        } else if (normalized === 'error') {
+          iconName = 'bi-exclamation-triangle';
+        }
+        if (iconName) base.push(iconName);
+        if (spinning) base.push('spin');
+        icon.className = base.join(' ');
+      }
+      container.classList.remove('is-saving', 'is-error');
+      if (normalized === 'saving' || normalized === 'saved' || normalized === 'error') {
+        container.classList.add('is-visible');
+        if (normalized === 'saving') {
+          container.classList.add('is-saving');
+        } else if (normalized === 'error') {
+          container.classList.add('is-error');
+        }
+      } else {
+        container.classList.remove('is-visible');
+      }
+      if (normalized === 'saved') {
+        hideTimer = setTimeout(() => {
+          container.classList.remove('is-visible');
+          container.classList.remove('is-saving', 'is-error');
+        }, 2400);
+      }
+    };
+
+    return { setStatus };
   }
 
   function ensureOperationsPanel() {
@@ -1860,7 +1926,8 @@ let updateCanvasState = () => {};
       deepClone
     },
     notifications: {
-      showToast
+      showToast,
+      autosaveStatus: autosaveIndicatorController?.setStatus
     }
   }) || null;
 

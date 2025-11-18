@@ -6,6 +6,9 @@ const defaultDeepClone = (value) => {
   }
 };
 
+const AUTOSAVE_FEEDBACK_DELAY_MS = 1800;
+const AUTOSAVE_UI_DEBOUNCE_MS = 2000;
+
 export function createPersistenceFacade({
   dom = {},
   menu = {},
@@ -68,6 +71,9 @@ export function createPersistenceFacade({
   const closeMenu = typeof closeMenuHook === 'function' ? closeMenuHook : () => {};
 
   const showToast = notifications.showToast || (() => {});
+  const autosaveStatus = typeof notifications.autosaveStatus === 'function' ? notifications.autosaveStatus : null;
+  let autosaveStatusTimer = null;
+  let autosavePendingTimer = null;
 
   let storageQueueWarningShown = false;
   let listeners = [];
@@ -167,8 +173,32 @@ export function createPersistenceFacade({
           });
         }
       }
+      autosaveStatus?.('error', 'Autosave unavailable');
+      if (autosavePendingTimer) {
+        clearTimeout(autosavePendingTimer);
+        autosavePendingTimer = null;
+      }
+      if (autosaveStatusTimer) {
+        clearTimeout(autosaveStatusTimer);
+        autosaveStatusTimer = null;
+      }
     } else if (storageQueueWarningShown) {
       storageQueueWarningShown = false;
+    } else {
+      if (autosavePendingTimer) {
+        clearTimeout(autosavePendingTimer);
+      }
+      if (autosaveStatusTimer) {
+        clearTimeout(autosaveStatusTimer);
+        autosaveStatusTimer = null;
+      }
+      autosavePendingTimer = setTimeout(() => {
+        autosavePendingTimer = null;
+        autosaveStatus?.('saving');
+        autosaveStatusTimer = setTimeout(() => {
+          autosaveStatus?.('saved');
+        }, AUTOSAVE_FEEDBACK_DELAY_MS);
+      }, AUTOSAVE_UI_DEBOUNCE_MS);
     }
     updateStorageButtons();
     return queued;
