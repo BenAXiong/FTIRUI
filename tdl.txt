@@ -8,7 +8,6 @@ Layout mode switch
 Step 4 Documentation & guard rails
 ___________________________________________________________
 
-browser
 autosave indicator?
 
 display tags next to name pill
