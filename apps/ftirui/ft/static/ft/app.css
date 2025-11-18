@@ -1491,21 +1491,24 @@ body.dashboard-overlay-open {
   white-space:nowrap;
 }
 .workspace-canvas-title-group{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:.15rem;
+  position:relative;
+  display:inline-flex;
+  align-items:center;
 }
 .workspace-canvas-path{
+  position:absolute;
+  left:.85rem;
+  bottom:100%;
+  transform:translateY(.2rem);
   font-size:.7rem;
-  font-weight:500;
+  font-weight:400;
   line-height:1;
   color:var(--bs-secondary-color, #6c757d);
-  white-space:nowrap;
-}
-.workspace-page .workspace-canvas-path{
-  text-transform:none;
   letter-spacing:.03em;
+  text-transform:none;
+  white-space:nowrap;
+  pointer-events:none;
+  z-index:2;
 }
 .workspace-canvas-title{
   font-weight:600;
@@ -1519,7 +1522,10 @@ body.dashboard-overlay-open {
   min-width:auto;
   display:inline-flex;
   align-items:center;
+  justify-content:flex-start;
   gap:.35rem;
+  position:relative;
+  text-align:left;
   box-shadow:0 10px 30px rgba(15,23,42,.12);
 }
 .workspace-canvas-title[aria-disabled="true"]{
@@ -1531,7 +1537,7 @@ body.dashboard-overlay-open {
   background:transparent;
   width:100%;
   outline:none;
-  text-align:center;
+  text-align:left;
   font:inherit;
 }
 body[data-bs-theme='dark'] .workspace-canvas-title{
@@ -1625,10 +1631,11 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 }
 #pane-plotC .workspace-browser{
   position:fixed;
-  top: var(--workspace-browser-top, 6rem);
+  top: var(--workspace-browser-top, 12vh);
   left: var(--workspace-browser-left, 1.5rem);
   width: var(--c-browser-width);
   max-width: 360px;
+  max-height: var(--workspace-browser-max-height, 82vh);
   display:flex;
   flex-direction:column;
   background: var(--bs-body-bg);
@@ -1640,6 +1647,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   pointer-events:auto;
   transform: translateX(0);
   opacity:1;
+  overflow:hidden;
 }
 #pane-plotC .workspace-browser.is-floating,
 #pane-plotC .workspace-browser.collapsed{

@@ -49,6 +49,9 @@ const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
 const MIN_BROWSER_HOTSPOT_WIDTH = 24;
+const WORKSPACE_BROWSER_TOP_VH = 12;
+const WORKSPACE_BROWSER_BOTTOM_VH = 82;
+const MIN_BROWSER_VISIBLE_HEIGHT = 24;
 const OPERATIONS_LOG_LIMIT = 100;
 const operationsLog = [];
 let operationsPanelHandles = null;
@@ -1455,11 +1458,28 @@ let updateCanvasState = () => {};
     const viewportLeft = wrapperRect?.left ?? frameRect?.left ?? paneRect.left ?? 0;
     const viewportTop = wrapperRect?.top ?? paneRect.top ?? 0;
     const left = Math.max(0, Math.round(viewportLeft));
-    const top = Math.max(16, Math.round(viewportTop));
+    const baseBrowserTop = Math.max(16, Math.round(viewportTop));
+    const viewportHeight = Math.max(window.innerHeight || 0, 0);
+    const minBrowserTop = Math.round((WORKSPACE_BROWSER_TOP_VH / 100) * viewportHeight);
+    const maxBrowserBottom = Math.round((WORKSPACE_BROWSER_BOTTOM_VH / 100) * viewportHeight);
+    const maxBrowserSpan = Math.max(0, maxBrowserBottom - minBrowserTop);
+    const minVisibleHeight = Math.min(
+      Math.max(MIN_BROWSER_VISIBLE_HEIGHT, 0),
+      maxBrowserSpan
+    );
+    const maxBrowserTop = Math.max(minBrowserTop, maxBrowserBottom - minVisibleHeight);
+    let browserTop = Math.max(minBrowserTop, baseBrowserTop);
+    browserTop = Math.min(browserTop, maxBrowserTop);
+    const browserMaxHeight = Math.max(0, maxBrowserBottom - browserTop);
 
     if (panelDom.root) {
       panelDom.root.style.setProperty('--workspace-browser-left', `${left}px`);
-      panelDom.root.style.setProperty('--workspace-browser-top', `${top}px`);
+      panelDom.root.style.setProperty('--workspace-browser-top', `${browserTop}px`);
+      if (browserMaxHeight > 0) {
+        panelDom.root.style.setProperty('--workspace-browser-max-height', `${browserMaxHeight}px`);
+      } else {
+        panelDom.root.style.removeProperty('--workspace-browser-max-height');
+      }
     }
 
     if (browserHotspot) {
