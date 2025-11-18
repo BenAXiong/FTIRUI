@@ -173,7 +173,9 @@ export function renderBrowserTree(ctx, state) {
     const safeName = escapeHtml(rowInfo.name || `Trace ${rowInfo.idx + 1}`);
     row.innerHTML = `
       <span class="drag-handle bi bi-grip-vertical" title="Drag trace"></span>
-      <input class="form-check-input vis" type="checkbox" ${trace.visible !== false ? 'checked' : ''} title="Toggle visibility">
+      <button class="trace-visibility" type="button" aria-pressed="${trace.visible !== false ? 'true' : 'false'}" title="${trace.visible !== false ? 'Hide trace' : 'Show trace'}">
+        <i class="bi ${trace.visible !== false ? 'bi-eye' : 'bi-eye-slash'}"></i>
+      </button>
       <input class="form-control form-control-sm rename" type="text" value="${safeName}" title="Double-click to rename" readonly>
       <button class="line-chip" type="button" aria-label="Edit line style"></button>
       <button class="color-dot" type="button" style="--c:${toHexColor(trace.line?.color || '#1f77b4')}" title="Pick colour" hidden></button>
@@ -209,8 +211,17 @@ export function renderBrowserTree(ctx, state) {
 
     updateTraceChip(row, trace);
 
-    const visToggle = row.querySelector('.vis');
-    visToggle?.addEventListener('change', () => {
+    const visToggle = row.querySelector('.trace-visibility');
+    const setVisibilityButtonState = (visible) => {
+      if (!visToggle) return;
+      visToggle.dataset.visible = visible ? 'true' : 'false';
+      visToggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+      visToggle.title = visible ? 'Hide trace' : 'Show trace';
+      visToggle.innerHTML = `<i class="bi ${visible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
+      visToggle.classList.toggle('is-off', !visible);
+    };
+    setVisibilityButtonState(trace.visible !== false);
+    visToggle?.addEventListener('click', () => {
       pushHistory();
       const figure = getPanelFigure(panelId);
       const tracesData = ensureArray(figure.data);
@@ -219,9 +230,10 @@ export function renderBrowserTree(ctx, state) {
         history.rewind();
         return;
       }
+      const nextVisible = visToggle.dataset.visible !== 'true';
       tracesData[rowInfo.idx] = {
         ...current,
-        visible: visToggle.checked
+        visible: nextVisible
       };
       figure.data = tracesData;
       normalizePanelTraces(panelId, figure);

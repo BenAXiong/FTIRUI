@@ -1333,7 +1333,6 @@ let updateCanvasState = () => {};
     dropzone: document.getElementById('c_panel_dropzone'),
     empty: document.querySelector('#c_panel_dropzone .panel-empty'),
     newSection: document.getElementById('c_new_section'),
-    searchBtn: document.getElementById('c_panel_search'),
     searchInput: document.getElementById('c_panel_search_input'),
     tree: document.getElementById('c_folder_tree'),
     undo: historyUndoButtons,
@@ -2760,20 +2759,6 @@ let updateCanvasState = () => {};
     }
   });
 
-  panelDom.searchBtn?.addEventListener('click', () => {
-    if (!panelDom.searchInput) return;
-    const hidden = panelDom.searchInput.style.display === 'none';
-    if (hidden) {
-      panelDom.searchInput.style.display = '';
-      panelDom.searchInput.focus();
-    } else {
-      panelDom.searchInput.value = '';
-      panelDom.searchInput.style.display = 'none';
-      searchTerm = '';
-      renderBrowser();
-    }
-  });
-
   panelDom.searchInput?.addEventListener('input', (evt) => {
     searchTerm = evt.target.value || '';
     renderBrowser();
@@ -2784,7 +2769,6 @@ let updateCanvasState = () => {};
       panelDom.searchInput.value = '';
       searchTerm = '';
       panelDom.searchInput.blur();
-      panelDom.searchInput.style.display = 'none';
       renderBrowser();
     }
   });
