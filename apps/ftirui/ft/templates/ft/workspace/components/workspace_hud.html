@@ -23,11 +23,13 @@
         </span>
       </div>
       <div class="workspace-hud-card__actions">
-        <a href="{% url 'ft:home' %}"
-           class="btn btn-outline-secondary btn-sm workspace-back-btn"
-           title="Return to dashboard">
-          ← Dashboard
-        </a>
+        {% if active_canvas and active_canvas.tags %}
+          <ul class="dashboard-tags-list workspace-tags-list">
+            {% for tag in active_canvas.tags %}
+              <li class="dashboard-tag">{{ tag }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
         <div class="dropdown workspace-hud-menu" data-bs-auto-close="outside">
           <button class="btn btn-link p-0 workspace-hud-menu__toggle"
                   id="workspace_hud_menu_toggle"
@@ -64,6 +66,11 @@
         </div>
       </div>
     </div>
+    <a href="{% url 'ft:home' %}"
+       class="btn btn-outline-secondary btn-sm workspace-back-btn workspace-hud-back"
+       title="Return to dashboard">
+      ← Dashboard
+    </a>
   </div>
   <div class="workspace-hud__slot workspace-hud__slot--right">
     <div class="workspace-hud-card workspace-hud-card--secondary">

@@ -64,6 +64,19 @@ const bodyDataset = typeof document !== 'undefined' ? document.body.dataset : {}
 const isWorkspacePage = bodyDataset?.workspacePage === 'true';
 const workspaceTabEnabled = bodyDataset?.workspaceTabEnabled === 'true';
 const dashboardV2Enabled = bodyDataset?.dashboardV2Enabled !== 'false';
+const TAG_COLOR_PALETTE = [
+  '#1f77b4',
+  '#ff7f0e',
+  '#2ca02c',
+  '#d62728',
+  '#9467bd',
+  '#8c564b',
+  '#e377c2',
+  '#7f7f7f',
+  '#bcbd22',
+  '#17becf'
+];
+const workspaceTagRegistry = new Map();
 
 const toastContainer = document.getElementById('app_toasts');
 const toastVariants = {
@@ -454,6 +467,47 @@ function initWorkspaceHudMenu() {
 }
 
 initWorkspaceHudMenu();
+
+const normalizeWorkspaceTagLabel = (tag) => `${tag ?? ''}`.trim().toLowerCase();
+
+function getWorkspaceTagColor(tag) {
+  const key = normalizeWorkspaceTagLabel(tag);
+  if (!key) return null;
+  if (!workspaceTagRegistry.has(key)) {
+    const color = TAG_COLOR_PALETTE[workspaceTagRegistry.size % TAG_COLOR_PALETTE.length];
+    workspaceTagRegistry.set(key, color);
+  }
+  return workspaceTagRegistry.get(key);
+}
+
+function initWorkspaceTagColors() {
+  if (!isWorkspacePage) return;
+  const tagList = document.querySelector('.workspace-tags-list');
+  if (!tagList) return;
+  const tagEls = tagList.querySelectorAll('.dashboard-tag');
+  if (!tagEls.length) return;
+  tagEls.forEach((el) => {
+    const label = (el.textContent || '').trim();
+    if (!label) {
+      el.classList.add('is-empty');
+      return;
+    }
+    const color = getWorkspaceTagColor(label);
+    if (color) {
+      el.style.background = color;
+      el.style.color = '#fff';
+    }
+  });
+  if (tagEls.length > 4) {
+    tagList.classList.add('workspace-tags-list--compact');
+    tagEls.forEach((el) => el.classList.add('workspace-tag-compact'));
+  } else {
+    tagList.classList.remove('workspace-tags-list--compact');
+    tagEls.forEach((el) => el.classList.remove('workspace-tag-compact'));
+  }
+}
+
+initWorkspaceTagColors();
 
 let workspaceMounted = false;
 let workspaceMountScheduled = false;

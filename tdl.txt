@@ -1,17 +1,11 @@
 Phase 1 – Broad UI optimization
 
-
-Plan
-
-Layout mode switch
-
-Step 4 Documentation & guard rails
-___________________________________________________________
-
+option to hide all menus ? eye pill?
+canvas data peeker pill
 autosave indicator?
 
-display tags next to name pill
-option to hide all menus ? eye pill?
+Step 5 Documentation & guard rails
+___________________________________________________________
 
 Global toolbar
 - unredo // 1 to 9 // ... (0)
@@ -52,6 +46,7 @@ Future work
 - new tab: Present
 - feature: in canvas' explorer - load raw files and display sparklines on hover
 - import opj and opju
+- attach files like gdocs for collab
 
 Bugs
 
