@@ -2106,8 +2106,17 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-spreadsheet-target-option input{
   margin: 0;
 }
+.workspace-spreadsheet-action-row{
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
 .workspace-spreadsheet-plot-btn{
   min-width: 150px;
+}
+.workspace-spreadsheet-plot-btn--wide{
+  flex: 1 1 0;
+  min-width: 0;
 }
 .workspace-panel-popover--markdown{
   width: min(360px, 80vw);

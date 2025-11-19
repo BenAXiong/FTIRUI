@@ -251,13 +251,26 @@ export const spreadsheetPanelType = {
     targetLabel.textContent = 'Add data to';
     const graphTargets = document.createElement('div');
     graphTargets.className = 'workspace-spreadsheet-target-list';
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'workspace-spreadsheet-action-row';
     const plotExistingBtn = document.createElement('button');
     plotExistingBtn.type = 'button';
-    plotExistingBtn.className = 'btn btn-primary btn-sm workspace-spreadsheet-plot-btn';
+    plotExistingBtn.className = 'btn btn-primary btn-sm workspace-spreadsheet-plot-btn workspace-spreadsheet-plot-btn--wide';
     plotExistingBtn.textContent = 'Add to graph(s)';
+    const copySelectionBtn = document.createElement('button');
+    copySelectionBtn.type = 'button';
+    copySelectionBtn.className = 'btn btn-outline-secondary btn-sm workspace-spreadsheet-plot-btn workspace-spreadsheet-plot-btn--wide';
+    copySelectionBtn.textContent = 'Copy selection';
+    const exportSelectionBtn = document.createElement('button');
+    exportSelectionBtn.type = 'button';
+    exportSelectionBtn.className = 'btn btn-outline-secondary btn-sm workspace-spreadsheet-plot-btn workspace-spreadsheet-plot-btn--wide';
+    exportSelectionBtn.textContent = 'Export CSV';
+    actionsRow.appendChild(plotExistingBtn);
+    actionsRow.appendChild(copySelectionBtn);
+    actionsRow.appendChild(exportSelectionBtn);
     targetControls.appendChild(targetLabel);
     targetControls.appendChild(graphTargets);
-    targetControls.appendChild(plotExistingBtn);
+    targetControls.appendChild(actionsRow);
 
     plotControls.appendChild(axisControls);
     plotControls.appendChild(targetControls);
@@ -391,9 +404,27 @@ export const spreadsheetPanelType = {
         sqrt: Math.sqrt,
         exp: Math.exp,
         log: Math.log,
+        log10: Math.log10 ?? ((value) => Math.log(value) / Math.LN10),
+        log2: Math.log2 ?? ((value) => Math.log(value) / Math.LN2),
         round: Math.round,
         floor: Math.floor,
-        ceil: Math.ceil
+        ceil: Math.ceil,
+        sin: Math.sin,
+        cos: Math.cos,
+        tan: Math.tan,
+        asin: Math.asin,
+        acos: Math.acos,
+        atan: Math.atan,
+        atan2: Math.atan2,
+        sinh: Math.sinh ?? ((value) => (Math.exp(value) - Math.exp(-value)) / 2),
+        cosh: Math.cosh ?? ((value) => (Math.exp(value) + Math.exp(-value)) / 2),
+        tanh: Math.tanh ?? ((value) => {
+          const ePos = Math.exp(value);
+          const eNeg = Math.exp(-value);
+          return (ePos - eNeg) / (ePos + eNeg);
+        }),
+        square: (value) => (Number.isFinite(value) ? value * value : Math.pow(value, 2)),
+        clamp: (value, minVal, maxVal) => Math.min(Math.max(value, minVal), maxVal ?? value)
       };
       columnTokens.forEach(({ column, tokens }) => {
         const rawValue = sanitizeCellValue(row[column.id]);
@@ -491,6 +522,103 @@ export const spreadsheetPanelType = {
       }).filter(Boolean);
     };
 
+    const getSelectedColumns = () => {
+      const columns = [];
+      const xColumn = getColumnById(selectedXColumnId);
+      if (xColumn) {
+        columns.push(xColumn);
+      }
+      selectedYColumnIds.forEach((columnId) => {
+        const column = getColumnById(columnId);
+        if (column) {
+          columns.push(column);
+        }
+      });
+      return columns;
+    };
+
+    const serializeCellForExport = (value) => {
+      if (value === null || typeof value === 'undefined') return '';
+      if (typeof value === 'number') {
+        return Number.isFinite(value) ? String(value) : '';
+      }
+      return String(value);
+    };
+
+    const buildSelectionMatrix = () => {
+      const columns = getSelectedColumns();
+      if (!columns.length) return null;
+      const header = columns.map((column) => column.label || column.id);
+      const rows = evaluatedRows.map((row) => columns.map((column) => serializeCellForExport(row?.[column.id])));
+      const hasData = rows.some((row) => row.some((cell) => cell !== ''));
+      return { columns, header, rows, hasData };
+    };
+
+    const copySelectionToClipboard = async () => {
+      const matrix = buildSelectionMatrix();
+      if (!matrix || !matrix.hasData) {
+        notify?.('No selection data to copy.');
+        return;
+      }
+      const lines = [matrix.header.join('\t'), ...matrix.rows.map((row) => row.join('\t'))];
+      const content = lines.join('\n');
+      const fallbackCopy = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = content;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      };
+      try {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(content);
+        } else {
+          fallbackCopy();
+        }
+        notify?.('Selection copied to clipboard.', 'success');
+      } catch {
+        fallbackCopy();
+        notify?.('Selection copied to clipboard.', 'success');
+      }
+    };
+
+    const exportSelectionAsCsv = () => {
+      const matrix = buildSelectionMatrix();
+      if (!matrix || !matrix.hasData) {
+        notify?.('No selection data to export.');
+        return;
+      }
+      const escapeCell = (cell) => {
+        if (cell === null || typeof cell === 'undefined') return '';
+        const str = String(cell);
+        if (/[",\n]/.test(str)) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+      const csvLines = [
+        matrix.header.map(escapeCell).join(','),
+        ...matrix.rows.map((row) => row.map(escapeCell).join(','))
+      ];
+      const csvContent = csvLines.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = `spreadsheet-${panelId || 'data'}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 0);
+      notify?.('CSV exported.', 'success');
+    };
+
     const handlePlotRequest = () => {
       const traces = buildTracePayloads();
       if (!traces.length) {
@@ -511,10 +639,12 @@ export const spreadsheetPanelType = {
       });
     };
 
-    const updatePlotButtonsState = () => {
+    const updateActionButtons = () => {
       const ready = canPlot();
       const hasTarget = targetGraphSelections.size > 0;
       plotExistingBtn.disabled = !ready || !hasTarget;
+      copySelectionBtn.disabled = !ready;
+      exportSelectionBtn.disabled = !ready;
     };
 
     const renderYAxisOptions = () => {
@@ -539,7 +669,7 @@ export const spreadsheetPanelType = {
             return;
           }
           renderYAxisOptions();
-          updatePlotButtonsState();
+          updateActionButtons();
         });
         const label = document.createElement('span');
         label.textContent = column.label || toColumnLabel(columnIndex);
@@ -573,7 +703,7 @@ export const spreadsheetPanelType = {
 
     const refreshPlotControls = () => {
       renderAxisControls();
-      updatePlotButtonsState();
+      updateActionButtons();
     };
 
     const refreshGraphOptions = () => {
@@ -597,7 +727,7 @@ export const spreadsheetPanelType = {
           } else {
             targetGraphSelections.delete(value);
           }
-          updatePlotButtonsState();
+          updateActionButtons();
         });
         const text = document.createElement('span');
         text.textContent = label;
@@ -637,7 +767,7 @@ export const spreadsheetPanelType = {
       }
 
       targetGraphSelections = nextValues;
-      updatePlotButtonsState();
+      updateActionButtons();
     };
 
     const updateToolbarState = () => {
@@ -1019,11 +1149,13 @@ export const spreadsheetPanelType = {
       refreshPlotControls();
     });
     plotExistingBtn.addEventListener('click', () => handlePlotRequest());
+    copySelectionBtn.addEventListener('click', () => copySelectionToClipboard());
+    exportSelectionBtn.addEventListener('click', () => exportSelectionAsCsv());
 
     addBeforeUnloadListener();
     renderGrid();
     refreshGraphOptions();
-    updatePlotButtonsState();
+    updateActionButtons();
 
     return {
       plotEl: null,
@@ -1035,7 +1167,7 @@ export const spreadsheetPanelType = {
         recalculateFormulas();
         renderGrid();
         refreshGraphOptions();
-        updatePlotButtonsState();
+        updateActionButtons();
       },
       persistContent: flushPendingChanges,
       getContentSnapshot: () => buildContent(sheetState),
