@@ -3042,8 +3042,66 @@ let updateCanvasState = () => {};
       : mode === 'cascade'
         ? 'cascade'
         : 'tile';
-    console.log('[arrangePanels]', mode, { includeNonPlots, panels, metrics });
-    showToast(`Preparing ${label} layout for ${panels.length} panel${panels.length === 1 ? '' : 's'}.`, 'info');
+    const padding = 24;
+    const clampX = (value) => Math.max(padding, Math.min(value, metrics.canvas.width - metrics.width - padding));
+    const clampY = (value) => Math.max(padding, Math.min(value, metrics.canvas.height - metrics.height - padding));
+    let geometries = [];
+    if (mode === 'stack') {
+      const x = clampX(padding);
+      const y = clampY(padding);
+      geometries = panels.map((panel) => ({
+        panelId: panel.id,
+        x,
+        y,
+        width: metrics.width,
+        height: metrics.height
+      }));
+    } else if (mode === 'cascade') {
+      geometries = panels.map((panel, idx) => {
+        const offsetX = metrics.cascadeOffset.x * idx;
+        const offsetY = metrics.cascadeOffset.y * idx;
+        const x = clampX(padding + offsetX);
+        const y = clampY(padding + offsetY);
+        return {
+          panelId: panel.id,
+          x,
+          y,
+          width: metrics.width,
+          height: metrics.height
+        };
+      });
+    } else {
+      const gutter = metrics.tile.gutter;
+      const columns = Math.max(1, metrics.tile.columns);
+      let col = 0;
+      let row = 0;
+      geometries = panels.map((panel) => {
+        const availableWidth = Math.max(metrics.width, Math.floor((metrics.canvas.width - gutter * (columns + 1)) / columns));
+        const adjustedWidth = Math.max(200, Math.min(metrics.width, availableWidth));
+        const adjustedHeight = metrics.height;
+        const x = padding + col * (adjustedWidth + gutter);
+        const y = padding + row * (adjustedHeight + gutter);
+        col += 1;
+        if (col >= columns) {
+          col = 0;
+          row += 1;
+        }
+        return {
+          panelId: panel.id,
+          x: clampX(x),
+          y: clampY(y),
+          width: adjustedWidth,
+          height: adjustedHeight
+        };
+      });
+    }
+    geometries.forEach((geometry) => {
+      applyPanelGeometry(geometry.panelId, geometry, { persistNormalized: true });
+      applyPanelZIndex(geometry.panelId);
+    });
+    updateCanvasState();
+    renderBrowser();
+    showToast(`Arranged ${panels.length} panel${panels.length === 1 ? '' : 's'} in ${label} layout.`, 'success');
   };
 
   alignStackBtn?.addEventListener('click', () => handleArrangeRequest('stack'));
