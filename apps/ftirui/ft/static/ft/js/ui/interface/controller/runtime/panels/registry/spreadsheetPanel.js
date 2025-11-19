@@ -308,6 +308,15 @@ export const spreadsheetPanelType = {
       historyPending = false;
       safeSetContent(panelId, payload, { pushHistory: shouldPush });
     }, 650);
+    const flushPendingChanges = () => schedulePersist.flush();
+    const addBeforeUnloadListener = () => {
+      if (typeof window === 'undefined') return;
+      window.addEventListener('beforeunload', flushPendingChanges);
+    };
+    const removeBeforeUnloadListener = () => {
+      if (typeof window === 'undefined') return;
+      window.removeEventListener('beforeunload', flushPendingChanges);
+    };
 
     const markDirty = () => {
       historyPending = true;
@@ -1011,6 +1020,7 @@ export const spreadsheetPanelType = {
     });
     plotExistingBtn.addEventListener('click', () => handlePlotRequest());
 
+    addBeforeUnloadListener();
     renderGrid();
     refreshGraphOptions();
     updatePlotButtonsState();
@@ -1021,11 +1031,17 @@ export const spreadsheetPanelType = {
         if (!nextContent || typeof nextContent !== 'object') return;
         sheetState = buildContent(nextContent);
         historyPending = false;
-        schedulePersist.flush();
+        flushPendingChanges();
         recalculateFormulas();
         renderGrid();
         refreshGraphOptions();
         updatePlotButtonsState();
+      },
+      persistContent: flushPendingChanges,
+      getContentSnapshot: () => buildContent(sheetState),
+      dispose() {
+        flushPendingChanges();
+        removeBeforeUnloadListener();
       }
     };
   }
