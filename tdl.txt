@@ -1,8 +1,27 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 /
+ok, go on with
+Step 1 – Clarify spreadsheet MVP scope
+  - Lock goals around paste/import, inline editing, simple row/column management, Origin-style formula application, and sending series to plots.
+Step 2 – Register the spreadsheet panel type
+  - Define normalized content (`columns`, `rows`, `formulas`) and wire it into the panel registry + snapshot manager.
+Step 3 – Build the grid editor surface
+  - Create the table/grid UI, handle clipboard paste (Papaparse), support editing, add/remove rows and columns, and update content on change.
+Step 4 – Wire plotting hand-off
+  - Provide column selection + “Send to plot” flow that emits `handleHeaderAction` payloads to create or update traces on existing graphs.
+Step 5 – Implement formula row behavior
+  - Add a per-column formula input (e.g., Origin-style row) evaluated via math.js so users can type expressions like `colA*2` or `sqrt(colB)` and auto-populate the column.
+  - Track formula metadata per column and recompute when source data changes.
+Step 6 – Persistence & restore
+  - Ensure all edits/formulas save through `setPanelContent`, and `refreshContent` rebuilds the grid/formula row on load/snapshot restore.
+Step 7 – UX polish & stretch
+  - Column renaming, type hints, dataset summaries, quick normalization presets built on the formula system, CSV export, plotting target modal.
 
 /
+***
+md check defaults placefolders
+***
 
 Phase 1 – UI revamp (done)
 Phase 2 – Toolbar modernization
@@ -120,6 +139,7 @@ Future work
 - feature: in canvas' explorer - load raw files and display sparklines on hover
 - import opj and opju
 - attach files like gdocs for collab
+- .ben = binned/basic/? experiment notebook
 
 Bugs
 

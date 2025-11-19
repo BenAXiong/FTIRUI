@@ -23,6 +23,7 @@ import { createPanelDomFacade } from './panels/panelDomFacade.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
 import { plotPanelType } from './panels/registry/plotPanel.js';
 import { markdownPanelType } from './panels/registry/markdownPanel.js';
+import { spreadsheetPanelType } from './panels/registry/spreadsheetPanel.js';
 import { createHeaderActions } from './panels/headerActions.js';
 import { createPlotFacade } from './panels/plotFacade.js';
 import { createSnapshotManager } from './state/snapshotManager.js';
@@ -39,6 +40,7 @@ import { createGlobalCommandsController } from './toolbar/globalCommands.js';
 
 registerPanelType(plotPanelType);
 registerPanelType(markdownPanelType);
+registerPanelType(spreadsheetPanelType);
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -284,6 +286,7 @@ export function initWorkspaceRuntime(context = {}) {
   const canvas = roots.canvas ?? document.getElementById('c_canvas_root');
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
   const markdownBtn = roots.markdownButton ?? document.getElementById('c_canvas_add_markdown');
+  const sheetBtn = roots.sheetButton ?? document.getElementById('c_canvas_add_sheet');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
@@ -2794,7 +2797,8 @@ let updateCanvasState = () => {};
 
   const globalCommandsController = createGlobalCommandsController({
     buttons: {
-      markdownButton: markdownBtn
+      markdownButton: markdownBtn,
+      sheetButton: sheetBtn
     },
     actions: {
       createPanel: createPanelOfType

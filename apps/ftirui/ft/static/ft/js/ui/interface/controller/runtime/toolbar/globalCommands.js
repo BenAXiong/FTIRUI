@@ -20,7 +20,8 @@ export function createGlobalCommandsController({
   };
 
   const {
-    markdownButton
+    markdownButton,
+    sheetButton
   } = buttons;
 
   const {
@@ -31,6 +32,11 @@ export function createGlobalCommandsController({
     title: 'Markdown note',
     width: 640,
     height: 420
+  }));
+  add(sheetButton, () => createPanel('spreadsheet', {
+    title: 'Spreadsheet',
+    width: 880,
+    height: 520
   }));
 
   const dispose = () => {

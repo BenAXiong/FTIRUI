@@ -1859,6 +1859,159 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-markdown-preview-toggle:not(.is-preview-available) .workspace-markdown-preview-toggle-icon .pane{
   opacity: .15;
 }
+
+.workspace-panel.workspace-panel--spreadsheet .workspace-panel-plot{
+  padding: 0;
+}
+.workspace-panel-plot--spreadsheet{
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.workspace-spreadsheet-panel{
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  height: 100%;
+  min-height: 0;
+  padding: .5rem;
+}
+.workspace-spreadsheet-toolbar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding: .55rem .85rem;
+  border-radius: .9rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 75%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.04) 6%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
+}
+.workspace-spreadsheet-toolbar-actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.workspace-spreadsheet-toolbar-btn{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: .65rem;
+}
+.workspace-spreadsheet-toolbar-btn i{
+  font-size: .85rem;
+}
+.workspace-spreadsheet-toolbar-hint{
+  font-size: .78rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.3) 15%);
+  max-width: 360px;
+  line-height: 1.4;
+}
+.workspace-spreadsheet-toolbar-hint kbd{
+  font-size: .7rem;
+  letter-spacing: .05em;
+  border-radius: .4rem;
+  padding: .05rem .4rem;
+  background: rgba(15,23,42,.12);
+}
+.workspace-spreadsheet-grid-scroll{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.03) 4%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+}
+.workspace-spreadsheet-grid{
+  width: 100%;
+  min-width: 520px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: .85rem;
+}
+.workspace-spreadsheet-grid thead th{
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--bs-body-bg) 88%, rgba(15,23,42,.08) 12%);
+  backdrop-filter: blur(6px);
+  font-weight: 600;
+  text-align: left;
+  padding: .45rem .5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent);
+  z-index: 2;
+}
+.workspace-spreadsheet-corner{
+  width: 3rem;
+  text-align: center;
+  color: var(--bs-secondary-color);
+  font-size: .78rem;
+}
+.workspace-spreadsheet-column-header{
+  min-width: 8rem;
+  border-right: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+}
+.workspace-spreadsheet-column-header.is-active{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, rgba(15,23,42,.08) 15%);
+}
+.workspace-spreadsheet-column-name{
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: .78rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: .15rem .25rem;
+  border-radius: .4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  color: var(--bs-body-color);
+}
+.workspace-spreadsheet-column-name:hover,
+.workspace-spreadsheet-column-name:focus{
+  background: rgba(15,23,42,.08);
+}
+.workspace-spreadsheet-grid tbody th{
+  position: sticky;
+  left: 0;
+  background: color-mix(in srgb, var(--bs-body-bg) 95%, rgba(15,23,42,.03) 5%);
+  font-weight: 600;
+  text-align: right;
+  padding: .35rem .6rem;
+  border-right: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.25) 20%);
+  z-index: 1;
+}
+.workspace-spreadsheet-row-header.is-active{
+  color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, transparent);
+}
+.workspace-spreadsheet-grid td{
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 40%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.02) 4%);
+}
+.workspace-spreadsheet-grid tbody tr:nth-child(even) td{
+  background: color-mix(in srgb, var(--bs-body-bg) 98%, rgba(15,23,42,.02) 2%);
+}
+.workspace-spreadsheet-cell-wrapper{
+  padding: 0;
+}
+.workspace-spreadsheet-cell{
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: .35rem .45rem;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: .82rem;
+  color: var(--bs-body-color);
+}
+.workspace-spreadsheet-cell:focus{
+  outline: 2px solid color-mix(in oklab, var(--bs-primary) 55%, transparent);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--bs-body-bg) 88%, rgba(15,23,42,.08) 12%);
+}
 .workspace-panel-popover--markdown{
   width: min(360px, 80vw);
 }
