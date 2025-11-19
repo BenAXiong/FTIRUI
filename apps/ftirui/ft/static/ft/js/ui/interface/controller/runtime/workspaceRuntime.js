@@ -20,6 +20,9 @@ import { createBrowserFacade } from './browser/facade.js';
 import { createPersistenceFacade } from './persistence/facade.js';
 import { createPanelsFacade } from './panels/facade.js';
 import { createPanelDomFacade } from './panels/panelDomFacade.js';
+import { registerPanelType, getPanelType } from './panels/registry/index.js';
+import { plotPanelType } from './panels/registry/plotPanel.js';
+import { markdownPanelType } from './panels/registry/markdownPanel.js';
 import { createHeaderActions } from './panels/headerActions.js';
 import { createPlotFacade } from './panels/plotFacade.js';
 import { createSnapshotManager } from './state/snapshotManager.js';
@@ -32,6 +35,9 @@ import { createRuntimeState } from './context/runtimeState.js';
 import { createUiPreferencesFacade } from './preferences/facade.js';
 import { createSectionManager } from './sections/manager.js';
 import { createHudButtons } from './controls/createHudButtons.js';
+
+registerPanelType(plotPanelType);
+registerPanelType(markdownPanelType);
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -228,15 +234,19 @@ const sectionsModel = {
   }
 };
 
-const defaultPanelTitle = (index) => {
+const defaultPanelTitle = (panelType, index) => {
+  if (panelType?.getDefaultTitle) {
+    return panelType.getDefaultTitle(index);
+  }
   const numeric = Number(index);
-  return Number.isFinite(numeric) && numeric > 0 ? `Graph ${numeric}` : 'Graph';
+  return Number.isFinite(numeric) && numeric > 0 ? `Panel ${numeric}` : (panelType?.label || 'Panel');
 };
 
 const resolvePanelTitle = (record) => {
   const raw = typeof record?.title === 'string' ? record.title.trim() : '';
   const index = Number(record?.index);
-  return raw || defaultPanelTitle(index);
+  const panelType = getPanelType(record?.type);
+  return raw || defaultPanelTitle(panelType, index);
 };
 
 
@@ -1160,6 +1170,7 @@ const recordOperation = (entry) => {
       headerEl: handles.headerEl ?? existing.headerEl ?? null,
       titleEl: handles.titleEl ?? existing.titleEl ?? null,
       plotEl: handles.plotEl ?? existing.plotEl ?? null,
+      contentHandles: handles.contentHandles ?? existing.contentHandles ?? null,
       runtime
     };
     panelDomRegistry.set(panelId, next);
@@ -1178,6 +1189,11 @@ const recordOperation = (entry) => {
 
   const getPanelSnapshot = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
   const getPanelRecord = getPanelSnapshot;
+  const panelSupportsPlot = (panelId) => {
+    const record = getPanelRecord(panelId);
+    const type = getPanelType(record?.type);
+    return type?.capabilities?.plot !== false;
+  };
 
   const getPanelFigure = (panelId) => {
     const record = getPanelRecord(panelId);
@@ -1188,11 +1204,6 @@ const recordOperation = (entry) => {
   };
 
   const getPanelContent = (panelId) => panelsModel.getPanelContent(panelId) || null;
-
-  const isPlotPanel = (panelId) => {
-    const record = getPanelRecord(panelId);
-    return !record || record.type === 'plot' || !record.type;
-  };
 
   const Plot = createPlotFacade({
     getPanelDom,
@@ -1890,12 +1901,12 @@ let updateCanvasState = () => {};
     rootEl.style.zIndex = String(resolved);
   };
 
-  const refreshMarkdownPanelDom = (panelId) => {
+  const refreshPanelContentDom = (panelId) => {
     if (!panelId) return;
     const dom = getPanelDom(panelId);
-    if (!dom?.refreshMarkdownContent) return;
+    if (!dom?.contentHandles?.refreshContent) return;
     const latestContent = panelsModel.getPanelContent(panelId);
-    dom.refreshMarkdownContent(latestContent);
+    dom.contentHandles.refreshContent(latestContent);
   };
 
   const defaultLayout = (payload = {}) => {
@@ -2112,17 +2123,17 @@ let updateCanvasState = () => {};
     };
   }
   const renderPlot = (panelId) => {
-    if (!panelId || !isPlotPanel(panelId)) return;
+    if (!panelId || !panelSupportsPlot(panelId)) return;
     Plot.renderNow(panelId);
   };
 
   const resizePlotForPanel = (panelId) => {
-    if (!panelId || !isPlotPanel(panelId)) return;
+    if (!panelId || !panelSupportsPlot(panelId)) return;
     Plot.resize(panelId);
   };
 
   const exportPlotFigure = (panelId, opts) => {
-    if (!panelId || !isPlotPanel(panelId)) return null;
+    if (!panelId || !panelSupportsPlot(panelId)) return null;
     return Plot.exportFigure(panelId, opts);
   };
 
@@ -2303,7 +2314,8 @@ let updateCanvasState = () => {};
       }
       const nextRaw = value ?? nameEl.textContent;
       const nextCandidate = (nextRaw ?? '').trim();
-      const nextTitle = nextCandidate || defaultPanelTitle(record.index);
+      const panelType = getPanelType(record?.type);
+      const nextTitle = nextCandidate || defaultPanelTitle(panelType, record.index);
       if (nextTitle === original) {
         nameEl.textContent = original;
         return;
@@ -2469,12 +2481,6 @@ let updateCanvasState = () => {};
     removePanel(panelId);
   };
 
-  const buildMarkdownContent = (text = '') => ({
-    kind: 'markdown',
-    version: 1,
-    data: { text }
-  });
-
   const setPanelContent = (panelId, content, {
     pushHistory: pushToHistory = true,
     persistChange = true
@@ -2486,7 +2492,7 @@ let updateCanvasState = () => {};
       pushHistory();
     }
     const updated = panelsModel.updatePanelContent(panelId, content);
-    refreshMarkdownPanelDom(panelId);
+    refreshPanelContentDom(panelId);
     updateCanvasState();
     renderBrowser();
     if (persistChange) {
@@ -2497,13 +2503,11 @@ let updateCanvasState = () => {};
   };
 
   const createMarkdownPanel = () => {
-    const placeholder = '# Markdown note\n\nStart typing to capture ideas.';
     registerPanel({
       type: 'markdown',
       title: 'Markdown note',
       width: 640,
-      height: 420,
-      content: buildMarkdownContent(placeholder)
+      height: 420
     });
   };
 
@@ -2523,7 +2527,8 @@ let updateCanvasState = () => {};
     const resolvedIndex = (useModelState && Number.isInteger(incomingIndex) && incomingIndex > 0)
       ? incomingIndex
       : allocatePanelIndex(incomingIndex);
-    const defaultTitle = defaultPanelTitle(resolvedIndex);
+    const panelType = getPanelType(incomingState.type);
+    const defaultTitle = defaultPanelTitle(panelType, resolvedIndex);
     const incomingTitleCandidate = typeof incomingState.title === 'string'
       ? incomingState.title
       : '';
@@ -2558,7 +2563,7 @@ let updateCanvasState = () => {};
     };
     const candidateState = {
       id: candidateId,
-      type: incomingState.type || 'plot',
+      type: panelType?.id || 'plot',
       index: resolvedIndex,
       title: normalizedTitle,
       x: resolveAutoX(),
@@ -2568,12 +2573,21 @@ let updateCanvasState = () => {};
       collapsed: !!incomingState.collapsed,
       hidden: incomingState.hidden === true,
       sectionId: sections.has(incomingState.sectionId) ? incomingState.sectionId : DEFAULT_SECTION_ID,
-      figure: incomingState.figure ? deepClone(incomingState.figure) : {
-        data: [],
-        layout: defaultLayout()
-      },
       zIndex: incomingState.zIndex
     };
+    const preparedState = panelType?.prepareInitialState
+      ? panelType.prepareInitialState(incomingState, {
+        defaultLayout,
+        deepClone
+      })
+      : {};
+    Object.assign(candidateState, preparedState);
+    if (!candidateState.figure) {
+      candidateState.figure = {
+        data: [],
+        layout: defaultLayout()
+      };
+    }
 
     let baseState = null;
     if (useModelState) {
@@ -2620,11 +2634,12 @@ let updateCanvasState = () => {};
 
     applyPanelGeometry(panelId, initialVisual, { persistNormalized: true });
     applyPanelZIndex(panelId);
-    if (baseState.type === 'plot') {
+    const targetType = getPanelType(baseState.type);
+    if (targetType?.capabilities?.plot !== false) {
       normalizePanelTraces(panelId);
       renderPlot(panelId);
     } else {
-      refreshMarkdownPanelDom(panelId);
+      refreshPanelContentDom(panelId);
     }
     panelInteractions.attach(panelId);
     updateCanvasState();
