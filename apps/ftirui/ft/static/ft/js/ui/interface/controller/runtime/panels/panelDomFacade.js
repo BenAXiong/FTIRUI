@@ -1658,6 +1658,23 @@ export function createPanelDomFacade({
         actions.appendChild(settingsBtn);
         actions.appendChild(closeBtn);
         } else {
+          let fullscreenEnabled = false;
+          const nonPlotFullscreenBtn = document.createElement('button');
+          nonPlotFullscreenBtn.type = 'button';
+          nonPlotFullscreenBtn.className = 'btn btn-outline-secondary';
+          const updateNonPlotFullscreenBtn = () => {
+            nonPlotFullscreenBtn.innerHTML = fullscreenEnabled
+              ? '<i class="bi bi-arrows-angle-contract"></i>'
+              : '<i class="bi bi-arrows-fullscreen"></i>';
+            nonPlotFullscreenBtn.title = fullscreenEnabled ? 'Exit fullscreen' : 'Fullscreen panel';
+          };
+          nonPlotFullscreenBtn.addEventListener('click', () => {
+            fullscreenEnabled = !fullscreenEnabled;
+            updateNonPlotFullscreenBtn();
+            safeHandleHeaderAction(panelId, 'toggle-fullscreen', { on: fullscreenEnabled });
+          });
+          updateNonPlotFullscreenBtn();
+
           if (isMarkdownPanel) {
             markdownPreviewToggleBtn = document.createElement('button');
             markdownPreviewToggleBtn.type = 'button';
@@ -1871,6 +1888,8 @@ export function createPanelDomFacade({
               }
             });
           }
+
+          actions.appendChild(nonPlotFullscreenBtn);
 
           const closeBtn = document.createElement('button');
           closeBtn.type = 'button';

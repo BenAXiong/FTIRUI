@@ -65,10 +65,29 @@
       <i class="bi bi-brightness-high workspace-toolbar-icon" aria-hidden="true"></i>
       <span class="visually-hidden">Change workspace theme</span>
     </button>
-    <button id="c_canvas_align_graphs" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Align graphs" aria-label="Align graphs" disabled>
-      <i class="bi bi-layout-three-columns workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Align graphs</span>
-    </button>
+    <div class="btn-group workspace-toolbar-btn-group">
+      <button id="c_canvas_align_graphs_toggle" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Arrange graphs" aria-label="Arrange graphs" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-layout-three-columns workspace-toolbar-icon" aria-hidden="true"></i>
+        <span class="visually-hidden">Arrange graphs</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end workspace-toolbar-dropdown-menu" aria-labelledby="c_canvas_align_graphs_toggle">
+        <li>
+          <button class="dropdown-item" type="button" id="c_canvas_align_stack" title="Stack panels">
+            <i class="bi bi-layout-sidebar-reverse"></i>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item" type="button" id="c_canvas_align_cascade" title="Cascade panels">
+            <i class="bi bi-layers"></i>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item" type="button" id="c_canvas_align_tile" title="Tile panels">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+        </li>
+      </ul>
+    </div>
     <button id="c_canvas_export_all" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Export all plots" aria-label="Export all plots" disabled>
       <i class="bi bi-box-arrow-up-right workspace-toolbar-icon" aria-hidden="true"></i>
       <span class="visually-hidden">Export all plots</span>

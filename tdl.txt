@@ -3,10 +3,13 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 /
 
 /
-***
+
+*
+br organize all object types
 md check defaults placefolders
 ss see I more functions needed
-***
+img GDrive OAuth & API + change url into input + placeholder (logo?) + fullscreen max size
+*
 
 Phase 1 – UI revamp (done)
 Phase 2 – Toolbar modernization (Global commands, aka tb1)
@@ -17,9 +20,9 @@ Phase 2 – Toolbar modernization (Global commands, aka tb1)
     [x] MD window
     [x] spreadsheet
     [ ] scripting notebook
-    [-] images
+    [x] images
     [ ] theme
-    [ ] align graphs
+    [-] organize graphs
     [ ] import data
     [ ] import folder
     [ ] export all?
@@ -47,6 +50,7 @@ Phase 6 – Workflow refinements
 
 Phase 7 – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
+- [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
 
 Phase 8 – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
