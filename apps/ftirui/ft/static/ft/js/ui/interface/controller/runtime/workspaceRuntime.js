@@ -319,16 +319,20 @@ export function initWorkspaceRuntime(context = {}) {
       }));
   };
 
-  const gatherVisiblePlotPanels = () => {
+  const gatherVisiblePanelsByType = ({ includeNonPlots = false } = {}) => {
     const records = panelsModel.getPanelsInIndexOrder();
     return records
       .filter((record) => {
         if (!record || record.hidden === true) return false;
         const panelType = getPanelType(record.type);
-        return !!panelType && panelType.capabilities?.plot !== false;
+        if (!panelType) return false;
+        if (!includeNonPlots && panelType.capabilities?.plot === false) return false;
+        return true;
       })
       .map((record) => ({
         id: record.id,
+        type: record.type,
+        panelType: getPanelType(record.type),
         index: Number(record.index) || 0,
         geometry: {
           x: Number.isFinite(record.x) ? record.x : 60,
@@ -339,6 +343,43 @@ export function initWorkspaceRuntime(context = {}) {
         title: resolvePanelTitle(record)
       }))
       .sort((a, b) => a.index - b.index || a.id.localeCompare(b.id));
+  };
+
+  const getCanvasBounds = () => {
+    if (!canvasWrapper || typeof canvasWrapper.getBoundingClientRect !== 'function') {
+      return { width: 1200, height: 720 };
+    }
+    const rect = canvasWrapper.getBoundingClientRect();
+    return {
+      width: Math.max(320, Math.round(rect.width)),
+      height: Math.max(320, Math.round(rect.height))
+    };
+  };
+
+  const computeCommonPanelSizing = (panels = [], {
+    minWidth = 320,
+    maxWidth = 960,
+    minHeight = 220,
+    maxHeight = 720,
+    targetRatio = 0.6
+  } = {}) => {
+    const bounds = getCanvasBounds();
+    const baselineWidth = Math.max(minWidth, Math.min(bounds.width * targetRatio, maxWidth));
+    const baselineHeight = Math.max(minHeight, Math.min(baselineWidth * 0.6, maxHeight));
+    return {
+      canvas: bounds,
+      width: Math.round(baselineWidth),
+      height: Math.round(baselineHeight),
+      cascadeOffset: {
+        x: Math.round(Math.min(80, baselineWidth * 0.1)),
+        y: Math.round(Math.min(60, baselineHeight * 0.15))
+      },
+      tile: {
+        gutter: 16,
+        columns: Math.max(1, Math.floor(bounds.width / (baselineWidth + 16)))
+      },
+      count: panels.length
+    };
   };
 
   let imagePickerInput = null;
@@ -2989,19 +3030,20 @@ let updateCanvasState = () => {};
     }
   });
 
-  const handleArrangeRequest = (mode) => {
-    const panels = gatherVisiblePlotPanels();
+  const handleArrangeRequest = (mode, { includeNonPlots = false } = {}) => {
+    const panels = gatherVisiblePanelsByType({ includeNonPlots });
     if (!panels.length) {
-      showToast('No graphs available to arrange.', 'info');
+      showToast(includeNonPlots ? 'No panels available to arrange.' : 'No graphs available to arrange.', 'info');
       return;
     }
+    const metrics = computeCommonPanelSizing(panels);
     const label = mode === 'stack'
       ? 'stack'
       : mode === 'cascade'
         ? 'cascade'
         : 'tile';
-    console.debug('[arrangePanels]', mode, panels);
-    showToast(`Preparing ${label} layout for ${panels.length} graph${panels.length === 1 ? '' : 's'}.`, 'info');
+    console.log('[arrangePanels]', mode, { includeNonPlots, panels, metrics });
+    showToast(`Preparing ${label} layout for ${panels.length} panel${panels.length === 1 ? '' : 's'}.`, 'info');
   };
 
   alignStackBtn?.addEventListener('click', () => handleArrangeRequest('stack'));
