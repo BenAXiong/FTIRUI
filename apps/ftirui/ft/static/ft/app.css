@@ -1815,6 +1815,74 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   width: 100% !important;
   height: 100% !important;
 }
+.workspace-panel.workspace-panel--markdown .workspace-panel-actions-collection,
+.workspace-panel.workspace-panel--markdown .workspace-panel-actions-toggle{
+  display: none !important;
+}
+.workspace-panel.workspace-panel--markdown .workspace-panel-actions{
+  gap: .5rem;
+}
+.workspace-panel.workspace-panel--markdown .workspace-panel-plot{
+  padding: 0;
+}
+.workspace-panel-plot--markdown{
+  display: flex;
+  flex-direction: column;
+}
+.workspace-markdown-panel{
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  height: 100%;
+  padding: .5rem;
+}
+.workspace-markdown-toolbar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.workspace-markdown-toolbar .btn-group .btn{
+  border-radius: .6rem;
+}
+.workspace-markdown-toolbar .btn.is-active{
+  background: var(--bs-primary);
+  color: #fff;
+  border-color: var(--bs-primary);
+}
+.workspace-markdown-status{
+  font-size: .85rem;
+}
+.workspace-markdown-editor{
+  flex: 1 1 auto;
+  min-height: 140px;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.08) 8%);
+  border-radius: .85rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  padding: .85rem;
+  resize: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
+}
+.workspace-markdown-panel[data-mode="preview"] .workspace-markdown-editor{
+  display: none;
+}
+.workspace-markdown-preview{
+  flex: 1 1 auto;
+  min-height: 160px;
+  padding: 1rem;
+  border-radius: .85rem;
+  border: 1px dashed color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.05) 6%);
+  overflow-y: auto;
+}
+.workspace-markdown-preview p:last-child{
+  margin-bottom: 0;
+}
+.workspace-markdown-panel[data-mode="edit"] .workspace-markdown-preview{
+  border-style: solid;
+  opacity: .9;
+}
 .workspace-panel-plot{
   width: 100%;
   height: 100%;

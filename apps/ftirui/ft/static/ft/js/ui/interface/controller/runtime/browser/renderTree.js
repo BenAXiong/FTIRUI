@@ -104,8 +104,8 @@ export function renderBrowserTree(ctx, state) {
       panelDom.empty.dataset.mode = 'search-empty';
       panelDom.empty.style.display = '';
       panelDom.empty.textContent = term
-        ? 'No graphs match your search.'
-        : 'Drop files or use the toolbar to add graphs.';
+        ? 'No panels match your search.'
+        : 'Drop files or use the toolbar to add panels.';
     }
     ensureChipPanelsMount();
     refreshPanelVisibility();

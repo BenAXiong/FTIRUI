@@ -1,4 +1,5 @@
 import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
+import { renderMarkdown } from '../../../../utils/markdown.js';
 
 export function createPanelDomFacade({
   canvas,
@@ -12,11 +13,13 @@ export function createPanelDomFacade({
     removePanel = () => {},
     bringPanelToFront = () => {},
     updateToolbarMetrics = () => {},
-    startPanelRename = () => {}
+    startPanelRename = () => {},
+    setPanelContent = () => {}
   } = actions;
 
   const {
-    getPanelFigure = () => ({ data: [], layout: {} })
+    getPanelFigure = () => ({ data: [], layout: {} }),
+    getPanelContent = () => null
   } = selectors;
 
   const safeRegisterPanelDom = typeof registerPanelDom === 'function' ? registerPanelDom : () => {};
@@ -26,13 +29,178 @@ export function createPanelDomFacade({
   const safeBringPanelToFront = typeof bringPanelToFront === 'function' ? bringPanelToFront : () => {};
   const safeUpdateToolbarMetrics = typeof updateToolbarMetrics === 'function' ? updateToolbarMetrics : () => {};
   const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
+  const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
+  const safeSetPanelContent = typeof setPanelContent === 'function' ? setPanelContent : () => {};
   const canvasPrimaryTag = (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasPrimaryTag) || '';
   const canvasPrimaryTagColor = canvasPrimaryTag ? getWorkspaceTagColor(canvasPrimaryTag) : null;
 
+  const createDebounce = (fn, delay = 400) => {
+    let handle = null;
+    const wrapped = (...args) => {
+      if (handle) {
+        clearTimeout(handle);
+      }
+      handle = setTimeout(() => {
+        handle = null;
+        fn(...args);
+      }, delay);
+    };
+    wrapped.flush = (...args) => {
+      if (handle) {
+        clearTimeout(handle);
+        handle = null;
+        fn(...args);
+      }
+    };
+    return wrapped;
+  };
+
+  const resolveMarkdownText = (content) => {
+    if (!content || typeof content !== 'object') return '';
+    if (typeof content.text === 'string') return content.text;
+    if (content.data && typeof content.data.text === 'string') {
+      return content.data.text;
+    }
+    return '';
+  };
+
+  const buildMarkdownContentPayload = (text) => ({
+    kind: 'markdown',
+    version: 1,
+    data: { text }
+  });
+
+  const createMarkdownHandles = ({ panelId, hostEl }) => {
+    if (!hostEl) return null;
+    hostEl.classList.add('workspace-panel-plot-markdown');
+    hostEl.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'workspace-markdown-panel';
+    wrapper.dataset.mode = 'preview';
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'workspace-markdown-toolbar';
+
+    const modeGroup = document.createElement('div');
+    modeGroup.className = 'btn-group btn-group-sm workspace-markdown-toolbar-modes';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn btn-outline-secondary';
+    editBtn.textContent = 'Edit';
+
+    const previewBtn = document.createElement('button');
+    previewBtn.type = 'button';
+    previewBtn.className = 'btn btn-outline-secondary is-active';
+    previewBtn.textContent = 'Preview';
+
+    modeGroup.appendChild(editBtn);
+    modeGroup.appendChild(previewBtn);
+
+    const status = document.createElement('span');
+    status.className = 'workspace-markdown-status text-body-secondary';
+    status.textContent = 'Saved';
+
+    toolbar.appendChild(modeGroup);
+    toolbar.appendChild(status);
+
+    const editor = document.createElement('textarea');
+    editor.className = 'workspace-markdown-editor form-control';
+    editor.placeholder = 'Write Markdown…';
+
+    const preview = document.createElement('div');
+    preview.className = 'workspace-markdown-preview';
+
+    wrapper.appendChild(toolbar);
+    wrapper.appendChild(editor);
+    wrapper.appendChild(preview);
+    hostEl.appendChild(wrapper);
+
+    let lastSavedText = resolveMarkdownText(safeGetPanelContent(panelId));
+    let historyPending = false;
+
+    const applyMode = (mode) => {
+      wrapper.dataset.mode = mode;
+      editBtn.classList.toggle('is-active', mode === 'edit');
+      previewBtn.classList.toggle('is-active', mode === 'preview');
+      if (mode === 'edit') {
+        editor.focus();
+      }
+    };
+
+    const updatePreview = (text) => {
+      preview.innerHTML = renderMarkdown(text);
+      preview.classList.toggle('is-empty', !text.trim());
+    };
+
+    updatePreview(lastSavedText);
+    editor.value = lastSavedText;
+
+    const persistContent = () => {
+      const nextText = editor.value;
+      if (nextText === lastSavedText) {
+        status.textContent = 'Saved';
+        return;
+      }
+      status.textContent = 'Saving…';
+      const shouldPushHistory = historyPending;
+      historyPending = false;
+      safeSetPanelContent(panelId, buildMarkdownContentPayload(nextText), {
+        pushHistory: shouldPushHistory
+      });
+      lastSavedText = nextText;
+      status.textContent = 'Saved';
+    };
+
+    const schedulePersist = createDebounce(persistContent, 650);
+
+    editor.addEventListener('input', () => {
+      historyPending = true;
+      const text = editor.value;
+      updatePreview(text);
+      status.textContent = 'Editing…';
+      schedulePersist();
+    });
+
+    editor.addEventListener('blur', () => {
+      schedulePersist.flush();
+    });
+
+    editBtn.addEventListener('click', () => applyMode('edit'));
+    previewBtn.addEventListener('click', () => {
+      schedulePersist.flush();
+      applyMode('preview');
+    });
+
+    const refreshContent = (content) => {
+      const text = resolveMarkdownText(content);
+      lastSavedText = text;
+      historyPending = false;
+      if (document.activeElement !== editor) {
+        editor.value = text;
+      }
+      updatePreview(text);
+      status.textContent = text.trim() ? 'Updated' : 'Empty note';
+    };
+
+    return {
+      wrapper,
+      editor,
+      preview,
+      status,
+      refreshContent,
+      applyMode
+    };
+  };
+
   const mountPanel = ({ panelId, panelState, runtime } = {}) => {
     if (!panelId || !panelState) return null;
+        const isMarkdownPanel = panelState.type === 'markdown';
         const panelEl = document.createElement('div');
         panelEl.className = 'workspace-panel';
+        if (isMarkdownPanel) {
+          panelEl.classList.add('workspace-panel--markdown');
+        }
         panelEl.dataset.panelId = panelId;
         panelEl.dataset.graphIndex = String(panelState.index);
         const initialTitle = (typeof panelState.title === 'string' && panelState.title.trim())
@@ -42,7 +210,7 @@ export function createPanelDomFacade({
 
         const header = document.createElement('div');
         header.className = 'workspace-panel-header';
-        const headerTagBadge = canvasPrimaryTag && canvasPrimaryTagColor
+        const headerTagBadge = !isMarkdownPanel && canvasPrimaryTag && canvasPrimaryTagColor
           ? (() => {
             const badge = document.createElement('span');
             badge.className = 'dashboard-tag graph-canvas-tag';
@@ -1592,7 +1760,18 @@ export function createPanelDomFacade({
 
         const plotHost = document.createElement('div');
         plotHost.className = 'workspace-panel-plot';
+        if (isMarkdownPanel) {
+          plotHost.classList.add('workspace-panel-plot--markdown');
+        }
         body.appendChild(plotHost);
+
+        let markdownHandles = null;
+        if (isMarkdownPanel) {
+          markdownHandles = createMarkdownHandles({
+            panelId,
+            hostEl: plotHost
+          });
+        }
 
         panelEl.appendChild(header);
         panelEl.appendChild(body);
@@ -1600,13 +1779,18 @@ export function createPanelDomFacade({
           canvas.appendChild(panelEl);
         }
 
-        safeRegisterPanelDom(panelId, {
+        const domHandles = {
           rootEl: panelEl,
           headerEl: header,
           titleEl: title,
-          plotEl: plotHost,
+          plotEl: isMarkdownPanel ? null : plotHost,
           runtime
-        });
+        };
+        if (isMarkdownPanel && markdownHandles) {
+          domHandles.markdown = markdownHandles;
+          domHandles.refreshMarkdownContent = markdownHandles.refreshContent;
+        }
+        safeRegisterPanelDom(panelId, domHandles);
         safeUpdatePanelRuntime(panelId, { refreshActionOverflow });
         panelEl.addEventListener('pointerdown', (evt) => {
           if (typeof evt.button === 'number' && evt.button !== 0) return;

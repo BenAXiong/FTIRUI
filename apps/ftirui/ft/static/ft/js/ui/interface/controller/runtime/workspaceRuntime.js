@@ -272,6 +272,7 @@ export function initWorkspaceRuntime(context = {}) {
   const { roots = {} } = context;
   const canvas = roots.canvas ?? document.getElementById('c_canvas_root');
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
+  const markdownBtn = roots.markdownButton ?? document.getElementById('c_canvas_add_markdown');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
@@ -1175,17 +1176,34 @@ const recordOperation = (entry) => {
     panelDomRegistry.delete(panelId);
   };
 
-  const getPanelFigure = (panelId) => panelsModel.getPanelFigure(panelId) || { data: [], layout: {} };
+  const getPanelSnapshot = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
+  const getPanelRecord = getPanelSnapshot;
+
+  const getPanelFigure = (panelId) => {
+    const record = getPanelRecord(panelId);
+    if (!record || record.type !== 'plot') {
+      return { data: [], layout: {} };
+    }
+    return panelsModel.getPanelFigure(panelId) || { data: [], layout: {} };
+  };
+
+  const getPanelContent = (panelId) => panelsModel.getPanelContent(panelId) || null;
+
+  const isPlotPanel = (panelId) => {
+    const record = getPanelRecord(panelId);
+    return !record || record.type === 'plot' || !record.type;
+  };
 
   const Plot = createPlotFacade({
     getPanelDom,
     getPanelFigure,
-    setPanelFigure: (panelId, figure) => panelsModel.updatePanelFigure(panelId, figure),
+    setPanelFigure: (panelId, figure) => {
+      const record = getPanelRecord(panelId);
+      if (!record || record.type !== 'plot') return null;
+      return panelsModel.updatePanelFigure(panelId, figure);
+    },
     actionsController: Actions
   });
-
-  const getPanelSnapshot = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
-  const getPanelRecord = getPanelSnapshot;
 
   const getPanelsOrdered = () => panelsModel.getPanelsInIndexOrder();
 
@@ -1872,6 +1890,14 @@ let updateCanvasState = () => {};
     rootEl.style.zIndex = String(resolved);
   };
 
+  const refreshMarkdownPanelDom = (panelId) => {
+    if (!panelId) return;
+    const dom = getPanelDom(panelId);
+    if (!dom?.refreshMarkdownContent) return;
+    const latestContent = panelsModel.getPanelContent(panelId);
+    dom.refreshMarkdownContent(latestContent);
+  };
+
   const defaultLayout = (payload = {}) => {
     const yLabel = payload.meta?.DISPLAY_UNITS
       || payload.meta?.Y_UNITS
@@ -1950,7 +1976,7 @@ let updateCanvasState = () => {};
     models: { panelsModel },
     history: historyHelpers,
     persistence: { persist },
-    plot: { resize: (panelId) => Plot.resize(panelId) },
+    plot: { resize: (panelId) => resizePlotForPanel(panelId) },
     utils: { bringPanelToFront },
     dimensions: {
       minWidth: MIN_WIDTH,
@@ -2086,8 +2112,18 @@ let updateCanvasState = () => {};
     };
   }
   const renderPlot = (panelId) => {
-    if (!panelId) return;
+    if (!panelId || !isPlotPanel(panelId)) return;
     Plot.renderNow(panelId);
+  };
+
+  const resizePlotForPanel = (panelId) => {
+    if (!panelId || !isPlotPanel(panelId)) return;
+    Plot.resize(panelId);
+  };
+
+  const exportPlotFigure = (panelId, opts) => {
+    if (!panelId || !isPlotPanel(panelId)) return null;
+    return Plot.exportFigure(panelId, opts);
   };
 
   const updateTraceChip = (rowEl, trace) => {
@@ -2145,9 +2181,8 @@ let updateCanvasState = () => {};
         rootEl.classList.toggle('is-hidden-by-graph', !graphVisible);
         rootEl.classList.toggle('is-collapsed', record.collapsed === true);
       }
-      const plotHost = dom?.plotEl;
       if (shouldShow) {
-        Plot.resize(panelId);
+        resizePlotForPanel(panelId);
       }
     });
   };
@@ -2434,6 +2469,44 @@ let updateCanvasState = () => {};
     removePanel(panelId);
   };
 
+  const buildMarkdownContent = (text = '') => ({
+    kind: 'markdown',
+    version: 1,
+    data: { text }
+  });
+
+  const setPanelContent = (panelId, content, {
+    pushHistory: pushToHistory = true,
+    persistChange = true
+  } = {}) => {
+    if (!panelId) return null;
+    const record = getPanelRecord(panelId);
+    if (!record) return null;
+    if (pushToHistory) {
+      pushHistory();
+    }
+    const updated = panelsModel.updatePanelContent(panelId, content);
+    refreshMarkdownPanelDom(panelId);
+    updateCanvasState();
+    renderBrowser();
+    if (persistChange) {
+      persist();
+    }
+    updateHistoryButtons();
+    return updated;
+  };
+
+  const createMarkdownPanel = () => {
+    const placeholder = '# Markdown note\n\nStart typing to capture ideas.';
+    registerPanel({
+      type: 'markdown',
+      title: 'Markdown note',
+      width: 640,
+      height: 420,
+      content: buildMarkdownContent(placeholder)
+    });
+  };
+
 
   registerPanel = (incomingState, {
     skipHistory = false,
@@ -2545,11 +2618,14 @@ let updateCanvasState = () => {};
 
     updatePanelTitleDom(panelId, resolvePanelTitle(baseState));
 
-    normalizePanelTraces(panelId);
-
     applyPanelGeometry(panelId, initialVisual, { persistNormalized: true });
     applyPanelZIndex(panelId);
-    renderPlot(panelId);
+    if (baseState.type === 'plot') {
+      normalizePanelTraces(panelId);
+      renderPlot(panelId);
+    } else {
+      refreshMarkdownPanelDom(panelId);
+    }
     panelInteractions.attach(panelId);
     updateCanvasState();
     updateToolbarMetrics();
@@ -2597,7 +2673,7 @@ let updateCanvasState = () => {};
 
   const panelsFacade = createPanelsFacade({
     models: { panelsModel },
-    plot: { renderNow: Plot.renderNow },
+    plot: { renderNow: renderPlot },
     history: historyHelpers,
     persistence: { persist },
     browser: { renderBrowser, refreshPanelVisibility, updateCanvasState },
@@ -2679,8 +2755,8 @@ let updateCanvasState = () => {};
       renderPlot
     },
     plot: {
-      exportFigure: (panelId, opts) => Plot.exportFigure(panelId, opts),
-      resize: (panelId) => Plot.resize(panelId)
+      exportFigure: exportPlotFigure,
+      resize: (panelId) => resizePlotForPanel(panelId)
     }
   });
 
@@ -2693,10 +2769,12 @@ let updateCanvasState = () => {};
       removePanel: (panelId) => removePanel(panelId),
       bringPanelToFront,
       updateToolbarMetrics,
-      startPanelRename
+      startPanelRename,
+      setPanelContent
     },
     selectors: {
-      getPanelFigure
+      getPanelFigure,
+      getPanelContent
     }
   });
 
@@ -2778,6 +2856,10 @@ let updateCanvasState = () => {};
     }
   });
 
+  markdownBtn?.addEventListener('click', () => {
+    createMarkdownPanel();
+  });
+
   browserFacade = createBrowserFacade({
     dom: { panelDom },
     state: {
@@ -2798,7 +2880,7 @@ let updateCanvasState = () => {};
       getPanelRecord
     },
     actions: {
-      renderPlot: (panelId) => Plot.renderNow(panelId),
+      renderPlot,
       updateTraceChip,
       pushHistory,
       history,
@@ -2901,7 +2983,7 @@ let updateCanvasState = () => {};
     panelDomRegistry.forEach((dom, panelId) => {
       applyPanelGeometry(panelId);
       if (dom?.plotEl) {
-        Plot.resize(panelId);
+        resizePlotForPanel(panelId);
       }
       dom?.runtime?.refreshActionOverflow?.();
     });
@@ -2929,7 +3011,7 @@ let updateCanvasState = () => {};
     renderBrowser();
     panelDomRegistry.forEach((dom, panelId) => {
       if (dom?.plotEl) {
-        Plot.renderNow(panelId);
+        renderPlot(panelId);
       }
     });
   };

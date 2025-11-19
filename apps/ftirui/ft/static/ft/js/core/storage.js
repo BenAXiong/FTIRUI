@@ -38,6 +38,15 @@ const normalizeSectionsSnapshot = (sections) => {
   return normalized;
 };
 
+const cloneContent = (value) => {
+  if (!value || typeof value !== 'object') return null;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return { ...value };
+  }
+};
+
 const normalizePanelsSnapshot = (panels) => {
   if (!panels || typeof panels !== 'object') return null;
   const items = Array.isArray(panels.items)
@@ -48,7 +57,8 @@ const normalizePanelsSnapshot = (panels) => {
             ...panel,
             collapsed: coerceBoolean(panel.collapsed, false),
             hidden: panel.hidden === true,
-            sectionId: panel.sectionId || panel.section || null
+            sectionId: panel.sectionId || panel.section || null,
+            content: cloneContent(panel.content)
           };
         })
         .filter(Boolean)

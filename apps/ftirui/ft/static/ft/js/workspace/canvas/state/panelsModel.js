@@ -21,6 +21,15 @@ const normalizeFigure = (figure) => {
   };
 };
 
+const normalizeContent = (content) => {
+  if (!content || typeof content !== 'object') return null;
+  try {
+    return JSON.parse(JSON.stringify(content));
+  } catch {
+    return { ...content };
+  }
+};
+
 const clonePanel = (panel) => {
   if (!panel) return null;
   return {
@@ -36,7 +45,8 @@ const clonePanel = (panel) => {
     hidden: panel.hidden === true,
     sectionId: panel.sectionId || DEFAULT_SECTION_ID,
     figure: normalizeFigure(panel.figure),
-    zIndex: panel.zIndex
+    zIndex: panel.zIndex,
+    content: normalizeContent(panel.content)
   };
 };
 
@@ -89,7 +99,8 @@ export const createPanelsModel = (snapshot) => {
       if (!record || !record.id) return;
       const final = {
         ...record,
-        sectionId: record.sectionId || DEFAULT_SECTION_ID
+        sectionId: record.sectionId || DEFAULT_SECTION_ID,
+        content: normalizeContent(record.content)
       };
       panels.set(final.id, final);
       panelCounter = Math.max(panelCounter, Number(final.index) || 0);
@@ -122,7 +133,8 @@ export const createPanelsModel = (snapshot) => {
       hidden,
       sectionId,
       figure: normalizeFigure(incomingState.figure),
-      zIndex
+      zIndex,
+      content: normalizeContent(incomingState.content)
     };
 
     panels.set(id, state);
@@ -210,6 +222,13 @@ export const createPanelsModel = (snapshot) => {
     const panel = getPanelInternal(panelId);
     if (!panel) return null;
     panel.figure = normalizeFigure(figure);
+    return clonePanel(panel);
+  };
+
+  const updatePanelContent = (panelId, content) => {
+    const panel = getPanelInternal(panelId);
+    if (!panel) return null;
+    panel.content = normalizeContent(content);
     return clonePanel(panel);
   };
 
@@ -324,6 +343,12 @@ export const createPanelsModel = (snapshot) => {
     getPanelsInSection,
     getPanelFigure,
     getPanelTraces,
-    attachToSection
+    attachToSection,
+    getPanelContent: (panelId) => {
+      const panel = getPanelInternal(panelId);
+      if (!panel) return null;
+      return normalizeContent(panel.content);
+    },
+    updatePanelContent
   };
 };

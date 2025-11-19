@@ -15,6 +15,7 @@ const collectRoots = () => {
   return {
     canvas,
     addPlotButton: document.getElementById('c_canvas_add_plot'),
+    markdownButton: document.getElementById('c_canvas_add_markdown'),
     resetButton: document.getElementById('c_canvas_reset_layout'),
     browseButton: document.getElementById('c_canvas_browse_btn'),
     demoButton: document.getElementById('c_canvas_demo_btn'),

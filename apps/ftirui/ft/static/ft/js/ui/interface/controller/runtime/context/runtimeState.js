@@ -40,6 +40,12 @@ export function createRuntimeState({
         return { data: [], layout: {} };
       }
       return safePanelsModel.getPanelFigure(id) || { data: [], layout: {} };
+    },
+    getContent(id) {
+      if (!id || !safePanelsModel || typeof safePanelsModel.getPanelContent !== 'function') {
+        return null;
+      }
+      return safePanelsModel.getPanelContent(id);
     }
   };
 

@@ -1,10 +1,21 @@
-MVP Part 4/5
+MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Phase 1 – UI revamp (done)
 Phase 2 – Toolbar modernization
 - [v] Decide final naming for the Global vs Tech toolbars to keep future setup clear.
 - [v] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
-- [ ] Implement the Global toolbar feature buttons (MD window, spreadsheet, scripting notebook, images, theme, align graphs, empty graph, import folder, export all, more options submenu).
+- [-] Implement the Global toolbar feature buttons
+    [-] data structure update
+    [-] MD window
+    [ ] spreadsheet
+    [ ] scripting notebook
+    [ ] images
+    [ ] theme
+    [ ] align graphs
+    [ ] import data
+    [ ] import folder
+    [ ] export all?
+    [ ] more options: manage snapshots? export all
 - [ ] Gate the Tech toolbar by selection and implement per-tech controls (tech selector, graph type, FT-IR actions).
 
 Phase 3 – Graph controls & exports
@@ -31,24 +42,12 @@ Phase 7 – Future explorations
 Phase 8 – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 
+
+MVP Part 5/5 -- Polishing and publishing
+
+.
 ___________________________________________________________
 Next
-
-- [ ] Confirm new Global/Tech toolbar names before implementing features.
-
-Toolbar 1 – Global (horizontal)
-- [ ] Undo/redo button: move to left, remove numbering, and separate other controls with a delimiter.
-- [ ] Main buttons (new features to be implemented)
-    - [ ] 1 import data
-    - [ ] 2 import folder
-    - [ ] 3 md window
-    - [ ] 4 spreadsheet window
-    - [ ] 5 add scripting notebook (jupyter)
-    - [ ] 6 add images
-    - [ ] 7 change theme
-    - [ ] 8 align graphs (cascade, mosaic, tile, etc)
-    - [ ] 9 export all
-    - [ ] 0 more options (add export all and remove most)
 
 Toolbar 2 – Tech (vertical)
 - [ ] Visible only when graph(s) selected.
