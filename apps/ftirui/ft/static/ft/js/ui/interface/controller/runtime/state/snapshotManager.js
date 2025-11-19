@@ -1,3 +1,5 @@
+import { serializePanelsSnapshot, hydratePanelsSnapshot } from './panelSnapshotSerializer.js';
+
 export function createSnapshotManager({
   panelsModel,
   sectionManager,
@@ -31,9 +33,11 @@ export function createSnapshotManager({
 
   const snapshot = () => ({
     sections: sectionManager?.snapshot?.() ?? null,
-    panels: typeof panelsModel.snapshot === 'function'
-      ? panelsModel.snapshot()
-      : { counter: 0, items: [] },
+    panels: serializePanelsSnapshot(
+      typeof panelsModel.snapshot === 'function'
+        ? panelsModel.snapshot()
+        : { counter: 0, items: [] }
+    ),
     uiPrefs: {
       colorCursor: colorCursor?.get?.() ?? 0
     }
@@ -52,7 +56,7 @@ export function createSnapshotManager({
         colorCursor.set(Number(uiPrefs.colorCursor) || 0);
       }
       sectionManager?.load?.(snapshotValue?.sections);
-      const panelSnapshot = snapshotValue?.panels || { counter: 0, items: [] };
+      const panelSnapshot = hydratePanelsSnapshot(snapshotValue?.panels || { counter: 0, items: [] });
       panelsModel.load(panelSnapshot);
       panelsModel.getPanelsInIndexOrder().forEach((state) => {
         registerPanel?.(state, {
