@@ -73,6 +73,12 @@ export const markdownPanelType = {
     wrapper.className = 'workspace-markdown-panel';
     wrapper.dataset.mode = 'edit';
 
+    const toolbar = document.createElement('div');
+    toolbar.className = 'workspace-markdown-toolbar';
+    const toolbarActions = document.createElement('div');
+    toolbarActions.className = 'workspace-markdown-toolbar-actions';
+    toolbar.appendChild(toolbarActions);
+
     const editor = document.createElement('textarea');
     editor.className = 'workspace-markdown-editor form-control';
     editor.placeholder = 'Take notes using plain text or Markdown. See info in header for tips.';
@@ -85,6 +91,7 @@ export const markdownPanelType = {
     body.appendChild(editor);
     body.appendChild(preview);
 
+    wrapper.appendChild(toolbar);
     wrapper.appendChild(body);
     hostEl.appendChild(wrapper);
 
@@ -140,6 +147,85 @@ export const markdownPanelType = {
     };
 
     const schedulePersist = createDebounce(persistContent, 650);
+    const commitEditorValue = () => {
+      historyPending = true;
+      updatePreview(editor.value);
+      schedulePersist();
+      restoreFocusOnSave = true;
+      selectionSnapshot = {
+        start: editor.selectionStart,
+        end: editor.selectionEnd
+      };
+    };
+
+    const ensureEditorFocus = () => {
+      if (document.activeElement !== editor) {
+        editor.focus();
+      }
+    };
+
+    const wrapSelection = ({ before = '', after = '', placeholder = '' }) => {
+      ensureEditorFocus();
+      const start = editor.selectionStart ?? 0;
+      const end = editor.selectionEnd ?? start;
+      const value = editor.value;
+      const selected = value.slice(start, end) || placeholder;
+      const nextValue = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+      const nextStart = start + before.length;
+      const nextEnd = nextStart + selected.length;
+      editor.value = nextValue;
+      editor.setSelectionRange(nextStart, nextEnd);
+      commitEditorValue();
+    };
+
+    const insertHeading = (level = 1) => {
+      const headingLevel = Math.min(Math.max(Number(level) || 1, 1), 6);
+      ensureEditorFocus();
+      const start = editor.selectionStart ?? 0;
+      const end = editor.selectionEnd ?? start;
+      const prefix = `${'#'.repeat(headingLevel)} `;
+      const value = editor.value;
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineEndCandidate = value.indexOf('\n', start);
+      const lineEnd = lineEndCandidate === -1 ? value.length : lineEndCandidate;
+      const line = value.slice(lineStart, lineEnd);
+      const normalizedLine = line.replace(/^#{1,6}\s+/, '');
+      const nextLine = `${prefix}${normalizedLine || 'Heading'}`;
+      const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`;
+      const delta = nextLine.length - line.length;
+      editor.value = nextValue;
+      editor.setSelectionRange(start + delta, end + delta);
+      commitEditorValue();
+    };
+
+    const formattingActions = [
+      { id: 'h1', label: 'H1', title: 'Heading 1', handler: () => insertHeading(1) },
+      { id: 'h2', label: 'H2', title: 'Heading 2', handler: () => insertHeading(2) },
+      { id: 'h3', label: 'H3', title: 'Heading 3', handler: () => insertHeading(3) },
+      { id: 'bold', label: 'B', title: 'Bold', handler: () => wrapSelection({ before: '**', after: '**', placeholder: 'bold text' }) },
+      { id: 'italic', label: 'I', title: 'Italic', handler: () => wrapSelection({ before: '*', after: '*', placeholder: 'italic text' }) },
+      { id: 'underline', label: 'U', title: 'Underline', handler: () => wrapSelection({ before: '<u>', after: '</u>', placeholder: 'underlined' }) },
+      { id: 'strike', label: 'S', title: 'Strikethrough', handler: () => wrapSelection({ before: '~~', after: '~~', placeholder: 'strike' }) }
+    ];
+
+    const createFormattingButton = (action) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline-secondary btn-sm workspace-markdown-format-btn';
+      btn.textContent = action.label;
+      btn.title = action.title;
+      btn.dataset.mdAction = action.id;
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (typeof action.handler === 'function') {
+          action.handler();
+        }
+      });
+      return btn;
+    };
+    formattingActions.forEach((action) => {
+      toolbarActions.appendChild(createFormattingButton(action));
+    });
 
     editor.addEventListener('input', () => {
       historyPending = true;

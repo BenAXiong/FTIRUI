@@ -10,7 +10,7 @@ Phase 2 – Toolbar modernization
 - [v] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
 - [-] Implement the Global toolbar feature buttons
     [v] data structure update
-    [-] MD window
+    [v] MD window
     [ ] spreadsheet
     [ ] scripting notebook
     [ ] images
