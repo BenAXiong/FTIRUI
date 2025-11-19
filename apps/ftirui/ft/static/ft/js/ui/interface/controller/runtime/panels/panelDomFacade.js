@@ -34,12 +34,117 @@ export function createPanelDomFacade({
   const canvasPrimaryTag = (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasPrimaryTag) || '';
   const canvasPrimaryTagColor = canvasPrimaryTag ? getWorkspaceTagColor(canvasPrimaryTag) : null;
 
+  const getUIPortal = () => {
+    if (typeof document === 'undefined') return null;
+    let portal = document.querySelector('.ui-portal');
+    if (!portal) {
+      portal = document.createElement('div');
+      portal.className = 'ui-portal';
+      document.body.appendChild(portal);
+    }
+    return portal;
+  };
+
+  const placePopover = (btn, pop, opts = {}) => {
+    if (!btn || !pop) return;
+    const anchorRect = typeof opts.getAnchorRect === 'function'
+      ? opts.getAnchorRect(btn, pop)
+      : (typeof btn.getBoundingClientRect === 'function' ? btn.getBoundingClientRect() : null);
+    if (!anchorRect) return;
+    const strategy = opts.strategy || 'above';
+    const offsetX = Number.isFinite(opts.offsetX) ? Number(opts.offsetX) : 0;
+    const offsetY = Number.isFinite(opts.offsetY) ? Number(opts.offsetY) : 0;
+    let left = anchorRect.left + (anchorRect.width / 2);
+    let top = anchorRect.top + offsetY;
+    if (strategy === 'right-side') {
+      const align = opts.align || 'center';
+      left = anchorRect.right + offsetX;
+      if (align === 'start') {
+        top = anchorRect.top + offsetY;
+      } else if (align === 'end') {
+        top = anchorRect.bottom + offsetY;
+      } else {
+        top = anchorRect.top + (anchorRect.height / 2) + offsetY;
+      }
+    }
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    pop.style.bottom = 'auto';
+    pop.style.right = 'auto';
+    if (strategy === 'right-side') {
+      pop.dataset.popPlacement = 'side';
+    } else {
+      delete pop.dataset.popPlacement;
+    }
+  };
+
+  const openPortaledPopover = (btn, pop, opts = {}) => {
+    if (!btn || !pop) return;
+    const portal = getUIPortal();
+    if (!portal) return;
+    pop.__origParent = pop.parentElement;
+    portal.appendChild(pop);
+    pop.__placementOpts = opts;
+    placePopover(btn, pop, opts);
+    pop.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+    pop.__reflow = () => placePopover(btn, pop, pop.__placementOpts || {});
+    window.addEventListener('scroll', pop.__reflow, true);
+    window.addEventListener('resize', pop.__reflow, true);
+  };
+
+  const closePortaledPopover = (btn, pop) => {
+    if (!btn || !pop) return;
+    pop.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+    if (pop.__origParent) {
+      pop.__origParent.appendChild(pop);
+    }
+    window.removeEventListener('scroll', pop.__reflow, true);
+    window.removeEventListener('resize', pop.__reflow, true);
+    delete pop.__reflow;
+    delete pop.__origParent;
+    delete pop.__placementOpts;
+    delete pop.dataset.popPlacement;
+  };
+
+  const registerPopoverButton = (btn, pop, options = {}) => {
+    if (!btn || !pop) return;
+    btn.setAttribute('aria-expanded', 'false');
+    const open = () => {
+      if (typeof pop.onOpen === 'function') pop.onOpen();
+      openPortaledPopover(btn, pop, options);
+    };
+    const close = () => closePortaledPopover(btn, pop);
+    const onBtnClick = (event) => {
+      event.stopPropagation();
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      if (isOpen) {
+        close();
+      } else {
+        open();
+      }
+    };
+    btn.addEventListener('click', onBtnClick);
+    const onDocClick = (event) => {
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      if (!isOpen) return;
+      if (!pop.contains(event.target) && !btn.contains(event.target)) {
+        close();
+      }
+    };
+    document.addEventListener('click', onDocClick, { capture: true });
+    pop.__btn = btn;
+    pop.__close = close;
+  };
+
   const getPanelTypeConfig = (panelState) => getPanelType(panelState?.type);
 
   const mountPanel = ({ panelId, panelState, runtime } = {}) => {
     if (!panelId || !panelState) return null;
         const panelType = getPanelTypeConfig(panelState);
         const isPlotPanel = panelType?.capabilities?.plot !== false;
+        const isMarkdownPanel = panelType?.id === 'markdown';
         const panelEl = document.createElement('div');
         panelEl.className = 'workspace-panel';
         if (panelType?.panelClass) {
@@ -80,6 +185,36 @@ export function createPanelDomFacade({
         const actions = document.createElement('div');
         actions.className = 'workspace-panel-actions';
         let refreshActionOverflow = () => {};
+        let contentHandles = null;
+        let markdownPreviewToggleBtn = null;
+        let markdownPreviewToggleIcon = null;
+        const buildMarkdownPreviewIcon = () => {
+          const icon = document.createElement('span');
+          icon.className = 'workspace-markdown-preview-toggle-icon';
+          icon.setAttribute('aria-hidden', 'true');
+          const editorPane = document.createElement('span');
+          editorPane.className = 'pane pane--primary';
+          const previewPane = document.createElement('span');
+          previewPane.className = 'pane pane--secondary';
+          icon.appendChild(editorPane);
+          icon.appendChild(previewPane);
+          return icon;
+        };
+        const updateMarkdownPreviewToggle = () => {
+          if (!markdownPreviewToggleBtn) return;
+          const hasHandles = Boolean(contentHandles);
+          markdownPreviewToggleBtn.disabled = !hasHandles;
+          const previewVisible = (contentHandles?.getMode?.() ?? 'split') !== 'edit';
+          const label = previewVisible ? 'Hide Markdown preview' : 'Show Markdown preview';
+          markdownPreviewToggleBtn.title = label;
+          markdownPreviewToggleBtn.setAttribute('aria-label', label);
+          markdownPreviewToggleBtn.classList.toggle('is-preview-visible', previewVisible);
+          markdownPreviewToggleBtn.classList.toggle('is-preview-available', hasHandles);
+          if (!markdownPreviewToggleIcon && markdownPreviewToggleBtn) {
+            markdownPreviewToggleIcon = buildMarkdownPreviewIcon();
+            markdownPreviewToggleBtn.appendChild(markdownPreviewToggleIcon);
+          }
+        };
 
         if (isPlotPanel) {
         const popoverClosers = [];
@@ -1094,75 +1229,6 @@ export function createPanelDomFacade({
 
         appendPopoverControl(ticksBtn, ticksPopover);
 
-        function getUIPortal(){
-          let n = document.querySelector('.ui-portal');
-          if(!n){ n = document.createElement('div'); n.className='ui-portal'; document.body.appendChild(n); }
-          return n;
-        }
-        function placePopoverAbove(btn, pop){
-          const r = btn.getBoundingClientRect();
-          pop.style.left = `${r.left + r.width/2}px`;
-          pop.style.top  = `${r.top}px`;        // top edge of button; CSS translate lifts it above
-        }
-        function openPortaledPopover(btn, pop){
-          const portal = getUIPortal();
-          pop.__origParent = pop.parentElement;
-          portal.appendChild(pop);
-          placePopoverAbove(btn, pop);
-          pop.classList.add('is-open');
-          btn.setAttribute('aria-expanded','true');
-
-          pop.__reflow = () => placePopoverAbove(btn, pop);
-          window.addEventListener('scroll', pop.__reflow, true);
-          window.addEventListener('resize', pop.__reflow, true);
-        }
-        function closePortaledPopover(btn, pop){
-          pop.classList.remove('is-open');
-          btn.setAttribute('aria-expanded','false');
-          if(pop.__origParent) pop.__origParent.appendChild(pop);
-          window.removeEventListener('scroll', pop.__reflow, true);
-          window.removeEventListener('resize', pop.__reflow, true);
-          delete pop.__reflow; delete pop.__origParent;
-        }
-
-        function readPopoverOpts(btn){
-          return {
-            side:  btn.dataset.popSide  || 'up',     // 'up' | 'down'
-            align: btn.dataset.popAlign || 'center', // 'center' | 'left' | 'right'
-            dx:    Number(btn.dataset.popDx || 0),
-            dy:    Number(btn.dataset.popDy || 10)
-          };
-        }
-
-        function registerPopoverButton(btn, pop){
-          // ensure aria state
-          btn.setAttribute('aria-expanded','false');
-
-          const open = () => {
-            if (typeof pop.onOpen === 'function') pop.onOpen();
-            openPortaledPopover(btn, pop);
-          };
-          const close = () => closePortaledPopover(btn, pop);
-
-          const onBtnClick = (e) => {
-            e.stopPropagation();
-            const isOpen = btn.getAttribute('aria-expanded') === 'true';
-            isOpen ? close() : open();
-          };
-          btn.addEventListener('click', onBtnClick);
-
-          // outside-click close
-          const onDocClick = (e) => {
-            const isOpen = btn.getAttribute('aria-expanded') === 'true';
-            if (!isOpen) return;
-            if (!pop.contains(e.target) && !btn.contains(e.target)) close();
-          };
-          document.addEventListener('click', onDocClick, { capture:true });
-
-          pop.__btn = btn;
-          pop.__close = close;
-        }
-
         const figureForLegend = safeGetPanelFigure(panelId);
         const figureLayoutForLegend = figureForLegend?.layout || {};
         const legendInitiallyVisible = Object.prototype.hasOwnProperty.call(figureLayoutForLegend, 'showlegend')
@@ -1590,6 +1656,220 @@ export function createPanelDomFacade({
         actions.appendChild(settingsBtn);
         actions.appendChild(closeBtn);
         } else {
+          if (isMarkdownPanel) {
+            markdownPreviewToggleBtn = document.createElement('button');
+            markdownPreviewToggleBtn.type = 'button';
+            markdownPreviewToggleBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-markdown-preview-toggle';
+            markdownPreviewToggleBtn.addEventListener('click', () => {
+              if (!contentHandles) return;
+              const currentMode = contentHandles.getMode?.() || 'split';
+              const nextMode = currentMode === 'edit' ? 'split' : 'edit';
+              contentHandles.setMode?.(nextMode);
+              updateMarkdownPreviewToggle();
+            });
+            updateMarkdownPreviewToggle();
+            actions.appendChild(markdownPreviewToggleBtn);
+
+            const markdownShortcutTabs = [
+              {
+                id: 'text',
+                label: 'Text',
+                shortcuts: [
+                  { label: 'Bold text', pattern: '**bold**', hint: 'Ctrl/Cmd + B' },
+                  { label: 'Italic text', pattern: '*italic*', hint: 'Ctrl/Cmd + I' },
+                  { label: 'Strikethrough', pattern: '~~strike~~', hint: 'Wrap text with double tildes' },
+                  { label: 'Inline code', pattern: '`code`', hint: 'Wrap with single backticks' },
+                  { label: 'Links', pattern: '[title](https://example.com)', hint: 'Select text + Ctrl/Cmd + K' },
+                  { label: 'Lists', pattern: '- Item   ·   1. Ordered', hint: 'Type "-" or number + space' }
+                ]
+              },
+              {
+                id: 'structure',
+                label: 'Structure',
+                shortcuts: [
+                  { label: 'Headings', pattern: '# H1 … ###### H6', hint: 'Prefix with 1–6 hash symbols' },
+                  { label: 'Checklist', pattern: '- [ ] Task   ·   - [x] Done', hint: 'Use [ ] or [x] after "-"' },
+                  { label: 'Code block', pattern: '```lang\nprint("hi")\n```', hint: 'Fence with triple backticks' },
+                  { label: 'Quote', pattern: '> Focused text', hint: 'Begin line with > + space' },
+                  { label: 'Tables', pattern: '| Col | Col |\n| --- | --- |\n| Val | Val |', hint: 'Add a separator row of ---' },
+                  { label: 'Rule / divider', pattern: '---', hint: 'Three hyphens, underscores, or asterisks' }
+                ]
+              },
+              {
+                id: 'equations',
+                label: 'Equations',
+                shortcuts: [
+                  { label: 'Inline math', pattern: '$E = mc^2$', hint: 'Wrap LaTeX with single $…$' },
+                  { label: 'Display math', pattern: '$$\\int_a^b f(x) dx$$', hint: 'Use double $$ for centered blocks' },
+                  { label: 'Subscripts & superscripts', pattern: 'H_{2}O   ·   x^{2}', hint: 'Inside $…$, use _ for subscripts and ^ for superscripts' },
+                  { label: 'Greek symbols', pattern: '$\\alpha, \\beta, \\gamma$', hint: 'Use LaTeX commands inside $' }
+                ]
+              }
+            ];
+
+            const infoActionWrapper = document.createElement('div');
+            infoActionWrapper.className = 'workspace-panel-action-wrapper';
+
+            const infoBtn = document.createElement('button');
+            infoBtn.type = 'button';
+            infoBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+            infoBtn.innerHTML = '<i class="bi bi-info-circle"></i>';
+            infoBtn.title = 'Markdown help';
+            infoBtn.setAttribute('aria-expanded', 'false');
+            infoActionWrapper.appendChild(infoBtn);
+
+            const infoPopover = document.createElement('div');
+            infoPopover.className = 'workspace-panel-popover workspace-panel-popover--markdown';
+
+            const introSection = document.createElement('div');
+            introSection.className = 'workspace-panel-popover-section';
+            const introLabel = document.createElement('div');
+            introLabel.className = 'workspace-panel-popover-label';
+            introLabel.textContent = 'Markdown shortcuts';
+            const introCopy = document.createElement('p');
+            introCopy.className = 'workspace-panel-popover-subtle mb-0';
+            introCopy.textContent = 'Use tabs to jump between text, layout, and math tips.';
+            introSection.appendChild(introLabel);
+            introSection.appendChild(introCopy);
+            infoPopover.appendChild(introSection);
+
+            const tabsNav = document.createElement('div');
+            tabsNav.className = 'workspace-panel-popover-tabs';
+            tabsNav.setAttribute('role', 'tablist');
+
+            const panelsContainer = document.createElement('div');
+            panelsContainer.className = 'workspace-panel-popover-panels';
+
+            const createShortcutRow = (shortcut = {}) => {
+              const row = document.createElement('div');
+              row.className = 'workspace-markdown-shortcut';
+
+              const header = document.createElement('div');
+              header.className = 'workspace-markdown-shortcut-header';
+
+              const labelEl = document.createElement('span');
+              labelEl.className = 'workspace-markdown-shortcut-label';
+              labelEl.textContent = shortcut.label || '';
+
+              const patternEl = document.createElement('code');
+              patternEl.className = 'workspace-markdown-shortcut-pattern';
+              patternEl.textContent = shortcut.pattern || '';
+
+              header.appendChild(labelEl);
+              header.appendChild(patternEl);
+              row.appendChild(header);
+
+              if (shortcut.description) {
+                const descriptionEl = document.createElement('div');
+                descriptionEl.className = 'workspace-markdown-shortcut-description';
+                descriptionEl.textContent = shortcut.description;
+                row.appendChild(descriptionEl);
+              }
+
+              if (shortcut.hint) {
+                const hintEl = document.createElement('div');
+                hintEl.className = 'workspace-markdown-shortcut-hint';
+                hintEl.textContent = shortcut.hint;
+                row.appendChild(hintEl);
+              }
+
+              return row;
+            };
+
+            markdownShortcutTabs.forEach((tab, index) => {
+              const tabBtn = document.createElement('button');
+              tabBtn.type = 'button';
+              tabBtn.className = 'workspace-panel-popover-tab';
+              tabBtn.dataset.mdTab = tab.id;
+              tabBtn.textContent = tab.label;
+              tabBtn.setAttribute('role', 'tab');
+              tabBtn.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+              if (index === 0) {
+                tabBtn.classList.add('is-active');
+              }
+              tabsNav.appendChild(tabBtn);
+
+              const panel = document.createElement('div');
+              panel.className = 'workspace-panel-popover-panel';
+              panel.dataset.mdPanel = tab.id;
+              panel.setAttribute('role', 'tabpanel');
+              if (index === 0) {
+                panel.classList.add('is-active');
+              }
+              const list = document.createElement('div');
+              list.className = 'workspace-markdown-shortcut-list';
+              tab.shortcuts.forEach((shortcut) => {
+                list.appendChild(createShortcutRow(shortcut));
+              });
+              panel.appendChild(list);
+              panelsContainer.appendChild(panel);
+            });
+
+            const tabsSection = document.createElement('div');
+            tabsSection.className = 'workspace-panel-popover-section workspace-panel-popover-section--markdown';
+            tabsSection.appendChild(tabsNav);
+            tabsSection.appendChild(panelsContainer);
+            infoPopover.appendChild(tabsSection);
+
+            const footer = document.createElement('div');
+            footer.className = 'workspace-markdown-shortcut-footer';
+            const guideBtn = document.createElement('button');
+            guideBtn.type = 'button';
+            guideBtn.className = 'btn btn-link btn-sm p-0';
+            guideBtn.dataset.markdownGuide = '1';
+            guideBtn.textContent = 'Open Markdown guide ↗';
+            footer.appendChild(guideBtn);
+            infoPopover.appendChild(footer);
+
+            let activeMarkdownInfoTab = markdownShortcutTabs[0]?.id || 'text';
+            const setMarkdownInfoTab = (tabId) => {
+              const resolved = markdownShortcutTabs.find((tab) => tab.id === tabId)?.id
+                || markdownShortcutTabs[0]?.id
+                || 'text';
+              tabsNav.querySelectorAll('[data-md-tab]').forEach((btn) => {
+                const isActive = btn.dataset.mdTab === resolved;
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-selected', String(isActive));
+              });
+              panelsContainer.querySelectorAll('[data-md-panel]').forEach((panel) => {
+                panel.classList.toggle('is-active', panel.dataset.mdPanel === resolved);
+              });
+            };
+
+            infoPopover.addEventListener('click', (event) => {
+              event.stopPropagation();
+              const tabBtn = event.target.closest('[data-md-tab]');
+              if (tabBtn) {
+                activeMarkdownInfoTab = tabBtn.dataset.mdTab;
+                setMarkdownInfoTab(activeMarkdownInfoTab);
+                return;
+              }
+              if (event.target.matches('[data-markdown-guide]')) {
+                if (typeof window !== 'undefined' && typeof window.open === 'function') {
+                  window.open('https://www.markdownguide.org/cheat-sheet/', '_blank', 'noopener');
+                }
+              }
+            });
+            infoPopover.onOpen = () => setMarkdownInfoTab(activeMarkdownInfoTab);
+
+            infoActionWrapper.appendChild(infoPopover);
+            actions.appendChild(infoActionWrapper);
+            registerPopoverButton(infoBtn, infoPopover, {
+              strategy: 'right-side',
+              align: 'center',
+              offsetX: 20,
+              getAnchorRect: () => {
+                const anchorEl = (contentHandles?.plotEl ?? plotHost ?? panelEl);
+                if (anchorEl && typeof anchorEl.getBoundingClientRect === 'function') {
+                  return anchorEl.getBoundingClientRect();
+                }
+                return typeof panelEl.getBoundingClientRect === 'function'
+                  ? panelEl.getBoundingClientRect()
+                  : infoBtn.getBoundingClientRect();
+              }
+            });
+          }
+
           const closeBtn = document.createElement('button');
           closeBtn.type = 'button';
           closeBtn.className = 'btn btn-outline-secondary';
@@ -1625,7 +1905,7 @@ export function createPanelDomFacade({
           canvas.appendChild(panelEl);
         }
 
-        const contentHandles = panelType?.mountContent?.({
+        contentHandles = panelType?.mountContent?.({
           panelId,
           panelState,
           rootEl: panelEl,
@@ -1636,7 +1916,11 @@ export function createPanelDomFacade({
           selectors: {
             getPanelContent: safeGetPanelContent
           }
-        }) || { plotEl: plotHost };
+        }) || null;
+        if (!contentHandles) {
+          contentHandles = { plotEl: plotHost };
+        }
+        updateMarkdownPreviewToggle();
         const resolvedPlotHost = contentHandles?.plotEl ?? (isPlotPanel ? plotHost : null);
 
         const domHandles = {

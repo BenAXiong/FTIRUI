@@ -61,7 +61,7 @@ export const markdownPanelType = {
       content: buildContent(text)
     };
   },
-  mountContent({ panelId, rootEl, hostEl, actions = {}, selectors = {} }) {
+  mountContent({ panelId, panelState = {}, rootEl, hostEl, actions = {}, selectors = {} }) {
     if (rootEl) {
       rootEl.classList.add('workspace-panel--markdown');
     }
@@ -71,44 +71,21 @@ export const markdownPanelType = {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'workspace-markdown-panel';
-    wrapper.dataset.mode = 'preview';
-
-    const toolbar = document.createElement('div');
-    toolbar.className = 'workspace-markdown-toolbar';
-
-    const modeGroup = document.createElement('div');
-    modeGroup.className = 'btn-group btn-group-sm workspace-markdown-toolbar-modes';
-
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button';
-    editBtn.className = 'btn btn-outline-secondary';
-    editBtn.textContent = 'Edit';
-
-    const previewBtn = document.createElement('button');
-    previewBtn.type = 'button';
-    previewBtn.className = 'btn btn-outline-secondary is-active';
-    previewBtn.textContent = 'Preview';
-
-    modeGroup.appendChild(editBtn);
-    modeGroup.appendChild(previewBtn);
-
-    const status = document.createElement('span');
-    status.className = 'workspace-markdown-status text-body-secondary';
-    status.textContent = 'Saved';
-
-    toolbar.appendChild(modeGroup);
-    toolbar.appendChild(status);
+    wrapper.dataset.mode = 'edit';
 
     const editor = document.createElement('textarea');
     editor.className = 'workspace-markdown-editor form-control';
-    editor.placeholder = 'Write Markdown…';
+    editor.placeholder = 'Take notes using plain text or Markdown. See info in header for tips.';
 
     const preview = document.createElement('div');
     preview.className = 'workspace-markdown-preview';
 
-    wrapper.appendChild(toolbar);
-    wrapper.appendChild(editor);
-    wrapper.appendChild(preview);
+    const body = document.createElement('div');
+    body.className = 'workspace-markdown-body';
+    body.appendChild(editor);
+    body.appendChild(preview);
+
+    wrapper.appendChild(body);
     hostEl.appendChild(wrapper);
 
     const safeGetContent = typeof selectors.getPanelContent === 'function'
@@ -120,12 +97,13 @@ export const markdownPanelType = {
 
     let lastSavedText = resolveText(safeGetContent(panelId));
     let historyPending = false;
+    let restoreFocusOnSave = false;
+    let selectionSnapshot = null;
 
     const applyMode = (mode) => {
-      wrapper.dataset.mode = mode;
-      editBtn.classList.toggle('is-active', mode === 'edit');
-      previewBtn.classList.toggle('is-active', mode === 'preview');
-      if (mode === 'edit') {
+      const resolvedMode = mode === 'edit' ? 'edit' : 'split';
+      wrapper.dataset.mode = resolvedMode;
+      if (resolvedMode === 'edit' && document.activeElement !== editor) {
         editor.focus();
       }
     };
@@ -138,17 +116,27 @@ export const markdownPanelType = {
     const persistContent = () => {
       const nextText = editor.value;
       if (nextText === lastSavedText) {
-        status.textContent = 'Saved';
         return;
       }
-      status.textContent = 'Saving…';
+      const shouldRestoreFocus = restoreFocusOnSave;
+      const selection = selectionSnapshot;
+      restoreFocusOnSave = false;
+      selectionSnapshot = null;
       const shouldPush = historyPending;
       historyPending = false;
       safeSetContent(panelId, buildContent(nextText), {
         pushHistory: shouldPush
       });
       lastSavedText = nextText;
-      status.textContent = 'Saved';
+      if (shouldRestoreFocus && document.activeElement !== editor) {
+        editor.focus();
+        if (selection) {
+          const len = editor.value.length;
+          const start = Math.min(selection.start, len);
+          const end = Math.min(selection.end, len);
+          editor.setSelectionRange(start, end);
+        }
+      }
     };
 
     const schedulePersist = createDebounce(persistContent, 650);
@@ -157,37 +145,55 @@ export const markdownPanelType = {
       historyPending = true;
       const text = editor.value;
       updatePreview(text);
-      status.textContent = 'Editing…';
       schedulePersist();
+      if (document.activeElement === editor) {
+        restoreFocusOnSave = true;
+        selectionSnapshot = {
+          start: editor.selectionStart,
+          end: editor.selectionEnd
+        };
+      }
     });
 
     editor.addEventListener('blur', () => {
+      restoreFocusOnSave = false;
+      selectionSnapshot = null;
       schedulePersist.flush();
-    });
-
-    editBtn.addEventListener('click', () => applyMode('edit'));
-    previewBtn.addEventListener('click', () => {
-      schedulePersist.flush();
-      applyMode('preview');
     });
 
     const refreshContent = (content) => {
       const text = resolveText(content);
       lastSavedText = text;
       historyPending = false;
-      if (document.activeElement !== editor) {
+      if (editor.value !== text) {
+        const wasFocused = document.activeElement === editor;
+        const selection = wasFocused
+          ? { start: editor.selectionStart, end: editor.selectionEnd }
+          : null;
         editor.value = text;
+        if (wasFocused && selection) {
+          const len = editor.value.length;
+          const start = Math.min(selection.start, len);
+          const end = Math.min(selection.end, len);
+          editor.setSelectionRange(start, end);
+        }
       }
       updatePreview(text);
-      status.textContent = text.trim() ? 'Updated' : 'Empty note';
+      if (wrapper.dataset.mode === 'edit' && document.activeElement !== editor) {
+        editor.focus();
+      }
     };
 
     const initialContent = safeGetContent(panelId) ?? panelState.content;
     refreshContent(initialContent);
 
+    applyMode('split');
+
     return {
       plotEl: null,
-      refreshContent
+      refreshContent,
+      getMode: () => wrapper.dataset.mode,
+      setMode: (mode) => applyMode(mode)
     };
   }
 };

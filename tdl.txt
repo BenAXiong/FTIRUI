@@ -1,8 +1,7 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 /
-Suggested follow-ups: (1) extend the same payload/render structure to minimal spreadsheets/Jupyter/image panels, using the new content.kind wiring; (2) update the browser tree to show icons/labels for non-plot panels and consider dedicated export routines for notes.
-md: horizontal split, preview inactive, helper tooltip, 
+
 /
 
 Phase 1 – UI revamp (done)
