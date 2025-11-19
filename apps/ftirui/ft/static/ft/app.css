@@ -2118,6 +2118,36 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   flex: 1 1 0;
   min-width: 0;
 }
+.workspace-panel.workspace-panel--image .workspace-panel-plot{
+  padding: 0;
+}
+.workspace-panel-plot--image{
+  display: block;
+}
+.workspace-image-panel{
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.workspace-image-panel.is-empty::after{
+  content: 'No image selected';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-secondary-color);
+  font-size: .9rem;
+  border: 1px dashed color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  border-radius: .75rem;
+}
+.workspace-image{
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+}
 .workspace-panel-popover--markdown{
   width: min(360px, 80vw);
 }

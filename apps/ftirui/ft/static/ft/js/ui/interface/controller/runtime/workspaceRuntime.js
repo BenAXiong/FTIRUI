@@ -24,6 +24,7 @@ import { registerPanelType, getPanelType } from './panels/registry/index.js';
 import { plotPanelType } from './panels/registry/plotPanel.js';
 import { markdownPanelType } from './panels/registry/markdownPanel.js';
 import { spreadsheetPanelType } from './panels/registry/spreadsheetPanel.js';
+import { imagePanelType } from './panels/registry/imagePanel.js';
 import { createHeaderActions } from './panels/headerActions.js';
 import { createPlotFacade } from './panels/plotFacade.js';
 import { createSnapshotManager } from './state/snapshotManager.js';
@@ -41,6 +42,7 @@ import { createGlobalCommandsController } from './toolbar/globalCommands.js';
 registerPanelType(plotPanelType);
 registerPanelType(markdownPanelType);
 registerPanelType(spreadsheetPanelType);
+registerPanelType(imagePanelType);
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
@@ -288,6 +290,7 @@ export function initWorkspaceRuntime(context = {}) {
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
   const markdownBtn = roots.markdownButton ?? document.getElementById('c_canvas_add_markdown');
   const sheetBtn = roots.sheetButton ?? document.getElementById('c_canvas_add_sheet');
+  const imageBtn = roots.imageButton ?? document.getElementById('c_canvas_add_images');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
@@ -309,6 +312,104 @@ export function initWorkspaceRuntime(context = {}) {
         title: resolvePanelTitle(record),
         index: record.index
       }));
+  };
+
+  let imagePickerInput = null;
+  const ensureImagePickerInput = () => {
+    if (imagePickerInput) return imagePickerInput;
+    if (typeof document === 'undefined') return null;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.hidden = true;
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', (event) => {
+      const files = event.target?.files;
+      handleImageFiles(files);
+      input.value = '';
+    });
+    imagePickerInput = input;
+    return input;
+  };
+
+  const handleImageFiles = (fileList) => {
+    const files = Array.from(fileList || []).filter(Boolean);
+    if (!files.length) return;
+    files.forEach((file) => {
+      if (!file.type || !file.type.startsWith('image/')) {
+        showToast(`${file?.name || 'File'} is not an image.`, 'warning');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+        if (!dataUrl) {
+          showToast(`Could not load ${file?.name || 'image'}.`, 'danger');
+          return;
+        }
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          const naturalWidth = Math.max(1, tempImg.naturalWidth || 600);
+          const naturalHeight = Math.max(1, tempImg.naturalHeight || 400);
+          const ratio = naturalHeight / naturalWidth;
+          const maxWidth = 960;
+          const minWidth = 260;
+          let width = naturalWidth;
+          if (width > maxWidth) {
+            width = maxWidth;
+          } else if (width < minWidth) {
+            width = minWidth;
+          }
+          let height = Math.round(width * ratio);
+          const minHeight = 220;
+          const maxHeight = 720;
+          if (height < minHeight) height = minHeight;
+          if (height > maxHeight) height = maxHeight;
+          createPanelOfType('image', {
+            title: file?.name || 'Image',
+            width: Math.round(width),
+            height: Math.round(height),
+            content: {
+              kind: 'image',
+              version: 1,
+              name: file?.name || 'Image',
+              dataUrl
+            }
+          });
+          showToast(`Image "${file?.name || 'Image'}" added to workspace.`, 'success');
+        };
+        tempImg.onerror = () => {
+          createPanelOfType('image', {
+            title: file?.name || 'Image',
+            width: 520,
+            height: 420,
+            content: {
+              kind: 'image',
+              version: 1,
+              name: file?.name || 'Image',
+              dataUrl
+            }
+          });
+          showToast(`Image "${file?.name || 'Image'}" added, but size detection failed.`, 'warning');
+        };
+        tempImg.src = dataUrl;
+      };
+      reader.onerror = () => {
+        showToast(`Failed to read ${file?.name || 'image'}.`, 'danger');
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const openImagePicker = () => {
+    const input = ensureImagePickerInput();
+    if (input) {
+      input.click();
+    } else {
+      showToast('Image picker unavailable.', 'danger');
+    }
   };
 
   const updateToolbarMetrics = () => {
@@ -2819,10 +2920,12 @@ let updateCanvasState = () => {};
   const globalCommandsController = createGlobalCommandsController({
     buttons: {
       markdownButton: markdownBtn,
-      sheetButton: sheetBtn
+      sheetButton: sheetBtn,
+      imageButton: imageBtn
     },
     actions: {
-      createPanel: createPanelOfType
+      createPanel: createPanelOfType,
+      openImagePicker
     }
   });
 

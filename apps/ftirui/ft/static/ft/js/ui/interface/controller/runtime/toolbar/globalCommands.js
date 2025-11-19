@@ -21,11 +21,13 @@ export function createGlobalCommandsController({
 
   const {
     markdownButton,
-    sheetButton
+    sheetButton,
+    imageButton
   } = buttons;
 
   const {
-    createPanel = noop
+    createPanel = noop,
+    openImagePicker = noop
   } = actions;
 
   add(markdownButton, () => createPanel('markdown', {
@@ -38,6 +40,7 @@ export function createGlobalCommandsController({
     width: 880,
     height: 520
   }));
+  add(imageButton, () => openImagePicker());
 
   const dispose = () => {
     listeners.splice(0).forEach(({ node, wrapped }) => {
