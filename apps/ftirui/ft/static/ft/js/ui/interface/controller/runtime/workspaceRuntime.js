@@ -35,6 +35,7 @@ import { createRuntimeState } from './context/runtimeState.js';
 import { createUiPreferencesFacade } from './preferences/facade.js';
 import { createSectionManager } from './sections/manager.js';
 import { createHudButtons } from './controls/createHudButtons.js';
+import { createGlobalCommandsController } from './toolbar/globalCommands.js';
 
 registerPanelType(plotPanelType);
 registerPanelType(markdownPanelType);
@@ -1261,6 +1262,13 @@ let searchTerm = '';
 const getSearchTerm = () => searchTerm;
 
 let registerPanel = () => null;
+const createPanelOfType = (typeId, state = {}) => {
+  const nextState = {
+    ...state,
+    type: typeId
+  };
+  return registerPanel(nextState);
+};
 let panelDomFacade = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
@@ -2502,15 +2510,6 @@ let updateCanvasState = () => {};
     return updated;
   };
 
-  const createMarkdownPanel = () => {
-    registerPanel({
-      type: 'markdown',
-      title: 'Markdown note',
-      width: 640,
-      height: 420
-    });
-  };
-
 
   registerPanel = (incomingState, {
     skipHistory = false,
@@ -2793,6 +2792,15 @@ let updateCanvasState = () => {};
     }
   });
 
+  const globalCommandsController = createGlobalCommandsController({
+    buttons: {
+      markdownButton: markdownBtn
+    },
+    actions: {
+      createPanel: createPanelOfType
+    }
+  });
+
   const ioFacade = createIoFacade({
     dom: {
       canvas,
@@ -2869,10 +2877,6 @@ let updateCanvasState = () => {};
       panelDom.searchInput.blur();
       renderBrowser();
     }
-  });
-
-  markdownBtn?.addEventListener('click', () => {
-    createMarkdownPanel();
   });
 
   browserFacade = createBrowserFacade({
@@ -3072,6 +3076,7 @@ let updateCanvasState = () => {};
       hudButtonsHandles.container.parentNode.removeChild(hudButtonsHandles.container);
     }
     hudButtonsHandles = null;
+    globalCommandsController?.dispose?.();
     devToggleButton = null;
     cdpToggleButton = null;
     ghostToggleButton = null;
