@@ -290,7 +290,9 @@ export function initWorkspaceRuntime(context = {}) {
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
   const markdownBtn = roots.markdownButton ?? document.getElementById('c_canvas_add_markdown');
   const sheetBtn = roots.sheetButton ?? document.getElementById('c_canvas_add_sheet');
-  const imageBtn = roots.imageButton ?? document.getElementById('c_canvas_add_images');
+  const imageBrowseBtn = roots.imageBrowseButton ?? document.getElementById('c_canvas_add_image_browse');
+  const imageDriveBtn = roots.imageDriveButton ?? document.getElementById('c_canvas_add_image_drive');
+  const imageLinkBtn = roots.imageLinkButton ?? document.getElementById('c_canvas_add_image_link');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
@@ -316,11 +318,11 @@ export function initWorkspaceRuntime(context = {}) {
 
   let imagePickerInput = null;
   const ensureImagePickerInput = () => {
-    if (imagePickerInput) return imagePickerInput;
-    if (typeof document === 'undefined') return null;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
+  if (imagePickerInput) return imagePickerInput;
+  if (typeof document === 'undefined') return null;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
     input.multiple = true;
     input.hidden = true;
     input.style.display = 'none';
@@ -330,9 +332,69 @@ export function initWorkspaceRuntime(context = {}) {
       handleImageFiles(files);
       input.value = '';
     });
-    imagePickerInput = input;
-    return input;
+  imagePickerInput = input;
+  return input;
+};
+
+const createImagePanelFromData = (name, dataUrl, { silent = false } = {}) => {
+  const panelTitle = (typeof name === 'string' && name.trim()) ? name.trim() : 'Image';
+  const addPanel = (width = 520, height = 420) => createPanelOfType('image', {
+    title: panelTitle,
+    width,
+    height,
+    content: {
+      kind: 'image',
+      version: 1,
+      name: panelTitle,
+      dataUrl
+    }
+  });
+  const tempImg = new Image();
+  tempImg.crossOrigin = 'anonymous';
+  tempImg.onload = () => {
+    const naturalWidth = Math.max(1, tempImg.naturalWidth || 600);
+    const naturalHeight = Math.max(1, tempImg.naturalHeight || 400);
+    const ratio = naturalHeight / naturalWidth;
+    const maxWidth = 960;
+    const minWidth = 260;
+    let width = naturalWidth;
+    if (width > maxWidth) width = maxWidth;
+    if (width < minWidth) width = minWidth;
+    let height = Math.round(width * ratio);
+    const minHeight = 220;
+    const maxHeight = 720;
+    if (height < minHeight) height = minHeight;
+    if (height > maxHeight) height = maxHeight;
+    addPanel(Math.round(width), Math.round(height));
+    if (!silent) {
+      showToast(`Image "${panelTitle}" added to workspace.`, 'success');
+    }
   };
+  tempImg.onerror = () => {
+    addPanel();
+    if (!silent) {
+      showToast(`Image "${panelTitle}" added, size detection failed.`, 'warning');
+    }
+  };
+  tempImg.src = dataUrl;
+};
+
+const fetchRemoteImageAsDataUrl = async (url) => {
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) {
+    throw new Error(`Fetch failed with status ${response.status}`);
+  }
+  const blob = await response.blob();
+  if (!blob.size) {
+    throw new Error('Fetched image is empty.');
+  }
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(new Error('Failed to read fetched image.'));
+    reader.readAsDataURL(blob);
+  });
+};
 
   const handleImageFiles = (fileList) => {
     const files = Array.from(fileList || []).filter(Boolean);
@@ -349,52 +411,7 @@ export function initWorkspaceRuntime(context = {}) {
           showToast(`Could not load ${file?.name || 'image'}.`, 'danger');
           return;
         }
-        const tempImg = new Image();
-        tempImg.onload = () => {
-          const naturalWidth = Math.max(1, tempImg.naturalWidth || 600);
-          const naturalHeight = Math.max(1, tempImg.naturalHeight || 400);
-          const ratio = naturalHeight / naturalWidth;
-          const maxWidth = 960;
-          const minWidth = 260;
-          let width = naturalWidth;
-          if (width > maxWidth) {
-            width = maxWidth;
-          } else if (width < minWidth) {
-            width = minWidth;
-          }
-          let height = Math.round(width * ratio);
-          const minHeight = 220;
-          const maxHeight = 720;
-          if (height < minHeight) height = minHeight;
-          if (height > maxHeight) height = maxHeight;
-          createPanelOfType('image', {
-            title: file?.name || 'Image',
-            width: Math.round(width),
-            height: Math.round(height),
-            content: {
-              kind: 'image',
-              version: 1,
-              name: file?.name || 'Image',
-              dataUrl
-            }
-          });
-          showToast(`Image "${file?.name || 'Image'}" added to workspace.`, 'success');
-        };
-        tempImg.onerror = () => {
-          createPanelOfType('image', {
-            title: file?.name || 'Image',
-            width: 520,
-            height: 420,
-            content: {
-              kind: 'image',
-              version: 1,
-              name: file?.name || 'Image',
-              dataUrl
-            }
-          });
-          showToast(`Image "${file?.name || 'Image'}" added, but size detection failed.`, 'warning');
-        };
-        tempImg.src = dataUrl;
+        createImagePanelFromData(file?.name || 'Image', dataUrl);
       };
       reader.onerror = () => {
         showToast(`Failed to read ${file?.name || 'image'}.`, 'danger');
@@ -2921,11 +2938,29 @@ let updateCanvasState = () => {};
     buttons: {
       markdownButton: markdownBtn,
       sheetButton: sheetBtn,
-      imageButton: imageBtn
+      imageBrowseButton: imageBrowseBtn,
+      imageDriveButton: imageDriveBtn,
+      imageLinkButton: imageLinkBtn
     },
     actions: {
       createPanel: createPanelOfType,
-      openImagePicker
+      openImagePicker,
+      importImageFromDrive: () => showToast('Google Drive import is not implemented yet.', 'warning'),
+      promptImageUrl: async () => {
+        const url = window.prompt('Paste image URL');
+        if (!url || !url.trim()) return;
+        const trimmed = url.trim();
+        try {
+          showToast('Fetching image…', 'info', 1600);
+          const dataUrl = await fetchRemoteImageAsDataUrl(trimmed);
+          createImagePanelFromData(trimmed, dataUrl, { silent: true });
+          showToast('Image loaded from URL.', 'success');
+        } catch (err) {
+          console.warn('Failed to fetch remote image, falling back to direct link.', err);
+          createImagePanelFromData(trimmed, trimmed, { silent: true });
+          showToast('Linked image added (remote fetch failed).', 'warning');
+        }
+      }
     }
   });
 

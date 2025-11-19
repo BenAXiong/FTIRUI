@@ -33,10 +33,32 @@
       <i class="bi bi-journal-code workspace-toolbar-icon" aria-hidden="true"></i>
       <span class="visually-hidden">Add scripting notebook</span>
     </button>
-    <button id="c_canvas_add_images" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Add image panel" aria-label="Add image panel">
-      <i class="bi bi-images workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Add image panel</span>
-    </button>
+    <div class="btn-group workspace-toolbar-btn-group">
+      <button id="c_canvas_add_images" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Add image panel" aria-label="Add image panel" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-images workspace-toolbar-icon" aria-hidden="true"></i>
+        <span class="visually-hidden">Add image panel</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end workspace-toolbar-dropdown-menu" aria-labelledby="c_canvas_add_images">
+        <li>
+          <button class="dropdown-item" type="button" id="c_canvas_add_image_browse">
+            <i class="bi bi-folder2-open"></i>
+            <span>Browse files</span>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item" type="button" id="c_canvas_add_image_drive">
+            <i class="bi bi-cloud-arrow-up"></i>
+            <span>Import from Drive</span>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item" type="button" id="c_canvas_add_image_link">
+            <i class="bi bi-link-45deg"></i>
+            <span>Paste image URL</span>
+          </button>
+        </li>
+      </ul>
+    </div>
   </div>
   <div class="btn-group btn-group-sm" role="group" aria-label="Layout and exports">
     <button id="c_canvas_toggle_theme" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Change workspace theme" aria-label="Change workspace theme" disabled>
