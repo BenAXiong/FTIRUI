@@ -14,6 +14,7 @@ export function createHeaderActions(context = {}) {
 
   const getPanelDom = selectors.getPanelDom || (() => null);
   const getPanelFigure = selectors.getPanelFigure || (() => ({ data: [], layout: {} }));
+  const getPanelContent = selectors.getPanelContent || (() => null);
 
   const normalizePanelTraces = traces.normalizePanelTraces || (() => {});
   const renderPlot = traces.renderPlot || (() => {});
@@ -25,6 +26,25 @@ export function createHeaderActions(context = {}) {
 
   const exportFigure = plot.exportFigure || (() => Promise.resolve());
   const resizePlot = plot.resize || (() => {});
+
+  const panelsApi = context.panels || {};
+  const ingestPanelFromPayloads = panelsApi.ingestPayloadAsPanel || (() => null);
+  const addTracesToPanel = panelsApi.addTracesToPanel || (() => false);
+
+  const safeEnsureArray = (value) => (Array.isArray(value) ? value : (typeof value === 'undefined' || value === null ? [] : [value]));
+  const sanitizeSeriesValue = (value) => {
+    if (value === null || typeof value === 'undefined') return null;
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const numeric = Number(trimmed);
+      return Number.isFinite(numeric) ? numeric : trimmed;
+    }
+    return value;
+  };
   const historyApi = context.historyApi || {};
 
   const clampSubdivisions = (value) => Math.max(1, Math.min(10, Math.round(Number(value) || 1)));
@@ -231,6 +251,26 @@ export function createHeaderActions(context = {}) {
     const dom = getPanelDom(panelId);
 
     switch (act) {
+      case 'spreadsheet-plot-columns': {
+        const traces = safeEnsureArray(payload.traces).map((entry) => ({
+          ...entry,
+          x: safeEnsureArray(entry?.x).map(sanitizeSeriesValue),
+          y: safeEnsureArray(entry?.y).map(sanitizeSeriesValue)
+        })).filter((entry) => entry.x.length && entry.y.length);
+        if (!traces.length) break;
+        const mode = payload.mode === 'existing' ? 'existing' : 'new';
+        if (mode === 'existing' && payload.targetPanelId) {
+          addTracesToPanel(payload.targetPanelId, traces);
+          break;
+        }
+        ingestPanelFromPayloads(traces, {
+          width: payload.width,
+          height: payload.height,
+          sectionId: payload.sectionId
+        });
+        break;
+      }
+
       case 'cursor': {
         const on = !!payload.on;
         const patch = on

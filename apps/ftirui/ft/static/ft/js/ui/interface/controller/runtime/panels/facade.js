@@ -215,19 +215,55 @@ export function createPanelsFacade({
       throw new Error('Panels facade requires registerPanel to ingest payloads');
     }
 
-    const trace = createTraceFromPayload(payload);
+    const payloadList = Array.isArray(payload)
+      ? payload.filter(Boolean)
+      : (payload ? [payload] : []);
+    if (!payloadList.length) return null;
+
+    const traces = payloadList.map((entry) => createTraceFromPayload(entry));
+
+    const primaryPayload = payloadList[0] || {};
 
     return registerPanel({
       type: 'plot',
       width,
       height,
-      hidden: payload?.hidden === true,
+      hidden: primaryPayload?.hidden === true,
       sectionId,
       figure: {
-        data: [trace],
-        layout: defaultLayout(payload)
+        data: traces,
+        layout: defaultLayout(primaryPayload)
       }
     }, { skipHistory, skipPersist });
+  };
+
+  const addTracesToPanel = (panelId, payloads = [], {
+    pushToHistory = true
+  } = {}) => {
+    if (!panelId) return false;
+    const record = getPanelRecord(panelId);
+    if (!record) return false;
+    const payloadList = Array.isArray(payloads)
+      ? payloads.filter(Boolean)
+      : (payloads ? [payloads] : []);
+    if (!payloadList.length) return false;
+
+    if (pushToHistory) {
+      pushHistory();
+    }
+
+    payloadList.forEach((entry) => {
+      const trace = createTraceFromPayload(entry);
+      panelsModel.addTrace(panelId, trace);
+    });
+
+    normalizePanelTraces(panelId);
+    renderPlot(panelId);
+    renderBrowser();
+    persist();
+    updateHistoryButtons();
+    showToast(`Added ${payloadList.length} trace${payloadList.length === 1 ? '' : 's'} to graph.`, 'success');
+    return true;
   };
 
   const appendFilesToGraph = async (panelId, fileList) => {
@@ -397,6 +433,7 @@ export function createPanelsFacade({
     normalizePanelTraces,
     createTraceFromPayload,
     ingestPayloadAsPanel,
+    addTracesToPanel,
     appendFilesToGraph,
     moveTrace,
     moveGraph,

@@ -177,6 +177,7 @@ const showToast = (message, variant = 'info', delay = 2400) => {
 let normalizePanelTraces = () => null;
 let createTraceFromPayload = () => null;
 let ingestPayloadAsPanel = () => null;
+let addTracesToPanel = () => false;
 let appendFilesToGraph = async () => {};
 let moveTrace = () => false;
 let moveGraph = () => false;
@@ -296,6 +297,19 @@ export function initWorkspaceRuntime(context = {}) {
   const topToolbar = roots.topToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar');
   const verticalToolbar = roots.verticalToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar-vertical');
   const activeCanvasId = getActiveCanvasIdFromContext();
+  const listAvailablePlotPanels = () => {
+    const records = panelsModel.getPanelsInIndexOrder();
+    return records
+      .filter((record) => {
+        const panelType = getPanelType(record?.type);
+        return !!panelType && panelType.capabilities?.plot !== false;
+      })
+      .map((record) => ({
+        id: record.id,
+        title: resolvePanelTitle(record),
+        index: record.index
+      }));
+  };
 
   const updateToolbarMetrics = () => {
     if (!canvasWrapper) return;
@@ -2714,15 +2728,16 @@ let updateCanvasState = () => {};
     registry: { registerPanel }
   });
 
-  ({
-    normalizePanelTraces,
-    createTraceFromPayload,
-    ingestPayloadAsPanel,
-    appendFilesToGraph,
-    moveTrace,
-    moveGraph,
-    removePanel
-  } = panelsFacade);
+({
+  normalizePanelTraces,
+  createTraceFromPayload,
+  ingestPayloadAsPanel,
+  addTracesToPanel,
+  appendFilesToGraph,
+  moveTrace,
+  moveGraph,
+  removePanel
+} = panelsFacade);
 
   clearPanels = ({ skipHistory = false } = {}) => {
     const hasAnyPanels = panelDomRegistry.size > 0 || panelsModel.getPanelsInIndexOrder().length > 0;
@@ -2765,7 +2780,8 @@ let updateCanvasState = () => {};
     },
     selectors: {
       getPanelDom,
-      getPanelFigure
+      getPanelFigure,
+      getPanelContent
     },
     traces: {
       normalizePanelTraces,
@@ -2774,6 +2790,10 @@ let updateCanvasState = () => {};
     plot: {
       exportFigure: exportPlotFigure,
       resize: (panelId) => resizePlotForPanel(panelId)
+    },
+    panels: {
+      ingestPayloadAsPanel,
+      addTracesToPanel
     }
   });
 
@@ -2791,7 +2811,8 @@ let updateCanvasState = () => {};
     },
     selectors: {
       getPanelFigure,
-      getPanelContent
+      getPanelContent,
+      listPlotPanels: listAvailablePlotPanels
     }
   });
 
@@ -2900,7 +2921,11 @@ let updateCanvasState = () => {};
       normalizePanelTraces,
       getPanelFigure,
       isSectionVisible,
-      getPanelRecord
+      getPanelRecord,
+      isPlotPanel: (typeId) => {
+        const config = getPanelType(typeId);
+        return config?.capabilities?.plot !== false;
+      }
     },
     actions: {
       renderPlot,

@@ -381,7 +381,7 @@ export function renderBrowserTree(ctx, state) {
     if (term && !traceInfo.graphMatches) {
       name.classList.add('is-muted');
     }
-    if (canvasPrimaryTag && canvasPrimaryTagColor) {
+    if (canvasPrimaryTag && canvasPrimaryTagColor && panelItem.meta?.isPlotPanel) {
       const tagBadge = document.createElement('span');
       tagBadge.className = 'dashboard-tag graph-canvas-tag';
       tagBadge.textContent = canvasPrimaryTag;

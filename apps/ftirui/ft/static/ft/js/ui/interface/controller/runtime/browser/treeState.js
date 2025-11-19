@@ -10,10 +10,14 @@ export function createBrowserTreeState({
   sectionOrder,
   defaultSectionId,
   getPanelsOrdered,
-  coerceNumber
+  coerceNumber,
+  isPlotPanel
 }) {
   const term = (searchTerm || '').trim().toLowerCase();
   const orderedRecords = getPanelsOrdered();
+  const resolveIsPlotPanel = typeof isPlotPanel === 'function'
+    ? isPlotPanel
+    : () => true;
 
   const sortedPanels = orderedRecords
     .map((record, position) => {
@@ -22,6 +26,8 @@ export function createBrowserTreeState({
       const sectionId = sections.has(record.sectionId) ? record.sectionId : defaultSectionId;
       const rawIndex = coerceNumber(record.index, position + 1);
       const index = Number.isFinite(rawIndex) && rawIndex > 0 ? rawIndex : 0;
+      const panelType = typeof record?.type === 'string' ? record.type : null;
+      const plotCapable = resolveIsPlotPanel(panelType);
       return {
         panelId,
         record,
@@ -32,7 +38,9 @@ export function createBrowserTreeState({
           hidden: record.hidden === true,
           collapsed: record.collapsed === true,
           index,
-          title: typeof record?.title === 'string' ? record.title.trim() : ''
+          title: typeof record?.title === 'string' ? record.title.trim() : '',
+          panelType,
+          isPlotPanel: plotCapable
         }
       };
     })
@@ -71,7 +79,7 @@ export function createBrowserTreeState({
       treeViewPanels.set(sectionId, []);
     }
     const rawTitle = typeof item.record?.title === 'string' ? item.record.title.trim() : '';
-    const displayTitle = rawTitle || (item.meta.index ? Graph  : 'Graph');
+    const displayTitle = rawTitle || (item.meta.index ? `Graph ${item.meta.index}` : 'Graph');
     treeViewPanels.get(sectionId).push({
       id: item.panelId,
       name: displayTitle,

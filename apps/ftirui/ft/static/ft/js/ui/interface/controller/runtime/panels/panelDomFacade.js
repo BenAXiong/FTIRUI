@@ -17,10 +17,11 @@ export function createPanelDomFacade({
     setPanelContent = () => {}
   } = actions;
 
-  const {
-    getPanelFigure = () => ({ data: [], layout: {} }),
-    getPanelContent = () => null
-  } = selectors;
+    const {
+      getPanelFigure = () => ({ data: [], layout: {} }),
+      getPanelContent = () => null,
+      listPlotPanels = () => []
+    } = selectors;
 
   const safeRegisterPanelDom = typeof registerPanelDom === 'function' ? registerPanelDom : () => {};
   const safeUpdatePanelRuntime = typeof updatePanelRuntime === 'function' ? updatePanelRuntime : () => {};
@@ -28,8 +29,9 @@ export function createPanelDomFacade({
   const safeRemovePanel = typeof removePanel === 'function' ? removePanel : () => {};
   const safeBringPanelToFront = typeof bringPanelToFront === 'function' ? bringPanelToFront : () => {};
   const safeUpdateToolbarMetrics = typeof updateToolbarMetrics === 'function' ? updateToolbarMetrics : () => {};
-  const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
-  const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
+    const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
+    const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
+    const safeListPlotPanels = typeof listPlotPanels === 'function' ? listPlotPanels : (() => []);
   const safeSetPanelContent = typeof setPanelContent === 'function' ? setPanelContent : () => {};
   const canvasPrimaryTag = (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasPrimaryTag) || '';
   const canvasPrimaryTagColor = canvasPrimaryTag ? getWorkspaceTagColor(canvasPrimaryTag) : null;
@@ -1911,10 +1913,12 @@ export function createPanelDomFacade({
           rootEl: panelEl,
           hostEl: plotHost,
           actions: {
-            setPanelContent: safeSetPanelContent
+            setPanelContent: safeSetPanelContent,
+            handleHeaderAction: safeHandleHeaderAction
           },
           selectors: {
-            getPanelContent: safeGetPanelContent
+            getPanelContent: safeGetPanelContent,
+            listPlotPanels: safeListPlotPanels
           }
         }) || null;
         if (!contentHandles) {

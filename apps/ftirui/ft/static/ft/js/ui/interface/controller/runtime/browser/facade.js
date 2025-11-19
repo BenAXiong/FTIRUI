@@ -26,7 +26,8 @@ export function createBrowserFacade({
       sectionOrder,
       defaultSectionId: state.defaultSectionId,
       getPanelsOrdered: state.getPanelsOrdered,
-      coerceNumber: state.coerceNumber
+      coerceNumber: state.coerceNumber,
+      isPlotPanel: selectors.isPlotPanel
     });
 
     const renderContext = {
