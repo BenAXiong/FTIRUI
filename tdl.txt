@@ -1,14 +1,85 @@
-Phase 1 – Broad UI optimization
+MVP Part 4/5
+
+Phase 1 – UI revamp (done)
+Phase 2 – Toolbar modernization
+- [v] Decide final naming for the Global vs Tech toolbars to keep future setup clear.
+- [v] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
+- [ ] Implement the Global toolbar feature buttons (MD window, spreadsheet, scripting notebook, images, theme, align graphs, empty graph, import folder, export all, more options submenu).
+- [ ] Gate the Tech toolbar by selection and implement per-tech controls (tech selector, graph type, FT-IR actions).
+
+Phase 3 – Graph controls & exports
+- [ ] Ship graph header utilities (Style Painter, templates, pin/lock).
+- [ ] Expand export dialog (vector graphic, zoom/dpi, presets, selection vs all, watermark).
+- [ ] Clarify graph renaming area and support double-click header to toggle full screen.
+
+Phase 4 – Plotly & canvas interaction upgrades
+- [ ] Remove unused Plotly icons and refine manual axis input UX (double-click behavior, zoom snap).
+- [ ] Support zooming from plot borders and other interaction affordances.
+
+Phase 5 – Polishing pass
+- [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
+- [ ] Workspace graph polish (popup width, remove titles when redundant).
+- [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
+
+Phase 6 – Workflow refinements
+- [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
+- [ ] Explore Papers/Reports workflow integration.
+
+Phase 7 – Future explorations
+- [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
+
+Phase 8 – Bugs & technical debt
+- [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 
 ___________________________________________________________
 Next
 
-plotly remove all icons
-rename toolbars?
-Global toolbar
-- unredo // 1 to 9 // ... (0)
+- [ ] Confirm new Global/Tech toolbar names before implementing features.
 
-graphs: limit rename to jsut the name area + double click of header triggers full screen
+Toolbar 1 – Global (horizontal)
+- [ ] Undo/redo button: move to left, remove numbering, and separate other controls with a delimiter.
+- [ ] Main buttons (new features to be implemented)
+    - [ ] 1 import data
+    - [ ] 2 import folder
+    - [ ] 3 md window
+    - [ ] 4 spreadsheet window
+    - [ ] 5 add scripting notebook (jupyter)
+    - [ ] 6 add images
+    - [ ] 7 change theme
+    - [ ] 8 align graphs (cascade, mosaic, tile, etc)
+    - [ ] 9 export all
+    - [ ] 0 more options (add export all and remove most)
+
+Toolbar 2 – Tech (vertical)
+- [ ] Visible only when graph(s) selected.
+- [ ] 1/ Tech selector — FTIR default, NMR, XPS, EC, XRD, etc (will change buttons).
+- [ ] 2/ Graph type (bars, scatter, etc).
+- [ ] Buttons for tech = FT-IR
+    - [ ] 3/ peak marking
+    - [ ] 4/ smoothing
+    - [ ] 5/ ATR correction
+    - [ ] 6/ peak integration
+    - [ ] 7/ derivatization and smoothing
+    - [ ] 8/ ?
+    - [ ] 9/ ?
+    - [ ] 0/ move to other project
+
+Graphs features (header buttons)
+- [ ] Style painter (duplicate / copy-paste specific)
+- [ ] Export
+    - [ ] Plot as "vector graphic"
+    - [ ] MVP options (e.g. zoom, dpi)
+    - [ ] Presets / templates
+    - [ ] Current view (plot selection) vs all data
+    - [ ] Watermark for anonymous (?
+- [ ] Templates (save up to 3)
+- [ ] Pin and lock
+- [ ] Limit rename to just the name area and double click header to trigger full screen.
+
+Plotly interaction
+- [ ] plotly remove all icons
+- [ ] (see Plotly manual) rethink axis manual input (double click somewhere? & match current zoom + snap to nearest round number maybe
+- [ ] zoom from plot borders
 ___________________________________________________________
 Polishing
 

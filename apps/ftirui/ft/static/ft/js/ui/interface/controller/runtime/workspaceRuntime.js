@@ -1372,6 +1372,11 @@ let updateCanvasState = () => {};
       preserved
         .filter((node) => hasActionButton(node))
         .forEach((node) => menu.appendChild(node));
+      const manageSnapshotsBtn = menu.querySelector('#c_canvas_snapshot_manage');
+      const clearSnapshotItem = menu.querySelector('#c_workspace_clear')?.closest('li') ?? menu.querySelector('#c_workspace_clear');
+      if (manageSnapshotsBtn && clearSnapshotItem && manageSnapshotsBtn !== clearSnapshotItem) {
+        menu.insertBefore(manageSnapshotsBtn, clearSnapshotItem);
+      }
       menu.dataset.workspaceActions = '1';
     }
 

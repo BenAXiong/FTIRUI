@@ -2182,6 +2182,14 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   flex-wrap: wrap;
   gap: .4rem;
 }
+.workspace-toolbar-delimiter{
+  width: 1px;
+  height: 2.5rem;
+  background: color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  border-radius: 999px;
+  align-self: center;
+  opacity: .75;
+}
 .workspace-toolbar .btn[disabled]{
   opacity: .55;
 }
@@ -2197,6 +2205,13 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   padding: .65rem;
   z-index: 30;
 }
+.workspace-toolbar-btn-no-counter{
+  counter-increment: none;
+}
+.workspace-toolbar-btn-no-counter::after{
+  display: none;
+  content: none;
+}
 .workspace-toolbar-btn::after{
   content: counter(workspace-toolbar-count);
   position: absolute;
@@ -2206,6 +2221,12 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-weight: 600;
   color: var(--bs-secondary-color, #6c757d);
   text-shadow: 0 0 1px rgba(255,255,255,.75);
+}
+.workspace-toolbar-btn-zero{
+  counter-increment: none;
+}
+.workspace-toolbar-btn-zero::after{
+  content: '0';
 }
 .workspace-toolbar-btn.btn-primary::after{
   color: rgba(255,255,255,.85);
