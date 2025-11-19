@@ -79,7 +79,9 @@ export function createPanelDomFacade({
 
         const actions = document.createElement('div');
         actions.className = 'workspace-panel-actions';
+        let refreshActionOverflow = () => {};
 
+        if (isPlotPanel) {
         const popoverClosers = [];
         const registerPopoverCloser = (fn) => {
           if (typeof fn !== 'function') return;
@@ -1561,7 +1563,7 @@ export function createPanelDomFacade({
           return hasOverflow;
         };
 
-        const refreshActionOverflow = () => {
+        refreshActionOverflow = () => {
           const collapsed = controlsWrapper.classList.contains('is-collapsed');
           if (collapsed) {
             moveAllItemsInline();
@@ -1587,6 +1589,17 @@ export function createPanelDomFacade({
         actions.appendChild(overflowBtn);
         actions.appendChild(settingsBtn);
         actions.appendChild(closeBtn);
+        } else {
+          const closeBtn = document.createElement('button');
+          closeBtn.type = 'button';
+          closeBtn.className = 'btn btn-outline-secondary';
+          closeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+          closeBtn.title = 'Close panel';
+          closeBtn.addEventListener('click', () => {
+            safeRemovePanel(panelState.id);
+          });
+          actions.appendChild(closeBtn);
+        }
         if (headerTagBadge) {
           header.appendChild(headerTagBadge);
         }
