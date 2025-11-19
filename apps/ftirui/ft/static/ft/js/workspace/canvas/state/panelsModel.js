@@ -1,3 +1,5 @@
+import { normalizeContentPayload, cloneContentPayload } from './contentStore.js';
+
 const DEFAULT_SECTION_ID = 'section_all';
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
@@ -21,15 +23,6 @@ const normalizeFigure = (figure) => {
   };
 };
 
-const normalizeContent = (content) => {
-  if (!content || typeof content !== 'object') return null;
-  try {
-    return JSON.parse(JSON.stringify(content));
-  } catch {
-    return { ...content };
-  }
-};
-
 const clonePanel = (panel) => {
   if (!panel) return null;
   return {
@@ -46,7 +39,7 @@ const clonePanel = (panel) => {
     sectionId: panel.sectionId || DEFAULT_SECTION_ID,
     figure: normalizeFigure(panel.figure),
     zIndex: panel.zIndex,
-    content: normalizeContent(panel.content)
+    content: cloneContentPayload(panel.content, { kind: panel.type })
   };
 };
 
@@ -100,7 +93,7 @@ export const createPanelsModel = (snapshot) => {
       const final = {
         ...record,
         sectionId: record.sectionId || DEFAULT_SECTION_ID,
-        content: normalizeContent(record.content)
+        content: normalizeContentPayload(record.content, { kind: record.type })
       };
       panels.set(final.id, final);
       panelCounter = Math.max(panelCounter, Number(final.index) || 0);
@@ -134,7 +127,7 @@ export const createPanelsModel = (snapshot) => {
       sectionId,
       figure: normalizeFigure(incomingState.figure),
       zIndex,
-      content: normalizeContent(incomingState.content)
+      content: normalizeContentPayload(incomingState.content, { kind: incomingState.type || 'plot' })
     };
 
     panels.set(id, state);
@@ -228,7 +221,7 @@ export const createPanelsModel = (snapshot) => {
   const updatePanelContent = (panelId, content) => {
     const panel = getPanelInternal(panelId);
     if (!panel) return null;
-    panel.content = normalizeContent(content);
+    panel.content = normalizeContentPayload(content, { kind: panel.type });
     return clonePanel(panel);
   };
 
@@ -347,7 +340,7 @@ export const createPanelsModel = (snapshot) => {
     getPanelContent: (panelId) => {
       const panel = getPanelInternal(panelId);
       if (!panel) return null;
-      return normalizeContent(panel.content);
+      return cloneContentPayload(panel.content, { kind: panel.type });
     },
     updatePanelContent
   };

@@ -1,4 +1,6 @@
 const NAMESPACE_KEY = 'ftir.workspace.v1';
+import { cloneContentPayload, normalizeContentPayload } from '../workspace/canvas/state/contentStore.js';
+
 const APP_ID = 'ftir.workspace';
 const SCHEMA_VERSION = 1;
 const DEFAULT_DEBOUNCE_MS = 1200;
@@ -38,15 +40,6 @@ const normalizeSectionsSnapshot = (sections) => {
   return normalized;
 };
 
-const cloneContent = (value) => {
-  if (!value || typeof value !== 'object') return null;
-  try {
-    return JSON.parse(JSON.stringify(value));
-  } catch {
-    return { ...value };
-  }
-};
-
 const normalizePanelsSnapshot = (panels) => {
   if (!panels || typeof panels !== 'object') return null;
   const items = Array.isArray(panels.items)
@@ -58,7 +51,7 @@ const normalizePanelsSnapshot = (panels) => {
             collapsed: coerceBoolean(panel.collapsed, false),
             hidden: panel.hidden === true,
             sectionId: panel.sectionId || panel.section || null,
-            content: cloneContent(panel.content)
+            content: normalizeContentPayload(panel.content, { kind: panel.type })
           };
         })
         .filter(Boolean)

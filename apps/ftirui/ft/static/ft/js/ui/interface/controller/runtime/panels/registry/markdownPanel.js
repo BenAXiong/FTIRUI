@@ -1,4 +1,5 @@
 import { renderMarkdown } from '../../../../../utils/markdown.js';
+import { registerContentKind } from '../../../../../../workspace/canvas/state/contentStore.js';
 
 const buildContent = (text = '') => ({
   kind: 'markdown',
@@ -33,6 +34,15 @@ const createDebounce = (fn, delay = 400) => {
   };
   return wrapped;
 };
+
+registerContentKind('markdown', {
+  normalize(value) {
+    return buildContent(resolveText(value));
+  },
+  serialize(value) {
+    return buildContent(resolveText(value));
+  }
+});
 
 export const markdownPanelType = {
   id: 'markdown',

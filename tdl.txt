@@ -1,11 +1,19 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
+/
+Suggested follow-ups: (1) extend the same payload/render structure to minimal spreadsheets/Jupyter/image panels, using the new content.kind wiring; (2) update the browser tree to show icons/labels for non-plot panels and consider dedicated export routines for notes.
+great, let's move on to Step 3 – Toolbar & Panel Actions (see your plan above)
+great, let's move on to Step 4 – UI Facade Simplification (see your plan above)
+great, let's move on to Step 5 – Snapshot Serializer (see your plan above)
+md: horizontal split, preview inactive, helper tooltip, 
+/
+
 Phase 1 – UI revamp (done)
 Phase 2 – Toolbar modernization
 - [v] Decide final naming for the Global vs Tech toolbars to keep future setup clear.
 - [v] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
 - [-] Implement the Global toolbar feature buttons
-    [-] data structure update
+    [v] data structure update
     [-] MD window
     [ ] spreadsheet
     [ ] scripting notebook
@@ -16,7 +24,8 @@ Phase 2 – Toolbar modernization
     [ ] import folder
     [ ] export all?
     [ ] more options: manage snapshots? export all
-- [ ] Gate the Tech toolbar by selection and implement per-tech controls (tech selector, graph type, FT-IR actions).
+- [ ] Update browser with sections for notes, spreasheets, images, scripts
+- [ ] Next phase? Gate the Tech toolbar by selection and implement per-tech controls (tech selector, graph type, FT-IR actions).
 
 Phase 3 – Graph controls & exports
 - [ ] Ship graph header utilities (Style Painter, templates, pin/lock).
