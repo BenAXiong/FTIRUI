@@ -27,7 +27,9 @@ const sanitizeString = (value, fallback = '') => {
 const sanitizeNumber = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
-    const numeric = Number(value);
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const numeric = Number(trimmed);
     if (Number.isFinite(numeric)) {
       return numeric;
     }
@@ -55,6 +57,19 @@ const createDebounce = (fn, delay = 400) => {
 };
 
 const generateId = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+const columnTokenForIndex = (index = 0) => {
+  if (index < LETTERS.length) {
+    return `col${LETTERS[index]}`;
+  }
+  const first = Math.floor(index / LETTERS.length) - 1;
+  const second = index % LETTERS.length;
+  return `col${LETTERS[first]}${LETTERS[second]}`;
+};
+const slugifyLabel = (label = '') => label
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '_')
+  .replace(/^_+|_+$/g, '')
+  .replace(/_{2,}/g, '_');
 
 const createColumnId = (index) => `col-${index + 1}`;
 const createRowId = (index) => `row-${index + 1}`;
@@ -284,6 +299,8 @@ export const spreadsheetPanelType = {
         .map((column) => column.id)
     );
     let targetGraphSelections = new Set();
+    let formulaErrors = {};
+    let evaluatedRows = sheetState.rows.map((row) => ({ ...row }));
 
     const schedulePersist = createDebounce(() => {
       const payload = buildContent(sheetState);
@@ -335,16 +352,120 @@ export const spreadsheetPanelType = {
       selectedYColumnIds = nextY;
     };
 
-    const canPlot = () => Boolean(selectedXColumnId && selectedYColumnIds.size && sheetState.rows.length);
+    const canPlot = () => Boolean(selectedXColumnId && selectedYColumnIds.size && evaluatedRows.length);
+
+    const buildFormulaTokens = () => sheetState.columns.map((column, index) => {
+      const tokens = new Set();
+      tokens.add(columnTokenForIndex(index));
+      tokens.add(`c${index + 1}`);
+      tokens.add(column.id.replace(/[^a-zA-Z0-9]/g, ''));
+      if (column.label) {
+        const slug = slugifyLabel(column.label);
+        if (slug) tokens.add(slug);
+      }
+      return { column, tokens };
+    });
+
+    const compileFormula = (source) => {
+      const body = `"use strict"; return (${source});`;
+      return new Function('ctx', `with(ctx){ ${body} }`);
+    };
+
+    const createFormulaContext = (row, columnTokens) => {
+      const ctx = {
+        PI: Math.PI,
+        E: Math.E,
+        abs: Math.abs,
+        min: Math.min,
+        max: Math.max,
+        pow: Math.pow,
+        sqrt: Math.sqrt,
+        exp: Math.exp,
+        log: Math.log,
+        round: Math.round,
+        floor: Math.floor,
+        ceil: Math.ceil
+      };
+      columnTokens.forEach(({ column, tokens }) => {
+        const rawValue = sanitizeCellValue(row[column.id]);
+        const resolved = rawValue === null ? undefined : rawValue;
+        tokens.forEach((token) => {
+          ctx[token] = resolved;
+        });
+      });
+      return ctx;
+    };
+
+    const recalculateFormulas = () => {
+      const definitions = sheetState.columns
+        .map((column) => {
+          const expr = sheetState.formulas[column.id]?.trim();
+          if (!expr) return null;
+          try {
+            const evaluator = compileFormula(expr);
+            return { column, evaluator, expr };
+          } catch (error) {
+            return { column, evaluator: null, error };
+          }
+        })
+        .filter(Boolean);
+      const baseRows = sheetState.rows.map((row) => ({ ...row }));
+      if (!definitions.length) {
+        formulaErrors = {};
+        evaluatedRows = baseRows;
+        return;
+      }
+      const nextErrors = {};
+      const columnTokens = buildFormulaTokens();
+      baseRows.forEach((row) => {
+        const context = createFormulaContext(row, columnTokens);
+        definitions.forEach(({ column, evaluator, error }) => {
+          if (error || !evaluator) {
+            nextErrors[column.id] = error?.message || 'Invalid formula';
+            return;
+          }
+          try {
+            const result = evaluator(context);
+            const normalized = typeof result === 'number'
+              ? (Number.isFinite(result) ? result : '')
+              : (result ?? '');
+            row[column.id] = normalized;
+            columnTokens.forEach(({ column: ctxColumn, tokens }) => {
+              if (ctxColumn.id === column.id) {
+                tokens.forEach((token) => {
+                  const sanitized = sanitizeCellValue(normalized);
+                  context[token] = sanitized === null ? undefined : sanitized;
+                });
+              }
+            });
+          } catch (evalError) {
+            nextErrors[column.id] = evalError.message;
+          }
+        });
+      });
+      evaluatedRows = baseRows;
+      formulaErrors = nextErrors;
+    };
+
+    const applyFormulaValue = (columnId, value) => {
+      const trimmed = typeof value === 'string' ? value.trim() : '';
+      const formulas = { ...sheetState.formulas, [columnId]: trimmed };
+      sheetState = { ...sheetState, formulas };
+      recalculateFormulas();
+      markDirty();
+      renderGrid();
+    };
+
+    recalculateFormulas();
 
     const buildTracePayloads = () => {
       const xColumn = getColumnById(selectedXColumnId);
       if (!xColumn) return [];
       const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id));
       if (!yColumns.length) return [];
-      const xValues = sheetState.rows.map((row) => sanitizeCellValue(row[xColumn.id]));
+      const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
       return yColumns.map((column) => {
-        const yValues = sheetState.rows.map((row) => sanitizeCellValue(row[column.id]));
+        const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
         const hasData = yValues.some((value) => value !== null && value !== '');
         if (!hasData) return null;
         return {
@@ -563,6 +684,7 @@ export const spreadsheetPanelType = {
       if (targetRow[columnId] === input.value) return;
       rows[rowIndex] = { ...targetRow, [columnId]: input.value };
       sheetState = { ...sheetState, rows };
+      recalculateFormulas();
       markDirty();
     };
 
@@ -597,6 +719,7 @@ export const spreadsheetPanelType = {
         rows[targetRowIndex] = nextRow;
       });
       sheetState = { ...sheetState, rows };
+      recalculateFormulas();
       markDirty();
       renderGrid();
       lastFocusedCell = { rowIndex, columnIndex };
@@ -656,6 +779,48 @@ export const spreadsheetPanelType = {
       });
       thead.appendChild(headerRow);
 
+      const formulaRow = document.createElement('tr');
+      formulaRow.className = 'workspace-spreadsheet-formula-row';
+      const formulaCorner = document.createElement('th');
+      formulaCorner.className = 'workspace-spreadsheet-corner workspace-spreadsheet-formula-corner';
+      formulaCorner.textContent = 'ƒ';
+      formulaRow.appendChild(formulaCorner);
+      sheetState.columns.forEach((column) => {
+        const th = document.createElement('th');
+        th.className = 'workspace-spreadsheet-formula-cell';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control form-control-sm workspace-spreadsheet-formula-input';
+        input.placeholder = 'e.g., colA*2';
+        const currentFormula = sheetState.formulas[column.id] || '';
+        input.value = currentFormula;
+        const errorMessage = formulaErrors[column.id];
+        if (errorMessage) {
+          input.classList.add('is-invalid');
+        }
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            applyFormulaValue(column.id, input.value);
+          }
+        });
+        input.addEventListener('blur', () => {
+          const trimmed = input.value.trim();
+          if (trimmed !== currentFormula) {
+            applyFormulaValue(column.id, input.value);
+          }
+        });
+        th.appendChild(input);
+        if (errorMessage) {
+          const hint = document.createElement('div');
+          hint.className = 'workspace-spreadsheet-formula-error';
+          hint.textContent = errorMessage;
+          th.appendChild(hint);
+        }
+        formulaRow.appendChild(th);
+      });
+      thead.appendChild(formulaRow);
+
       const tbody = document.createElement('tbody');
       sheetState.rows.forEach((row, rowIndex) => {
         const tr = document.createElement('tr');
@@ -674,11 +839,17 @@ export const spreadsheetPanelType = {
           const input = document.createElement('input');
           input.type = 'text';
           input.className = 'workspace-spreadsheet-cell';
-          input.value = row[column.id] ?? '';
+          const renderRow = evaluatedRows[rowIndex] || row;
+          input.value = renderRow?.[column.id] ?? '';
           input.dataset.rowId = row.id;
           input.dataset.colId = column.id;
           input.dataset.rowIndex = String(rowIndex);
           input.dataset.colIndex = String(columnIndex);
+          const isFormulaColumn = !!(sheetState.formulas[column.id]?.trim());
+          if (isFormulaColumn) {
+            input.readOnly = true;
+            input.classList.add('is-derived');
+          }
           input.addEventListener('focus', () => {
             activeRowIndex = rowIndex;
             activeColumnIndex = columnIndex;
@@ -731,6 +902,7 @@ export const spreadsheetPanelType = {
       const nextFormulas = { ...sheetState.formulas, [newColumn.id]: '' };
       sheetState = { ...sheetState, columns: nextColumns, rows: nextRows, formulas: nextFormulas };
       activeColumnIndex = insertIndex;
+      recalculateFormulas();
       markDirty();
       renderGrid();
     };
@@ -751,6 +923,7 @@ export const spreadsheetPanelType = {
       delete nextFormulas[column.id];
       sheetState = { ...sheetState, columns: nextColumns, rows: nextRows, formulas: nextFormulas };
       activeColumnIndex = Math.min(targetIndex, nextColumns.length - 1);
+      recalculateFormulas();
       markDirty();
       renderGrid();
     };
@@ -763,6 +936,7 @@ export const spreadsheetPanelType = {
       nextRows.splice(insertIndex, 0, createBlankRow(sheetState.columns));
       sheetState = { ...sheetState, rows: nextRows };
       activeRowIndex = insertIndex;
+      recalculateFormulas();
       markDirty();
       renderGrid();
     };
@@ -775,6 +949,7 @@ export const spreadsheetPanelType = {
       const nextRows = sheetState.rows.filter((_, idx) => idx !== targetIndex);
       sheetState = { ...sheetState, rows: nextRows };
       activeRowIndex = Math.min(targetIndex, nextRows.length - 1);
+      recalculateFormulas();
       markDirty();
       renderGrid();
     };
@@ -847,6 +1022,7 @@ export const spreadsheetPanelType = {
         sheetState = buildContent(nextContent);
         historyPending = false;
         schedulePersist.flush();
+        recalculateFormulas();
         renderGrid();
         refreshGraphOptions();
         updatePlotButtonsState();

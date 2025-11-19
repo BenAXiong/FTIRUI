@@ -1942,6 +1942,20 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent);
   z-index: 2;
 }
+.workspace-spreadsheet-formula-row th{
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.05) 8%);
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 75%, transparent);
+  padding: .35rem .4rem;
+}
+.workspace-spreadsheet-formula-input{
+  width: 100%;
+  font-size: .75rem;
+}
+.workspace-spreadsheet-formula-error{
+  font-size: .7rem;
+  color: var(--bs-danger);
+  margin-top: .2rem;
+}
 .workspace-spreadsheet-corner{
   width: 3rem;
   text-align: center;
@@ -2006,6 +2020,10 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
   font-size: .82rem;
   color: var(--bs-body-color);
+}
+.workspace-spreadsheet-cell.is-derived{
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.08) 6%);
 }
 .workspace-spreadsheet-cell:focus{
   outline: 2px solid color-mix(in oklab, var(--bs-primary) 55%, transparent);
