@@ -293,6 +293,9 @@ export function initWorkspaceRuntime(context = {}) {
   const imageBrowseBtn = roots.imageBrowseButton ?? document.getElementById('c_canvas_add_image_browse');
   const imageDriveBtn = roots.imageDriveButton ?? document.getElementById('c_canvas_add_image_drive');
   const imageLinkBtn = roots.imageLinkButton ?? document.getElementById('c_canvas_add_image_link');
+  const alignStackBtn = document.getElementById('c_canvas_align_stack');
+  const alignCascadeBtn = document.getElementById('c_canvas_align_cascade');
+  const alignTileBtn = document.getElementById('c_canvas_align_tile');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
@@ -314,6 +317,28 @@ export function initWorkspaceRuntime(context = {}) {
         title: resolvePanelTitle(record),
         index: record.index
       }));
+  };
+
+  const gatherVisiblePlotPanels = () => {
+    const records = panelsModel.getPanelsInIndexOrder();
+    return records
+      .filter((record) => {
+        if (!record || record.hidden === true) return false;
+        const panelType = getPanelType(record.type);
+        return !!panelType && panelType.capabilities?.plot !== false;
+      })
+      .map((record) => ({
+        id: record.id,
+        index: Number(record.index) || 0,
+        geometry: {
+          x: Number.isFinite(record.x) ? record.x : 60,
+          y: Number.isFinite(record.y) ? record.y : 60,
+          width: Number.isFinite(record.width) ? record.width : 600,
+          height: Number.isFinite(record.height) ? record.height : 360
+        },
+        title: resolvePanelTitle(record)
+      }))
+      .sort((a, b) => a.index - b.index || a.id.localeCompare(b.id));
   };
 
   let imagePickerInput = null;
@@ -2963,6 +2988,25 @@ let updateCanvasState = () => {};
       }
     }
   });
+
+  const handleArrangeRequest = (mode) => {
+    const panels = gatherVisiblePlotPanels();
+    if (!panels.length) {
+      showToast('No graphs available to arrange.', 'info');
+      return;
+    }
+    const label = mode === 'stack'
+      ? 'stack'
+      : mode === 'cascade'
+        ? 'cascade'
+        : 'tile';
+    console.debug('[arrangePanels]', mode, panels);
+    showToast(`Preparing ${label} layout for ${panels.length} graph${panels.length === 1 ? '' : 's'}.`, 'info');
+  };
+
+  alignStackBtn?.addEventListener('click', () => handleArrangeRequest('stack'));
+  alignCascadeBtn?.addEventListener('click', () => handleArrangeRequest('cascade'));
+  alignTileBtn?.addEventListener('click', () => handleArrangeRequest('tile'));
 
   const ioFacade = createIoFacade({
     dom: {
