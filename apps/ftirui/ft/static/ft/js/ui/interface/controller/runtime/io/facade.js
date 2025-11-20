@@ -37,7 +37,8 @@ export function createIoFacade({
     appendFilesToGraph = async () => {},
     clearPanels = () => {},
     renderBrowser = () => {},
-    updateCanvasState = () => {}
+    updateCanvasState = () => {},
+    focusPanel = () => {}
   } = actions;
 
   const {
@@ -118,6 +119,7 @@ export function createIoFacade({
 
     let historyPushed = false;
     let ingestedCount = 0;
+    let lastPanelId = null;
     const failures = [];
     const formatIngestError = (error) => {
       if (!error) return 'Unknown error';
@@ -152,12 +154,15 @@ export function createIoFacade({
           pushHistory();
           historyPushed = true;
         }
-        ingestPanel({
+        const panelId = ingestPanel({
           ...payload,
           name: decodeName(payload?.name) || decodeName(file?.name) || 'Trace',
           filename: decodeName(payload?.filename || file?.name || '')
         }, { skipHistory: true, skipPersist: true });
         ingestedCount += 1;
+        if (panelId) {
+          lastPanelId = panelId;
+        }
       } catch (err) {
         const friendlyName = decodeName(file?.name || '');
         const summary = formatIngestError(err);
@@ -183,6 +188,14 @@ export function createIoFacade({
 
     persist();
     updateHistoryButtons();
+
+    if (origin === 'browse' && ingestedCount === 1 && lastPanelId) {
+      try {
+        focusPanel(lastPanelId, { scrollBrowser: true });
+      } catch {
+        /* ignore focus failures */
+      }
+    }
 
     const message =
       origin === 'drop'

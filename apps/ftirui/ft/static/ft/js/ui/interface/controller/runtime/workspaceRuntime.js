@@ -3179,7 +3179,8 @@ let updateCanvasState = () => {};
       appendFilesToGraph,
       clearPanels,
       renderBrowser,
-      updateCanvasState
+      updateCanvasState,
+      focusPanel: focusPanelById
     },
     history: {
       history,
