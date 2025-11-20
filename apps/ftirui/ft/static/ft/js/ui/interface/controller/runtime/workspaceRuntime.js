@@ -77,6 +77,7 @@ let cdpPanelEl = null;
 let cdpVisible = false;
 let ghostModeEnabled = false;
 let cdpModeEnabled = false;
+let alignIncludeAllToggle = null;
 let devModeEnabled =
   typeof document !== 'undefined' ? document.body?.dataset?.workspaceDev === 'true' : false;
 let operationSequence = 0;
@@ -296,6 +297,7 @@ export function initWorkspaceRuntime(context = {}) {
   const alignStackBtn = document.getElementById('c_canvas_align_stack');
   const alignCascadeBtn = document.getElementById('c_canvas_align_cascade');
   const alignTileBtn = document.getElementById('c_canvas_align_tile');
+  alignIncludeAllToggle = document.getElementById('c_canvas_align_include_all');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
@@ -381,6 +383,38 @@ export function initWorkspaceRuntime(context = {}) {
       count: panels.length
     };
   };
+
+  const ARRANGE_INCLUDE_ALL_KEY = 'ftirui_arrange_include_all_panels';
+  let arrangeIncludeAllPanels = false;
+  const canUseStorage = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+  if (canUseStorage) {
+    try {
+      arrangeIncludeAllPanels = window.localStorage.getItem(ARRANGE_INCLUDE_ALL_KEY) === '1';
+    } catch {
+      arrangeIncludeAllPanels = false;
+    }
+  }
+  const syncArrangeToggle = () => {
+    if (!alignIncludeAllToggle) return;
+    alignIncludeAllToggle.classList.toggle('is-active', arrangeIncludeAllPanels);
+    const icon = alignIncludeAllToggle.querySelector('i');
+    if (icon) {
+      icon.className = arrangeIncludeAllPanels ? 'bi bi-check-square-fill' : 'bi bi-square';
+    }
+    alignIncludeAllToggle.setAttribute('aria-pressed', String(arrangeIncludeAllPanels));
+  };
+  const setArrangeIncludeAllPanels = (next) => {
+    arrangeIncludeAllPanels = !!next;
+    if (canUseStorage) {
+      try {
+        window.localStorage.setItem(ARRANGE_INCLUDE_ALL_KEY, arrangeIncludeAllPanels ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+    }
+    syncArrangeToggle();
+  };
+  syncArrangeToggle();
 
   let imagePickerInput = null;
   const ensureImagePickerInput = () => {
@@ -3030,7 +3064,7 @@ let updateCanvasState = () => {};
     }
   });
 
-  const handleArrangeRequest = (mode, { includeNonPlots = false } = {}) => {
+  const handleArrangeRequest = (mode, { includeNonPlots = arrangeIncludeAllPanels } = {}) => {
     const panels = gatherVisiblePanelsByType({ includeNonPlots });
     if (!panels.length) {
       showToast(includeNonPlots ? 'No panels available to arrange.' : 'No graphs available to arrange.', 'info');
@@ -3095,10 +3129,15 @@ let updateCanvasState = () => {};
         };
       });
     }
-    geometries.forEach((geometry) => {
-      applyPanelGeometry(geometry.panelId, geometry, { persistNormalized: true });
+    pushHistory({ label: `Arrange panels (${label})` });
+    geometries.forEach((geometry, idx) => {
+      const normalized = applyPanelGeometry(geometry.panelId, geometry, { persistNormalized: true });
+      panelsModel.setPanelGeometry(geometry.panelId, normalized || geometry);
+      panelsModel.setPanelZIndex(geometry.panelId, idx + 1);
       applyPanelZIndex(geometry.panelId);
     });
+    persist();
+    updateHistoryButtons();
     updateCanvasState();
     renderBrowser();
     showToast(`Arranged ${panels.length} panel${panels.length === 1 ? '' : 's'} in ${label} layout.`, 'success');
@@ -3107,6 +3146,11 @@ let updateCanvasState = () => {};
   alignStackBtn?.addEventListener('click', () => handleArrangeRequest('stack'));
   alignCascadeBtn?.addEventListener('click', () => handleArrangeRequest('cascade'));
   alignTileBtn?.addEventListener('click', () => handleArrangeRequest('tile'));
+  alignIncludeAllToggle?.addEventListener('click', () => {
+    setArrangeIncludeAllPanels(!arrangeIncludeAllPanels);
+    const stateLabel = arrangeIncludeAllPanels ? 'including' : 'excluding';
+    showToast(`Arrange tools now ${stateLabel} non-plot panels.`, 'info');
+  });
 
   const ioFacade = createIoFacade({
     dom: {
@@ -3393,6 +3437,7 @@ let updateCanvasState = () => {};
     ghostToggleButton = null;
     cdpModeEnabled = false;
     ghostModeEnabled = false;
+    alignIncludeAllToggle = null;
     if (cdpPanelEl?.parentNode) {
       cdpPanelEl.parentNode.removeChild(cdpPanelEl);
     }
@@ -3494,4 +3539,5 @@ let updateCanvasState = () => {};
       }
     }
   }
+
 }
