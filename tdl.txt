@@ -1,36 +1,30 @@
+///
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-/
 Step 1 – Gather Graph Panels
   - Task 1: Enumerate plot-capable panels (skip hidden panels).
   - Task 2: Sort the collection by `panel.index` for chronological order.
   - Task 3: Capture each panel’s id and current geometry for later updates.
-Step 2 – Define Common Sizing
-  - Task 1: Measure the canvas bounds/margins to determine usable space.
-  - Task 2: Pick shared width/height (clamp min/max) for every panel.
-  - Task 3: Precompute spacing offsets for cascade/tile strategies.
-Step 3 – Implement Layout Algorithms
-  - Task 1: Stack layout – place all panels at the same top-left origin.
-  - Task 2: Cascade layout – apply incremental offsets while staying in bounds.
-  - Task 3: Tile layout – fill columns left-to-right, wrap rows as needed.
-Step 4 – Apply Layout & History
-  - Task 1: Push a history entry before rearranging so users can undo.
-  - Task 2: Apply new geometries via `setPanelGeometry` and refresh UI state.
-  - Task 3: Toast/feedback if no panels are available to arrange.
-Step 5 – Edge cases
-  - Task 1: Hidden panels: skip them (per your note).
-  - Task 2: Panels currently collapsed or fullscreen: either skip or exit fullscreen before rearranging.
-  - Task 3: If the number of panels is zero/one, no-op with a toast (“Nothing to arrange”).
-/
+Step 2 – x
+  - Task 1: y
+  - Task 2: y
+  - Task 3: y
+///
 _________________________________________________________________________________________________
 *
 gr eye !!!!!!!!!!!!!!!
+br invert eye & trace name
 tb1 round button 6
 br organize all object types (remove traces)
 md check defaults placeholders + arrange info popup
 ss see I more functions needed
 img GDrive OAuth & API + change url into input + placeholder (logo?) + fullscreen max size
 img button fit pane to image (lock)
+br "move to" options for panels & subgroup in case no in sight (outside current scroll)
+gr open panel for extended options (left tabs for each type)
+gr add + add data button
+gr rework headers styles: thinner and slicker
+gr select multiple by mouse dragging box
 *
 _________________________________________________________________________________________________
 Phase 1 – UI revamp (done)
@@ -45,9 +39,9 @@ Phase 2 – Global commands (aka tb1): toolbar modernization
     [x] images
     [ ] theme
     [x] organize graphs
-    [-] import data
-    [ ] import folder
-    [ ] export all?
+    [x] import data
+    [-] import folder
+    [ ] ?export all?
     [ ] more options: manage snapshots? export all
 - [ ] Update browser with sections for notes, spreasheets, images, scripts
 
@@ -129,6 +123,7 @@ Polishing
 - wks/gr: solve popup width (increase or auto)
 - wks/gr: x
 - wks/gr: remove titles
+- wks/gr: persist hidden traces from plotly legend (sync with browser)
 - dash/exp: extensible to the right?
 - dash/exp: scrollbar position
 - dash/exp: clearer pins
@@ -153,6 +148,7 @@ Future work
 - EC : CV, LSV, 
 - new tab: Present
 - feature: in canvas' explorer - load raw files and display sparklines on hover
+- can infite mode??
 - import opj and opju
 - attach files like gdocs for collab
 - .ben = binned/basic/? experiment notebook

@@ -86,6 +86,21 @@ let panelPreferences = null;
 
 const sectionManager = createSectionManager({ defaultSectionId: DEFAULT_SECTION_ID });
 const sections = sectionManager.getMap();
+const normalizeSectionName = (value) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+const findSectionByName = (name, parentId = null) => {
+  const normalizedName = normalizeSectionName(name);
+  if (!normalizedName) return null;
+  let match = null;
+  sections.forEach((section) => {
+    if (match) return;
+    const currentParent = section.parentId || null;
+    if (currentParent !== (parentId || null)) return;
+    if (normalizeSectionName(section.name) === normalizedName) {
+      match = section;
+    }
+  });
+  return match;
+};
 let chipPanelsInstance = null;
 let dragState = null;
 let currentDropTarget = null;
@@ -300,8 +315,10 @@ export function initWorkspaceRuntime(context = {}) {
   alignIncludeAllToggle = document.getElementById('c_canvas_align_include_all');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
+  const importFolderBtn = roots.importFolderButton ?? document.getElementById('c_canvas_import_folder');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
   const fileInput = roots.fileInput ?? document.getElementById('c_canvas_file_input');
+  const folderInput = roots.folderInput ?? document.getElementById('c_canvas_folder_input');
   const emptyOverlay = roots.emptyOverlay ?? document.getElementById('c_canvas_empty');
   const canvasWrapper = roots.canvasWrapper ?? canvas?.closest('.workspace-canvas-wrapper');
   const topToolbar = roots.topToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar');
@@ -3165,7 +3182,9 @@ let updateCanvasState = () => {};
       canvas,
       emptyOverlay,
       browseBtn,
+      importFolderBtn,
       fileInput,
+      folderInput,
       demoBtn,
       addPlotBtn,
       resetBtn
@@ -3180,7 +3199,9 @@ let updateCanvasState = () => {};
       clearPanels,
       renderBrowser,
       updateCanvasState,
-      focusPanel: focusPanelById
+      focusPanel: focusPanelById,
+      createSection,
+      findSectionByName
     },
     history: {
       history,

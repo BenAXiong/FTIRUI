@@ -2911,6 +2911,63 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-size: .8rem;
   color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.25) 25%);
 }
+.workspace-import-choice--folder .workspace-import-choice-panel{
+  max-width: min(720px, 95vw);
+}
+.workspace-folder-summary{
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+.workspace-folder-type-filters{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+.workspace-folder-type-btn{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: 999px;
+  padding: .35rem .9rem;
+  background: color-mix(in srgb, var(--bs-border-color) 25%, transparent);
+  color: var(--bs-body-color);
+  transition: background-color .15s ease;
+}
+.workspace-folder-type-btn small{
+  font-size: .75rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.25) 20%);
+}
+.workspace-folder-type-btn.is-active{
+  background: color-mix(in srgb, var(--bs-primary) 12%, rgba(15,23,42,.05));
+  color: var(--bs-primary);
+}
+.workspace-folder-ext-list{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px,1fr));
+  gap: .4rem .75rem;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: .25rem;
+}
+.workspace-folder-ext-item{
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .82rem;
+}
+.workspace-folder-ext-item input{
+  flex-shrink: 0;
+}
+.workspace-folder-limit{
+  font-size: .78rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.25) 20%);
+  margin-bottom: 1rem;
+}
+.workspace-folder-actions{
+  justify-content: flex-end;
+}
 .workspace-toolbar-handle{
   flex-shrink: 0;
   display: inline-flex;
