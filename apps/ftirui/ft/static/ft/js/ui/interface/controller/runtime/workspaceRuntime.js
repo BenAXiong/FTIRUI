@@ -167,6 +167,255 @@ const pickColor = () => {
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
+const CANVAS_BACKGROUND_SWATCHES = [
+  { id: 'canvas-midnight', label: 'Midnight', color: '#0b1120' },
+  { id: 'canvas-slate', label: 'Slate', color: '#131c2b' },
+  { id: 'canvas-paper', label: 'Paper', color: '#f8fafc' }
+];
+const PANEL_CHROME_SWATCHES = [
+  { id: 'chrome-graphite', label: 'Graphite', color: '#1f2937' },
+  { id: 'chrome-navy', label: 'Navy', color: '#0f172a' },
+  { id: 'chrome-ash', label: 'Ash', color: '#374151' },
+  { id: 'chrome-sand', label: 'Sand', color: '#f5f5f4' },
+  { id: 'chrome-porcelain', label: 'Porcelain', color: '#e2e8f0' },
+  { id: 'chrome-emerald', label: 'Emerald', color: '#064e3b' },
+  { id: 'chrome-amber', label: 'Amber', color: '#78350f' },
+  { id: 'chrome-plum', label: 'Plum', color: '#4c1d95' }
+];
+const PANEL_CHROME_HISTORY_LIMIT = 8;
+const TRACE_PALETTE_DEFAULT = [
+  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+  '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+  '#bcbd22', '#17becf', '#f97316', '#14b8a6'
+];
+const TRACE_PALETTE_LENGTH = TRACE_PALETTE_DEFAULT.length;
+const PLOT_DESIGN_DEFAULT = {
+  showAxes: true,
+  showMajorGrid: true,
+  showMinorGrid: false,
+  showTicks: true,
+  showLegend: true,
+  legendPosition: 'top-right',
+  axisLineStyle: 'solid'
+};
+const THEME_STORAGE_KEY = 'ftir.workspace.theme.active.v1';
+const THEME_CUSTOM_STORAGE_KEY = 'ftir.workspace.theme.custom.v1';
+const PANEL_CHROME_HISTORY_KEY = 'ftir.workspace.theme.chromeHistory.v1';
+const CUSTOM_THEME_LIMIT = 5;
+const canUseStorage = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+
+const isHexColor = (value) => typeof value === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
+const normalizeColor = (value, fallback = null) => (isHexColor(value) ? value.trim().toLowerCase() : fallback);
+const findSwatchById = (swatches, id) => swatches.find((item) => item.id === id) || null;
+
+const sanitizeCanvasBackground = (input = {}) => {
+  const providedId = typeof input.id === 'string' ? input.id : null;
+  const customColor = normalizeColor(input.customColor);
+  const swatch = providedId ? findSwatchById(CANVAS_BACKGROUND_SWATCHES, providedId) : null;
+  if (swatch) {
+    return { id: swatch.id, color: swatch.color, label: swatch.label };
+  }
+  if (customColor) {
+    return { id: 'custom', color: customColor, customColor };
+  }
+  const fallback = CANVAS_BACKGROUND_SWATCHES[0];
+  return { id: fallback.id, color: fallback.color, label: fallback.label };
+};
+
+const sanitizePanelChrome = (input = {}) => {
+  const providedId = typeof input.id === 'string' ? input.id : null;
+  const customColor = normalizeColor(input.customColor);
+  const swatch = providedId ? findSwatchById(PANEL_CHROME_SWATCHES, providedId) : null;
+  if (swatch) {
+    return { id: swatch.id, color: swatch.color, label: swatch.label };
+  }
+  const normalizedColor = normalizeColor(input.color) || customColor;
+  if (normalizedColor) {
+    return { id: 'custom', color: normalizedColor, customColor: normalizedColor };
+  }
+  const fallback = PANEL_CHROME_SWATCHES[0];
+  return { id: fallback.id, color: fallback.color, label: fallback.label };
+};
+
+const sanitizeTracePalette = (value) => {
+  const incoming = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.colors)
+      ? value.colors
+      : [];
+  const sanitized = incoming
+    .map((color) => normalizeColor(color))
+    .filter(Boolean);
+  while (sanitized.length < TRACE_PALETTE_LENGTH) {
+    sanitized.push(TRACE_PALETTE_DEFAULT[sanitized.length]);
+  }
+  return sanitized.slice(0, TRACE_PALETTE_LENGTH);
+};
+
+const sanitizePlotDesign = (design = {}) => ({
+  showAxes: design.showAxes !== false,
+  showMajorGrid: design.showMajorGrid !== false,
+  showMinorGrid: !!design.showMinorGrid,
+  showTicks: design.showTicks !== false,
+  showLegend: design.showLegend !== false,
+  legendPosition: typeof design.legendPosition === 'string' ? design.legendPosition : 'top-right',
+  axisLineStyle: typeof design.axisLineStyle === 'string' ? design.axisLineStyle : 'solid'
+});
+
+const sanitizeTheme = (value = {}) => ({
+  canvasBackground: sanitizeCanvasBackground(value.canvasBackground),
+  panelChrome: sanitizePanelChrome(value.panelChrome),
+  tracePalette: sanitizeTracePalette(value.tracePalette),
+  plotDesign: sanitizePlotDesign(value.plotDesign)
+});
+
+const sanitizeCustomThemes = (value) => {
+  const incoming = Array.isArray(value) ? value : [];
+  return Array.from({ length: CUSTOM_THEME_LIMIT }, (_, index) => {
+    const candidate = incoming[index];
+    return candidate ? sanitizeTheme(candidate) : null;
+  });
+};
+
+const loadStoredTheme = () => {
+  if (!canUseStorage) return null;
+  try {
+    const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (!raw) return null;
+    return sanitizeTheme(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+};
+
+const saveStoredTheme = (theme) => {
+  if (!canUseStorage) return;
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme));
+  } catch {
+    /* ignore */
+  }
+};
+
+const loadCustomThemeSlots = () => {
+  if (!canUseStorage) return sanitizeCustomThemes();
+  try {
+    const raw = window.localStorage.getItem(THEME_CUSTOM_STORAGE_KEY);
+    if (!raw) return sanitizeCustomThemes();
+    return sanitizeCustomThemes(JSON.parse(raw));
+  } catch {
+    return sanitizeCustomThemes();
+  }
+};
+
+const saveCustomThemeSlots = (slots) => {
+  if (!canUseStorage) return;
+  try {
+    window.localStorage.setItem(THEME_CUSTOM_STORAGE_KEY, JSON.stringify(slots));
+  } catch {
+    /* ignore */
+  }
+};
+
+const loadPanelChromeHistory = () => {
+  if (!canUseStorage) return [];
+  try {
+    const raw = window.localStorage.getItem(PANEL_CHROME_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const normalized = Array.isArray(parsed)
+      ? parsed
+        .map((color) => normalizeColor(color))
+        .filter(Boolean)
+      : [];
+    return normalized.slice(0, PANEL_CHROME_HISTORY_LIMIT);
+  } catch {
+    return [];
+  }
+};
+
+const savePanelChromeHistory = (history) => {
+  if (!canUseStorage) return;
+  try {
+    window.localStorage.setItem(PANEL_CHROME_HISTORY_KEY, JSON.stringify(history));
+  } catch {
+    /* ignore */
+  }
+};
+
+const themeState = {
+  active: loadStoredTheme() || sanitizeTheme(),
+  customThemes: loadCustomThemeSlots(),
+  chromeHistory: loadPanelChromeHistory(),
+  listeners: new Set()
+};
+let themeMenuControls = null;
+
+const emitThemeChange = () => {
+  themeState.listeners.forEach((listener) => {
+    try {
+      listener(themeState.active);
+    } catch (err) {
+      console.warn('Theme listener failed', err);
+    }
+  });
+};
+
+const recordPanelChromeHistory = (color) => {
+  const normalized = normalizeColor(color);
+  if (!normalized) return;
+  const next = [normalized, ...themeState.chromeHistory.filter((entry) => entry !== normalized)];
+  if (next.length > PANEL_CHROME_HISTORY_LIMIT) {
+    next.length = PANEL_CHROME_HISTORY_LIMIT;
+  }
+  themeState.chromeHistory = next;
+  savePanelChromeHistory(themeState.chromeHistory);
+};
+
+const setActiveTheme = (nextTheme, { persist = true } = {}) => {
+  const sanitized = sanitizeTheme(nextTheme);
+  themeState.active = sanitized;
+  if (persist) {
+    saveStoredTheme(themeState.active);
+  }
+  recordPanelChromeHistory(sanitized.panelChrome?.color);
+  emitThemeChange();
+  return themeState.active;
+};
+
+const updateActiveTheme = (patch = {}, options = {}) =>
+  setActiveTheme({ ...themeState.active, ...patch }, options);
+
+const subscribeToThemes = (listener) => {
+  if (typeof listener !== 'function') {
+    return () => {};
+  }
+  themeState.listeners.add(listener);
+  return () => {
+    themeState.listeners.delete(listener);
+  };
+};
+
+const saveCustomThemeSlot = (slotIndex, payload) => {
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= CUSTOM_THEME_LIMIT) {
+    return false;
+  }
+  const sanitized = payload ? sanitizeTheme(payload) : null;
+  themeState.customThemes[slotIndex] = sanitized;
+  saveCustomThemeSlots(themeState.customThemes);
+  return true;
+};
+
+const getCustomThemes = () => themeState.customThemes.slice();
+const getActiveTheme = () => themeState.active;
+const getPanelChromeHistory = () => themeState.chromeHistory.slice();
+const themeSwatches = {
+  canvasBackgrounds: CANVAS_BACKGROUND_SWATCHES.slice(),
+  panelChrome: PANEL_CHROME_SWATCHES.slice(),
+  tracePalette: TRACE_PALETTE_DEFAULT.slice(),
+  plotDesign: { ...PLOT_DESIGN_DEFAULT }
+};
+
 const isWorkspaceSnapshot = (value) => {
   if (!value || typeof value !== 'object') return false;
   if (value.panels) {
@@ -3226,6 +3475,21 @@ let updateCanvasState = () => {};
   runtimeState.services.io = ioFacade;
   runtimeState.helpers = runtimeState.helpers || {};
   runtimeState.helpers.resetColorCursor = () => colorCursorManager.reset();
+  runtimeState.theme = {
+    getActiveTheme,
+    updateTheme: updateActiveTheme,
+    subscribe: subscribeToThemes,
+    getSwatches: () => ({
+      canvasBackgrounds: themeSwatches.canvasBackgrounds.slice(),
+      panelChrome: themeSwatches.panelChrome.slice(),
+      tracePalette: themeSwatches.tracePalette.slice(),
+      plotDesign: { ...themeSwatches.plotDesign }
+    }),
+    getCustomThemes,
+    saveCustomThemeSlot,
+    getPanelChromeHistory,
+    recordPanelChromeHistory
+  };
 
   const preferencesToggleBtn = document.getElementById('c_canvas_preferences_toggle');
   const multiImportToggleEl = document.getElementById('pref_multi_import_toggle');

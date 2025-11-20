@@ -61,10 +61,61 @@
     </div>
   </div>
   <div class="btn-group btn-group-sm" role="group" aria-label="Layout and exports">
-    <button id="c_canvas_toggle_theme" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Change workspace theme" aria-label="Change workspace theme" disabled>
-      <i class="bi bi-brightness-high workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Change workspace theme</span>
-    </button>
+    <div class="btn-group workspace-toolbar-btn-group">
+      <button id="c_canvas_toggle_theme" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Change workspace theme" aria-label="Change workspace theme" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+        <i class="bi bi-brightness-high workspace-toolbar-icon" aria-hidden="true"></i>
+        <span class="visually-hidden">Change workspace theme</span>
+      </button>
+      <div class="dropdown-menu workspace-toolbar-theme-menu" id="c_canvas_theme_menu" aria-labelledby="c_canvas_toggle_theme">
+        <section class="workspace-theme-section">
+          <header>
+            <h4>Canvas background</h4>
+            <p>Select a backdrop for the workspace canvas.</p>
+          </header>
+          <div id="c_theme_canvas_swatches" class="workspace-theme-swatches"></div>
+          <label class="workspace-theme-color-picker">
+            <span>Custom</span>
+            <input type="color" id="c_theme_canvas_custom" class="form-control form-control-color" value="#0b1120">
+          </label>
+        </section>
+        <section class="workspace-theme-section">
+          <header>
+            <h4>Panel chrome</h4>
+            <p>Choose panel chrome tones to match your mood.</p>
+          </header>
+          <div id="c_theme_chrome_swatches" class="workspace-theme-swatches"></div>
+          <label class="workspace-theme-color-picker">
+            <span>Custom</span>
+            <input type="color" id="c_theme_chrome_custom" class="form-control form-control-color" value="#1f2937">
+          </label>
+          <div id="c_theme_chrome_history" class="workspace-theme-history"></div>
+        </section>
+        <section class="workspace-theme-section">
+          <header>
+            <h4>Trace palette</h4>
+            <p>Edit the default trace colors.</p>
+          </header>
+          <div id="c_theme_trace_palette" class="workspace-theme-trace-grid" aria-live="polite"></div>
+        </section>
+        <section class="workspace-theme-section">
+          <header>
+            <h4>Plot design</h4>
+            <p>Tune axes, ticks, legends, and grids.</p>
+          </header>
+          <div id="c_theme_plot_design" class="workspace-theme-plot-controls"></div>
+        </section>
+        <section class="workspace-theme-section">
+          <header>
+            <div>
+              <h4>Custom themes</h4>
+              <p>Save and reuse complete theme presets.</p>
+            </div>
+            <button id="c_theme_save_current" class="btn btn-sm btn-outline-primary" type="button">Save current theme</button>
+          </header>
+          <div id="c_theme_custom_list" class="workspace-theme-custom-grid"></div>
+        </section>
+      </div>
+    </div>
     <div class="btn-group workspace-toolbar-btn-group">
       <button id="c_canvas_align_graphs_toggle" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Arrange graphs" aria-label="Arrange graphs" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="bi bi-layout-three-columns workspace-toolbar-icon" aria-hidden="true"></i>

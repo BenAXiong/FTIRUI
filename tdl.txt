@@ -2,25 +2,21 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Step 1 – Build Theme Data Model
-
-Task 1: Define JS objects for palette swatches (canvas, chrome, traces, plot design) plus serialization shape for saved themes.
-Task 2: Add storage hooks (localStorage) to load/save five custom theme slots and remember last-used panel swatches.
+    Task 1: Define JS objects for palette swatches (canvas, chrome, traces, plot design) plus serialization shape for saved themes.
+    Task 2: Add storage hooks (localStorage) to load/save five custom theme slots and remember last-used panel swatches.
 Step 2 – Theme Picker UI
-
-Task 1: Replace button 7 with a dropdown surface containing sections for canvas, panel chrome, trace palette, plot design, and custom themes.
-Task 2: Build reusable swatch components (3 canvas colors + picker, 8 chrome swatches + picker + recent row, trace palette row showing 12 swatches, design toggles for axes/ticks/legend/grid).
+    Task 1: Replace button 7 with a dropdown surface containing sections for canvas, panel chrome, trace palette, plot design, and custom themes.
+    Task 2: Build reusable swatch components (3 canvas colors + picker, 8 chrome swatches + picker + recent row, trace palette row showing 12 swatches, design toggles for axes/ticks/legend/grid).
 Step 3 – Theme Application Logic
-
-Task 1: Wire swatch clicks to immediately preview theme (update CSS variables, Plotly defaults) with optional hover-preview hook.
-Task 2: Hook “Save current theme” and custom theme cards to capture/restore complete state (canvas, chrome, trace palette, design toggles).
+    Task 1: Wire swatch clicks to immediately preview theme (update CSS variables, Plotly defaults) with optional hover-preview hook.
+    Task 2: Hook “Save current theme” and custom theme cards to capture/restore complete state (canvas, chrome, trace palette, design toggles).
 Step 4 – Persistence & UX Polish
-
-Task 1: Persist selected theme per canvas and default theme globally; ensure undo history integrates cleanly.
-Task 2: Add tooltips, accessibility labels, and optional hover-preview enhancement; document limitations in tdl.txt.
+    Task 1: Persist selected theme per canvas and default theme globally; ensure undo history integrates cleanly.
+    Task 2: Add tooltips, accessibility labels, and optional hover-preview enhancement; document limitations in tdl.txt.
 ///
 _________________________________________________________________________________________________
 *
-gr eye !!!!!!!!!!!!!!!
+gr eye !!!
 gr apply template
 gr copy/paste style (options for axes, ticks, traces, all)
 br invert eye & trace name
