@@ -368,17 +368,19 @@ export function initWorkspaceRuntime(context = {}) {
     const bounds = getCanvasBounds();
     const baselineWidth = Math.max(minWidth, Math.min(bounds.width * targetRatio, maxWidth));
     const baselineHeight = Math.max(minHeight, Math.min(baselineWidth * 0.6, maxHeight));
+    const scaledWidth = Math.max(1, Math.round(baselineWidth * 0.5));
+    const scaledHeight = Math.max(1, Math.round(baselineHeight * 0.5));
     return {
       canvas: bounds,
-      width: Math.round(baselineWidth),
-      height: Math.round(baselineHeight),
+      width: scaledWidth,
+      height: scaledHeight,
       cascadeOffset: {
-        x: Math.round(Math.min(80, baselineWidth * 0.1)),
-        y: Math.round(Math.min(60, baselineHeight * 0.15))
+        x: Math.round(Math.min(80, scaledWidth * 0.1)),
+        y: Math.round(Math.min(60, scaledHeight * 0.15))
       },
       tile: {
         gutter: 16,
-        columns: Math.max(1, Math.floor(bounds.width / (baselineWidth + 16)))
+        columns: Math.max(1, Math.floor(bounds.width / (scaledWidth + 16)))
       },
       count: panels.length
     };
@@ -3077,12 +3079,18 @@ let updateCanvasState = () => {};
         ? 'cascade'
         : 'tile';
     const padding = 24;
-    const clampX = (value) => Math.max(padding, Math.min(value, metrics.canvas.width - metrics.width - padding));
-    const clampY = (value) => Math.max(padding, Math.min(value, metrics.canvas.height - metrics.height - padding));
+    const viewportOffsetX = Math.round(metrics.canvas.width * 0.20);
+    const viewportOffsetY = Math.round(metrics.canvas.height * 0.06);
+    const originX = padding + viewportOffsetX;
+    const originY = padding + viewportOffsetY;
+    const clampAxis = (value, size, axis) =>
+      Math.max(padding, Math.min(value, axis - size - padding));
+    const clampX = (value, width = metrics.width) => clampAxis(value, width, metrics.canvas.width);
+    const clampY = (value, height = metrics.height) => clampAxis(value, height, metrics.canvas.height);
     let geometries = [];
     if (mode === 'stack') {
-      const x = clampX(padding);
-      const y = clampY(padding);
+      const x = clampX(originX);
+      const y = clampY(originY);
       geometries = panels.map((panel) => ({
         panelId: panel.id,
         x,
@@ -3094,8 +3102,8 @@ let updateCanvasState = () => {};
       geometries = panels.map((panel, idx) => {
         const offsetX = metrics.cascadeOffset.x * idx;
         const offsetY = metrics.cascadeOffset.y * idx;
-        const x = clampX(padding + offsetX);
-        const y = clampY(padding + offsetY);
+        const x = clampX(originX + offsetX);
+        const y = clampY(originY + offsetY);
         return {
           panelId: panel.id,
           x,
@@ -3113,8 +3121,8 @@ let updateCanvasState = () => {};
         const availableWidth = Math.max(metrics.width, Math.floor((metrics.canvas.width - gutter * (columns + 1)) / columns));
         const adjustedWidth = Math.max(200, Math.min(metrics.width, availableWidth));
         const adjustedHeight = metrics.height;
-        const x = padding + col * (adjustedWidth + gutter);
-        const y = padding + row * (adjustedHeight + gutter);
+        const x = clampX(originX + col * (adjustedWidth + gutter), adjustedWidth);
+        const y = clampY(originY + row * (adjustedHeight + gutter), adjustedHeight);
         col += 1;
         if (col >= columns) {
           col = 0;

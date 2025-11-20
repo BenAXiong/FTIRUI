@@ -1826,8 +1826,8 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.45rem;
-  height: 2.45rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
 }
 .workspace-markdown-preview-toggle .workspace-markdown-preview-toggle-icon{
@@ -2340,16 +2340,22 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-panel-action-btn{
   width: 2rem;
   height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
   border-radius: .55rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: .35rem;
+  flex-shrink: 0;
   transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
 .workspace-panel-action-btn i{
   font-size: .95rem;
   line-height: 1;
+}
+.workspace-panel-action-btn--close i{
+  font-size: .82rem;
 }
 .workspace-panel-action-icon{
   display:inline-flex;
@@ -4208,4 +4214,17 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   display: block;
   position: relative;
   height: auto;
+}
+.workspace-toolbar-dropdown-menu .workspace-toolbar-layout-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .25rem .6rem .4rem;
+  gap: .4rem;
+}
+.workspace-toolbar-dropdown-menu .workspace-toolbar-layout-btn{
+  flex: 1 1 0;
+  text-align: center;
+  border-radius: .7rem;
+  padding: .5rem;
 }

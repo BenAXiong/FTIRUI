@@ -1559,7 +1559,7 @@ export function createPanelDomFacade({
 
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
-        closeBtn.className = 'btn btn-outline-secondary';
+        closeBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn--close';
         closeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
         closeBtn.title = 'Close graph';
         closeBtn.addEventListener('click', () => {
@@ -1661,7 +1661,7 @@ export function createPanelDomFacade({
           let fullscreenEnabled = false;
           const nonPlotFullscreenBtn = document.createElement('button');
           nonPlotFullscreenBtn.type = 'button';
-          nonPlotFullscreenBtn.className = 'btn btn-outline-secondary';
+          nonPlotFullscreenBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
           const updateNonPlotFullscreenBtn = () => {
             nonPlotFullscreenBtn.innerHTML = fullscreenEnabled
               ? '<i class="bi bi-arrows-angle-contract"></i>'
@@ -1893,7 +1893,7 @@ export function createPanelDomFacade({
 
           const closeBtn = document.createElement('button');
           closeBtn.type = 'button';
-          closeBtn.className = 'btn btn-outline-secondary';
+          closeBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn--close';
           closeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
           closeBtn.title = 'Close panel';
           closeBtn.addEventListener('click', () => {
