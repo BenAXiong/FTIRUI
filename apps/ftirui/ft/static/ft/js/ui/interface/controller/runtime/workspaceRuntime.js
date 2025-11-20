@@ -178,16 +178,36 @@ const PANEL_CHROME_SWATCHES = [
   { id: 'chrome-ash', label: 'Ash', color: '#374151' },
   { id: 'chrome-sand', label: 'Sand', color: '#f5f5f4' },
   { id: 'chrome-porcelain', label: 'Porcelain', color: '#e2e8f0' },
-  { id: 'chrome-emerald', label: 'Emerald', color: '#064e3b' },
-  { id: 'chrome-amber', label: 'Amber', color: '#78350f' },
-  { id: 'chrome-plum', label: 'Plum', color: '#4c1d95' }
+  { id: 'chrome-gradient-aurora', label: 'Aurora', color: '#4f46e5', preview: 'linear-gradient(135deg,#4f46e5,#06b6d4)' },
+  { id: 'chrome-gradient-solar', label: 'Solar', color: '#f97316', preview: 'linear-gradient(135deg,#f97316,#fde047)' },
+  { id: 'chrome-gradient-boreal', label: 'Boreal', color: '#0ea5e9', preview: 'linear-gradient(135deg,#0ea5e9,#22d3ee)' },
+  { id: 'chrome-gradient-plasma', label: 'Plasma', color: '#ec4899', preview: 'linear-gradient(135deg,#ec4899,#c084fc)' }
 ];
 const PANEL_CHROME_HISTORY_LIMIT = 8;
-const TRACE_PALETTE_DEFAULT = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-  '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-  '#bcbd22', '#17becf', '#f97316', '#14b8a6'
+const TRACE_PALETTE_ROWS = [
+  {
+    label: 'Spectrum',
+    colors: [
+      '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+      '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+    ]
+  },
+  {
+    label: 'Earth & Alloy',
+    colors: [
+      '#78350f', '#a16207', '#ca8a04', '#d97706', '#fbbf24',
+      '#4b5563', '#64748b', '#94a3b8', '#cbd5f5', '#e2e8f0'
+    ]
+  },
+  {
+    label: 'Aurora Drift',
+    colors: [
+      '#10b981', '#14b8a6', '#22d3ee', '#38bdf8', '#6366f1',
+      '#8b5cf6', '#c084fc', '#f472b6', '#fb7185', '#facc15'
+    ]
+  }
 ];
+const TRACE_PALETTE_DEFAULT = TRACE_PALETTE_ROWS.flatMap((row) => row.colors);
 const TRACE_PALETTE_LENGTH = TRACE_PALETTE_DEFAULT.length;
 const PLOT_DESIGN_DEFAULT = {
   showAxes: true,
@@ -262,18 +282,25 @@ const sanitizePlotDesign = (design = {}) => ({
   axisLineStyle: typeof design.axisLineStyle === 'string' ? design.axisLineStyle : 'solid'
 });
 
-const sanitizeTheme = (value = {}) => ({
-  canvasBackground: sanitizeCanvasBackground(value.canvasBackground),
-  panelChrome: sanitizePanelChrome(value.panelChrome),
-  tracePalette: sanitizeTracePalette(value.tracePalette),
-  plotDesign: sanitizePlotDesign(value.plotDesign)
-});
+const sanitizeTheme = (value = {}, { fallbackName = null } = {}) => {
+  const name =
+    typeof value.name === 'string' && value.name.trim()
+      ? value.name.trim()
+      : fallbackName || null;
+  return {
+    canvasBackground: sanitizeCanvasBackground(value.canvasBackground),
+    panelChrome: sanitizePanelChrome(value.panelChrome),
+    tracePalette: sanitizeTracePalette(value.tracePalette),
+    plotDesign: sanitizePlotDesign(value.plotDesign),
+    name
+  };
+};
 
 const sanitizeCustomThemes = (value) => {
   const incoming = Array.isArray(value) ? value : [];
   return Array.from({ length: CUSTOM_THEME_LIMIT }, (_, index) => {
     const candidate = incoming[index];
-    return candidate ? sanitizeTheme(candidate) : null;
+    return candidate ? sanitizeTheme(candidate, { fallbackName: `Theme ${index + 1}` }) : null;
   });
 };
 
@@ -400,7 +427,7 @@ const saveCustomThemeSlot = (slotIndex, payload) => {
   if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= CUSTOM_THEME_LIMIT) {
     return false;
   }
-  const sanitized = payload ? sanitizeTheme(payload) : null;
+  const sanitized = payload ? sanitizeTheme(payload, { fallbackName: `Theme ${slotIndex + 1}` }) : null;
   themeState.customThemes[slotIndex] = sanitized;
   saveCustomThemeSlots(themeState.customThemes);
   return true;
@@ -414,6 +441,339 @@ const themeSwatches = {
   panelChrome: PANEL_CHROME_SWATCHES.slice(),
   tracePalette: TRACE_PALETTE_DEFAULT.slice(),
   plotDesign: { ...PLOT_DESIGN_DEFAULT }
+};
+
+const initThemeMenuControls = () => {
+  if (typeof document === 'undefined') return null;
+  const trigger = document.getElementById('c_canvas_toggle_theme');
+  const menu = document.getElementById('c_canvas_theme_menu');
+  const dom = {
+    canvasSwatches: document.getElementById('c_theme_canvas_swatches'),
+    canvasPicker: document.getElementById('c_theme_canvas_custom'),
+    chromeSwatches: document.getElementById('c_theme_chrome_swatches'),
+    chromePicker: document.getElementById('c_theme_chrome_custom'),
+    chromeHistory: document.getElementById('c_theme_chrome_history'),
+    tracePalette: document.getElementById('c_theme_trace_palette'),
+    plotDesign: document.getElementById('c_theme_plot_design'),
+    customList: document.getElementById('c_theme_custom_list'),
+    saveButton: document.getElementById('c_theme_save_current')
+  };
+  if (!trigger || !menu) return null;
+
+  const updateTheme = (patch) => {
+    const current = getActiveTheme();
+    setActiveTheme({ ...current, ...patch });
+  };
+
+  const updatePlotDesign = (partial) => {
+    const current = getActiveTheme();
+    updateTheme({
+      plotDesign: {
+        ...current.plotDesign,
+        ...partial
+      }
+    });
+  };
+
+  const handleCanvasCustomInput = (event) => {
+    const color = normalizeColor(event.target.value);
+    if (!color) return;
+    updateTheme({
+      canvasBackground: {
+        id: 'custom',
+        color,
+        customColor: color
+      }
+    });
+  };
+
+  const handleChromeCustomInput = (event) => {
+    const color = normalizeColor(event.target.value);
+    if (!color) return;
+    updateTheme({
+      panelChrome: {
+        id: 'custom',
+        color,
+        customColor: color
+      }
+    });
+  };
+
+  const renderCanvasSwatches = (theme) => {
+    if (!dom.canvasSwatches) return;
+    const fragment = document.createDocumentFragment();
+    themeSwatches.canvasBackgrounds.forEach((swatch) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'workspace-theme-swatch';
+      btn.style.background = swatch.gradient || `linear-gradient(135deg, ${swatch.color}, ${swatch.color}99)`;
+      btn.title = swatch.label;
+      if (theme.canvasBackground?.id === swatch.id) {
+        btn.classList.add('is-active');
+      }
+      btn.addEventListener('click', () => {
+        updateTheme({
+          canvasBackground: {
+            id: swatch.id,
+            color: swatch.color,
+            label: swatch.label
+          }
+        });
+      });
+      fragment.appendChild(btn);
+    });
+    dom.canvasSwatches.innerHTML = '';
+    dom.canvasSwatches.appendChild(fragment);
+    if (dom.canvasPicker) {
+      dom.canvasPicker.value = theme.canvasBackground?.color || dom.canvasPicker.value || '#0b1120';
+      dom.canvasPicker
+        .closest('.workspace-theme-swatch--custom')
+        ?.classList.toggle('is-active', theme.canvasBackground?.id === 'custom');
+    }
+  };
+
+  const renderChromeSwatches = (theme) => {
+    if (!dom.chromeSwatches) return;
+    const fragment = document.createDocumentFragment();
+    themeSwatches.panelChrome.forEach((swatch) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'workspace-theme-swatch';
+      btn.style.background = swatch.preview || `linear-gradient(135deg, ${swatch.color}, ${swatch.color}99)`;
+      btn.title = swatch.label;
+      if (theme.panelChrome?.id === swatch.id) {
+        btn.classList.add('is-active');
+      }
+      btn.addEventListener('click', () => {
+        updateTheme({
+          panelChrome: {
+            id: swatch.id,
+            color: swatch.color,
+            label: swatch.label
+          }
+        });
+      });
+      fragment.appendChild(btn);
+    });
+    dom.chromeSwatches.innerHTML = '';
+    dom.chromeSwatches.appendChild(fragment);
+    if (dom.chromePicker) {
+      dom.chromePicker.value = theme.panelChrome?.color || dom.chromePicker.value || '#1f2937';
+      dom.chromePicker
+        .closest('.workspace-theme-swatch--custom')
+        ?.classList.toggle('is-active', theme.panelChrome?.id === 'custom');
+    }
+
+    if (dom.chromeHistory) {
+      const history = getPanelChromeHistory();
+      dom.chromeHistory.innerHTML = '';
+      history.forEach((color) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.background = color;
+        btn.title = `Apply ${color}`;
+        btn.addEventListener('click', () => {
+          updateTheme({
+            panelChrome: {
+              id: 'custom',
+              color,
+              customColor: color
+            }
+          });
+        });
+        dom.chromeHistory.appendChild(btn);
+      });
+      dom.chromeHistory.hidden = history.length === 0;
+    }
+  };
+
+  const renderTracePalette = (theme) => {
+    if (!dom.tracePalette) return;
+    const palette = Array.isArray(theme.tracePalette)
+      ? theme.tracePalette
+      : TRACE_PALETTE_DEFAULT;
+    const fragment = document.createDocumentFragment();
+    const rows = Math.ceil(palette.length / 10);
+    for (let row = 0; row < rows; row += 1) {
+      const rowWrapper = document.createElement('div');
+      rowWrapper.className = 'workspace-theme-trace-row';
+
+      const label = document.createElement('div');
+      label.className = 'workspace-theme-trace-row-label';
+      label.textContent = TRACE_PALETTE_ROWS[row]?.label || `Row ${row + 1}`;
+      rowWrapper.appendChild(label);
+
+      const swatchGrid = document.createElement('div');
+      swatchGrid.className = 'workspace-theme-trace-row-swatches';
+
+      const start = row * 10;
+      const slice = palette.slice(start, start + 10);
+      slice.forEach((color, index) => {
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.className = 'workspace-theme-trace-swatch';
+        swatch.style.background = color || '#000000';
+        swatch.title = `Trace ${start + index + 1}`;
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = color || '#000000';
+        input.addEventListener('input', (event) => {
+          const nextPalette = palette.slice();
+          nextPalette[start + index] = event.target.value;
+          updateTheme({ tracePalette: nextPalette });
+        });
+        swatch.appendChild(input);
+        swatchGrid.appendChild(swatch);
+      });
+      rowWrapper.appendChild(swatchGrid);
+      fragment.appendChild(rowWrapper);
+    }
+    dom.tracePalette.innerHTML = '';
+    dom.tracePalette.appendChild(fragment);
+  };
+
+  const renderPlotDesign = (theme) => {
+    if (!dom.plotDesign) return;
+    const design = theme.plotDesign || PLOT_DESIGN_DEFAULT;
+    dom.plotDesign?.replaceChildren();
+  };
+
+  const renderCustomThemes = () => {
+    if (!dom.customList) return;
+    const slots = getCustomThemes();
+    const fragment = document.createDocumentFragment();
+    slots.forEach((slot, index) => {
+      const card = document.createElement('div');
+      card.className = 'workspace-theme-custom-card';
+      const header = document.createElement('header');
+      const titleGroup = document.createElement('div');
+      titleGroup.className = 'workspace-theme-custom-header';
+      const titleText = document.createElement('span');
+      titleText.className = 'workspace-theme-custom-title';
+      titleText.textContent = slot?.name || `Theme ${index + 1}`;
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.className = 'btn btn-link btn-sm workspace-theme-custom-rename';
+      renameBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+      renameBtn.title = 'Rename theme';
+      renameBtn.disabled = !slot;
+      renameBtn.addEventListener('click', () => {
+        if (!slot) return;
+        const currentName = titleText.textContent || `Theme ${index + 1}`;
+        const nextName = window.prompt('Rename custom theme', currentName);
+        if (!nextName || !nextName.trim()) return;
+        titleText.textContent = nextName.trim();
+        slot.name = nextName.trim();
+        saveCustomThemeSlot(index, slot);
+      });
+      titleGroup.appendChild(titleText);
+      titleGroup.appendChild(renameBtn);
+      header.appendChild(titleGroup);
+      if (!slot) {
+        const hint = document.createElement('span');
+        hint.className = 'workspace-theme-custom-empty';
+        hint.textContent = 'Empty slot';
+        header.appendChild(hint);
+      }
+      card.appendChild(header);
+
+      const preview = document.createElement('div');
+      preview.className = 'workspace-theme-custom-preview';
+      if (slot) {
+        const canvasSwatch = document.createElement('span');
+        canvasSwatch.style.background = slot.canvasBackground?.color || '#0b1120';
+        preview.appendChild(canvasSwatch);
+        const chromeSwatch = document.createElement('span');
+        chromeSwatch.style.background = slot.panelChrome?.color || '#1f2937';
+        preview.appendChild(chromeSwatch);
+        slot.tracePalette?.slice(0, 3).forEach((color) => {
+          const traceSwatch = document.createElement('span');
+          traceSwatch.style.background = color || '#ffffff';
+          preview.appendChild(traceSwatch);
+        });
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'workspace-theme-custom-empty';
+        empty.textContent = 'No preview';
+        preview.appendChild(empty);
+      }
+      card.appendChild(preview);
+
+      const actions = document.createElement('div');
+      actions.className = 'workspace-theme-custom-actions';
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'btn btn-outline-secondary btn-sm';
+      applyBtn.textContent = 'Apply';
+      applyBtn.disabled = !slot;
+      applyBtn.addEventListener('click', () => {
+        if (!slot) return;
+        setActiveTheme(slot);
+        showToast(`Theme ${index + 1} applied.`, 'success');
+      });
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'btn btn-outline-primary btn-sm';
+      saveBtn.textContent = 'Save here';
+      saveBtn.addEventListener('click', () => {
+        saveCustomThemeSlot(index, getActiveTheme());
+        showToast(`Saved current theme to slot ${index + 1}.`, 'success');
+        renderCustomThemes();
+      });
+      actions.appendChild(applyBtn);
+      actions.appendChild(saveBtn);
+      card.appendChild(actions);
+      fragment.appendChild(card);
+    });
+    dom.customList.innerHTML = '';
+    dom.customList.appendChild(fragment);
+  };
+
+  const render = () => {
+    const theme = getActiveTheme();
+    if (!theme) return;
+    renderCanvasSwatches(theme);
+    renderChromeSwatches(theme);
+    renderTracePalette(theme);
+    renderPlotDesign(theme);
+    renderCustomThemes();
+  };
+
+  dom.canvasPicker?.addEventListener('input', handleCanvasCustomInput);
+  dom.chromePicker?.addEventListener('input', handleChromeCustomInput);
+  if (dom.saveButton) {
+    dom.saveButton.addEventListener('click', () => {
+      const slots = getCustomThemes();
+      const emptyIndex = slots.findIndex((slot) => slot === null);
+      if (emptyIndex === -1) {
+        showToast('All custom slots are in use. Overwrite a slot below.', 'info');
+        return;
+      }
+      saveCustomThemeSlot(emptyIndex, getActiveTheme());
+      showToast(`Saved current theme to slot ${emptyIndex + 1}.`, 'success');
+      render();
+    });
+  }
+
+  const scheduleRender = () => {
+    if (typeof window?.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(render);
+    } else {
+      setTimeout(render, 0);
+    }
+  };
+  trigger.addEventListener('click', scheduleRender);
+  trigger.addEventListener('mouseenter', scheduleRender);
+  const unsubscribe = subscribeToThemes(render);
+  render();
+
+  return {
+    teardown: () => {
+      trigger.removeEventListener('click', scheduleRender);
+      trigger.removeEventListener('mouseenter', scheduleRender);
+      unsubscribe?.();
+    }
+  };
 };
 
 const isWorkspaceSnapshot = (value) => {
@@ -3490,6 +3850,7 @@ let updateCanvasState = () => {};
     getPanelChromeHistory,
     recordPanelChromeHistory
   };
+  themeMenuControls = initThemeMenuControls();
 
   const preferencesToggleBtn = document.getElementById('c_canvas_preferences_toggle');
   const multiImportToggleEl = document.getElementById('pref_multi_import_toggle');
@@ -3758,6 +4119,8 @@ let updateCanvasState = () => {};
     ghostToggleButton = null;
     cdpModeEnabled = false;
     ghostModeEnabled = false;
+    themeMenuControls?.teardown?.();
+    themeMenuControls = null;
     alignIncludeAllToggle = null;
     if (cdpPanelEl?.parentNode) {
       cdpPanelEl.parentNode.removeChild(cdpPanelEl);
@@ -3862,3 +4225,4 @@ let updateCanvasState = () => {};
   }
 
 }
+

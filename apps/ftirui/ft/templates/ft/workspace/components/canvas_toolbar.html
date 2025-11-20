@@ -33,7 +33,7 @@
       <i class="bi bi-journal-code workspace-toolbar-icon" aria-hidden="true"></i>
       <span class="visually-hidden">Add scripting notebook</span>
     </button>
-    <div class="btn-group workspace-toolbar-btn-group">
+    <div class="btn-group btn-group-sm workspace-toolbar-btn-group workspace-toolbar-btn-group--rounded">
       <button id="c_canvas_add_images" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Add image panel" aria-label="Add image panel" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="bi bi-images workspace-toolbar-icon" aria-hidden="true"></i>
         <span class="visually-hidden">Add image panel</span>
@@ -72,22 +72,26 @@
             <h4>Canvas background</h4>
             <p>Select a backdrop for the workspace canvas.</p>
           </header>
-          <div id="c_theme_canvas_swatches" class="workspace-theme-swatches"></div>
-          <label class="workspace-theme-color-picker">
-            <span>Custom</span>
-            <input type="color" id="c_theme_canvas_custom" class="form-control form-control-color" value="#0b1120">
-          </label>
+          <div class="workspace-theme-swatches workspace-theme-swatches--inline">
+            <div id="c_theme_canvas_swatches" class="workspace-theme-swatches-list"></div>
+            <label class="workspace-theme-swatch workspace-theme-swatch--custom">
+              <input type="color" id="c_theme_canvas_custom" class="form-control form-control-color" value="#0b1120">
+              <span>Custom</span>
+            </label>
+          </div>
         </section>
         <section class="workspace-theme-section">
           <header>
             <h4>Panel chrome</h4>
             <p>Choose panel chrome tones to match your mood.</p>
           </header>
-          <div id="c_theme_chrome_swatches" class="workspace-theme-swatches"></div>
-          <label class="workspace-theme-color-picker">
-            <span>Custom</span>
-            <input type="color" id="c_theme_chrome_custom" class="form-control form-control-color" value="#1f2937">
-          </label>
+          <div class="workspace-theme-swatches workspace-theme-swatches--inline">
+            <div id="c_theme_chrome_swatches" class="workspace-theme-swatches-list"></div>
+            <label class="workspace-theme-swatch workspace-theme-swatch--custom">
+              <input type="color" id="c_theme_chrome_custom" class="form-control form-control-color" value="#1f2937">
+              <span>Custom</span>
+            </label>
+          </div>
           <div id="c_theme_chrome_history" class="workspace-theme-history"></div>
         </section>
         <section class="workspace-theme-section">
@@ -96,13 +100,6 @@
             <p>Edit the default trace colors.</p>
           </header>
           <div id="c_theme_trace_palette" class="workspace-theme-trace-grid" aria-live="polite"></div>
-        </section>
-        <section class="workspace-theme-section">
-          <header>
-            <h4>Plot design</h4>
-            <p>Tune axes, ticks, legends, and grids.</p>
-          </header>
-          <div id="c_theme_plot_design" class="workspace-theme-plot-controls"></div>
         </section>
         <section class="workspace-theme-section">
           <header>
