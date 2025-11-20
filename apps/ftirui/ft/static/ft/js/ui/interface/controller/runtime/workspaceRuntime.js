@@ -3202,6 +3202,29 @@ let updateCanvasState = () => {};
   runtimeState.helpers = runtimeState.helpers || {};
   runtimeState.helpers.resetColorCursor = () => colorCursorManager.reset();
 
+  const preferencesToggleBtn = document.getElementById('c_canvas_preferences_toggle');
+  const multiImportToggleEl = document.getElementById('pref_multi_import_toggle');
+  const getIoPreferenceService = () => runtimeState?.services?.io || ioFacade;
+  const syncMultiImportToggle = () => {
+    if (!multiImportToggleEl) return;
+    const pref = getIoPreferenceService()?.getMultiImportPreference?.();
+    multiImportToggleEl.checked = pref === 'combined';
+  };
+  multiImportToggleEl?.addEventListener('change', () => {
+    const service = getIoPreferenceService();
+    if (multiImportToggleEl.checked) {
+      service?.setMultiImportPreference?.('combined');
+    } else {
+      service?.setMultiImportPreference?.(null);
+    }
+  });
+  preferencesToggleBtn?.addEventListener('click', () => syncMultiImportToggle());
+  preferencesToggleBtn?.addEventListener('mouseenter', () => syncMultiImportToggle());
+  if (typeof window !== 'undefined' && window.bootstrap?.Dropdown && preferencesToggleBtn) {
+    preferencesToggleBtn.addEventListener('shown.bs.dropdown', () => syncMultiImportToggle());
+  }
+  syncMultiImportToggle();
+
   // --- UI event bindings ---
 
   panelDom.pin?.addEventListener('click', () => {

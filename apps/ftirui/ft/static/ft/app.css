@@ -2757,6 +2757,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   min-width: 220px;
   padding: .5rem 0;
   z-index: 2610;
+  overflow: visible;
 }
 .workspace-toolbar-dropdown .dropdown-item{
   font-size: .85rem;
@@ -2764,6 +2765,151 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   align-items: center;
   gap: .65rem;
   padding: .45rem .9rem;
+}
+.workspace-toolbar-submenu{
+  position: relative;
+}
+.workspace-toolbar-submenu-toggle{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.workspace-toolbar-submenu > .dropdown-toggle::after{
+  display: none !important;
+}
+.workspace-toolbar-submenu-label{
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+}
+.workspace-toolbar-submenu-menu{
+  display: none;
+  position: absolute;
+  top: 0;
+  left: calc(100% + .5rem);
+  min-width: 640px;
+  width: min(700px, 95vw);
+  max-width: min(700px, 95vw);
+  border-radius: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 75%, transparent);
+  box-shadow: 0 28px 48px rgba(15,23,42,.22);
+  padding: .75rem 1rem;
+  z-index: 1050;
+}
+.workspace-toolbar-submenu-menu.show,
+.workspace-toolbar-submenu:hover > .workspace-toolbar-submenu-menu{
+  display: block;
+}
+.workspace-pref-item{
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .35rem;
+  border-radius: .85rem;
+}
+.workspace-pref-item + .workspace-pref-item{
+  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
+  margin-top: .35rem;
+  padding-top: 1rem;
+}
+.workspace-pref-item:first-child{
+  border-top: none;
+  margin-top: 0;
+  padding-top: .35rem;
+}
+.workspace-pref-item:hover{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 50%, transparent);
+}
+.workspace-pref-icon{
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: .65rem;
+  background: color-mix(in srgb, var(--bs-primary) 10%, rgba(15,23,42,.06));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--bs-primary);
+  flex-shrink: 0;
+}
+.workspace-pref-body{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace-pref-title{
+  font-size: .9rem;
+  font-weight: 600;
+}
+.workspace-pref-desc{
+  font-size: .78rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+}
+.workspace-pref-pill{
+  font-size: .7rem;
+  padding: .15rem .5rem;
+  border-radius: .7rem;
+  background: color-mix(in srgb, var(--bs-border-color) 55%, transparent);
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+  white-space: nowrap;
+}
+.workspace-import-choice{
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, rgba(15,23,42,.65) 60%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4100;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.workspace-import-choice.is-visible{
+  opacity: 1;
+}
+.workspace-import-choice-panel{
+  background: var(--bs-body-bg);
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent);
+  box-shadow: 0 32px 60px rgba(15,23,42,.25);
+  width: min(420px, 92vw);
+  padding: 1.5rem;
+}
+.workspace-import-choice-title{
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: .5rem;
+}
+.workspace-import-choice-hint{
+  margin: 0 0 1.25rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+  font-size: .9rem;
+}
+.workspace-import-choice-actions{
+  display: flex;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+.workspace-import-choice-btn{
+  flex: 1 1 0;
+  padding-block: .65rem;
+  font-weight: 600;
+}
+.workspace-import-choice-remember{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .85rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
+  margin: 0;
+  flex-wrap: wrap;
+}
+.workspace-import-choice-remember .form-check-input{
+  flex-shrink: 0;
+}
+.workspace-import-choice-remember-note{
+  font-size: .8rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.25) 25%);
 }
 .workspace-toolbar-handle{
   flex-shrink: 0;

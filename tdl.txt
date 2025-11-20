@@ -45,7 +45,7 @@ Phase 2 – Global commands (aka tb1): toolbar modernization
     [x] images
     [ ] theme
     [x] organize graphs
-    [ ] import data
+    [-] import data
     [ ] import folder
     [ ] export all?
     [ ] more options: manage snapshots? export all

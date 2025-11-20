@@ -78,6 +78,151 @@ export function createIoFacade({
     decodeName = (value) => value
   } = utils;
 
+  const MULTI_IMPORT_PREF_KEY = 'ftirui.workspace.multiImportPref.v1';
+  const canUsePreferenceStorage = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+  const readMultiImportPreference = () => {
+    if (!canUsePreferenceStorage) return null;
+    try {
+      const value = window.localStorage.getItem(MULTI_IMPORT_PREF_KEY);
+      return value === 'combined' || value === 'separate' ? value : null;
+    } catch {
+      return null;
+    }
+  };
+  const writeMultiImportPreference = (value) => {
+    if (!canUsePreferenceStorage) return;
+    try {
+      if (value) {
+        window.localStorage.setItem(MULTI_IMPORT_PREF_KEY, value);
+      } else {
+        window.localStorage.removeItem(MULTI_IMPORT_PREF_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+  let cachedMultiImportPreference = readMultiImportPreference();
+  const rememberMultiImportPreference = (value) => {
+    cachedMultiImportPreference = value;
+    writeMultiImportPreference(value);
+  };
+  const clearMultiImportPreference = () => {
+    cachedMultiImportPreference = null;
+    writeMultiImportPreference('');
+  };
+
+  const setMultiImportPreference = (value) => {
+    if (value === 'combined') {
+      rememberMultiImportPreference('combined');
+    } else if (value === 'separate') {
+      rememberMultiImportPreference('separate');
+    } else {
+      clearMultiImportPreference();
+    }
+  };
+
+  const getMultiImportPreference = () => cachedMultiImportPreference;
+
+  const promptMultiImportMode = () => {
+    if (typeof document === 'undefined' || typeof document.body === 'undefined') {
+      return Promise.resolve({ mode: 'separate', remember: false });
+    }
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'workspace-import-choice';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+
+      const panel = document.createElement('div');
+      panel.className = 'workspace-import-choice-panel';
+      overlay.appendChild(panel);
+
+      const title = document.createElement('h3');
+      title.className = 'workspace-import-choice-title';
+      title.textContent = 'How to plot these data?';
+      panel.appendChild(title);
+
+      const hint = document.createElement('p');
+      hint.className = 'workspace-import-choice-hint';
+      hint.textContent = 'Reorganize your data at any time from the browser.';
+      panel.appendChild(hint);
+
+      const actionsRow = document.createElement('div');
+      actionsRow.className = 'workspace-import-choice-actions';
+      panel.appendChild(actionsRow);
+
+      const rememberWrapper = document.createElement('label');
+      rememberWrapper.className = 'workspace-import-choice-remember form-check';
+      const rememberInput = document.createElement('input');
+      rememberInput.type = 'checkbox';
+      rememberInput.className = 'form-check-input';
+      rememberWrapper.appendChild(rememberInput);
+      const rememberCopy = document.createElement('span');
+      rememberCopy.textContent = 'Do not ask me again';
+      rememberWrapper.appendChild(rememberCopy);
+      const rememberNote = document.createElement('span');
+      rememberNote.className = 'workspace-import-choice-remember-note';
+      rememberNote.textContent = '(You can change this later in Preferences)';
+      rememberWrapper.appendChild(rememberNote);
+
+      const makeButton = (label, classes) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = classes;
+        btn.textContent = label;
+        return btn;
+      };
+
+      const separateBtn = makeButton('Separate graphs', 'btn btn-primary workspace-import-choice-btn');
+      const combinedBtn = makeButton('Same graph', 'btn btn-outline-secondary workspace-import-choice-btn');
+      actionsRow.appendChild(separateBtn);
+      actionsRow.appendChild(combinedBtn);
+      panel.appendChild(rememberWrapper);
+
+      const cleanup = () => {
+        document.removeEventListener('keydown', keyHandler, true);
+        overlay.classList.remove('is-visible');
+        window.setTimeout(() => {
+          overlay.remove();
+        }, 180);
+      };
+
+      const finish = (mode) => {
+        cleanup();
+        resolve({
+          mode,
+          remember: rememberInput.checked
+        });
+      };
+
+      const keyHandler = (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish('separate');
+        }
+      };
+      document.addEventListener('keydown', keyHandler, true);
+
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+          finish('separate');
+        }
+      });
+
+      separateBtn.addEventListener('click', () => finish('separate'));
+      combinedBtn.addEventListener('click', () => finish('combined'));
+
+      document.body.appendChild(overlay);
+      const schedule = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+        ? window.requestAnimationFrame.bind(window)
+        : (cb) => setTimeout(cb, 0);
+      schedule(() => {
+        overlay.classList.add('is-visible');
+        separateBtn.focus();
+      });
+    });
+  };
+
   let pendingGraphFileTarget = null;
   const listeners = [];
 
@@ -117,9 +262,21 @@ export function createIoFacade({
     const safeFiles = Array.from(files || []).filter(Boolean);
     if (!safeFiles.length) return;
 
-    let historyPushed = false;
-    let ingestedCount = 0;
-    let lastPanelId = null;
+    const shouldPrompt = origin === 'browse' && safeFiles.length > 1;
+    let importMode = 'separate';
+    if (shouldPrompt) {
+      if (cachedMultiImportPreference) {
+        importMode = cachedMultiImportPreference;
+      } else {
+        const choice = await promptMultiImportMode();
+        importMode = choice?.mode === 'combined' ? 'combined' : 'separate';
+        if (choice?.remember) {
+          rememberMultiImportPreference(importMode);
+        }
+      }
+    }
+
+    const normalizedPayloads = [];
     const failures = [];
     const formatIngestError = (error) => {
       if (!error) return 'Unknown error';
@@ -150,19 +307,11 @@ export function createIoFacade({
     for (const file of safeFiles) {
       try {
         const payload = await uploadTraceFile(file, 'auto');
-        if (!historyPushed) {
-          pushHistory();
-          historyPushed = true;
-        }
-        const panelId = ingestPanel({
+        normalizedPayloads.push({
           ...payload,
           name: decodeName(payload?.name) || decodeName(file?.name) || 'Trace',
           filename: decodeName(payload?.filename || file?.name || '')
-        }, { skipHistory: true, skipPersist: true });
-        ingestedCount += 1;
-        if (panelId) {
-          lastPanelId = panelId;
-        }
+        });
       } catch (err) {
         const friendlyName = decodeName(file?.name || '');
         const summary = formatIngestError(err);
@@ -179,11 +328,37 @@ export function createIoFacade({
       }
     }
 
+    const ingestedCount = normalizedPayloads.length;
     if (!ingestedCount) {
       if (failures.length) {
         showToast('No files were added. Some files could not be parsed.', 'warning');
       }
       return;
+    }
+
+    let historyPushed = false;
+    let lastPanelId = null;
+    const ensureHistory = () => {
+      if (!historyPushed) {
+        pushHistory();
+        historyPushed = true;
+      }
+    };
+
+    if (importMode === 'combined' && normalizedPayloads.length > 1) {
+      ensureHistory();
+      const panelId = ingestPanel(normalizedPayloads, { skipHistory: true, skipPersist: true });
+      if (panelId) {
+        lastPanelId = panelId;
+      }
+    } else {
+      for (const payload of normalizedPayloads) {
+        ensureHistory();
+        const panelId = ingestPanel(payload, { skipHistory: true, skipPersist: true });
+        if (panelId) {
+          lastPanelId = panelId;
+        }
+      }
     }
 
     persist();
@@ -338,6 +513,8 @@ export function createIoFacade({
     attach,
     detach,
     requestGraphFileBrowse,
-    handleImportedFiles
+    handleImportedFiles,
+    setMultiImportPreference,
+    getMultiImportPreference
   };
 }

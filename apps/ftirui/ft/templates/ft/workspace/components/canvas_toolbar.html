@@ -119,6 +119,80 @@
         <i class="bi bi-box-arrow-up-right"></i>
         <span>Export all</span>
       </button>
+      <div class="dropend workspace-toolbar-submenu">
+        <button class="dropdown-item dropdown-toggle workspace-toolbar-submenu-toggle"
+                id="c_canvas_preferences_toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+                data-bs-auto-close="outside"
+                aria-expanded="false">
+          <span class="workspace-toolbar-submenu-label">
+            <i class="bi bi-sliders" aria-hidden="true"></i>
+            <span>Preferences</span>
+          </span>
+          <i class="bi bi-chevron-right small text-primary" aria-hidden="true"></i>
+        </button>
+        <div class="dropdown-menu workspace-toolbar-submenu-menu"
+             aria-labelledby="c_canvas_preferences_toggle">
+          <div class="workspace-pref-item">
+            <div class="workspace-pref-icon">
+              <i class="bi bi-upload" aria-hidden="true"></i>
+            </div>
+            <div class="workspace-pref-body">
+              <div class="workspace-pref-title">Load multi-files on same graph</div>
+              <div class="workspace-pref-desc">
+                Combine imported files automatically. Disable to ask each time.
+              </div>
+            </div>
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="pref_multi_import_toggle">
+              <label class="visually-hidden" for="pref_multi_import_toggle">
+                Load multi-files on same graph
+              </label>
+            </div>
+          </div>
+          <div class="workspace-pref-item">
+            <div class="workspace-pref-icon">
+              <i class="bi bi-hdd" aria-hidden="true"></i>
+            </div>
+            <div class="workspace-pref-body">
+              <div class="workspace-pref-title">Autosave snapshots</div>
+              <div class="workspace-pref-desc">Regularly save workspace backups.</div>
+            </div>
+            <span class="workspace-pref-pill">Soon</span>
+          </div>
+          <div class="workspace-pref-item">
+            <div class="workspace-pref-icon">
+              <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+            </div>
+            <div class="workspace-pref-body">
+              <div class="workspace-pref-title">Snap panels to grid</div>
+              <div class="workspace-pref-desc">Align panels to a consistent layout.</div>
+            </div>
+            <span class="workspace-pref-pill">Placeholder</span>
+          </div>
+          <div class="workspace-pref-item">
+            <div class="workspace-pref-icon">
+              <i class="bi bi-keyboard" aria-hidden="true"></i>
+            </div>
+            <div class="workspace-pref-body">
+              <div class="workspace-pref-title">Show keyboard hints</div>
+              <div class="workspace-pref-desc">Display shortcut tips on panel headers.</div>
+            </div>
+            <span class="workspace-pref-pill">Placeholder</span>
+          </div>
+          <div class="workspace-pref-item">
+            <div class="workspace-pref-icon">
+              <i class="bi bi-flask" aria-hidden="true"></i>
+            </div>
+            <div class="workspace-pref-body">
+              <div class="workspace-pref-title">Experimental features</div>
+              <div class="workspace-pref-desc">Preview beta workspace capabilities.</div>
+            </div>
+            <span class="workspace-pref-pill">Placeholder</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
