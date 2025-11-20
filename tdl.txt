@@ -1,18 +1,28 @@
 ///
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-Step 1 – Gather Graph Panels
-  - Task 1: Enumerate plot-capable panels (skip hidden panels).
-  - Task 2: Sort the collection by `panel.index` for chronological order.
-  - Task 3: Capture each panel’s id and current geometry for later updates.
-Step 2 – x
-  - Task 1: y
-  - Task 2: y
-  - Task 3: y
+Step 1 – Build Theme Data Model
+
+Task 1: Define JS objects for palette swatches (canvas, chrome, traces, plot design) plus serialization shape for saved themes.
+Task 2: Add storage hooks (localStorage) to load/save five custom theme slots and remember last-used panel swatches.
+Step 2 – Theme Picker UI
+
+Task 1: Replace button 7 with a dropdown surface containing sections for canvas, panel chrome, trace palette, plot design, and custom themes.
+Task 2: Build reusable swatch components (3 canvas colors + picker, 8 chrome swatches + picker + recent row, trace palette row showing 12 swatches, design toggles for axes/ticks/legend/grid).
+Step 3 – Theme Application Logic
+
+Task 1: Wire swatch clicks to immediately preview theme (update CSS variables, Plotly defaults) with optional hover-preview hook.
+Task 2: Hook “Save current theme” and custom theme cards to capture/restore complete state (canvas, chrome, trace palette, design toggles).
+Step 4 – Persistence & UX Polish
+
+Task 1: Persist selected theme per canvas and default theme globally; ensure undo history integrates cleanly.
+Task 2: Add tooltips, accessibility labels, and optional hover-preview enhancement; document limitations in tdl.txt.
 ///
 _________________________________________________________________________________________________
 *
 gr eye !!!!!!!!!!!!!!!
+gr apply template
+gr copy/paste style (options for axes, ticks, traces, all)
 br invert eye & trace name
 tb1 round button 6
 br organize all object types (remove traces)
@@ -25,6 +35,8 @@ gr open panel for extended options (left tabs for each type)
 gr add + add data button
 gr rework headers styles: thinner and slicker
 gr select multiple by mouse dragging box
+md add button: unredo, clear, export, eq, temp, ...
+gr hide header buttons on out of focus panes
 *
 _________________________________________________________________________________________________
 Phase 1 – UI revamp (done)
@@ -33,14 +45,14 @@ Phase 2 – Global commands (aka tb1): toolbar modernization
 - [x] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
 - [-] Implement the Global toolbar feature buttons
     [x] data structure update
+    [x] import data
+    [x] import folder
     [x] MD window
     [x] spreadsheet
-    [ ] scripting notebook
+    [ ] scripting
     [x] images
-    [ ] theme
+    [-] theme
     [x] organize graphs
-    [x] import data
-    [-] import folder
     [ ] ?export all?
     [ ] more options: manage snapshots? export all
 - [ ] Update browser with sections for notes, spreasheets, images, scripts

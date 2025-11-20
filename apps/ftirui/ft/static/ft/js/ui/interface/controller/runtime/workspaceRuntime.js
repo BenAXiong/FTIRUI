@@ -305,6 +305,7 @@ export function initWorkspaceRuntime(context = {}) {
   const canvas = roots.canvas ?? document.getElementById('c_canvas_root');
   const addPlotBtn = roots.addPlotButton ?? document.getElementById('c_canvas_add_plot');
   const markdownBtn = roots.markdownButton ?? document.getElementById('c_canvas_add_markdown');
+  const scriptBtn = roots.scriptButton ?? document.getElementById('c_canvas_add_script');
   const sheetBtn = roots.sheetButton ?? document.getElementById('c_canvas_add_sheet');
   const imageBrowseBtn = roots.imageBrowseButton ?? document.getElementById('c_canvas_add_image_browse');
   const imageDriveBtn = roots.imageDriveButton ?? document.getElementById('c_canvas_add_image_drive');
@@ -3175,6 +3176,9 @@ let updateCanvasState = () => {};
     setArrangeIncludeAllPanels(!arrangeIncludeAllPanels);
     const stateLabel = arrangeIncludeAllPanels ? 'including' : 'excluding';
     showToast(`Arrange tools now ${stateLabel} non-plot panels.`, 'info');
+  });
+  scriptBtn?.addEventListener('click', () => {
+    showToast('Custom scripts with Python and JS will be available in future versions.', 'info');
   });
 
   const ioFacade = createIoFacade({
