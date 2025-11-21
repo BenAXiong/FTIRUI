@@ -343,6 +343,8 @@ const sanitizeTheme = (value = {}, { fallbackName = null } = {}) => {
   };
 };
 
+const DEFAULT_THEME = sanitizeTheme({ name: 'Default theme' });
+
 const sanitizeCustomThemes = (value) => {
   const incoming = Array.isArray(value) ? value : [];
   return Array.from({ length: CUSTOM_THEME_LIMIT }, (_, index) => {
@@ -1008,8 +1010,25 @@ const initThemeMenuControls = () => {
   const renderCustomThemes = () => {
     if (!dom.customList) return;
     const slots = getCustomThemes();
+    const merged = [
+      {
+        slot: sanitizeTheme(DEFAULT_THEME, { fallbackName: 'Default theme' }),
+        slotIndex: null,
+        position: 1,
+        forcedName: 'Default theme'
+      },
+      ...slots.map((slot, idx) => ({
+        slot,
+        slotIndex: idx,
+        position: idx + 1,
+        forcedName: slot?.name || `Theme ${idx + 1}`
+      }))
+    ];
     const fragment = document.createDocumentFragment();
-    slots.forEach((slot, index) => {
+    merged.forEach((entry, displayIndex) => {
+      const { slot, slotIndex, forcedName } = entry;
+      const isDefaultSlot = slotIndex === null;
+      const title = forcedName || (isDefaultSlot ? 'Default theme' : `Theme ${slotIndex + 1}`);
       const card = document.createElement('div');
       card.className = 'workspace-theme-custom-card';
       const header = document.createElement('header');
@@ -1017,29 +1036,38 @@ const initThemeMenuControls = () => {
       titleGroup.className = 'workspace-theme-custom-header';
       const titleText = document.createElement('span');
       titleText.className = 'workspace-theme-custom-title';
-      titleText.textContent = slot?.name || `Theme ${index + 1}`;
+      titleText.textContent = title;
       const renameBtn = document.createElement('button');
       renameBtn.type = 'button';
       renameBtn.className = 'btn btn-link btn-sm workspace-theme-custom-rename';
       renameBtn.innerHTML = '<i class="bi bi-pencil"></i>';
       renameBtn.title = 'Rename theme';
-      renameBtn.disabled = !slot;
-      renameBtn.addEventListener('click', () => {
-        if (!slot) return;
-        const currentName = titleText.textContent || `Theme ${index + 1}`;
-        const nextName = window.prompt('Rename custom theme', currentName);
-        if (!nextName || !nextName.trim()) return;
-        titleText.textContent = nextName.trim();
-        slot.name = nextName.trim();
-        saveCustomThemeSlot(index, slot);
-      });
+      if (!slot || isDefaultSlot) {
+        renameBtn.hidden = true;
+      } else {
+        renameBtn.addEventListener('click', () => {
+          const currentName = titleText.textContent || `Theme ${slotIndex + 1}`;
+          const nextName = window.prompt('Rename custom theme', currentName);
+          if (!nextName || !nextName.trim()) return;
+          titleText.textContent = nextName.trim();
+          slot.name = nextName.trim();
+          saveCustomThemeSlot(slotIndex, slot);
+        });
+      }
       titleGroup.appendChild(titleText);
-      titleGroup.appendChild(renameBtn);
+      if (!renameBtn.hidden) {
+        titleGroup.appendChild(renameBtn);
+      }
       header.appendChild(titleGroup);
       if (!slot) {
         const hint = document.createElement('span');
         hint.className = 'workspace-theme-custom-empty';
         hint.textContent = 'Empty slot';
+        header.appendChild(hint);
+      } else if (isDefaultSlot) {
+        const hint = document.createElement('span');
+        hint.className = 'workspace-theme-custom-empty';
+        hint.textContent = 'Built-in';
         header.appendChild(hint);
       }
       card.appendChild(header);
@@ -1076,17 +1104,20 @@ const initThemeMenuControls = () => {
       applyBtn.addEventListener('click', () => {
         if (!slot) return;
         setActiveTheme(slot);
-        showToast(`Theme ${index + 1} applied.`, 'success');
+        showToast(`${title} applied.`, 'success');
       });
       const saveBtn = document.createElement('button');
       saveBtn.type = 'button';
       saveBtn.className = 'btn btn-outline-primary btn-sm';
-      saveBtn.textContent = 'Save here';
-      saveBtn.addEventListener('click', () => {
-        saveCustomThemeSlot(index, getActiveTheme());
-        showToast(`Saved current theme to slot ${index + 1}.`, 'success');
-        renderCustomThemes();
-      });
+      saveBtn.textContent = isDefaultSlot ? 'Locked' : 'Save here';
+      saveBtn.disabled = isDefaultSlot;
+      if (!isDefaultSlot) {
+        saveBtn.addEventListener('click', () => {
+          saveCustomThemeSlot(slotIndex, getActiveTheme());
+          showToast(`Saved current theme to slot ${slotIndex + 1}.`, 'success');
+          renderCustomThemes();
+        });
+      }
       actions.appendChild(applyBtn);
       actions.appendChild(saveBtn);
       card.appendChild(actions);

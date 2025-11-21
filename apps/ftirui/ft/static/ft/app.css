@@ -3021,6 +3021,8 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-theme-custom-empty{
   font-size: .78rem;
   color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+  white-space: nowrap;
+  display: inline-block;
 }
 .workspace-theme-custom-actions{
   display: flex;
