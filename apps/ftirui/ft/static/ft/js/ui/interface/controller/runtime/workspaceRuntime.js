@@ -46,16 +46,48 @@ registerPanelType(imagePanelType);
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
-const COLOR_PALETTE = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-  '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-  '#bcbd22', '#17becf'
+const TRACE_PALETTE_ROWS = [
+  {
+    id: 'spectrum',
+    label: 'Spectrum',
+    icon: 'bi-palette-fill',
+    colors: [
+      '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+      '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+    ]
+  },
+  {
+    id: 'earth-alloy',
+    label: 'Earth & Alloy',
+    icon: 'bi-gem',
+    colors: [
+      '#78350f', '#a16207', '#ca8a04', '#d97706', '#fbbf24',
+      '#4b5563', '#64748b', '#94a3b8', '#cbd5f5', '#e2e8f0'
+    ]
+  },
+  {
+    id: 'aurora-drift',
+    label: 'Aurora Drift',
+    icon: 'bi-moon-stars-fill',
+    colors: [
+      '#10b981', '#14b8a6', '#22d3ee', '#38bdf8', '#6366f1',
+      '#8b5cf6', '#c084fc', '#f472b6', '#fb7185', '#facc15'
+    ]
+  }
 ];
+const TRACE_PALETTE_DEFAULT = TRACE_PALETTE_ROWS.flatMap((row) => row.colors);
+let activeTracePalette = TRACE_PALETTE_DEFAULT.slice();
+const getTraceColorByIndex = (index = 0) => {
+  const palette = activeTracePalette.length ? activeTracePalette : TRACE_PALETTE_DEFAULT;
+  const safeLength = Math.max(palette.length, 1);
+  const normalized = ((index % safeLength) + safeLength) % safeLength;
+  return palette[normalized] || '#1f77b4';
+};
+const getFallbackTraceColor = () => getTraceColorByIndex(0);
 const HISTORY_LIMIT = 25;
 const HISTORY_GEOMETRY_TOLERANCE = 2;
 const PANEL_COLLAPSE_KEY = 'ftir.workspace.panelCollapsed.v1';
 const PANEL_PIN_KEY = 'ftir.workspace.panelPinned.v1';
-const FALLBACK_COLOR = COLOR_PALETTE[0] || '#1f77b4';
 
 const DEFAULT_SECTION_ID = 'section_all';
 const TRACE_DRAG_MIME = 'application/x-ftir-workspace-trace';
@@ -158,12 +190,14 @@ const setDragState = (next) => {
 };
 const getActivePanelId = () => activePanelId;
 
-const pickColor = () => {
+const allocateTraceColor = () => {
   const current = colorCursorManager.get();
-  const color = COLOR_PALETTE[current % COLOR_PALETTE.length];
+  const color = getTraceColorByIndex(current);
   colorCursorManager.increment();
-  return color;
+  return { color, index: current };
 };
+
+const pickColor = () => allocateTraceColor().color;
 
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
@@ -184,30 +218,6 @@ const PANEL_CHROME_SWATCHES = [
   { id: 'chrome-gradient-plasma', label: 'Plasma', color: '#ec4899', preview: 'linear-gradient(135deg,#ec4899,#c084fc)' }
 ];
 const PANEL_CHROME_HISTORY_LIMIT = 8;
-const TRACE_PALETTE_ROWS = [
-  {
-    label: 'Spectrum',
-    colors: [
-      '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-      '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-    ]
-  },
-  {
-    label: 'Earth & Alloy',
-    colors: [
-      '#78350f', '#a16207', '#ca8a04', '#d97706', '#fbbf24',
-      '#4b5563', '#64748b', '#94a3b8', '#cbd5f5', '#e2e8f0'
-    ]
-  },
-  {
-    label: 'Aurora Drift',
-    colors: [
-      '#10b981', '#14b8a6', '#22d3ee', '#38bdf8', '#6366f1',
-      '#8b5cf6', '#c084fc', '#f472b6', '#fb7185', '#facc15'
-    ]
-  }
-];
-const TRACE_PALETTE_DEFAULT = TRACE_PALETTE_ROWS.flatMap((row) => row.colors);
 const TRACE_PALETTE_LENGTH = TRACE_PALETTE_DEFAULT.length;
 const PLOT_DESIGN_DEFAULT = {
   showAxes: true,
@@ -271,6 +281,10 @@ const sanitizeTracePalette = (value) => {
   }
   return sanitized.slice(0, TRACE_PALETTE_LENGTH);
 };
+const setActiveTracePalette = (value) => {
+  const sanitized = sanitizeTracePalette(value);
+  activeTracePalette = sanitized.length ? sanitized : TRACE_PALETTE_DEFAULT.slice();
+};
 
 const sanitizePlotDesign = (design = {}) => ({
   showAxes: design.showAxes !== false,
@@ -292,6 +306,10 @@ const sanitizeTheme = (value = {}, { fallbackName = null } = {}) => {
     panelChrome: sanitizePanelChrome(value.panelChrome),
     tracePalette: sanitizeTracePalette(value.tracePalette),
     plotDesign: sanitizePlotDesign(value.plotDesign),
+    tracePalettePreset:
+      typeof value.tracePalettePreset === 'string' && value.tracePalettePreset.trim()
+        ? value.tracePalettePreset.trim()
+        : null,
     name
   };
 };
@@ -377,6 +395,7 @@ const themeState = {
   listeners: new Set()
 };
 let themeMenuControls = null;
+let themeRuntimeUnsubscribe = null;
 
 const emitThemeChange = () => {
   themeState.listeners.forEach((listener) => {
@@ -441,6 +460,199 @@ const themeSwatches = {
   panelChrome: PANEL_CHROME_SWATCHES.slice(),
   tracePalette: TRACE_PALETTE_DEFAULT.slice(),
   plotDesign: { ...PLOT_DESIGN_DEFAULT }
+};
+const clampByte = (value) => Math.max(0, Math.min(255, Math.round(value)));
+const hexToRgb = (hex) => {
+  if (typeof hex !== 'string') return null;
+  let normalized = hex.trim().replace('#', '');
+  if (normalized.length === 3) {
+    normalized = normalized.split('').map((char) => char + char).join('');
+  }
+  if (normalized.length !== 6 || Number.isNaN(Number.parseInt(normalized, 16))) {
+    return null;
+  }
+  const intValue = Number.parseInt(normalized, 16);
+  return {
+    r: (intValue >> 16) & 255,
+    g: (intValue >> 8) & 255,
+    b: intValue & 255
+  };
+};
+const rgbToHex = (r, g, b) => `#${clampByte(r).toString(16).padStart(2, '0')}${clampByte(g).toString(16).padStart(2, '0')}${clampByte(b).toString(16).padStart(2, '0')}`;
+const mixHex = (base, target, amount = 0.5) => {
+  const from = hexToRgb(base);
+  const to = hexToRgb(target);
+  if (!from || !to) return base || target;
+  const weight = Math.min(Math.max(amount, 0), 1);
+  const mixChannel = (channel) => from[channel] + (to[channel] - from[channel]) * weight;
+  return rgbToHex(mixChannel('r'), mixChannel('g'), mixChannel('b'));
+};
+const toRgbaString = (hex, alpha = 1) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return `rgba(0,0,0,${alpha})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+const getReadableTextColor = (hex) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return '#f8fafc';
+  const [r, g, b] = [rgb.r, rgb.g, rgb.b].map((value) => {
+    const srgb = value / 255;
+    return srgb <= 0.03928
+      ? srgb / 12.92
+      : Math.pow((srgb + 0.055) / 1.055, 2.4);
+  });
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.55 ? '#0f172a' : '#f8fafc';
+};
+const setCssVar = (name, value) => {
+  if (typeof document === 'undefined' || !name) return;
+  document.documentElement?.style.setProperty(name, value);
+};
+const buildPlotLayoutTheme = (theme = getActiveTheme()) => {
+  const panelColor = theme?.panelChrome?.color || '#111827';
+  const canvasColor = theme?.canvasBackground?.color || '#0b1120';
+  const plotBg = mixHex(panelColor, canvasColor, 0.35);
+  const textColor = getReadableTextColor(panelColor);
+  const axisColor = mixHex(textColor, panelColor, 0.25);
+  const legendBg = toRgbaString(mixHex(panelColor, canvasColor, 0.55), 0.35);
+  const gridMajor = toRgbaString(mixHex(canvasColor, '#ffffff', 0.35), 0.45);
+  const gridMinor = toRgbaString(mixHex(canvasColor, '#ffffff', 0.4), 0.25);
+  return {
+    panelColor,
+    canvasColor,
+    plotBg,
+    textColor,
+    axisColor,
+    legendBg,
+    gridMajor,
+    gridMinor
+  };
+};
+const applyThemeToDocument = (theme = getActiveTheme()) => {
+  if (typeof document === 'undefined') return;
+  const canvasColor = theme?.canvasBackground?.color || '#0b1120';
+  const panelColor = theme?.panelChrome?.color || '#111827';
+  const textColor = getReadableTextColor(panelColor);
+  setCssVar('--workspace-theme-canvas-bg', canvasColor);
+  setCssVar('--workspace-theme-panel-bg', panelColor);
+  setCssVar('--workspace-theme-panel-text', textColor);
+  setCssVar('--workspace-theme-panel-border', toRgbaString(mixHex(panelColor, '#ffffff', 0.25), 0.55));
+  setCssVar('--workspace-theme-panel-border-active', toRgbaString(mixHex(panelColor, '#ffffff', 0.35), 0.8));
+  setCssVar('--workspace-theme-panel-header-bg', toRgbaString(mixHex(panelColor, '#ffffff', 0.2), 0.25));
+  setCssVar('--workspace-theme-panel-header-border', toRgbaString(mixHex(panelColor, '#ffffff', 0.3), 0.45));
+  setCssVar('--workspace-theme-panel-shadow-color', toRgbaString(mixHex(panelColor, '#000000', 0.8), 0.35));
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.style.setProperty('background-color', canvasColor);
+  }
+};
+
+const applyPlotThemeToLayout = (layout = {}, theme = getActiveTheme()) => {
+  const colors = buildPlotLayoutTheme(theme);
+  const design = sanitizePlotDesign(theme?.plotDesign || PLOT_DESIGN_DEFAULT);
+  const axisLineColor = colors.axisColor || colors.textColor;
+  const transparent = 'rgba(0,0,0,0)';
+  const applyAxisTheme = (axis = {}) => {
+    const next = {
+      ...axis,
+      showline: design.showAxes,
+      mirror: design.showAxes,
+      linecolor: axis.linecolor || axisLineColor,
+      ticks: design.showTicks ? axis.ticks || 'outside' : '',
+      tickcolor: design.showTicks ? axis.tickcolor || axisLineColor : transparent,
+      ticklen: design.showTicks ? axis.ticklen ?? 6 : 0,
+      showgrid: design.showMajorGrid,
+      gridcolor: design.showMajorGrid ? axis.gridcolor || colors.gridMajor : transparent,
+      minor: {
+        ...(axis.minor || {}),
+        showgrid: design.showMinorGrid,
+        gridcolor: design.showMinorGrid ? axis.minor?.gridcolor || colors.gridMinor : transparent,
+        ticks: design.showTicks ? axis.minor?.ticks || 'outside' : ''
+      },
+      tickfont: {
+        ...(axis.tickfont || {}),
+        color: colors.textColor
+      },
+      title: {
+        ...(axis.title || {}),
+        font: {
+          ...(axis.title?.font || {}),
+          color: colors.textColor
+        }
+      }
+    };
+    return next;
+  };
+
+  return {
+    ...layout,
+    paper_bgcolor: colors.panelColor,
+    plot_bgcolor: colors.plotBg,
+    font: {
+      ...(layout.font || {}),
+      color: colors.textColor
+    },
+    xaxis: applyAxisTheme(layout.xaxis || {}),
+    yaxis: applyAxisTheme(layout.yaxis || {}),
+    legend: {
+      ...(layout.legend || {}),
+      bgcolor: colors.legendBg,
+      bordercolor: toRgbaString(mixHex(colors.panelColor, '#000000', 0.5), 0.35),
+      font: {
+        ...(layout.legend?.font || {}),
+        color: colors.textColor
+      }
+    },
+    hoverlabel: {
+      ...(layout.hoverlabel || {}),
+      bgcolor: colors.panelColor,
+      bordercolor: colors.textColor,
+      font: {
+        ...(layout.hoverlabel?.font || {}),
+        color: colors.textColor
+      }
+    },
+    showlegend: design.showLegend
+  };
+};
+
+const applyTracePaletteToFigure = (figure, { palette = null } = {}) => {
+  const resolvedPalette = Array.isArray(palette) && palette.length
+    ? palette
+    : activeTracePalette.length
+      ? activeTracePalette
+      : TRACE_PALETTE_DEFAULT;
+  if (!figure) {
+    return { data: [], layout: {} };
+  }
+  let fallbackCursor = 0;
+  const data = ensureArray(figure.data).map((original) => {
+    if (!original) return original;
+    const trace = {
+      ...original,
+      line: { ...(original.line || {}) }
+    };
+    const meta = { ...(original.meta || {}) };
+    let paletteIndex;
+    if (Number.isInteger(meta.autoColorIndex)) {
+      paletteIndex = meta.autoColorIndex;
+    } else {
+      paletteIndex = fallbackCursor;
+      meta.autoColorIndex = paletteIndex;
+    }
+    fallbackCursor = Math.max(fallbackCursor, paletteIndex) + 1;
+    const normalizedIndex = ((paletteIndex % resolvedPalette.length) + resolvedPalette.length) % resolvedPalette.length;
+    const nextColor = toHexColor(resolvedPalette[normalizedIndex] || getFallbackTraceColor());
+    if (nextColor) {
+      trace.line.color = nextColor;
+      trace.color = nextColor;
+    }
+    trace.meta = meta;
+    return trace;
+  });
+  return {
+    ...figure,
+    data
+  };
 };
 
 const initThemeMenuControls = () => {
@@ -587,6 +799,44 @@ const initThemeMenuControls = () => {
     }
   };
 
+  const applyTraceRowPreset = (rowSchema, rowIndex = 0) => {
+    if (!rowSchema) return;
+    const normalized = ensureArray(rowSchema.colors)
+      .map((color) => normalizeColor(color))
+      .filter(Boolean);
+    if (!normalized.length) return;
+    const basePalette = Array.isArray(getActiveTheme()?.tracePalette)
+      ? getActiveTheme().tracePalette.slice()
+      : TRACE_PALETTE_DEFAULT.slice();
+    while (basePalette.length < TRACE_PALETTE_LENGTH) {
+      basePalette.push(TRACE_PALETTE_DEFAULT[basePalette.length % TRACE_PALETTE_LENGTH]);
+    }
+    basePalette.length = TRACE_PALETTE_LENGTH;
+    const start = rowIndex * 10;
+    for (let i = 0; i < 10 && start + i < basePalette.length; i += 1) {
+      basePalette[start + i] = normalized[i % normalized.length];
+    }
+    updateTheme({
+      tracePalette: basePalette,
+      tracePalettePreset: typeof rowSchema.id === 'string' ? rowSchema.id : `row-${rowIndex}`
+    });
+    showToast(`Applied ${rowSchema.label || 'palette'} to trace colors.`, 'success');
+  };
+
+  const paletteMatchesPresetRow = (rowSchema, palette, rowIndex = 0) => {
+    if (!rowSchema) return false;
+    const normalizedRow = ensureArray(rowSchema.colors)
+      .map((color) => normalizeColor(color))
+      .filter(Boolean);
+    if (!normalizedRow.length) return false;
+    if (!Array.isArray(palette) || !palette.length) return false;
+    const start = rowIndex * 10;
+    return palette.slice(start, start + 10).every((color, idx) => {
+      const expected = normalizedRow[idx % normalizedRow.length];
+      return normalizeColor(color) === expected;
+    });
+  };
+
   const renderTracePalette = (theme) => {
     if (!dom.tracePalette) return;
     const palette = Array.isArray(theme.tracePalette)
@@ -594,14 +844,44 @@ const initThemeMenuControls = () => {
       : TRACE_PALETTE_DEFAULT;
     const fragment = document.createDocumentFragment();
     const rows = Math.ceil(palette.length / 10);
+    const presetId =
+      typeof theme.tracePalettePreset === 'string' && theme.tracePalettePreset.trim()
+        ? theme.tracePalettePreset.trim()
+        : null;
+    let fallbackHighlighted = false;
     for (let row = 0; row < rows; row += 1) {
+      const rowSchema = TRACE_PALETTE_ROWS[row] || {};
       const rowWrapper = document.createElement('div');
       rowWrapper.className = 'workspace-theme-trace-row';
+      const rowPresetId = rowSchema.id || `row-${row}`;
+      rowWrapper.dataset.presetId = rowPresetId;
+
+      const matchesPalette = paletteMatchesPresetRow(rowSchema, palette, row);
+      let isActivePreset = false;
+      if (presetId && rowSchema.id) {
+        isActivePreset = presetId === rowSchema.id;
+      } else if (!presetId && !fallbackHighlighted && matchesPalette) {
+        isActivePreset = true;
+        fallbackHighlighted = true;
+      }
+
+      const header = document.createElement('div');
+      header.className = 'workspace-theme-trace-row-header';
+
+      const selectorLabel = document.createElement('div');
+      selectorLabel.className = 'workspace-theme-trace-selector';
+      selectorLabel.addEventListener('click', () => applyTraceRowPreset(rowSchema, row));
+      const iconEl = document.createElement('i');
+      iconEl.className = `workspace-theme-trace-row-icon bi ${rowSchema.icon || 'bi-palette'}`;
+      selectorLabel.appendChild(iconEl);
 
       const label = document.createElement('div');
       label.className = 'workspace-theme-trace-row-label';
-      label.textContent = TRACE_PALETTE_ROWS[row]?.label || `Row ${row + 1}`;
-      rowWrapper.appendChild(label);
+      label.textContent = rowSchema.label || `Palette ${row + 1}`;
+      selectorLabel.appendChild(label);
+
+      header.appendChild(selectorLabel);
+      rowWrapper.appendChild(header);
 
       const swatchGrid = document.createElement('div');
       swatchGrid.className = 'workspace-theme-trace-row-swatches';
@@ -620,12 +900,17 @@ const initThemeMenuControls = () => {
         input.addEventListener('input', (event) => {
           const nextPalette = palette.slice();
           nextPalette[start + index] = event.target.value;
-          updateTheme({ tracePalette: nextPalette });
+          updateTheme({ tracePalette: nextPalette, tracePalettePreset: null });
         });
         swatch.appendChild(input);
         swatchGrid.appendChild(swatch);
       });
       rowWrapper.appendChild(swatchGrid);
+      rowWrapper.addEventListener('click', (event) => {
+        if (event.target.closest('.workspace-theme-trace-swatch input')) return;
+        applyTraceRowPreset(rowSchema, row);
+      });
+      rowWrapper.classList.toggle('is-active', isActivePreset);
       fragment.appendChild(rowWrapper);
     }
     dom.tracePalette.innerHTML = '';
@@ -2083,6 +2368,63 @@ const recordOperation = (entry) => {
 
   const getPanelsOrdered = () => panelsModel.getPanelsInIndexOrder();
 
+  const applyThemeToPlotFigure = (panelId, {
+    applyPalette = false,
+    reason = 'theme-refresh'
+  } = {}) => {
+    if (!panelId || !panelSupportsPlot(panelId)) return;
+    const figure = panelsModel.getPanelFigure(panelId);
+    if (!figure) return;
+    const theme = getActiveTheme();
+    const themedLayout = applyPlotThemeToLayout(figure.layout || {}, theme);
+    let nextFigure = {
+      ...figure,
+      layout: themedLayout
+    };
+    if (applyPalette) {
+      nextFigure = applyTracePaletteToFigure(nextFigure, { palette: theme?.tracePalette });
+    }
+    panelsModel.updatePanelFigure(panelId, nextFigure);
+    Plot.renderNow(panelId, { reason });
+  };
+
+  const applyThemeToAllPlotPanels = ({
+    applyPalette = false,
+    reason = 'theme-refresh'
+  } = {}) => {
+    const records = getPanelsOrdered();
+    records.forEach((record) => {
+      const panelId = record?.id;
+      if (!panelId) return;
+      if (!panelSupportsPlot(panelId)) return;
+      applyThemeToPlotFigure(panelId, { applyPalette, reason });
+    });
+  };
+
+  const handleThemeRuntimeUpdate = (theme, {
+    reason = 'theme-change',
+    reapplyPalette = true
+  } = {}) => {
+    setActiveTracePalette(theme?.tracePalette);
+    applyThemeToDocument(theme);
+    applyThemeToAllPlotPanels({ applyPalette: reapplyPalette, reason });
+  };
+
+  const initThemeRuntimeSync = () => {
+    themeRuntimeUnsubscribe?.();
+    themeRuntimeUnsubscribe = subscribeToThemes((theme) => {
+      handleThemeRuntimeUpdate(theme || getActiveTheme(), {
+        reason: 'theme-change',
+        reapplyPalette: true
+      });
+    });
+    handleThemeRuntimeUpdate(getActiveTheme(), {
+      reason: 'theme-bootstrap',
+      reapplyPalette: true
+    });
+  };
+  initThemeRuntimeSync();
+
   const allocatePanelIndex = (preferredIndex) => {
     if (Number.isInteger(preferredIndex) && preferredIndex > 0) {
       return preferredIndex;
@@ -2597,13 +2939,13 @@ let updateCanvasState = () => {};
               return true;
             }
             if (prop === 'color') {
-              const colorValue = typeof value === 'string' && value ? toHexColor(value) : FALLBACK_COLOR;
+              const colorValue = typeof value === 'string' && value ? toHexColor(value) : getFallbackTraceColor();
               const currentTraces = getPanelTraces(handle.panelId);
               const current = currentTraces[handle.traceIndex];
               const prevColor = toHexColor(
                 (current?.line && current.line.color)
                 || current?.color
-                || FALLBACK_COLOR
+                || getFallbackTraceColor()
               );
               if (colorValue && prevColor && colorValue.toLowerCase() !== prevColor.toLowerCase()) {
                 pushHistory();
@@ -2795,7 +3137,7 @@ let updateCanvasState = () => {};
     zeroline: false
   };
 
-    return {
+    const baseLayout = {
       hovermode: 'x',
       margin: { l: 50, r: 15, t: 30, b: 40 },
       xaxis: {
@@ -2826,6 +3168,7 @@ let updateCanvasState = () => {};
       },
       showlegend: true
     };
+    return applyPlotThemeToLayout(baseLayout, getActiveTheme());
   };
 
   const bringPanelToFront = (panelId, { persistChange = true, scrollBrowser = false } = {}) => {
@@ -2917,6 +3260,21 @@ let updateCanvasState = () => {};
       clearSnapshot: clearWorkspaceSnapshot,
       restoreSnapshot
     } = persistence);
+    const baseRestoreSnapshot = restoreSnapshot;
+    restoreSnapshot = (...args) => {
+      const result = typeof baseRestoreSnapshot === 'function' ? baseRestoreSnapshot(...args) : null;
+      const finalize = () => {
+        applyThemeToAllPlotPanels({ applyPalette: true, reason: 'snapshot-restore' });
+      };
+      if (result && typeof result.then === 'function') {
+        return result.then((value) => {
+          finalize();
+          return value;
+        });
+      }
+      finalize();
+      return result;
+    };
     const basePersist = persist;
     persist = (options = {}) => {
       const nextOptions = options && typeof options === 'object' ? options : {};
@@ -3026,7 +3384,7 @@ let updateCanvasState = () => {};
     const resolvedColor = toHexColor(
       trace.color
       || trace.line.color
-      || FALLBACK_COLOR
+      || getFallbackTraceColor()
     );
     trace.color = resolvedColor;
     trace.line.color = resolvedColor;
@@ -3567,9 +3925,10 @@ let updateCanvasState = () => {};
       toHexColor,
       defaultLayout,
       pickColor,
+      allocateTraceColor,
       showToast,
       clampGeometryToCanvas,
-      fallbackColor: FALLBACK_COLOR
+      fallbackColor: () => getFallbackTraceColor()
     },
     services: { uploadTraceFile },
     registry: { registerPanel }

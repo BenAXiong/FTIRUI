@@ -1,6 +1,16 @@
 /* ==========================================================================
    Global Utilities & Resets
    ========================================================================== */
+:root{
+  --workspace-theme-canvas-bg: #0b1120;
+  --workspace-theme-panel-bg: #111827;
+  --workspace-theme-panel-text: var(--bs-body-color);
+  --workspace-theme-panel-border: rgba(15,23,42,.35);
+  --workspace-theme-panel-border-active: rgba(99,102,241,.6);
+  --workspace-theme-panel-header-bg: rgba(255,255,255,.04);
+  --workspace-theme-panel-header-border: rgba(255,255,255,.08);
+  --workspace-theme-panel-shadow-color: rgba(15,23,42,.15);
+}
 .toast-container{z-index:1080;}
 .tab-pane { padding-top: 1rem; }
 .tab-content > #dashboard.tab-pane {
@@ -1723,7 +1733,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   width: 100%;
   min-height: var(--workspace-pane-height, 420px);
   height: 100%;
-  background: var(--bs-body-bg);
+  background: var(--workspace-theme-canvas-bg, var(--bs-body-bg));
   border: none;
   border-radius: inherit;
   overflow: hidden;
@@ -1754,19 +1764,20 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   min-height: 220px;
   display:flex;
   flex-direction:column;
-  background: var(--bs-body-bg);
-  border: 1px solid color-mix(in oklab, var(--bs-primary) 35%, transparent);
+  background: var(--workspace-theme-panel-bg, var(--bs-body-bg));
+  color: var(--workspace-theme-panel-text, var(--bs-body-color));
+  border: 1px solid var(--workspace-theme-panel-border, color-mix(in oklab, var(--bs-primary) 35%, transparent));
   border-radius: .375rem;
   border-top-left-radius: .375rem;
   border-top-right-radius: .375rem;
-  box-shadow: 0 16px 30px rgba(15,23,42,.12);
+  box-shadow: 0 16px 30px var(--workspace-theme-panel-shadow-color, rgba(15,23,42,.12));
   overflow: hidden;
   touch-action: none;
   transition: box-shadow .2s ease, border-color .2s ease;
 }
 .workspace-panel.is-active{
-  box-shadow: 0 24px 40px rgba(13,110,253,.22);
-  border-color: color-mix(in oklab, var(--bs-primary) 65%, transparent);
+  box-shadow: 0 24px 40px var(--workspace-theme-panel-shadow-color, rgba(13,110,253,.22));
+  border-color: var(--workspace-theme-panel-border-active, color-mix(in oklab, var(--bs-primary) 65%, transparent));
 }
 .workspace-panel.is-fullscreen{
   position: fixed !important;
@@ -1793,8 +1804,8 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   gap: .4rem;
   padding: .35rem .65rem;
   min-height: 2.25rem;
-  background: color-mix(in oklab, var(--bs-primary) 12%, transparent);
-  border-bottom: 1px solid color-mix(in oklab, var(--bs-primary) 20%, transparent);
+  background: var(--workspace-theme-panel-header-bg, color-mix(in oklab, var(--bs-primary) 12%, transparent));
+  border-bottom: 1px solid var(--workspace-theme-panel-header-border, color-mix(in oklab, var(--bs-primary) 20%, transparent));
   border-top-left-radius: .375rem;
   border-top-right-radius: .375rem;
 }
@@ -1802,6 +1813,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-weight: 600;
   font-size: .85rem;
   flex-grow: 1;
+  color: inherit;
 }
 .workspace-panel-body{
   position: relative;
@@ -1809,6 +1821,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   min-height: 0;
   padding: 0;
   display:flex;
+  color: inherit;
 }
 .workspace-panel-body > div{
   flex: 1 1 auto;
@@ -2659,6 +2672,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-canvas-card-body{
   position: relative;
   padding: 1.5rem;
+  background: var(--workspace-theme-canvas-bg, var(--bs-body-bg));
 }
 .workspace-canvas-wrapper{
   --workspace-frame-padding-left: 0px;
@@ -2883,29 +2897,60 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-theme-trace-row{
   display: flex;
   align-items: center;
-  gap: .75rem;
+  gap: .65rem;
+  padding: .45rem .75rem;
+  border-radius: .65rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 55%, transparent);
+  background: color-mix(in srgb, rgba(15,23,42,.85) 70%, transparent);
+}
+.workspace-theme-trace-row.is-active{
+  border-color: color-mix(in srgb, var(--bs-primary) 65%, transparent);
+  background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bs-primary) 30%, transparent);
+}
+.workspace-theme-trace-row-header{
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+}
+.workspace-theme-trace-selector{
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+  cursor: pointer;
+}
+.workspace-theme-trace-row-icon{
+  font-size: .85rem;
+  color: inherit;
 }
 .workspace-theme-trace-row-label{
-  width: 110px;
-  font-size: .78rem;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
-  text-transform: uppercase;
-  letter-spacing: .05em;
+  color: inherit;
+}
+.workspace-theme-trace-row.is-active .workspace-theme-trace-selector{
+  color: var(--bs-primary);
+}
+.workspace-theme-trace-row:hover{
+  border-color: color-mix(in srgb, var(--bs-primary) 55%, transparent);
 }
 .workspace-theme-trace-row-swatches{
   display: grid;
-  grid-template-columns: repeat(10, minmax(24px,1fr));
+  grid-template-columns: repeat(10, 27px);
   gap: 0;
-  border-radius: .5rem;
+  border-radius: .35rem;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bs-border-color) 50%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bs-border-color) 45%, transparent);
+  flex-shrink: 0;
 }
 .workspace-theme-trace-swatch{
   border: none;
   padding: 0;
   border-radius: 0;
-  height: 2rem;
+  height: 18px;
   position: relative;
 }
 .workspace-theme-trace-swatch input{

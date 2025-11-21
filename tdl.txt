@@ -17,10 +17,10 @@ Step 4 – Persistence & UX Polish
 _________________________________________________________________________________________________
 *
 gr eye !!!
+tb1 th retrieve origin palette???!
 gr apply template
 gr copy/paste style (options for axes, ticks, traces, all)
 br invert eye & trace name
-tb1 round button 6
 br organize all object types (remove traces)
 md check defaults placeholders + arrange info popup
 ss see I more functions needed
@@ -33,6 +33,7 @@ gr rework headers styles: thinner and slicker
 gr select multiple by mouse dragging box
 md add button: unredo, clear, export, eq, temp, ...
 gr hide header buttons on out of focus panes
+gr insert button: arrow, line, txt, etc
 *
 _________________________________________________________________________________________________
 Phase 1 – UI revamp (done)
@@ -168,3 +169,4 @@ Bugs
 - coloris displays but buggy and native picker couldn't be desactivated
     "Vendor bundle (apps/ftirui/ft/static/ft/vendor/coloris/…) remains untracked so you can add it when ready." ?
 - pinned browser header wraps
+- palettes might not apply right away (queue?)

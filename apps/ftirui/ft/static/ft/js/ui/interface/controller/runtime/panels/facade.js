@@ -99,10 +99,15 @@ export function createPanelsFacade({
     toHexColor = (value) => value,
     defaultLayout = () => ({ data: [], layout: {} }),
     pickColor = () => '#1f77b4',
+    allocateTraceColor = null,
     showToast = () => {},
     clampGeometryToCanvas = (geometry) => geometry,
     fallbackColor = '#1f77b4'
   } = utils;
+  const getFallbackColor = () => {
+    const candidate = typeof fallbackColor === 'function' ? fallbackColor() : fallbackColor;
+    return toHexColor(candidate || '#1f77b4');
+  };
 
   const {
     uploadTraceFile = async () => null
@@ -118,7 +123,7 @@ export function createPanelsFacade({
     const resolvedColor = toHexColor(
       trace.color
       || trace.line.color
-      || fallbackColor
+      || getFallbackColor()
     );
     trace.color = resolvedColor;
     trace.line.color = resolvedColor;
@@ -157,7 +162,7 @@ export function createPanelsFacade({
       trace.opacity = Number.isFinite(trace.opacity) ? trace.opacity : 1;
       trace.visible = trace.visible !== false;
       trace.line = trace.line || {};
-      trace.line.color = toHexColor(trace.line.color || fallbackColor);
+      trace.line.color = toHexColor(trace.line.color || getFallbackColor());
       trace.line.width = Number.isFinite(trace.line.width) ? trace.line.width : 2;
       trace.line.dash = trace.line.dash || 'solid';
       trace.color = trace.line.color;
@@ -175,8 +180,11 @@ export function createPanelsFacade({
 
   const createTraceFromPayload = (payload = {}, file = null) => {
     const baseLine = payload?.line || {};
-    const paletteColor = pickColor();
-    const colorValue = payload?.color || payload?.line?.color || paletteColor;
+    const paletteSelection = typeof allocateTraceColor === 'function'
+      ? allocateTraceColor()
+      : { color: pickColor(), index: null };
+    const providedColor = payload?.color || payload?.line?.color || null;
+    const colorValue = providedColor || paletteSelection.color;
     const traceName = decodeName(payload?.name || payload?.meta?.name || '');
     const rawX = ensureArray(payload?.x);
     const rawY = ensureArray(payload?.y || payload?.values);
@@ -197,7 +205,13 @@ export function createPanelsFacade({
       },
       opacity: Number.isFinite(payload?.opacity) ? payload.opacity : 1,
       visible: payload?.visible !== false,
-      meta: payload?.meta || {}
+      meta: (() => {
+        const meta = { ...(payload?.meta || {}) };
+        if (!providedColor && Number.isInteger(paletteSelection.index) && !Number.isInteger(meta.autoColorIndex)) {
+          meta.autoColorIndex = paletteSelection.index;
+        }
+        return meta;
+      })()
     };
 
     ensureTraceId(trace);
