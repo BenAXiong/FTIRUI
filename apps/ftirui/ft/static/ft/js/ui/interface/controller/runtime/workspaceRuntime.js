@@ -218,6 +218,10 @@ const PANEL_CHROME_SWATCHES = [
   { id: 'chrome-gradient-plasma', label: 'Plasma', color: '#ec4899', preview: 'linear-gradient(135deg,#ec4899,#c084fc)' }
 ];
 const PANEL_CHROME_HISTORY_LIMIT = 8;
+const PLOT_SURFACE_SWATCHES = [
+  { id: 'plot-white', label: 'White', color: '#ffffff', paperColor: '#ffffff' },
+  { id: 'plot-paper', label: 'Soft Grey', color: '#f1f5f9', paperColor: '#f8fafc' }
+];
 const TRACE_PALETTE_LENGTH = TRACE_PALETTE_DEFAULT.length;
 const PLOT_DESIGN_DEFAULT = {
   showAxes: true,
@@ -266,6 +270,30 @@ const sanitizePanelChrome = (input = {}) => {
   const fallback = PANEL_CHROME_SWATCHES[0];
   return { id: fallback.id, color: fallback.color, label: fallback.label };
 };
+const sanitizePlotSurface = (input = {}) => {
+  const providedId = typeof input.id === 'string' ? input.id : null;
+  const customColor = normalizeColor(input.customColor);
+  const swatch = providedId ? findSwatchById(PLOT_SURFACE_SWATCHES, providedId) : null;
+  if (swatch) {
+    return {
+      id: swatch.id,
+      color: swatch.color,
+      paperColor: swatch.paperColor || swatch.color,
+      label: swatch.label
+    };
+  }
+  const normalizedColor = normalizeColor(input.color) || customColor;
+  if (normalizedColor) {
+    return { id: 'custom', color: normalizedColor, customColor: normalizedColor, paperColor: normalizedColor };
+  }
+  const fallback = PLOT_SURFACE_SWATCHES[0];
+  return {
+    id: fallback.id,
+    color: fallback.color,
+    paperColor: fallback.paperColor || fallback.color,
+    label: fallback.label
+  };
+};
 
 const sanitizeTracePalette = (value) => {
   const incoming = Array.isArray(value)
@@ -304,6 +332,7 @@ const sanitizeTheme = (value = {}, { fallbackName = null } = {}) => {
   return {
     canvasBackground: sanitizeCanvasBackground(value.canvasBackground),
     panelChrome: sanitizePanelChrome(value.panelChrome),
+    plotSurface: sanitizePlotSurface(value.plotSurface),
     tracePalette: sanitizeTracePalette(value.tracePalette),
     plotDesign: sanitizePlotDesign(value.plotDesign),
     tracePalettePreset:
@@ -458,6 +487,7 @@ const getPanelChromeHistory = () => themeState.chromeHistory.slice();
 const themeSwatches = {
   canvasBackgrounds: CANVAS_BACKGROUND_SWATCHES.slice(),
   panelChrome: PANEL_CHROME_SWATCHES.slice(),
+  plotSurface: PLOT_SURFACE_SWATCHES.slice(),
   tracePalette: TRACE_PALETTE_DEFAULT.slice(),
   plotDesign: { ...PLOT_DESIGN_DEFAULT }
 };
@@ -511,21 +541,25 @@ const setCssVar = (name, value) => {
 const buildPlotLayoutTheme = (theme = getActiveTheme()) => {
   const panelColor = theme?.panelChrome?.color || '#111827';
   const canvasColor = theme?.canvasBackground?.color || '#0b1120';
-  const plotBg = mixHex(panelColor, canvasColor, 0.35);
-  const textColor = getReadableTextColor(panelColor);
-  const axisColor = mixHex(textColor, panelColor, 0.25);
-  const legendBg = toRgbaString(mixHex(panelColor, canvasColor, 0.55), 0.35);
-  const gridMajor = toRgbaString(mixHex(canvasColor, '#ffffff', 0.35), 0.45);
-  const gridMinor = toRgbaString(mixHex(canvasColor, '#ffffff', 0.4), 0.25);
+  const plotBg = theme?.plotSurface?.color || '#ffffff';
+  const paperBg = theme?.plotSurface?.paperColor || plotBg;
+  const panelTextColor = getReadableTextColor(panelColor);
+  const plotTextColor = getReadableTextColor(plotBg);
+  const axisColor = mixHex(plotTextColor, plotBg, 0.2);
+  const legendBg = toRgbaString(mixHex(paperBg, '#000000', 0.06), 0.55);
+  const gridMajor = toRgbaString(mixHex(plotBg, '#000000', 0.12), 0.35);
+  const gridMinor = toRgbaString(mixHex(plotBg, '#000000', 0.18), 0.22);
   return {
     panelColor,
     canvasColor,
     plotBg,
-    textColor,
+    paperBg,
+    textColor: panelTextColor,
     axisColor,
     legendBg,
     gridMajor,
-    gridMinor
+    gridMinor,
+    plotTextColor
   };
 };
 const applyThemeToDocument = (theme = getActiveTheme()) => {
@@ -549,7 +583,7 @@ const applyThemeToDocument = (theme = getActiveTheme()) => {
 const applyPlotThemeToLayout = (layout = {}, theme = getActiveTheme()) => {
   const colors = buildPlotLayoutTheme(theme);
   const design = sanitizePlotDesign(theme?.plotDesign || PLOT_DESIGN_DEFAULT);
-  const axisLineColor = colors.axisColor || colors.textColor;
+  const axisLineColor = colors.axisColor || colors.plotTextColor;
   const transparent = 'rgba(0,0,0,0)';
   const applyAxisTheme = (axis = {}) => {
     const next = {
@@ -570,13 +604,13 @@ const applyPlotThemeToLayout = (layout = {}, theme = getActiveTheme()) => {
       },
       tickfont: {
         ...(axis.tickfont || {}),
-        color: colors.textColor
+        color: colors.plotTextColor
       },
       title: {
         ...(axis.title || {}),
         font: {
           ...(axis.title?.font || {}),
-          color: colors.textColor
+          color: colors.plotTextColor
         }
       }
     };
@@ -585,30 +619,30 @@ const applyPlotThemeToLayout = (layout = {}, theme = getActiveTheme()) => {
 
   return {
     ...layout,
-    paper_bgcolor: colors.panelColor,
+    paper_bgcolor: colors.paperBg || colors.plotBg,
     plot_bgcolor: colors.plotBg,
     font: {
       ...(layout.font || {}),
-      color: colors.textColor
+      color: colors.plotTextColor
     },
     xaxis: applyAxisTheme(layout.xaxis || {}),
     yaxis: applyAxisTheme(layout.yaxis || {}),
     legend: {
       ...(layout.legend || {}),
       bgcolor: colors.legendBg,
-      bordercolor: toRgbaString(mixHex(colors.panelColor, '#000000', 0.5), 0.35),
+      bordercolor: toRgbaString(mixHex(colors.paperBg || colors.plotBg, '#000000', 0.25), 0.35),
       font: {
         ...(layout.legend?.font || {}),
-        color: colors.textColor
+        color: colors.plotTextColor
       }
     },
     hoverlabel: {
       ...(layout.hoverlabel || {}),
-      bgcolor: colors.panelColor,
-      bordercolor: colors.textColor,
+      bgcolor: colors.plotBg,
+      bordercolor: axisLineColor,
       font: {
         ...(layout.hoverlabel?.font || {}),
-        color: colors.textColor
+        color: colors.plotTextColor
       }
     },
     showlegend: design.showLegend
@@ -665,6 +699,8 @@ const initThemeMenuControls = () => {
     chromeSwatches: document.getElementById('c_theme_chrome_swatches'),
     chromePicker: document.getElementById('c_theme_chrome_custom'),
     chromeHistory: document.getElementById('c_theme_chrome_history'),
+    plotSwatches: document.getElementById('c_theme_plot_swatches'),
+    plotPicker: document.getElementById('c_theme_plot_custom'),
     tracePalette: document.getElementById('c_theme_trace_palette'),
     plotDesign: document.getElementById('c_theme_plot_design'),
     customList: document.getElementById('c_theme_custom_list'),
@@ -707,6 +743,18 @@ const initThemeMenuControls = () => {
         id: 'custom',
         color,
         customColor: color
+      }
+    });
+  };
+  const handlePlotSurfaceCustomInput = (event) => {
+    const color = normalizeColor(event.target.value);
+    if (!color) return;
+    updateTheme({
+      plotSurface: {
+        id: 'custom',
+        color,
+        customColor: color,
+        paperColor: color
       }
     });
   };
@@ -796,6 +844,40 @@ const initThemeMenuControls = () => {
         dom.chromeHistory.appendChild(btn);
       });
       dom.chromeHistory.hidden = history.length === 0;
+    }
+  };
+
+  const renderPlotSurfaceSwatches = (theme) => {
+    if (!dom.plotSwatches) return;
+    const fragment = document.createDocumentFragment();
+    themeSwatches.plotSurface.forEach((swatch) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'workspace-theme-swatch';
+      btn.style.background = swatch.preview || swatch.color;
+      btn.title = swatch.label;
+      if (theme.plotSurface?.id === swatch.id) {
+        btn.classList.add('is-active');
+      }
+      btn.addEventListener('click', () => {
+        updateTheme({
+          plotSurface: {
+            id: swatch.id,
+            color: swatch.color,
+            paperColor: swatch.paperColor || swatch.color,
+            label: swatch.label
+          }
+        });
+      });
+      fragment.appendChild(btn);
+    });
+    dom.plotSwatches.innerHTML = '';
+    dom.plotSwatches.appendChild(fragment);
+    if (dom.plotPicker) {
+      dom.plotPicker.value = theme.plotSurface?.color || dom.plotPicker.value || '#ffffff';
+      dom.plotPicker
+        .closest('.workspace-theme-swatch--custom')
+        ?.classList.toggle('is-active', theme.plotSurface?.id === 'custom');
     }
   };
 
@@ -1019,6 +1101,7 @@ const initThemeMenuControls = () => {
     if (!theme) return;
     renderCanvasSwatches(theme);
     renderChromeSwatches(theme);
+    renderPlotSurfaceSwatches(theme);
     renderTracePalette(theme);
     renderPlotDesign(theme);
     renderCustomThemes();
@@ -1026,6 +1109,7 @@ const initThemeMenuControls = () => {
 
   dom.canvasPicker?.addEventListener('input', handleCanvasCustomInput);
   dom.chromePicker?.addEventListener('input', handleChromeCustomInput);
+  dom.plotPicker?.addEventListener('input', handlePlotSurfaceCustomInput);
   if (dom.saveButton) {
     dom.saveButton.addEventListener('click', () => {
       const slots = getCustomThemes();
@@ -4201,6 +4285,7 @@ let updateCanvasState = () => {};
     getSwatches: () => ({
       canvasBackgrounds: themeSwatches.canvasBackgrounds.slice(),
       panelChrome: themeSwatches.panelChrome.slice(),
+      plotSurface: themeSwatches.plotSurface.slice(),
       tracePalette: themeSwatches.tracePalette.slice(),
       plotDesign: { ...themeSwatches.plotDesign }
     }),

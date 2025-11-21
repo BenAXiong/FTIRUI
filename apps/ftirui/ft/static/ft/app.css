@@ -2902,6 +2902,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   border-radius: .65rem;
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 55%, transparent);
   background: color-mix(in srgb, rgba(15,23,42,.85) 70%, transparent);
+  cursor: pointer;
 }
 .workspace-theme-trace-row.is-active{
   border-color: color-mix(in srgb, var(--bs-primary) 65%, transparent);
