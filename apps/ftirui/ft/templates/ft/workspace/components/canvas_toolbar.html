@@ -152,6 +152,32 @@
         </li>
       </ul>
     </div>
+    <div class="btn-group workspace-toolbar-btn-group">
+      <button id="c_canvas_package_toggle" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Package and export workspace" aria-label="Package and export workspace" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-archive workspace-toolbar-icon" aria-hidden="true"></i>
+        <span class="visually-hidden">Package and export workspace</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end workspace-toolbar-dropdown-menu" aria-labelledby="c_canvas_package_toggle">
+        <li>
+          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_bundle">
+            <i class="bi bi-lightning-charge"></i>
+            <span>One-click bundle (.zip)</span>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_backup">
+            <i class="bi bi-hdd-stack"></i>
+            <span>Back-up project (.ben)</span>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_items">
+            <i class="bi bi-files"></i>
+            <span>Export all items individually (.zip)</span>
+          </button>
+        </li>
+      </ul>
+    </div>
     <button id="c_canvas_export_all" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Export all plots" aria-label="Export all plots" disabled>
       <i class="bi bi-box-arrow-up-right workspace-toolbar-icon" aria-hidden="true"></i>
       <span class="visually-hidden">Export all plots</span>
