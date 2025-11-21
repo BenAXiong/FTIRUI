@@ -35,6 +35,7 @@ import { createPanelInteractions } from './panels/panelInteractions.js';
 import { createIoFacade } from './io/facade.js';
 import { createRuntimeState } from './context/runtimeState.js';
 import { createUiPreferencesFacade } from './preferences/facade.js';
+import { initCanvasSnapshots } from '../../canvasSnapshots.js';
 import { createSectionManager } from './sections/manager.js';
 import { createHudButtons } from './controls/createHudButtons.js';
 import { createGlobalCommandsController } from './toolbar/globalCommands.js';
@@ -1581,6 +1582,9 @@ export function initWorkspaceRuntime(context = {}) {
   const packageBackupBtn = document.getElementById('c_canvas_package_backup');
   const packageItemsBtn = document.getElementById('c_canvas_package_items');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
+  const snapshotSaveBtn = document.getElementById('c_canvas_snapshot_save');
+  const snapshotManageBtn = document.getElementById('c_canvas_snapshot_manage');
+  const snapshotModalEl = document.getElementById('c_canvas_snapshot_modal');
   const fileInput = roots.fileInput ?? document.getElementById('c_canvas_file_input');
   const folderInput = roots.folderInput ?? document.getElementById('c_canvas_folder_input');
   const emptyOverlay = roots.emptyOverlay ?? document.getElementById('c_canvas_empty');
@@ -1602,8 +1606,8 @@ export function initWorkspaceRuntime(context = {}) {
       }));
   };
 
-  const gatherVisiblePanelsByType = ({ includeNonPlots = false } = {}) => {
-    const records = panelsModel.getPanelsInIndexOrder();
+const gatherVisiblePanelsByType = ({ includeNonPlots = false } = {}) => {
+  const records = panelsModel.getPanelsInIndexOrder();
     return records
       .filter((record) => {
         if (!record || record.hidden === true) return false;
@@ -1637,6 +1641,15 @@ export function initWorkspaceRuntime(context = {}) {
     anchor.rel = 'noopener';
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 250);
+  };
+
+  const slugifyName = (value, fallback = 'panel') => {
+    const slug = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return slug || fallback;
   };
 
   const formatPanelTypeLabel = (type) => {
@@ -1732,6 +1745,76 @@ export function initWorkspaceRuntime(context = {}) {
     js: ONE_CLICK_VIEWER_JS
   });
 
+  const formatCsvValue = (value) => {
+    if (value == null) return '';
+    const text = typeof value === 'number' && Number.isFinite(value) ? String(value) : String(value ?? '');
+    if (/["\n,]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const buildTraceCsv = (trace) => {
+    const x = Array.isArray(trace?.x) ? trace.x : [];
+    const y = Array.isArray(trace?.y) ? trace.y : [];
+    const length = Math.max(x.length, y.length);
+    const lines = ['index,x,y'];
+    for (let i = 0; i < length; i += 1) {
+      lines.push(`${i + 1},${formatCsvValue(x[i])},${formatCsvValue(y[i])}`);
+    }
+    return lines.join('\n');
+  };
+
+  const buildSpreadsheetCsv = (content) => {
+    if (!content) return '';
+    const columns = ensureArray(content.columns);
+    const rows = ensureArray(content.rows);
+    if (!columns.length) return '';
+    const header = columns.map((col) => formatCsvValue(col.label || col.id));
+    const lines = [header.join(',')];
+    rows.forEach((row) => {
+      const values = columns.map((col) => formatCsvValue(row?.[col.id]));
+      lines.push(values.join(','));
+    });
+    return lines.join('\n');
+  };
+
+  const extractMarkdownText = (content) => {
+    if (!content) return '';
+    if (typeof content.text === 'string') return content.text;
+    if (content.data && typeof content.data.text === 'string') return content.data.text;
+    return '';
+  };
+
+  const decodeDataUrl = (dataUrl) => {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return null;
+    const mime = match[1];
+    const base64 = match[2];
+    const atobFn = typeof window !== 'undefined' && typeof window.atob === 'function'
+      ? window.atob
+      : typeof atob === 'function'
+        ? atob
+        : null;
+    if (!atobFn) return null;
+    try {
+      const binary = atobFn(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      let extension = 'bin';
+      if (mime.includes('png')) extension = 'png';
+      else if (mime.includes('jpeg') || mime.includes('jpg')) extension = 'jpg';
+      else if (mime.includes('gif')) extension = 'gif';
+      else if (mime.includes('svg')) extension = 'svg';
+      return { bytes, mime, extension };
+    } catch {
+      return null;
+    }
+  };
+
   const createOneClickBundleBlob = () => {
     if (!snapshotManager) {
       throw new Error('Snapshot manager unavailable');
@@ -1776,6 +1859,136 @@ export function initWorkspaceRuntime(context = {}) {
       showToast('Failed to build bundle.', 'danger');
     } finally {
       bundleInFlight = false;
+    }
+  };
+
+  const buildPanelExportFiles = (record, dir) => {
+    const files = [];
+    const type = record.type || 'panel';
+    if (type === 'plot') {
+      const figure = panelsModel.getPanelFigure(record.id) || record.figure || { data: [], layout: {} };
+      files.push({
+        name: `${dir}/figure.json`,
+        data: JSON.stringify({
+          data: ensureArray(figure.data),
+          layout: figure.layout || {}
+        }, null, 2)
+      });
+      ensureArray(figure.data).forEach((trace, idx) => {
+        files.push({
+          name: `${dir}/trace-${String(idx + 1).padStart(2, '0')}.csv`,
+          data: buildTraceCsv(trace)
+        });
+      });
+    } else if (type === 'markdown') {
+      const text = extractMarkdownText(getPanelContent(record.id) || record.content || {});
+      files.push({
+        name: `${dir}/note.md`,
+        data: text || '# Markdown note\n'
+      });
+    } else if (type === 'spreadsheet') {
+      const content = getPanelContent(record.id) || record.content || {};
+      files.push({
+        name: `${dir}/sheet.json`,
+        data: JSON.stringify(content, null, 2)
+      });
+      files.push({
+        name: `${dir}/sheet.csv`,
+        data: buildSpreadsheetCsv(content)
+      });
+    } else if (type === 'image') {
+      const content = getPanelContent(record.id) || record.content || {};
+      if (content?.dataUrl) {
+        const decoded = decodeDataUrl(content.dataUrl);
+        if (decoded?.bytes) {
+          files.push({
+            name: `${dir}/image.${decoded.extension}`,
+            data: decoded.bytes
+          });
+        }
+      }
+      if (content?.description) {
+        files.push({
+          name: `${dir}/image.txt`,
+          data: content.description
+        });
+      }
+    } else {
+      const content = getPanelContent(record.id) || record.content || {};
+      files.push({
+        name: `${dir}/panel.json`,
+        data: JSON.stringify({ record, content }, null, 2)
+      });
+    }
+    return files;
+  };
+
+  const createWorkspaceBackupBlob = () => {
+    if (!snapshotManager) {
+      throw new Error('Snapshot manager unavailable');
+    }
+    const payload = {
+      schema: 'ftir-workspace',
+      version: 1,
+      exported_at: new Date().toISOString(),
+      title: document.body?.dataset?.activeCanvasTitle || 'Untitled canvas',
+      snapshot: snapshotManager.snapshot()
+    };
+    return new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  };
+
+  const createItemsArchiveBlob = () => {
+    if (!snapshotManager) {
+      throw new Error('Snapshot manager unavailable');
+    }
+    const panels = panelsModel.getPanelsInIndexOrder();
+    const metadata = buildBundleMetadata(panels);
+    const zip = createZipBuilder();
+    zip.addTextFile('snapshot.json', JSON.stringify(snapshotManager.snapshot(), null, 2));
+    zip.addTextFile('metadata.json', JSON.stringify(metadata, null, 2));
+    const readme = [
+      'FTIR-UI individual panel export',
+      '--------------------------------',
+      `Panels: ${metadata.panelCount}`,
+      `Generated: ${metadata.generatedAt}`,
+      '',
+      'Each folder under /panels contains files for a single workspace panel.'
+    ].join('\n');
+    zip.addTextFile('README.txt', readme);
+    panels.forEach((record, idx) => {
+      const slug = slugifyName(resolvePanelTitle(record), `panel-${idx + 1}`);
+      const dir = `panels/${String(idx + 1).padStart(2, '0')}-${slug}`;
+      buildPanelExportFiles(record, dir).forEach((file) => {
+        zip.addFile(file.name, file.data);
+      });
+    });
+    return zip.toBlob();
+  };
+
+  const handleWorkspaceBackup = async () => {
+    try {
+      const blob = createWorkspaceBackupBlob();
+      downloadBlob(blob, `${slugifyName(document.body?.dataset?.activeCanvasTitle || 'workspace', 'workspace')}-${Date.now()}.ben`);
+      showToast('Workspace backup downloaded.', 'success');
+    } catch (error) {
+      console.error('Backup failed', error);
+      showToast('Backup unavailable.', 'danger');
+    }
+  };
+
+  const handleExportItemsZip = async () => {
+    const panels = panelsModel.getPanelsInIndexOrder();
+    if (!panels.length) {
+      showToast('No panels to export.', 'info');
+      return;
+    }
+    try {
+      const blob = createItemsArchiveBlob();
+      downloadBlob(blob, `workspace-items-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`);
+      showToast('Individual panel archive downloaded.', 'success');
+    } catch (error) {
+      console.error('Export items failed', error);
+      showToast('Failed to export panels.', 'danger');
     }
   };
 
@@ -4759,11 +4972,43 @@ let updateCanvasState = () => {};
     void handleOneClickBundle();
   });
   packageBackupBtn?.addEventListener('click', () => {
-    showToast('Project backup export coming soon.', 'info');
+    void handleWorkspaceBackup();
   });
   packageItemsBtn?.addEventListener('click', () => {
-    showToast('Individual item export coming soon.', 'info');
+    void handleExportItemsZip();
   });
+
+  const disableSnapshotButton = (btn) => {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.title = 'Snapshots available when editing a project canvas.';
+  };
+
+  if (activeCanvasId && (snapshotSaveBtn || snapshotManageBtn) && snapshotModalEl) {
+    initCanvasSnapshots({
+      bridge: {
+        id: activeCanvasId,
+        defaultTitle: document.body?.dataset?.activeCanvasTitle || 'Workspace',
+        async save(state, label) {
+          if (!state) return;
+          await saveCanvasState(activeCanvasId, {
+            state,
+            version_label: label || document.body?.dataset?.activeCanvasTitle || ''
+          });
+        },
+        applyLocal: (state) => {
+          if (!state) return;
+          restoreSnapshot(state, { skipHistory: true });
+        }
+      },
+      saveButton: snapshotSaveBtn,
+      manageButton: snapshotManageBtn,
+      modal: snapshotModalEl
+    });
+  } else {
+    disableSnapshotButton(snapshotSaveBtn);
+    disableSnapshotButton(snapshotManageBtn);
+  }
 
   // --- UI event bindings ---
 

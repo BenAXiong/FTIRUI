@@ -14,9 +14,22 @@ Step 4 – Persistence & UX Polish
     Task 1: Persist selected theme per canvas and default theme globally; ensure undo history integrates cleanly.
     Task 2: Add tooltips, accessibility labels, and optional hover-preview enhancement; document limitations in tdl.txt.
 ///
+
+i get the following error when extracting the bundle zip and opening the html, why?
+"FTIR-UI workspace bundle
+
+Workspace bundle
+Unable to load bundle metadata."
+
+
+The HTML viewer loads metadata.json via fetch('metadata.json'). When you open index.html from disk (file://), browsers block fetch calls to sibling files for security reasons, so the request fails and the viewer shows “Unable to load bundle metadata.” To fix this we need to inline the metadata (e.g., embed it in a <script type="application/json"> or inject it when generating the page) or serve the bundle via a local web server.
 _________________________________________________________________________________________________
 *
+br -- consider tabs: panels, explorer, dashboard (to see current project and switch canvases)
+back to dash baord button...
 gr eye !!!
+share!
+regroup axes, ticks, + in big popup?
 tb1 th retrieve origin palette???!
 gr apply template
 gr copy/paste style (options for axes, ticks, traces, all)
@@ -34,6 +47,7 @@ gr select multiple by mouse dragging box
 md add button: unredo, clear, export, eq, temp, ...
 gr hide header buttons on out of focus panes
 gr insert button: arrow, line, txt, etc
+tb1 consider merging 1 & 2 + add import canvas from backup
 *
 _________________________________________________________________________________________________
 Phase 1 – UI revamp (done)
@@ -48,9 +62,9 @@ Phase 2 – Global commands (aka tb1): toolbar modernization
     [x] spreadsheet
     [ ] scripting
     [x] images
-    [-] theme
+    [x] theme
     [x] organize graphs
-    [ ] ?export all?
+    [-] export
     [ ] more options: manage snapshots? export all
 - [ ] Update browser with sections for notes, spreasheets, images, scripts
 

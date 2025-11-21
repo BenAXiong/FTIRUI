@@ -2721,6 +2721,10 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   border-top-right-radius: var(--bs-border-radius) !important;
   border-bottom-right-radius: var(--bs-border-radius) !important;
 }
+#c_canvas_package_toggle{
+  border-top-right-radius: var(--bs-border-radius) !important;
+  border-bottom-right-radius: var(--bs-border-radius) !important;
+}
 .workspace-toolbar-delimiter{
   width: 1px;
   height: 2.5rem;
