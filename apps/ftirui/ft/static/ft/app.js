@@ -195,6 +195,9 @@ function applyUserStatus(data) {
     }
     userStatusCard.dataset.authenticated = '0';
   }
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.dataset.userAuthenticated = data && data.authenticated ? 'true' : 'false';
+  }
 }
 
 async function refreshUserStatus(options = {}) {

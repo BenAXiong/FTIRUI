@@ -32,8 +32,13 @@ export function attachBrowserDragDrop(ctx = {}) {
   }
 
   const resolveTraceTarget = (event) => {
+    const resolveHostNode = (element) => element?.closest('.graph-node');
+    const isTraceHost = (node) => node?.dataset?.traceHost !== 'false';
+
     const traceRow = event.target.closest('.folder-trace');
     if (traceRow) {
+      const hostNode = resolveHostNode(traceRow);
+      if (!isTraceHost(hostNode)) return null;
       return {
         element: traceRow,
         panelId: traceRow.dataset.panelId,
@@ -43,7 +48,8 @@ export function attachBrowserDragDrop(ctx = {}) {
 
     const tracesContainer = event.target.closest('.folder-traces');
     if (tracesContainer) {
-      const graphNode = tracesContainer.closest('.graph-node');
+      const graphNode = resolveHostNode(tracesContainer);
+      if (!isTraceHost(graphNode)) return null;
       const panelId = graphNode?.dataset?.panelId;
       if (!panelId) return null;
       const traces = getPanelTraces(panelId);
@@ -56,6 +62,7 @@ export function attachBrowserDragDrop(ctx = {}) {
 
     const graphNode = event.target.closest('.graph-node');
     if (graphNode) {
+      if (!isTraceHost(graphNode)) return null;
       const panelId = graphNode.dataset.panelId;
       const traces = getPanelTraces(panelId);
       return {

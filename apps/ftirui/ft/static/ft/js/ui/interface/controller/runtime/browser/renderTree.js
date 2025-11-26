@@ -2,6 +2,7 @@ import { render as renderTreeView } from '../../../../workspace/browser/treeView
 import { escapeHtml } from '../../../../utils/dom.js';
 import { toHexColor } from '../../../../utils/styling.js';
 import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
+import { getNonPlotPanelInfo } from './panelMeta.js';
 
 /**
  * Render the workspace browser DOM using the prepared tree state.
@@ -136,7 +137,7 @@ export function renderBrowserTree(ctx, state) {
     const traces = getPanelTraces(resolvedPanelId);
     const labelIndex = meta.index || record?.index || 0;
     const rawTitle = typeof record?.title === 'string' ? record.title.trim() : '';
-    const label = rawTitle || (labelIndex ? `Graph ${labelIndex}` : 'Graph');
+    const label = meta.displayTitle || rawTitle || (labelIndex ? `Graph ${labelIndex}` : 'Graph');
     const graphMatches = !term || label.toLowerCase().includes(term);
     const rows = traces.map((trace, idx) => {
       const name = trace?.name || `Trace ${idx + 1}`;
@@ -333,12 +334,16 @@ export function renderBrowserTree(ctx, state) {
     const traceInfo = makeTraceRows(panelItem);
     const graphIndex = meta.index || record?.index || 0;
     const graphLabel = traceInfo.title
+      || meta.displayTitle
       || (typeof record?.title === 'string' ? record.title.trim() : '')
       || (graphIndex ? `Graph ${graphIndex}` : 'Graph');
     const collapsed = meta.collapsed === true;
     const hidden = meta.hidden === true;
     const sectionVisibility = isSectionVisible(sectionId);
     const graphVisible = !hidden;
+    const panelType = meta.panelType || record?.type || null;
+    const isPlotPanel = meta.isPlotPanel !== false;
+    const nonPlotInfo = getNonPlotPanelInfo(panelType);
     const node = document.createElement('div');
     node.className = 'folder-node graph-node';
     node.dataset.type = 'graph';
@@ -347,6 +352,11 @@ export function renderBrowserTree(ctx, state) {
     node.dataset.sectionId = sectionId;
     node.dataset.depth = String(depth + 1);
     node.dataset.graphTitle = graphLabel;
+    node.dataset.panelType = panelType || '';
+    node.dataset.traceHost = isPlotPanel ? 'true' : 'false';
+    if (!isPlotPanel) {
+      node.classList.add('graph-node--nonplot');
+    }
     const fullyVisible = sectionVisibility && graphVisible;
     node.dataset.visible = fullyVisible ? 'true' : 'false';
     node.dataset.sectionVisible = sectionVisibility ? 'true' : 'false';
@@ -358,18 +368,22 @@ export function renderBrowserTree(ctx, state) {
     header.dataset.panelId = resolvedPanelId;
     header.dataset.sectionId = sectionId;
     header.dataset.depth = String(depth + 1);
+    header.dataset.panelType = panelType || '';
+    header.dataset.traceHost = node.dataset.traceHost;
     header.setAttribute('draggable', 'true');
     if (!graphVisible) {
       header.classList.add('is-hidden');
     }
 
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'toggle';
-    toggle.innerHTML = `<i class="bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('draggable', 'false');
-    header.appendChild(toggle);
+    if (isPlotPanel) {
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'toggle';
+      toggle.innerHTML = `<i class="bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-down'}"></i>`;
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute('draggable', 'false');
+      header.appendChild(toggle);
+    }
 
     const name = document.createElement('span');
     name.className = 'folder-name graph-name';
@@ -380,6 +394,13 @@ export function renderBrowserTree(ctx, state) {
     }
     if (term && !traceInfo.graphMatches) {
       name.classList.add('is-muted');
+    }
+    if (!isPlotPanel && nonPlotInfo?.icon) {
+      const icon = document.createElement('i');
+      icon.className = `graph-type-icon bi ${nonPlotInfo.icon}`;
+      icon.title = nonPlotInfo.label || 'Panel';
+      icon.setAttribute('aria-hidden', 'true');
+      header.appendChild(icon);
     }
     if (canvasPrimaryTag && canvasPrimaryTagColor && panelItem.meta?.isPlotPanel) {
       const tagBadge = document.createElement('span');
@@ -399,25 +420,29 @@ export function renderBrowserTree(ctx, state) {
     graphVisibilityBtn.className = 'btn-icon graph-visibility';
     graphVisibilityBtn.type = 'button';
     graphVisibilityBtn.dataset.panelId = resolvedPanelId;
-    graphVisibilityBtn.title = graphVisible ? 'Hide graph' : 'Show graph';
+    graphVisibilityBtn.title = graphVisible
+      ? (isPlotPanel ? 'Hide graph' : 'Hide panel')
+      : (isPlotPanel ? 'Show graph' : 'Show panel');
     graphVisibilityBtn.setAttribute('draggable', 'false');
     graphVisibilityBtn.innerHTML = `<i class="bi ${graphVisible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
     actions.appendChild(graphVisibilityBtn);
 
-    const graphBrowseBtn = document.createElement('button');
-    graphBrowseBtn.className = 'btn-icon graph-browse';
-    graphBrowseBtn.type = 'button';
-    graphBrowseBtn.dataset.panelId = resolvedPanelId;
-    graphBrowseBtn.title = 'Add traces from file';
-    graphBrowseBtn.setAttribute('draggable', 'false');
-    graphBrowseBtn.innerHTML = '<i class="bi bi-file-earmark-plus"></i>';
-    actions.appendChild(graphBrowseBtn);
+    if (isPlotPanel) {
+      const graphBrowseBtn = document.createElement('button');
+      graphBrowseBtn.className = 'btn-icon graph-browse';
+      graphBrowseBtn.type = 'button';
+      graphBrowseBtn.dataset.panelId = resolvedPanelId;
+      graphBrowseBtn.title = 'Add traces from file';
+      graphBrowseBtn.setAttribute('draggable', 'false');
+      graphBrowseBtn.innerHTML = '<i class="bi bi-file-earmark-plus"></i>';
+      actions.appendChild(graphBrowseBtn);
+    }
 
     const graphDeleteBtn = document.createElement('button');
     graphDeleteBtn.className = 'btn-icon graph-delete';
     graphDeleteBtn.type = 'button';
     graphDeleteBtn.dataset.panelId = resolvedPanelId;
-    graphDeleteBtn.title = 'Delete graph';
+    graphDeleteBtn.title = isPlotPanel ? 'Delete graph' : 'Delete panel';
     graphDeleteBtn.setAttribute('draggable', 'false');
     graphDeleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
     actions.appendChild(graphDeleteBtn);
@@ -425,26 +450,28 @@ export function renderBrowserTree(ctx, state) {
     header.appendChild(actions);
     node.appendChild(header);
 
-    const children = document.createElement('div');
-    children.className = 'folder-children';
-    children.style.display = collapsed ? 'none' : '';
+    if (isPlotPanel) {
+      const children = document.createElement('div');
+      children.className = 'folder-children';
+      children.style.display = collapsed ? 'none' : '';
+      const tracesWrap = document.createElement('div');
+      tracesWrap.className = 'folder-traces';
+      tracesWrap.dataset.traceHost = node.dataset.traceHost;
+      if (traceInfo.rows.length) {
+        traceInfo.rows.forEach((rowInfo) => {
+          const row = buildTraceRow(panelItem, rowInfo);
+          tracesWrap.appendChild(row);
+        });
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'text-muted small px-2 py-1';
+        empty.textContent = term ? 'No traces match search.' : 'No traces in this graph yet.';
+        tracesWrap.appendChild(empty);
+      }
 
-    const tracesWrap = document.createElement('div');
-    tracesWrap.className = 'folder-traces';
-    if (traceInfo.rows.length) {
-      traceInfo.rows.forEach((rowInfo) => {
-        const row = buildTraceRow(panelItem, rowInfo);
-        tracesWrap.appendChild(row);
-      });
-    } else {
-      const empty = document.createElement('div');
-      empty.className = 'text-muted small px-2 py-1';
-      empty.textContent = term ? 'No traces match search.' : 'No traces in this graph yet.';
-      tracesWrap.appendChild(empty);
+      children.appendChild(tracesWrap);
+      node.appendChild(children);
     }
-
-    children.appendChild(tracesWrap);
-    node.appendChild(children);
 
     return node;
   };
@@ -565,7 +592,7 @@ export function renderBrowserTree(ctx, state) {
     if (!childNodes.length && !graphNodes.length && !term) {
       const empty = document.createElement('div');
       empty.className = 'text-muted small px-2 py-1';
-      empty.textContent = depth === 0 ? 'No graphs in this group yet.' : 'No graphs in this subgroup yet.';
+      empty.textContent = depth === 0 ? 'No panels in this group yet.' : 'No panels in this subgroup yet.';
       container.appendChild(empty);
     }
 
@@ -597,8 +624,8 @@ export function renderBrowserTree(ctx, state) {
       panelDom.empty.dataset.mode = 'search-empty';
       panelDom.empty.style.display = '';
       panelDom.empty.textContent = term
-        ? 'No graphs match your search.'
-        : 'Drop files or use the toolbar to add graphs.';
+        ? 'No panels match your search.'
+        : 'Drop files or use the toolbar to add panels.';
     }
   } else if (panelDom.empty) {
     delete panelDom.empty.dataset.mode;

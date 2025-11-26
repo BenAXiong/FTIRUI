@@ -54,8 +54,8 @@ const TRACE_PALETTE_ROWS = [
     label: 'Spectrum',
     icon: 'bi-palette-fill',
     colors: [
-      '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-      '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+      '#fa3c3c', '#f08228', '#e6dc32', '#00dc00', '#00d28c',
+      '#00c8c8', '#00a0ff', '#1e3cff', '#6e00dc', '#a000c8'
     ]
   },
   {
@@ -405,12 +405,18 @@ let loadWorkspaceSnapshot = () => {};
 let clearWorkspaceSnapshot = () => {};
 let preferencesFacade = null;
 let remoteSyncTimer = null;
+let userStatusHandler = null;
 const REMOTE_SYNC_DELAY_MS = 5000;
 
 const getActiveCanvasIdFromContext = () => {
   if (typeof document !== 'undefined') {
-    const bodyId = document.body?.dataset?.activeCanvasId;
-    if (bodyId) return bodyId;
+    const dataset = document.body?.dataset || {};
+    if (dataset.activeCanvasId) {
+      return dataset.activeCanvasId;
+    }
+    if (dataset.requestedCanvasId) {
+      return dataset.requestedCanvasId;
+    }
   }
   if (typeof window !== 'undefined') {
     if (window.__ACTIVE_CANVAS_ID) return window.__ACTIVE_CANVAS_ID;
@@ -423,6 +429,18 @@ const getActiveCanvasIdFromContext = () => {
     }
   }
   return null;
+};
+
+const readBodyDatasetValue = (key) => {
+  if (typeof document === 'undefined' || !document.body || !document.body.dataset) {
+    return null;
+  }
+  return document.body.dataset[key] ?? null;
+};
+
+const readDatasetBool = (value) => {
+  if (typeof value !== 'string') return false;
+  return value === 'true' || value === '1';
 };
 
 const setDropTarget = (element) => {
@@ -1591,7 +1609,37 @@ export function initWorkspaceRuntime(context = {}) {
   const canvasWrapper = roots.canvasWrapper ?? canvas?.closest('.workspace-canvas-wrapper');
   const topToolbar = roots.topToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar');
   const verticalToolbar = roots.verticalToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar-vertical');
+  const resolveAuthState = () => readDatasetBool(readBodyDatasetValue('userAuthenticated'));
+  let userAuthenticated = resolveAuthState();
+  const syncGuestSessionClass = () => {
+    if (typeof document === 'undefined' || !document.body) return;
+    document.body.classList.toggle('workspace-guest-session', !userAuthenticated);
+  };
+  syncGuestSessionClass();
   const activeCanvasId = getActiveCanvasIdFromContext();
+  let cloudSyncEnabled = userAuthenticated && !!activeCanvasId;
+  const updateCloudSyncState = () => {
+    const next = userAuthenticated && !!activeCanvasId;
+    if (next === cloudSyncEnabled) return;
+    cloudSyncEnabled = next;
+    if (!cloudSyncEnabled && remoteSyncTimer) {
+      window.clearTimeout(remoteSyncTimer);
+      remoteSyncTimer = null;
+    }
+  };
+  if (typeof document !== 'undefined') {
+    if (userStatusHandler) {
+      document.removeEventListener('ftir:user-status', userStatusHandler);
+    }
+    userStatusHandler = (event) => {
+      const next = !!event?.detail?.data?.authenticated;
+      if (next === userAuthenticated) return;
+      userAuthenticated = next;
+      syncGuestSessionClass();
+      updateCloudSyncState();
+    };
+    document.addEventListener('ftir:user-status', userStatusHandler);
+  }
   const listAvailablePlotPanels = () => {
     const records = panelsModel.getPanelsInIndexOrder();
     return records
@@ -3237,7 +3285,7 @@ let updateCanvasState = () => {};
   });
 
   const flushRemoteSync = async () => {
-    if (!activeCanvasId || !snapshotManager) return;
+    if (!cloudSyncEnabled || !activeCanvasId || !snapshotManager) return;
     try {
       const snapshot = snapshotManager.snapshot();
       if (!snapshot || typeof snapshot !== 'object') return;
@@ -3253,11 +3301,11 @@ let updateCanvasState = () => {};
   };
 
   const scheduleCanvasSync = ({ immediate = false, reset = false } = {}) => {
-    if (!activeCanvasId || !snapshotManager) return;
     if (reset && remoteSyncTimer) {
       window.clearTimeout(remoteSyncTimer);
       remoteSyncTimer = null;
     }
+    if (!cloudSyncEnabled || !activeCanvasId || !snapshotManager) return;
     if (reset) return;
     if (immediate) {
       if (remoteSyncTimer) {
@@ -4981,10 +5029,14 @@ let updateCanvasState = () => {};
   const disableSnapshotButton = (btn) => {
     if (!btn) return;
     btn.disabled = true;
-    btn.title = 'Snapshots available when editing a project canvas.';
+    if (activeCanvasId && !userAuthenticated) {
+      btn.title = 'Sign in to access project snapshots.';
+    } else {
+      btn.title = 'Snapshots available when editing a project canvas.';
+    }
   };
 
-  if (activeCanvasId && (snapshotSaveBtn || snapshotManageBtn) && snapshotModalEl) {
+  if (cloudSyncEnabled && activeCanvasId && (snapshotSaveBtn || snapshotManageBtn) && snapshotModalEl) {
     initCanvasSnapshots({
       bridge: {
         id: activeCanvasId,
@@ -5144,7 +5196,12 @@ let updateCanvasState = () => {};
 
   const hadSnapshotOnBoot = storage.hasSnapshot?.() ?? false;
   const saved = storage.load?.();
-  const shouldHydrateDashboardCanvas = !!activeCanvasId;
+  const shouldHydrateDashboardCanvas = cloudSyncEnabled && !!activeCanvasId;
+  const notifyGuestCloudUnavailable = () => {
+    if (activeCanvasId && !userAuthenticated) {
+      showToast('Sign in to load and sync this canvas. Working offline for now.', 'info');
+    }
+  };
 
   if (shouldHydrateDashboardCanvas) {
     history?.clear?.();
@@ -5157,12 +5214,15 @@ let updateCanvasState = () => {};
   } else if (saved) {
     restoreSnapshot(saved, { skipHistory: true });
     history?.clear?.();
+    notifyGuestCloudUnavailable();
   } else {
     updateCanvasState();
     renderBrowser();
     history?.clear?.();
     if (hadSnapshotOnBoot) {
       showToast('Saved workspace snapshot could not be restored. Starting with defaults.', 'warning');
+    } else {
+      notifyGuestCloudUnavailable();
     }
   }
 
@@ -5227,6 +5287,10 @@ let updateCanvasState = () => {};
     if (workspaceObserver) {
       workspaceObserver.disconnect();
       workspaceObserver = null;
+    }
+    if (userStatusHandler && typeof document !== 'undefined') {
+      document.removeEventListener('ftir:user-status', userStatusHandler);
+      userStatusHandler = null;
     }
     browserFacade?.teardown?.();
     browserFacade = null;
@@ -5293,7 +5357,7 @@ let updateCanvasState = () => {};
     canvasId,
     { fallbackSnapshot = null, hadSnapshotOnBoot = false } = {}
   ) {
-    if (!canvasId) return;
+    if (!canvasId || !cloudSyncEnabled) return;
     try {
       const payload = await fetchCanvasState(canvasId);
       const applyActiveCanvasTitle = (value) => {
@@ -5360,4 +5424,3 @@ let updateCanvasState = () => {};
   }
 
 }
-

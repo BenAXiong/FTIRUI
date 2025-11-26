@@ -3641,6 +3641,16 @@ pre, code, .pre-like {
   white-space: nowrap;
 }
 
+.graph-type-icon{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  font-size: 1rem;
+  color: var(--bs-secondary-color);
+  margin-right: .15rem;
+}
+
 .graph-canvas-tag{
   display: inline-flex;
   align-items: center;
@@ -3685,6 +3695,10 @@ pre, code, .pre-like {
 .graph-node.graph-hidden .folder-header,
 .graph-node.graph-hidden .folder-name{
   opacity: .6;
+}
+
+.graph-node--nonplot .folder-traces{
+  background: color-mix(in oklab, var(--bs-body-bg) 60%, var(--bs-tertiary-bg));
 }
 
 #pane-plotC .graph-node{

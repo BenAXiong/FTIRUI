@@ -4,6 +4,8 @@
  * @param {object} ctx Browser state context.
  * @returns {object} structured tree state.
  */
+import { resolvePanelDisplayTitle } from './panelMeta.js';
+
 export function createBrowserTreeState({
   searchTerm = '',
   sections,
@@ -28,6 +30,13 @@ export function createBrowserTreeState({
       const index = Number.isFinite(rawIndex) && rawIndex > 0 ? rawIndex : 0;
       const panelType = typeof record?.type === 'string' ? record.type : null;
       const plotCapable = resolveIsPlotPanel(panelType);
+      const rawTitle = typeof record?.title === 'string' ? record.title.trim() : '';
+      const displayTitle = resolvePanelDisplayTitle({
+        recordTitle: rawTitle,
+        index,
+        panelType,
+        isPlotPanel: plotCapable
+      });
       return {
         panelId,
         record,
@@ -38,7 +47,8 @@ export function createBrowserTreeState({
           hidden: record.hidden === true,
           collapsed: record.collapsed === true,
           index,
-          title: typeof record?.title === 'string' ? record.title.trim() : '',
+          title: rawTitle,
+          displayTitle,
           panelType,
           isPlotPanel: plotCapable
         }
@@ -79,7 +89,7 @@ export function createBrowserTreeState({
       treeViewPanels.set(sectionId, []);
     }
     const rawTitle = typeof item.record?.title === 'string' ? item.record.title.trim() : '';
-    const displayTitle = rawTitle || (item.meta.index ? `Graph ${item.meta.index}` : 'Graph');
+    const displayTitle = item.meta.displayTitle || rawTitle || (item.meta.index ? `Graph ${item.meta.index}` : 'Graph');
     treeViewPanels.get(sectionId).push({
       id: item.panelId,
       name: displayTitle,

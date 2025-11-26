@@ -1,0 +1,71 @@
+Misc improvements
+
+br -- consider tabs: panels, explorer, dashboard (to see current project and switch canvases)
+back to dash baord button...
+gr eye !!!
+share!
+regroup axes, ticks, + in big popup?
+tb1 th retrieve origin palette???!
+gr apply template
+gr copy/paste style (options for axes, ticks, traces, all)
+br invert eye & trace name
+br organize all object types (remove traces)
+md check defaults placeholders + arrange info popup
+ss see I more functions needed
+img GDrive OAuth & API + change url into input + placeholder (logo?) + fullscreen max size
+img button fit pane to image (lock)
+br "move to" options for panels & subgroup in case no in sight (outside current scroll)
+gr open panel for extended options (left tabs for each type)
+gr add + add data button
+gr rework headers styles: thinner and slicker
+gr select multiple by mouse dragging box
+md add button: unredo, clear, export, eq, temp, ...
+gr hide header buttons on out of focus panes
+gr insert button: arrow, line, txt, etc
+tb1 consider merging 1 & 2 + add import canvas from backup
+_________________________________________________________________________________________________
+Polishing
+
+- wks/br: consider floating draggable pill to avoid canvas resizing
+- wks/br: color palette selection x3
+- wks/br: custom color swatched extra row
+- wks/br: filetr by tag? maybe in header option menu
+- wks/gr: solve popup width (increase or auto)
+- wks/gr: x
+- wks/gr: remove titles
+- wks/gr: persist hidden traces from plotly legend (sync with browser)
+- dash/exp: extensible to the right?
+- dash/exp: scrollbar position
+- dash/exp: clearer pins
+- dash/main: canvas thumbnails (2-3d???)
+- dash main: list ... popups: up and bottom position out of bounds
+- dash/main: options - curate
+- dash/main: project icons
+- dash/main: extra column = contributors
+- dash/main: open canvas on row click, not just name
+- wks/tb1/exp: review all 3 formats
+___________________________________________________________
+Future work
+
+- Workflow
+    - rethink plot types: defaults, changing, etc
+    - Papers and reports?
+    - dash/Top band: rethink, avoid going too big with new objetc types
+- ?hide other tabs for MVP and rework UI (miro-like tabless design?)
+- research annotations
+- EC : CV, LSV, 
+- new tab: Present
+- feature: in canvas' explorer - load raw files and display sparklines on hover
+- can infite mode??
+- import opj and opju
+- attach files like gdocs for collab
+- .ben = binned/basic/? experiment notebook
+___________________________________________________________
+Bugs
+
+- grids: minor become major when major turned off
+- dragging graph from sub to group
+- coloris displays but buggy and native picker couldn't be desactivated
+    "Vendor bundle (apps/ftirui/ft/static/ft/vendor/coloris/…) remains untracked so you can add it when ready." ?
+- pinned browser header wraps
+- palettes might not apply right away (queue?)

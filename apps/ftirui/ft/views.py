@@ -77,11 +77,14 @@ def workspace_page(request):
     """
     dev_override = request.GET.get("dev") == "true"
     canvas_id = request.GET.get("canvas")
-    canvas = _get_canvas_for_user(request.user, canvas_id) if canvas_id else None
+    canvas = None
+    if canvas_id and request.user.is_authenticated:
+        canvas = _get_canvas_for_user(request.user, canvas_id)
     context = {
         "workspace_only": not dev_override,
         "workspace_pane_active": True,
         "active_canvas": canvas,
+        "requested_canvas_id": canvas_id,
     }
     return render(request, "ft/base.html", context)
 
