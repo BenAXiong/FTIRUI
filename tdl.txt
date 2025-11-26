@@ -15,10 +15,13 @@ Phase 2 – Global commands (aka tb1): toolbar modernization
     [x] organize graphs
     [x] export (pleceholders)
     [x] more options: manage snapshots? (aborted)
-- [ ] Update browser
+- [x] Update browser
     [x] differentiate non-graph panels (notes, spreasheets, images, scripts)
     [x] add sections or filters or tabs
-    [ ] fix br width vs scroll bar
+    [x] fix br width vs scroll bar
+
+in the spreadhseets (global commands toolbar button 4), is there a way to populate the value according to the row numbers
+(e.g. in colA formula: row()*2) 
 
 Phase 3 – Tech controls (aka tb2): toolbar modernization
 - [ ] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
