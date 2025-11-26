@@ -3521,6 +3521,57 @@ pre, code, .pre-like {
   letter-spacing: .05em;
 }
 
+.workspace-browser-filter-group .dropdown-menu{
+  min-width: 240px;
+  padding: .65rem .75rem;
+}
+
+.workspace-browser-filter-header{
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--bs-secondary-color);
+  margin-bottom: .35rem;
+}
+
+.workspace-browser-filter-options{
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+
+.browser-filter-option{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .25rem .15rem;
+  border-radius: .35rem;
+}
+
+.browser-filter-option:hover{
+  background: var(--bs-tertiary-bg);
+}
+
+.browser-filter-info{
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-weight: 500;
+}
+
+.browser-filter-icon{
+  font-size: 1rem;
+  color: var(--bs-secondary-color);
+}
+
+.workspace-browser-filter-btn.is-active{
+  color: var(--bs-primary);
+  border-color: color-mix(in oklab, var(--bs-primary) 55%, var(--bs-border-color));
+  background: color-mix(in oklab, var(--bs-primary) 10%, transparent);
+}
+
 .panel-toggle{
   width: 1.75rem;
   height: 1.75rem;

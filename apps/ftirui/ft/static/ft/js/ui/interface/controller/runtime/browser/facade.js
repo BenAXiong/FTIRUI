@@ -27,8 +27,12 @@ export function createBrowserFacade({
       defaultSectionId: state.defaultSectionId,
       getPanelsOrdered: state.getPanelsOrdered,
       coerceNumber: state.coerceNumber,
-      isPlotPanel: selectors.isPlotPanel
+      isPlotPanel: selectors.isPlotPanel,
+      isPanelTypeEnabled: selectors.isPanelTypeEnabled
     });
+
+    const panelTypeFilters = selectors.getPanelTypeFilters?.() ?? null;
+    const hasActivePanelFilters = !!(panelTypeFilters && Object.values(panelTypeFilters).some((enabled) => enabled === false));
 
     const renderContext = {
       panelDom: dom.panelDom,
@@ -79,7 +83,9 @@ export function createBrowserFacade({
       getPanelFigure: selectors.getPanelFigure,
       setActivePanel: actions.setActivePanel,
       requestRender: render,
-      activePanelId: state.getActivePanelId?.()
+      activePanelId: state.getActivePanelId?.(),
+      panelTypeFilters,
+      hasActivePanelFilters
     };
 
     renderBrowserTree(renderContext, treeState);

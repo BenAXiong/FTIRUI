@@ -3248,6 +3248,38 @@ const recordOperation = (entry) => {
 let searchTerm = '';
 const getSearchTerm = () => searchTerm;
 
+const PANEL_TYPE_FILTER_KEYS = ['plot', 'markdown', 'spreadsheet', 'script', 'image'];
+const PANEL_TYPE_FILTER_DEFAULTS = PANEL_TYPE_FILTER_KEYS.reduce((acc, key) => {
+  acc[key] = true;
+  return acc;
+}, {});
+let panelTypeFilters = { ...PANEL_TYPE_FILTER_DEFAULTS };
+
+const getPanelTypeFiltersSnapshot = () => ({ ...panelTypeFilters });
+const hasActivePanelTypeFilters = () => Object.values(panelTypeFilters).some((value) => value === false);
+const areAllPanelTypesEnabled = () => PANEL_TYPE_FILTER_KEYS.every((key) => panelTypeFilters[key] !== false);
+const resolvePanelTypeFilterKey = (typeId) => {
+  if (typeId && Object.prototype.hasOwnProperty.call(panelTypeFilters, typeId)) {
+    return typeId;
+  }
+  return null;
+};
+const isPanelTypeEnabledSelector = (typeId) => {
+  const key = resolvePanelTypeFilterKey(typeId) ?? null;
+  if (!key) return true;
+  return panelTypeFilters[key] !== false;
+};
+const setPanelTypeFilter = (typeId, enabled) => {
+  const key = resolvePanelTypeFilterKey(typeId) ?? null;
+  if (!key) return;
+  panelTypeFilters[key] = enabled !== false;
+};
+const setAllPanelTypeFilters = (enabled) => {
+  PANEL_TYPE_FILTER_KEYS.forEach((key) => {
+    panelTypeFilters[key] = enabled !== false;
+  });
+};
+
 let registerPanel = () => null;
 const createPanelOfType = (typeId, state = {}) => {
   const nextState = {
@@ -3359,6 +3391,9 @@ let updateCanvasState = () => {};
     newSection: document.getElementById('c_new_section'),
     searchInput: document.getElementById('c_panel_search_input'),
     tree: document.getElementById('c_folder_tree'),
+    filterButton: document.getElementById('c_browser_filter_btn'),
+    filterMenu: document.getElementById('c_browser_filter_menu'),
+    filterToggles: Array.from(document.querySelectorAll('.browser-filter-toggle')),
     undo: historyUndoButtons,
     redo: historyRedoButtons
   };
@@ -5099,6 +5134,40 @@ let updateCanvasState = () => {};
     }
   });
 
+  const syncBrowserFilterControls = () => {
+    panelDom.filterToggles?.forEach((toggle) => {
+      const typeId = toggle?.dataset?.panelType || null;
+      if (typeId === 'all') {
+        toggle.checked = areAllPanelTypesEnabled();
+      } else {
+        toggle.checked = isPanelTypeEnabledSelector(typeId);
+      }
+    });
+    if (panelDom.filterButton) {
+      const active = hasActivePanelTypeFilters();
+      panelDom.filterButton.classList.toggle('is-active', active);
+      panelDom.filterButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+  };
+
+  panelDom.filterToggles?.forEach((toggle) => {
+    toggle.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target) return;
+      const typeId = target.dataset?.panelType || null;
+      if (typeId === 'all') {
+        setAllPanelTypeFilters(target.checked);
+        syncBrowserFilterControls();
+        renderBrowser();
+        return;
+      }
+      setPanelTypeFilter(typeId, target.checked);
+      syncBrowserFilterControls();
+      renderBrowser();
+    });
+  });
+  syncBrowserFilterControls();
+
   browserFacade = createBrowserFacade({
     dom: { panelDom },
     state: {
@@ -5120,7 +5189,9 @@ let updateCanvasState = () => {};
       isPlotPanel: (typeId) => {
         const config = getPanelType(typeId);
         return config?.capabilities?.plot !== false;
-      }
+      },
+      isPanelTypeEnabled: (typeId) => isPanelTypeEnabledSelector(typeId),
+      getPanelTypeFilters: () => getPanelTypeFiltersSnapshot()
     },
     actions: {
       renderPlot,

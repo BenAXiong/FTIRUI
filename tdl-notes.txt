@@ -23,6 +23,7 @@ md add button: unredo, clear, export, eq, temp, ...
 gr hide header buttons on out of focus panes
 gr insert button: arrow, line, txt, etc
 tb1 consider merging 1 & 2 + add import canvas from backup
+br instead of the left/right chevron to pin/unpin the browser, switch to the empty/full pin icon
 _________________________________________________________________________________________________
 Polishing
 

@@ -1,12 +1,73 @@
 <aside id="c_panel" class="plot-b-panel workspace-browser" aria-label="Group browser">
   <div class="panel-toolbar">
     <input id="c_panel_search_input" class="form-control form-control-sm panel-search-input me-2" type="text" placeholder="Find canvases" aria-label="Find canvases">
-    <div class="btn-group btn-group-sm me-2" role="group" aria-label="History">
-      <button id="c_history_undo_panel" data-history-action="undo" class="btn btn-outline-secondary" type="button" title="Undo" disabled>
-        <i class="bi bi-arrow-counterclockwise"></i>
-      </button>
-      <button id="c_history_redo_panel" data-history-action="redo" class="btn btn-outline-secondary" type="button" title="Redo" disabled>
-        <i class="bi bi-arrow-clockwise"></i>
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="Browser tools">
+      <div class="btn-group btn-group-sm workspace-browser-filter-group">
+        <button id="c_browser_filter_btn" class="btn btn-outline-secondary workspace-browser-filter-btn" type="button" title="Filter panels" aria-label="Filter panels" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-pressed="false">
+          <i class="bi bi-funnel"></i>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end workspace-browser-filter-menu" id="c_browser_filter_menu" aria-labelledby="c_browser_filter_btn">
+          <div class="workspace-browser-filter-header">Show/hide panels</div>
+          <div class="workspace-browser-filter-options">
+            <label class="browser-filter-option browser-filter-option-all" for="browser_filter_all">
+              <span class="browser-filter-info">
+                <i class="bi bi-sliders browser-filter-icon" aria-hidden="true"></i>
+                <span>All panels</span>
+              </span>
+              <div class="form-check form-switch mb-0">
+                <input id="browser_filter_all" class="form-check-input browser-filter-toggle" type="checkbox" data-panel-type="all" checked>
+              </div>
+            </label>
+            <label class="browser-filter-option" for="browser_filter_plot">
+              <span class="browser-filter-info">
+                <i class="bi bi-graph-up browser-filter-icon" aria-hidden="true"></i>
+                <span>Graphs</span>
+              </span>
+              <div class="form-check form-switch mb-0">
+                <input id="browser_filter_plot" class="form-check-input browser-filter-toggle" type="checkbox" data-panel-type="plot" checked>
+              </div>
+            </label>
+            <label class="browser-filter-option" for="browser_filter_markdown">
+              <span class="browser-filter-info">
+                <i class="bi bi-markdown browser-filter-icon" aria-hidden="true"></i>
+                <span>Markdown notes</span>
+              </span>
+              <div class="form-check form-switch mb-0">
+                <input id="browser_filter_markdown" class="form-check-input browser-filter-toggle" type="checkbox" data-panel-type="markdown" checked>
+              </div>
+            </label>
+            <label class="browser-filter-option" for="browser_filter_sheet">
+              <span class="browser-filter-info">
+                <i class="bi bi-table browser-filter-icon" aria-hidden="true"></i>
+                <span>Spreadsheets</span>
+              </span>
+              <div class="form-check form-switch mb-0">
+                <input id="browser_filter_sheet" class="form-check-input browser-filter-toggle" type="checkbox" data-panel-type="spreadsheet" checked>
+              </div>
+            </label>
+            <label class="browser-filter-option" for="browser_filter_script">
+              <span class="browser-filter-info">
+                <i class="bi bi-journal-code browser-filter-icon" aria-hidden="true"></i>
+                <span>Scripts</span>
+              </span>
+              <div class="form-check form-switch mb-0">
+                <input id="browser_filter_script" class="form-check-input browser-filter-toggle" type="checkbox" data-panel-type="script" checked>
+              </div>
+            </label>
+            <label class="browser-filter-option" for="browser_filter_image">
+              <span class="browser-filter-info">
+                <i class="bi bi-images browser-filter-icon" aria-hidden="true"></i>
+                <span>Images</span>
+              </span>
+              <div class="form-check form-switch mb-0">
+                <input id="browser_filter_image" class="form-check-input browser-filter-toggle" type="checkbox" data-panel-type="image" checked>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+      <button id="c_browser_options_btn" class="btn btn-outline-secondary" type="button" title="Browser options" aria-label="Browser options">
+        <i class="bi bi-three-dots-vertical"></i>
       </button>
     </div>
     <button id="c_new_section" class="btn btn-sm btn-outline-secondary" type="button" title="New group">

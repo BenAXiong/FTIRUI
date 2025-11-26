@@ -13,12 +13,16 @@ export function createBrowserTreeState({
   defaultSectionId,
   getPanelsOrdered,
   coerceNumber,
-  isPlotPanel
+  isPlotPanel,
+  isPanelTypeEnabled
 }) {
   const term = (searchTerm || '').trim().toLowerCase();
   const orderedRecords = getPanelsOrdered();
   const resolveIsPlotPanel = typeof isPlotPanel === 'function'
     ? isPlotPanel
+    : () => true;
+  const resolveIsPanelTypeEnabled = typeof isPanelTypeEnabled === 'function'
+    ? isPanelTypeEnabled
     : () => true;
 
   const sortedPanels = orderedRecords
@@ -28,8 +32,12 @@ export function createBrowserTreeState({
       const sectionId = sections.has(record.sectionId) ? record.sectionId : defaultSectionId;
       const rawIndex = coerceNumber(record.index, position + 1);
       const index = Number.isFinite(rawIndex) && rawIndex > 0 ? rawIndex : 0;
-      const panelType = typeof record?.type === 'string' ? record.type : null;
-      const plotCapable = resolveIsPlotPanel(panelType);
+      const panelTypeRaw = typeof record?.type === 'string' ? record.type : null;
+      const panelType = panelTypeRaw || 'plot';
+      const plotCapable = resolveIsPlotPanel(panelTypeRaw);
+      if (!resolveIsPanelTypeEnabled(panelType)) {
+        return null;
+      }
       const rawTitle = typeof record?.title === 'string' ? record.title.trim() : '';
       const displayTitle = resolvePanelDisplayTitle({
         recordTitle: rawTitle,

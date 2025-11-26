@@ -60,10 +60,12 @@ export function renderBrowserTree(ctx, state) {
     getPanelFigure,
     setActivePanel,
     requestRender,
-    activePanelId
+    activePanelId,
+    hasActivePanelFilters = false
   } = ctx;
 
   const { term, sortedPanels, treeSections, treeViewPanels } = state;
+  const filtersActive = hasActivePanelFilters === true;
 
   const tree = panelDom?.tree;
   if (!tree) return;
@@ -102,11 +104,20 @@ export function renderBrowserTree(ctx, state) {
 
   if (!sortedPanels.length) {
     if (panelDom.empty) {
-      panelDom.empty.dataset.mode = 'search-empty';
+      const hasSearch = !!term;
+      const hasFilters = filtersActive;
+      let message = 'Drop files or use the toolbar to add panels.';
+      if (hasSearch && hasFilters) {
+        message = 'No panels match your search or filters.';
+      } else if (hasSearch) {
+        message = 'No panels match your search.';
+      } else if (hasFilters) {
+        message = 'No panels match the active filters.';
+      }
+      const mode = hasSearch ? 'search-empty' : (hasFilters ? 'filter-empty' : 'default');
+      panelDom.empty.dataset.mode = mode;
       panelDom.empty.style.display = '';
-      panelDom.empty.textContent = term
-        ? 'No panels match your search.'
-        : 'Drop files or use the toolbar to add panels.';
+      panelDom.empty.textContent = message;
     }
     ensureChipPanelsMount();
     refreshPanelVisibility();
@@ -592,7 +603,10 @@ export function renderBrowserTree(ctx, state) {
     if (!childNodes.length && !graphNodes.length && !term) {
       const empty = document.createElement('div');
       empty.className = 'text-muted small px-2 py-1';
-      empty.textContent = depth === 0 ? 'No panels in this group yet.' : 'No panels in this subgroup yet.';
+      const emptyMessage = filtersActive
+        ? 'No panels match the active filters in this group.'
+        : (depth === 0 ? 'No panels in this group yet.' : 'No panels in this subgroup yet.');
+      empty.textContent = emptyMessage;
       container.appendChild(empty);
     }
 
@@ -621,11 +635,20 @@ export function renderBrowserTree(ctx, state) {
 
   if (!renderedSomething) {
     if (panelDom.empty) {
-      panelDom.empty.dataset.mode = 'search-empty';
+      const hasSearch = !!term;
+      const hasFilters = filtersActive;
+      let message = 'Drop files or use the toolbar to add panels.';
+      if (hasSearch && hasFilters) {
+        message = 'No panels match your search or filters.';
+      } else if (hasSearch) {
+        message = 'No panels match your search.';
+      } else if (hasFilters) {
+        message = 'No panels match the active filters.';
+      }
+      const mode = hasSearch ? 'search-empty' : (hasFilters ? 'filter-empty' : 'default');
+      panelDom.empty.dataset.mode = mode;
       panelDom.empty.style.display = '';
-      panelDom.empty.textContent = term
-        ? 'No panels match your search.'
-        : 'Drop files or use the toolbar to add panels.';
+      panelDom.empty.textContent = message;
     }
   } else if (panelDom.empty) {
     delete panelDom.empty.dataset.mode;

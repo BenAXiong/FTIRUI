@@ -3,7 +3,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 Phase 2 – Global commands (aka tb1): toolbar modernization
 - [x] Decide final naming for the Global vs Tech toolbars to keep future setup clear.
 - [x] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
-- [-] Implement the Global toolbar feature buttons
+- [x] Implement the Global toolbar feature buttons
     [x] data structure update
     [x] import data
     [x] import folder
@@ -15,7 +15,10 @@ Phase 2 – Global commands (aka tb1): toolbar modernization
     [x] organize graphs
     [x] export (pleceholders)
     [x] more options: manage snapshots? (aborted)
-- [ ] Update browser with sections for notes, spreasheets, images, scripts
+- [ ] Update browser
+    [x] differentiate non-graph panels (notes, spreasheets, images, scripts)
+    [x] add sections or filters or tabs
+    [ ] fix br width vs scroll bar
 
 Phase 3 – Tech controls (aka tb2): toolbar modernization
 - [ ] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
