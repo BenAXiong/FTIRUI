@@ -97,10 +97,113 @@
     </div>
   </div>
   <div class="workspace-toolbar-delimiter workspace-toolbar-delimiter-horizontal" role="separator" aria-hidden="true"></div>
-  <button id="tb2_graph_type" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Change graph type" aria-label="Change graph type">
-    <i class="bi bi-graph-up workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Change graph type</span>
-  </button>
+  <div class="dropstart workspace-toolbar-graph-selector">
+    <button id="tb2_graph_type"
+            class="btn btn-outline-secondary workspace-toolbar-btn"
+            type="button"
+            title="Primary graph: Line"
+            aria-label="Primary graph: Line"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            data-graph-key="line">
+      <i class="bi bi-graph-up workspace-toolbar-icon" aria-hidden="true" data-graph-icon-target></i>
+      <span class="visually-hidden" data-graph-label-target>Primary graph: Line</span>
+    </button>
+    <div class="dropdown-menu workspace-graph-selector-menu" aria-labelledby="tb2_graph_type" data-graph-selector-menu>
+      <div class="workspace-graph-selector-section" data-graph-role="primary">
+        <div class="workspace-graph-selector-grid">
+          <div class="workspace-graph-option">
+            <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-graph-option-btn is-active"
+                    type="button"
+                    data-graph-option="line"
+                    data-graph-label="Line"
+                    data-graph-icon="bi-graph-up"
+                    data-graph-role="primary">
+              <i class="bi bi-graph-up workspace-toolbar-icon" aria-hidden="true"></i>
+              <span class="visually-hidden">Switch to Line graph</span>
+            </button>
+            <span class="workspace-graph-option-label">Line</span>
+          </div>
+          <div class="workspace-graph-option">
+            <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-graph-option-btn"
+                    type="button"
+                    data-graph-option="scatter"
+                    data-graph-label="Scatter"
+                    data-graph-icon="bi-app-indicator"
+                    data-graph-role="primary">
+              <i class="bi bi-app-indicator workspace-toolbar-icon" aria-hidden="true"></i>
+              <span class="visually-hidden">Switch to Scatter graph</span>
+            </button>
+            <span class="workspace-graph-option-label">Scatter</span>
+          </div>
+        </div>
+      </div>
+      <div class="workspace-graph-selector-section" data-graph-role="secondary">
+        <div class="workspace-graph-selector-grid">
+          <div class="workspace-graph-option">
+            <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-graph-option-btn"
+                    type="button"
+                    data-graph-option="bar"
+                    data-graph-label="Bar"
+                    data-graph-icon="bi-bar-chart"
+                    data-graph-role="secondary">
+              <i class="bi bi-bar-chart workspace-toolbar-icon" aria-hidden="true"></i>
+              <span class="visually-hidden">Switch to Bar chart</span>
+            </button>
+            <span class="workspace-graph-option-label">Bar</span>
+          </div>
+          <div class="workspace-graph-option">
+            <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-graph-option-btn"
+                    type="button"
+                    data-graph-option="area"
+                    data-graph-label="Area"
+                    data-graph-icon="bi-collection-play"
+                    data-graph-role="secondary">
+              <i class="bi bi-collection-play workspace-toolbar-icon" aria-hidden="true"></i>
+              <span class="visually-hidden">Switch to Area chart</span>
+            </button>
+            <span class="workspace-graph-option-label">Area</span>
+          </div>
+          <div class="workspace-graph-option">
+            <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-graph-option-btn"
+                    type="button"
+                    data-graph-option="stacked"
+                    data-graph-label="Stacked"
+                    data-graph-icon="bi-layers"
+                    data-graph-role="secondary">
+              <i class="bi bi-layers workspace-toolbar-icon" aria-hidden="true"></i>
+              <span class="visually-hidden">Switch to Stacked chart</span>
+            </button>
+            <span class="workspace-graph-option-label">Stacked</span>
+          </div>
+          <div class="workspace-graph-option">
+            <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-graph-option-btn"
+                    type="button"
+                    data-graph-option="pie"
+                    data-graph-label="Pie"
+                    data-graph-icon="bi-pie-chart"
+                    data-graph-role="secondary">
+              <i class="bi bi-pie-chart workspace-toolbar-icon" aria-hidden="true"></i>
+              <span class="visually-hidden">Switch to Pie chart</span>
+            </button>
+            <span class="workspace-graph-option-label">Pie</span>
+          </div>
+          <div class="workspace-graph-option">
+            <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-graph-option-btn"
+                    type="button"
+                    data-graph-option="heatmap"
+                    data-graph-label="Heatmap"
+                    data-graph-icon="bi-grid-3x3-gap"
+                    data-graph-role="secondary">
+              <i class="bi bi-grid-3x3-gap workspace-toolbar-icon" aria-hidden="true"></i>
+              <span class="visually-hidden">Switch to Heatmap</span>
+            </button>
+            <span class="workspace-graph-option-label">Heatmap</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="workspace-toolbar-delimiter workspace-toolbar-delimiter-horizontal" role="separator" aria-hidden="true"></div>
   <button id="tb2_peak_marking" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Toggle peak marking" aria-label="Toggle peak marking">
     <i class="bi bi-bullseye workspace-toolbar-icon" aria-hidden="true"></i>

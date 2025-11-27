@@ -2776,6 +2776,12 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-toolbar-btn-zero::after{
   content: '0';
 }
+.workspace-toolbar-vertical .workspace-toolbar-btn::after{
+  content: '⇧' counter(workspace-toolbar-count);
+}
+.workspace-toolbar-vertical .workspace-toolbar-btn-zero::after{
+  content: '⇧0';
+}
 .workspace-toolbar-tech-selector{
   display: flex;
   flex-direction: column;
@@ -2802,6 +2808,57 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 }
 .workspace-tech-selector-menu .workspace-tech-symbol{
   font-size: calc(.65rem * 1);
+}
+.workspace-toolbar-graph-selector{
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.workspace-graph-selector-menu{
+  padding: 1rem;
+  border-radius: 1rem;
+  min-width: 12rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  box-shadow: 0 18px 32px rgba(15,23,42,.18);
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.05) 6%);
+}
+.workspace-graph-selector-section + .workspace-graph-selector-section{
+  margin-top: .85rem;
+  padding-top: .75rem;
+  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
+}
+.workspace-graph-selector-grid{
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.workspace-graph-option{
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.workspace-graph-option-btn{
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: .8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .35rem;
+}
+.workspace-graph-option-btn .workspace-toolbar-icon{
+  font-size: 1rem;
+}
+.workspace-graph-option-label{
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--bs-body-color);
+}
+.workspace-graph-option-btn.is-active{
+  border-color: var(--bs-primary);
+  color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+  box-shadow: 0 8px 16px rgba(15,23,42,.18);
 }
 .workspace-tech-selector-menu{
   padding: .9rem;
@@ -3412,6 +3469,9 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   }
   .workspace-tech-selector-menu{
     min-width: clamp(12rem, 70vw, 18rem);
+  }
+  .workspace-graph-selector-menu{
+    min-width: clamp(14rem, 80vw, 20rem);
   }
   .workspace-toolbar-btn-hero{
     width: 2.9rem;
