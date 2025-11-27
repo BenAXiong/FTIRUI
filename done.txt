@@ -1,1 +1,22 @@
 Phase 1 – UI revamp (done)
+
+Phase 2 – Global commands (aka tb1): toolbar modernization
+- [x] Decide final naming for the Global vs Tech toolbars to keep future setup clear.
+- [x] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
+- [x] Implement the Global toolbar feature buttons
+    [x] data structure update
+    [x] import data
+    [x] import folder
+    [x] MD window
+    [x] spreadsheet
+    [x] scripting (aborted)
+    [x] images
+    [x] theme
+    [x] organize graphs
+    [x] export (pleceholders)
+    [x] more options: manage snapshots? (aborted)
+- [x] Update browser
+    [x] differentiate non-graph panels (notes, spreasheets, images, scripts)
+    [x] add sections or filters or tabs
+    [x] fix br width vs scroll bar
+

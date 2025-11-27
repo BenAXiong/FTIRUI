@@ -1,30 +1,172 @@
-<div class="workspace-toolbar-vertical" role="toolbar" aria-label="Workspace quick tools">
-  <button class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="ATR correction" aria-label="ATR correction">
+<div class="workspace-toolbar-vertical" role="toolbar" aria-label="Technology controls">
+  <div class="dropstart workspace-toolbar-tech-selector">
+    <button id="tb2_tech_selector"
+            class="btn btn-primary workspace-toolbar-btn workspace-toolbar-btn-hero"
+            type="button"
+            title="FT-IR controls"
+            aria-label="FT-IR controls"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            data-tech-key="ftir">
+      <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true" data-tech-icon-target>FT</span>
+      <span class="visually-hidden" data-tech-label-target>FT-IR controls</span>
+    </button>
+    <div class="dropdown-menu workspace-tech-selector-menu" aria-labelledby="tb2_tech_selector" data-tech-selector-menu>
+      <div class="workspace-tech-selector-grid">
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option is-active"
+                type="button"
+                data-tech-option="ftir"
+                data-tech-label="FT-IR"
+                data-tech-symbol="FT">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">FT</span>
+          <span class="visually-hidden">Switch to FT-IR controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="nmr"
+                data-tech-label="NMR"
+                data-tech-symbol="NMR">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">NMR</span>
+          <span class="visually-hidden">Switch to NMR controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="xps"
+                data-tech-label="XPS"
+                data-tech-symbol="XPS">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">XPS</span>
+          <span class="visually-hidden">Switch to XPS controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="ec"
+                data-tech-label="EC"
+                data-tech-symbol="EC">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">EC</span>
+          <span class="visually-hidden">Switch to EC controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="xrd"
+                data-tech-label="XRD"
+                data-tech-symbol="XRD">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">XRD</span>
+          <span class="visually-hidden">Switch to XRD controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="ups"
+                data-tech-label="UPS"
+                data-tech-symbol="UPS">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">UPS</span>
+          <span class="visually-hidden">Switch to UPS controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="ms"
+                data-tech-label="MS"
+                data-tech-symbol="MS">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">MS</span>
+          <span class="visually-hidden">Switch to MS controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="xxx"
+                data-tech-label="XXX"
+                data-tech-symbol="XXX">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">XXX</span>
+          <span class="visually-hidden">Switch to XXX controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="yyy"
+                data-tech-label="YYY"
+                data-tech-symbol="YYY">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">YYY</span>
+          <span class="visually-hidden">Switch to YYY controls</span>
+        </button>
+        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                type="button"
+                data-tech-option="zzz"
+                data-tech-label="ZZZ"
+                data-tech-symbol="ZZZ">
+          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">ZZZ</span>
+          <span class="visually-hidden">Switch to ZZZ controls</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="workspace-toolbar-delimiter workspace-toolbar-delimiter-horizontal" role="separator" aria-hidden="true"></div>
+  <button id="tb2_graph_type" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Change graph type" aria-label="Change graph type">
+    <i class="bi bi-graph-up workspace-toolbar-icon" aria-hidden="true"></i>
+    <span class="visually-hidden">Change graph type</span>
+  </button>
+  <div class="workspace-toolbar-delimiter workspace-toolbar-delimiter-horizontal" role="separator" aria-hidden="true"></div>
+  <button id="tb2_peak_marking" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Toggle peak marking" aria-label="Toggle peak marking">
+    <i class="bi bi-bullseye workspace-toolbar-icon" aria-hidden="true"></i>
+    <span class="visually-hidden">Toggle peak marking</span>
+  </button>
+  <button id="tb2_peak_integration" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Peak integration" aria-label="Peak integration">
+    <i class="bi bi-clipboard-data workspace-toolbar-icon" aria-hidden="true"></i>
+    <span class="visually-hidden">Peak integration</span>
+  </button>
+  <button id="tb2_atr_correction" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="ATR correction" aria-label="ATR correction">
     <i class="bi bi-funnel workspace-toolbar-icon" aria-hidden="true"></i>
     <span class="visually-hidden">ATR correction</span>
   </button>
-  <button class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Peak integration" aria-label="Peak integration">
-    <i class="bi bi-graph-up-arrow workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Peak integration</span>
+  <button id="tb2_smoothing" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Apply smoothing" aria-label="Apply smoothing">
+    <i class="bi bi-water workspace-toolbar-icon" aria-hidden="true"></i>
+    <span class="visually-hidden">Apply smoothing</span>
   </button>
-  <button class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Spectral library" aria-label="Spectral library">
+  <button id="tb2_derivatization" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Derivatization" aria-label="Derivatization">
+    <i class="bi bi-bezier workspace-toolbar-icon" aria-hidden="true"></i>
+    <span class="visually-hidden">Derivatization</span>
+  </button>
+  <button id="tb2_spectral_library" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Spectral library" aria-label="Spectral library">
     <i class="bi bi-collection workspace-toolbar-icon" aria-hidden="true"></i>
     <span class="visually-hidden">Spectral library</span>
   </button>
-  <button class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Derivatization & smoothing" aria-label="Derivatization and smoothing">
-    <i class="bi bi-bezier workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Derivatization and smoothing</span>
+  <button id="tb2_placeholder_help" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Placeholder action" aria-label="Placeholder action">
+    <i class="bi bi-question-circle workspace-toolbar-icon" aria-hidden="true"></i>
+    <span class="visually-hidden">Placeholder action</span>
   </button>
-  <button class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Export PNG" aria-label="Export PNG">
-    <i class="bi bi-file-earmark-image workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Export PNG</span>
-  </button>
-  <button class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Export SVG" aria-label="Export SVG">
-    <i class="bi bi-filetype-svg workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Export SVG</span>
-  </button>
-  <button class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Move project" aria-label="Move project">
-    <i class="bi bi-box-arrow-up-right workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Move project</span>
-  </button>
+  <div class="workspace-toolbar-delimiter workspace-toolbar-delimiter-horizontal" role="separator" aria-hidden="true"></div>
+  <div class="dropstart workspace-toolbar-dropdown">
+    <button id="tb2_more_options" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-zero" type="button" title="More tech controls" aria-label="More tech controls" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-three-dots workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">More tech controls</span>
+    </button>
+    <ul class="dropdown-menu workspace-toolbar-dropdown-menu" aria-labelledby="tb2_more_options">
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 1</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 2</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 3</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 4</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 5</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 6</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 7</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 8</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 9</button>
+      </li>
+      <li>
+        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 10</button>
+      </li>
+    </ul>
+  </div>
 </div>

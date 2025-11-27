@@ -5,6 +5,7 @@ const CURRENT_VERSION = 1;
 const DEFAULT_COLUMN_COUNT = 3;
 const DEFAULT_ROW_COUNT = 8;
 const FOCUS_DELAY = 20;
+const MAX_DECIMAL_PLACES = 5;
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const toColumnLabel = (index = 0) => {
@@ -24,14 +25,22 @@ const sanitizeString = (value, fallback = '') => {
   return fallback;
 };
 
+const limitNumericPrecision = (value, places = MAX_DECIMAL_PLACES) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return value;
+  const safePlaces = Number.isInteger(places) && places >= 0 ? places : MAX_DECIMAL_PLACES;
+  if (!safePlaces) return value;
+  const factor = 10 ** safePlaces;
+  return Math.round(value * factor) / factor;
+};
+
 const sanitizeNumber = (value) => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return limitNumericPrecision(value);
   if (typeof value === 'string') {
     const trimmed = value.trim();
     if (!trimmed) return null;
     const numeric = Number(trimmed);
     if (Number.isFinite(numeric)) {
-      return numeric;
+      return limitNumericPrecision(numeric);
     }
   }
   return null;
@@ -337,19 +346,35 @@ export const spreadsheetPanelType = {
     };
 
     const getColumnById = (columnId) => sheetState.columns.find((column) => column.id === columnId) || null;
-    const sanitizeCellValue = (value) => {
-      if (value === null || typeof value === 'undefined') return null;
-      if (typeof value === 'number') {
-        return Number.isFinite(value) ? value : null;
-      }
-      if (typeof value === 'string') {
-        const trimmed = value.trim();
-        if (!trimmed) return null;
-        const numeric = Number(trimmed);
-        return Number.isFinite(numeric) ? numeric : trimmed;
-      }
-      return value;
-    };
+const sanitizeCellValue = (value) => {
+  if (value === null || typeof value === 'undefined') return null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? limitNumericPrecision(value) : null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? limitNumericPrecision(numeric) : trimmed;
+  }
+  return value;
+};
+
+const formatDisplayValue = (value) => {
+  if (value === null || typeof value === 'undefined') return '';
+  if (typeof value === 'number') {
+    const limited = limitNumericPrecision(value);
+    return Number.isFinite(limited) ? String(limited) : '';
+  }
+  if (typeof value === 'string') {
+    const numeric = sanitizeNumber(value);
+    if (numeric !== null) {
+      return String(numeric);
+    }
+    return value;
+  }
+  return String(value);
+};
 
     const ensureSelectionIntegrity = () => {
       const columnIds = sheetState.columns.map((column) => column.id);
@@ -393,7 +418,9 @@ export const spreadsheetPanelType = {
       return new Function('ctx', `with(ctx){ ${body} }`);
     };
 
-    const createFormulaContext = (row, columnTokens) => {
+    const createFormulaContext = (row, columnTokens, rowIndex = 0) => {
+      const safeRowIndex = Number.isInteger(rowIndex) ? rowIndex : 0;
+      const rowNumber = safeRowIndex + 1;
       const ctx = {
         PI: Math.PI,
         E: Math.E,
@@ -424,7 +451,12 @@ export const spreadsheetPanelType = {
           return (ePos - eNeg) / (ePos + eNeg);
         }),
         square: (value) => (Number.isFinite(value) ? value * value : Math.pow(value, 2)),
-        clamp: (value, minVal, maxVal) => Math.min(Math.max(value, minVal), maxVal ?? value)
+        clamp: (value, minVal, maxVal) => Math.min(Math.max(value, minVal), maxVal ?? value),
+        rowIndex: safeRowIndex,
+        rowNumber,
+        rowId: typeof row?.id === 'string' ? row.id : undefined,
+        row: () => rowNumber,
+        ROW: () => rowNumber
       };
       columnTokens.forEach(({ column, tokens }) => {
         const rawValue = sanitizeCellValue(row[column.id]);
@@ -457,8 +489,8 @@ export const spreadsheetPanelType = {
       }
       const nextErrors = {};
       const columnTokens = buildFormulaTokens();
-      baseRows.forEach((row) => {
-        const context = createFormulaContext(row, columnTokens);
+      baseRows.forEach((row, rowIndex) => {
+        const context = createFormulaContext(row, columnTokens, rowIndex);
         definitions.forEach(({ column, evaluator, error }) => {
           if (error || !evaluator) {
             nextErrors[column.id] = error?.message || 'Invalid formula';
@@ -467,7 +499,7 @@ export const spreadsheetPanelType = {
           try {
             const result = evaluator(context);
             const normalized = typeof result === 'number'
-              ? (Number.isFinite(result) ? result : '')
+              ? (Number.isFinite(result) ? limitNumericPrecision(result) : '')
               : (result ?? '');
             row[column.id] = normalized;
             columnTokens.forEach(({ column: ctxColumn, tokens }) => {
@@ -538,11 +570,15 @@ export const spreadsheetPanelType = {
     };
 
     const serializeCellForExport = (value) => {
-      if (value === null || typeof value === 'undefined') return '';
-      if (typeof value === 'number') {
-        return Number.isFinite(value) ? String(value) : '';
+      const sanitized = sanitizeCellValue(value);
+      if (sanitized === null || typeof sanitized === 'undefined') return '';
+      if (typeof sanitized === 'number') {
+        return Number.isFinite(sanitized) ? String(sanitized) : '';
       }
-      return String(value);
+      if (typeof sanitized === 'string') {
+        return sanitized;
+      }
+      return String(sanitized);
     };
 
     const buildSelectionMatrix = () => {
@@ -979,7 +1015,7 @@ export const spreadsheetPanelType = {
           input.type = 'text';
           input.className = 'workspace-spreadsheet-cell';
           const renderRow = evaluatedRows[rowIndex] || row;
-          input.value = renderRow?.[column.id] ?? '';
+          input.value = formatDisplayValue(renderRow?.[column.id]);
           input.dataset.rowId = row.id;
           input.dataset.colId = column.id;
           input.dataset.rowIndex = String(rowIndex);

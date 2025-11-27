@@ -1,29 +1,7 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-Phase 2 – Global commands (aka tb1): toolbar modernization
-- [x] Decide final naming for the Global vs Tech toolbars to keep future setup clear.
-- [x] Rework the Global toolbar layout (undo/redo placement, drop numbering, add delimiter) before wiring features.
-- [x] Implement the Global toolbar feature buttons
-    [x] data structure update
-    [x] import data
-    [x] import folder
-    [x] MD window
-    [x] spreadsheet
-    [x] scripting (aborted)
-    [x] images
-    [x] theme
-    [x] organize graphs
-    [x] export (pleceholders)
-    [x] more options: manage snapshots? (aborted)
-- [x] Update browser
-    [x] differentiate non-graph panels (notes, spreasheets, images, scripts)
-    [x] add sections or filters or tabs
-    [x] fix br width vs scroll bar
-
-in the spreadhseets (global commands toolbar button 4), is there a way to populate the value according to the row numbers
-(e.g. in colA formula: row()*2) 
-
 Phase 3 – Tech controls (aka tb2): toolbar modernization
+- [-] Overall layout
 - [ ] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
 - [ ] 2/ Graph type (main = line, secondary = bars, scatter, etc).
 - [ ] Buttons for tech = FT-IR

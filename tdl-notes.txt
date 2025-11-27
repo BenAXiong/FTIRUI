@@ -4,6 +4,7 @@ br -- consider tabs: panels, explorer, dashboard (to see current project and swi
 back to dash baord button...
 gr eye !!!
 share!
+can highligh onfocus panel (will be needed for multi select)
 regroup axes, ticks, + in big popup?
 tb1 th retrieve origin palette???!
 gr apply template

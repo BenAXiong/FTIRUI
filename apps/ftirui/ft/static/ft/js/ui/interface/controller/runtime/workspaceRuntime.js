@@ -3471,6 +3471,76 @@ let updateCanvasState = () => {};
     }
   };
 
+  const techSelectorController = (() => {
+    const toggle = document.getElementById('tb2_tech_selector');
+    const menu = document.querySelector('[data-tech-selector-menu]');
+    if (!toggle || !menu) {
+      return null;
+    }
+    const iconTarget = toggle.querySelector('[data-tech-icon-target]');
+    const labelTarget = toggle.querySelector('[data-tech-label-target]');
+    const options = Array.from(menu.querySelectorAll('[data-tech-option]'));
+    if (!iconTarget || !labelTarget || !options.length) {
+      return null;
+    }
+
+    const getDropdownInstance = () => {
+      const bootstrapApi = window.bootstrap?.Dropdown;
+      if (!bootstrapApi?.getOrCreateInstance) {
+        return null;
+      }
+      return bootstrapApi.getOrCreateInstance(toggle);
+    };
+
+    const setActiveOption = (option) => {
+      if (!option) return;
+      const label = option.getAttribute('data-tech-label') || 'Technology';
+      const symbol = option.getAttribute('data-tech-symbol') || '';
+      const key = option.getAttribute('data-tech-option') || '';
+      iconTarget.textContent = symbol;
+      labelTarget.textContent = `${label} controls`;
+      toggle.setAttribute('title', `${label} controls`);
+      toggle.setAttribute('aria-label', `${label} controls`);
+      if (key) {
+        toggle.dataset.techKey = key;
+      } else {
+        delete toggle.dataset.techKey;
+      }
+      options.forEach((opt) => opt.classList.toggle('is-active', opt === option));
+      toggle.dispatchEvent(new CustomEvent('workspace:tech-change', {
+        bubbles: true,
+        detail: { key, label }
+      }));
+    };
+
+    const handleOptionClick = (event) => {
+      event.preventDefault();
+      const option = event.currentTarget;
+      if (!option) {
+        return;
+      }
+      setActiveOption(option);
+      try {
+        getDropdownInstance()?.hide();
+      } catch {
+        /* ignore bootstrap hide errors */
+      }
+    };
+
+    options.forEach((option) => option.addEventListener('click', handleOptionClick));
+
+    const initialActive = options.find((opt) => opt.classList.contains('is-active')) || options[0];
+    if (initialActive) {
+      setActiveOption(initialActive);
+    }
+
+    return {
+      toggle,
+      options,
+      setActiveOption
+    };
+  })();
+
   const getBrowserRootEl = () => panelDom.tree || null;
 
   const browserHotspot = (() => {
