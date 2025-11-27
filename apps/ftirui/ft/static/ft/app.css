@@ -3159,6 +3159,175 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   gap: .65rem;
   padding: .45rem .9rem;
 }
+.workspace-toolbar-peak-menu{
+  width: min(760px, 95vw);
+  max-width: min(760px, 95vw);
+  padding: 1rem 1.25rem;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  box-shadow: 0 28px 48px rgba(15,23,42,.22);
+}
+.workspace-peak-menu-header{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.workspace-peak-menu-header h3{
+  margin: 0;
+  font-size: 1.25rem;
+}
+.workspace-peak-menu-kicker{
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--bs-secondary-color);
+  margin: 0 0 .25rem;
+}
+.workspace-peak-menu-hint{
+  font-size: .82rem;
+  margin: 0;
+  color: var(--bs-secondary-color);
+}
+.workspace-peak-menu-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.workspace-peak-menu-section{
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  border-radius: 1rem;
+  padding: .85rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.04));
+}
+.workspace-peak-menu-section > header{
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: .75rem;
+  letter-spacing: .05em;
+  color: var(--bs-secondary-color);
+  margin-bottom: .25rem;
+}
+.workspace-peak-field{
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.workspace-peak-field label{
+  font-size: .85rem;
+  font-weight: 500;
+}
+.workspace-peak-field-control{
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+}
+.workspace-peak-range{
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+.workspace-peak-field-value{
+  font-size: .82rem;
+  min-width: 90px;
+  color: var(--bs-secondary-color);
+}
+.workspace-peak-checkbox{
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  font-size: .85rem;
+}
+.workspace-peak-checkbox .form-check-input{
+  margin-top: .35rem;
+}
+.workspace-peak-toggle-group{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.workspace-peak-toggle{
+  font-size: .82rem;
+  padding: .4rem .75rem;
+}
+.workspace-peak-toggle.is-active{
+  color: #fff;
+  background: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.workspace-peak-style-block{
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.workspace-peak-style-label{
+  font-size: .82rem;
+  font-weight: 500;
+}
+.workspace-peak-style-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: .4rem;
+}
+.workspace-peak-style{
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  border-radius: .9rem;
+  padding: .45rem .65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  background: transparent;
+  font-size: .82rem;
+  cursor: pointer;
+}
+.workspace-peak-style:focus-visible{
+  outline: 2px solid color-mix(in srgb, var(--bs-primary) 70%, transparent);
+  outline-offset: 2px;
+}
+.workspace-peak-style.is-active{
+  background: var(--bs-primary-bg-subtle, rgba(13,110,253,.15));
+  border-color: var(--bs-primary);
+  color: var(--bs-primary-text-emphasis, var(--bs-primary));
+}
+.workspace-peak-style-preview{
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: inline-block;
+  position: relative;
+}
+.workspace-peak-style-preview.square{
+  border-radius: .2rem;
+}
+.workspace-peak-style-preview.triangle{
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 12px solid currentColor;
+  border-top: none;
+  border-radius: 0;
+}
+.workspace-peak-select{
+  font-size: .82rem;
+}
+.workspace-peak-menu-copy{
+  font-size: .9rem;
+  color: var(--bs-secondary-color);
+  margin: 0;
+}
+.workspace-peak-spreadsheet-btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  font-weight: 500;
+}
 .workspace-toolbar-submenu{
   position: relative;
 }
