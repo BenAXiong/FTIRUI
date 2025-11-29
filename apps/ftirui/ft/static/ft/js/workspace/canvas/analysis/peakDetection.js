@@ -193,7 +193,8 @@ const detectPeaksInSeries = (samples, detectionValues, trace, options, { polarit
   const { sensitivity } = options;
   const valueRange = computeRange(values);
   // Lower floor for high sensitivity to capture smaller features without over-triggering.
-  const minProminence = valueRange * (0.003 + (1 - sensitivity) * 0.20);
+  // Make low sensitivity more aggressive by steepening the slope on (1 - sensitivity).
+  const minProminence = valueRange * (0.003 + (1 - sensitivity) * 0.35);
   const effectiveMinDistance = Math.max(0, options.minDistance ?? 0);
 
   const peaks = [];

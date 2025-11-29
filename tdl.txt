@@ -76,7 +76,11 @@ Step 3 - Workspace runtime integration
     Task 1: In `workspaceRuntime.js`, register an S3 controller that wires the menu inputs, stores preferences (session + panel meta), and toggles `figure.layout.meta.peakMarking` before calling `panelsModel.updatePanelFigure`.
     Task 2: Hook into panel lifecycle signals (active panel changes, trace normalization, theme refresh) to re-run detection when needed and to strip overlays/history entries when the Shift+3 button is toggled off.
     Task 3: Emit toast feedback for edge cases (no peaks, detection errors) and ensure undo/redo captures overlay additions/removals.
-Step 4 - Spreadsheet export & QA
+Step 4 - Manual marking
+    Task 1: 
+    Task 2: 
+    Task 3: 
+Step 5 - Spreadsheet export & QA
     Task 1: Wire the menu’s spreadsheet button to `createPanelOfType('spreadsheet', { title, content })`, pre-populating columns for index, x-position, intensity, trace label, prominence, and detection parameters.
     Task 2: Document manual smoke tests (toggle on/off, sensitivity sweeps, marker/line visibility, spreadsheet export) plus regression notes tying the feature to tb2 s3.
     Task 3: Capture follow-up risks/ideas (e.g., hooking into integration/ATR buttons later) so future work is logged next to the plan.
