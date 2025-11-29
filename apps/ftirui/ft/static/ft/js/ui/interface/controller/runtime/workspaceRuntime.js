@@ -5615,6 +5615,9 @@ let updateCanvasState = () => {};
       if (toggle) {
         toggle.setAttribute('aria-pressed', String(enabled));
         toggle.classList.toggle('is-active', enabled);
+        // Highlight the peak button when active on the focused graph.
+        toggle.classList.toggle('btn-primary', enabled);
+        toggle.classList.toggle('btn-outline-secondary', !enabled);
       }
       if (dom.menuToggle) {
         dom.menuToggle.checked = enabled;
