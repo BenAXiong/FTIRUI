@@ -40,6 +40,7 @@ import { createSectionManager } from './sections/manager.js';
 import { createHudButtons } from './controls/createHudButtons.js';
 import { createGlobalCommandsController } from './toolbar/globalCommands.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
+import { findPeaks, buildPeakOverlays, buildPeakTableRows, DEFAULT_PEAK_OPTIONS } from '../../../../workspace/canvas/analysis/peakDetection.js';
 
 registerPanelType(plotPanelType);
 registerPanelType(markdownPanelType);
@@ -390,6 +391,7 @@ let dragState = null;
 let currentDropTarget = null;
 let pendingRenameSectionId = null;
 let activePanelId = null;
+let peakMarkingController = null;
 let browserFacade = null;
 let persistence = null;
 let history = null;
@@ -3823,10 +3825,28 @@ let updateCanvasState = () => {};
     }
   };
 
+  const updatePanelDomFocus = (panelId, focused) => {
+    const dom = getPanelDom(panelId);
+    if (!dom?.rootEl) return;
+    dom.rootEl.classList.toggle('is-active', focused);
+  };
+  const refreshAllPanelFocus = () => {
+    panelDomRegistry.forEach((handles, panelId) => {
+      handles?.rootEl?.classList.toggle('is-active', panelId === activePanelId);
+    });
+  };
+
   setActivePanel = (panelId, options = {}) => {
+    if (activePanelId && activePanelId !== panelId) {
+      updatePanelDomFocus(activePanelId, false);
+    }
     activePanelId = panelId || null;
+    if (activePanelId) {
+      updatePanelDomFocus(activePanelId, true);
+    }
     chipPanelsBridge.onPanelSelected(activePanelId);
     applyActivePanelState(options);
+    peakMarkingController?.handleActivePanelChange?.(activePanelId);
   };
 
 
@@ -4158,7 +4178,7 @@ let updateCanvasState = () => {};
     history: historyHelpers,
     persistence: { persist },
     plot: { resize: (panelId) => resizePlotForPanel(panelId) },
-    utils: { bringPanelToFront },
+    utils: { bringPanelToFront, isPanelActive: (panelId) => panelId === activePanelId },
     dimensions: {
       minWidth: MIN_WIDTH,
       minHeight: MIN_HEIGHT
@@ -5007,6 +5027,27 @@ let updateCanvasState = () => {};
     }
   });
 
+  peakMarkingController = createPeakMarkingController({
+    toggle: document.getElementById('tb2_peak_marking'),
+    menu: document.querySelector('[data-peak-menu]'),
+    getActivePanelId,
+    getPanelRecord,
+    getPanelFigure,
+    updatePanelFigure: (panelId, figure) => panelsModel.updatePanelFigure(panelId, figure),
+    getPanelDom,
+    panelSupportsPlot,
+    renderPlot,
+    pushHistory,
+    showToast,
+    updateCanvasState,
+    persist,
+    scheduleCanvasSync,
+    updateHistoryButtons
+  });
+  if (peakMarkingController?.handleActivePanelChange) {
+    peakMarkingController.handleActivePanelChange(getActivePanelId?.() || null);
+  }
+
   const handleArrangeRequest = (mode, { includeNonPlots = arrangeIncludeAllPanels } = {}) => {
     const panels = gatherVisiblePanelsByType({ includeNonPlots });
     if (!panels.length) {
@@ -5388,6 +5429,7 @@ let updateCanvasState = () => {};
   if (panelDom.tree) {
     browserFacade.attachEvents();
     browserFacade.attachDragDrop();
+    refreshAllPanelFocus();
   }
 
   renderBrowser();
@@ -5434,6 +5476,576 @@ let updateCanvasState = () => {};
     } else {
       notifyGuestCloudUnavailable();
     }
+  }
+
+  function createPeakMarkingController({
+    toggle,
+    menu,
+    getActivePanelId,
+    getPanelRecord,
+    getPanelFigure,
+    updatePanelFigure,
+    getPanelDom,
+    panelSupportsPlot,
+    renderPlot,
+    pushHistory: pushHistoryEntry,
+    showToast: notify,
+    updateCanvasState,
+    persist,
+    scheduleCanvasSync,
+    updateHistoryButtons
+  } = {}) {
+    if (!toggle || !menu || typeof getActivePanelId !== 'function') {
+      return null;
+    }
+
+    const dom = {
+      sensitivity: menu.querySelector('[data-peak-control="sensitivity"]'),
+      distance: menu.querySelector('[data-peak-control="distance"]'),
+      baseline: menu.querySelector('[data-peak-control="baseline"]'),
+      smoothing: menu.querySelector('[data-peak-control="smoothing"]'),
+      labelFormat: menu.querySelector('[data-peak-control="label-format"]'),
+      lineStyle: menu.querySelector('[data-peak-control="line-style"]'),
+      sensitivityLabel: menu.querySelector('[data-peak-sensitivity-label]'),
+      distanceLabel: menu.querySelector('[data-peak-distance-label]'),
+      targetLabel: menu.querySelector('[data-peak-target-label]'),
+      menuToggle: menu.querySelector('[data-peak-menu-toggle]'),
+      visibilityButtons: Array.from(menu.querySelectorAll('[data-peak-visibility]')),
+      markerButtons: Array.from(menu.querySelectorAll('[data-peak-marker-style]')),
+      copyButton: menu.querySelector('[data-peak-copy]'),
+      spreadsheetButton: menu.querySelector('[data-peak-export]')
+    };
+
+    const listeners = [];
+    const addListener = (node, event, handler) => {
+      if (!node || typeof node.addEventListener !== 'function' || typeof handler !== 'function') return;
+      node.addEventListener(event, handler);
+      listeners.push({ node, event, handler });
+    };
+
+    const toNumber = (value, fallback = 0) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
+    const readAxisRanges = (panelId) => {
+      if (!panelId || typeof getPanelDom !== 'function') return null;
+      const panelDom = getPanelDom(panelId);
+      const plotEl = panelDom?.plotEl;
+      const fullLayout = plotEl?._fullLayout;
+      if (!fullLayout) return null;
+      const ranges = {};
+      if (Array.isArray(fullLayout.xaxis?.range)) {
+        ranges.x = fullLayout.xaxis.range.slice();
+      }
+      if (Array.isArray(fullLayout.yaxis?.range)) {
+        ranges.y = fullLayout.yaxis.range.slice();
+      }
+      return ranges;
+    };
+
+    const computeTraceRange = (traces, axisKey = 'y') => {
+      const values = [];
+      ensureArray(traces).forEach((trace) => {
+        ensureArray(trace?.[axisKey]).forEach((value) => {
+          const numeric = Number(value);
+          if (Number.isFinite(numeric)) {
+            values.push(numeric);
+          }
+        });
+      });
+      if (!values.length) return null;
+      let min = values[0];
+      let max = values[0];
+      values.forEach((value) => {
+        if (value < min) min = value;
+        if (value > max) max = value;
+      });
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+      if (min === max) {
+        const delta = Math.abs(min) || 1;
+        return [min - delta * 0.05, max + delta * 0.05];
+      }
+      return [min, max];
+    };
+
+    const getActivePanel = () => getActivePanelId?.() || null;
+
+    const state = {
+      enabled: false,
+      sensitivity: toNumber(dom.sensitivity?.value ?? 65, 65),
+      distance: toNumber(dom.distance?.value ?? 35, 35),
+      applyBaseline: dom.baseline?.checked ?? false,
+      applySmoothing: dom.smoothing ? dom.smoothing.checked !== false : true,
+      labelFormat: dom.labelFormat?.value || 'wavenumber',
+      lineStyle: dom.lineStyle?.value || 'solid',
+      markerStyle: dom.markerButtons?.find((btn) => btn.classList.contains('is-active'))?.dataset?.peakMarkerStyle
+        || dom.markerButtons?.[0]?.dataset?.peakMarkerStyle
+        || 'dot',
+      showMarkers: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'markers')?.classList.contains('is-active') ?? true,
+      showLines: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'lines')?.classList.contains('is-active') ?? true,
+      showLabels: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'labels')?.classList.contains('is-active') ?? false,
+      activePanelAvailable: false
+    };
+
+    let lastResult = { panelId: null, peaks: [] };
+    let rerunHandle = null;
+    const markerGlyph = {
+      dot: '●',
+      triangle: '▲',
+      square: '■',
+      cross: '✚'
+    };
+
+    const setToggleState = (enabled) => {
+      state.enabled = enabled;
+      if (toggle) {
+        toggle.setAttribute('aria-pressed', String(enabled));
+        toggle.classList.toggle('is-active', enabled);
+      }
+      if (dom.menuToggle) {
+        dom.menuToggle.checked = enabled;
+        dom.menuToggle.disabled = !state.activePanelAvailable;
+      }
+    };
+
+    const describeSensitivity = (value) => {
+      const labelValue = Math.round(value);
+      if (value >= 70) return `high (${labelValue})`;
+      if (value <= 30) return `low (${labelValue})`;
+      return `mid (${labelValue})`;
+    };
+
+    const updateSensitivityLabel = () => {
+      if (!dom.sensitivityLabel) return;
+      dom.sensitivityLabel.textContent = describeSensitivity(state.sensitivity);
+    };
+
+    const updateDistanceLabel = () => {
+      if (!dom.distanceLabel) return;
+      const value = Math.max(0, state.distance);
+      dom.distanceLabel.textContent = value <= 0 ? '0 cm⁻¹' : `${value} cm⁻¹`;
+    };
+
+    const figureHasPeakOverlays = (figure) => {
+      if (!figure) return false;
+      const shapes = ensureArray(figure.layout?.shapes);
+      const annotations = ensureArray(figure.layout?.annotations);
+      return shapes.some((shape) => shape?.meta?.peakOverlay === true)
+        || annotations.some((ann) => ann?.meta?.peakOverlay === true);
+    };
+
+    const updateTargetLabel = (panelId) => {
+      const hasTargetLabel = !!dom.targetLabel;
+      if (!panelId) {
+        if (hasTargetLabel) {
+          dom.targetLabel.textContent = 'no graph selected';
+        }
+        state.activePanelAvailable = false;
+        setToggleState(false);
+        return;
+      }
+      const record = typeof getPanelRecord === 'function' ? getPanelRecord(panelId) : null;
+      const title = record ? resolvePanelTitle(record) : 'Graph';
+      if (hasTargetLabel) {
+        dom.targetLabel.textContent = title;
+      }
+      state.activePanelAvailable = true;
+      const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+      const meta = figure?.layout?.meta?.peakMarking;
+      const overlaysActive = figureHasPeakOverlays(figure);
+      setToggleState(meta?.enabled === true || overlaysActive);
+    };
+
+    const writeToClipboard = async (text) => {
+      if (!text) return false;
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+      if (typeof document === 'undefined') return false;
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand?.('copy');
+      textarea.remove();
+      return !!success;
+    };
+
+    const cancelScheduledRerun = () => {
+      if (!rerunHandle) return;
+      if (typeof window !== 'undefined') {
+        window.cancelAnimationFrame?.(rerunHandle);
+        window.clearTimeout?.(rerunHandle);
+      }
+      rerunHandle = null;
+    };
+
+    const requestRerun = () => {
+      if (!state.enabled) return;
+      const panelId = getActivePanel();
+      if (!panelId) return;
+      cancelScheduledRerun();
+      const run = () => {
+        rerunHandle = null;
+        detectPeaksForPanel(panelId, { silentEmpty: true });
+      };
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        rerunHandle = window.requestAnimationFrame(run);
+      } else {
+        rerunHandle = window.setTimeout(run, 80);
+      }
+    };
+
+    const buildMarkerAnnotations = (peaks, overrideColor = null) => peaks.map((peak) => ({
+      x: peak.x,
+      y: peak.y,
+      text: markerGlyph[state.markerStyle] || markerGlyph.dot,
+      showarrow: false,
+      font: {
+        size: 18,
+        color: overrideColor || peak.color || getFallbackTraceColor()
+      },
+      align: 'center',
+      xanchor: 'center',
+      yanchor: 'middle',
+      bgcolor: 'transparent',
+      borderpad: 0,
+      meta: { peakOverlay: true, peakOverlayType: 'marker' }
+    }));
+
+    const commitFigure = (panelId, nextFigure) => {
+      updatePanelFigure(panelId, nextFigure);
+      renderPlot(panelId);
+      updateCanvasState();
+      persist();
+      scheduleCanvasSync();
+      updateHistoryButtons();
+    };
+
+    const baseFigureWithoutOverlays = (figure) => {
+      const data = ensureArray(figure?.data).filter((trace) => trace?.meta?.peakOverlay !== true);
+      const shapes = ensureArray(figure?.layout?.shapes).filter((shape) => shape?.meta?.peakOverlay !== true);
+      const annotations = ensureArray(figure?.layout?.annotations).filter((ann) => ann?.meta?.peakOverlay !== true);
+      const layout = {
+        ...(figure?.layout || {}),
+        shapes,
+        annotations
+      };
+      return { data, layout };
+    };
+
+    const getDetectionOptions = () => ({
+      ...DEFAULT_PEAK_OPTIONS,
+      sensitivity: Math.min(1, Math.max(0.05, state.sensitivity / 100)),
+      minDistance: Math.max(0, state.distance),
+      applyBaseline: state.applyBaseline,
+      applySmoothing: state.applySmoothing
+    });
+
+    const detectPeaksForPanel = (panelId, { silentEmpty = false } = {}) => {
+      if (!panelId) {
+        if (!silentEmpty) {
+          notify?.('Select a graph to run peak marking.', 'warning');
+        }
+        return false;
+      }
+      if (typeof panelSupportsPlot === 'function' && !panelSupportsPlot(panelId)) {
+        if (!silentEmpty) {
+          notify?.('Peak marking is only available for plot panels.', 'warning');
+        }
+        return false;
+      }
+      const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+      if (!figure) return false;
+      const { data, layout } = baseFigureWithoutOverlays(figure);
+      const candidateTraces = data
+        .filter((trace) => Array.isArray(trace?.x) && Array.isArray(trace?.y))
+        .map((trace, index) => ({
+          id: trace?.uid || trace?._canvasId || `trace-${index + 1}`,
+          label: trace?.name || `Trace ${index + 1}`,
+          x: trace.x,
+          y: trace.y,
+          line: trace.line,
+          marker: trace.marker,
+          color: trace.color
+        }));
+      if (!candidateTraces.length) {
+        if (!silentEmpty) {
+          notify?.('No compatible traces found on this graph.', 'info');
+        }
+        return false;
+      }
+      const detectionOptions = getDetectionOptions();
+      const peaks = findPeaks(candidateTraces, detectionOptions);
+      const axisSnapshot = readAxisRanges(panelId);
+      const yBaseline = Number.isFinite(axisSnapshot?.y?.[0])
+        ? axisSnapshot.y[0]
+        : layout?.yaxis?.range?.[0];
+      const overlays = buildPeakOverlays(peaks, {
+        markerStyle: state.markerStyle,
+        lineStyle: state.lineStyle,
+        labelFormat: state.labelFormat,
+        yMin: yBaseline
+      });
+      const markerAnnotations = state.showMarkers ? buildMarkerAnnotations(peaks, overlays.markerTrace?.marker?.color) : [];
+      const labelAnnotations = state.showLabels
+        ? overlays.labelAnnotations.map((annotation) => ({
+          ...annotation,
+          meta: { ...(annotation.meta || {}), peakOverlay: true, peakOverlayType: 'label' }
+        }))
+        : [];
+      const lineShapes = state.showLines
+        ? overlays.lineShapes.map((shape) => ({
+          ...shape,
+          meta: { ...(shape.meta || {}), peakOverlay: true }
+        }))
+        : [];
+
+      const nextLayout = {
+        ...layout,
+        shapes: [...layout.shapes, ...lineShapes],
+        annotations: [...layout.annotations, ...markerAnnotations, ...labelAnnotations],
+        meta: {
+          ...(layout.meta || {}),
+          peakMarking: {
+            enabled: true,
+            panelId,
+            peakCount: peaks.length,
+            detection: detectionOptions,
+            display: {
+              showMarkers: state.showMarkers,
+              showLines: state.showLines,
+              showLabels: state.showLabels,
+              markerStyle: state.markerStyle,
+              lineStyle: state.lineStyle,
+              labelFormat: state.labelFormat
+            },
+            updatedAt: Date.now()
+          }
+        }
+      };
+
+      if (axisSnapshot?.y) {
+        nextLayout.yaxis = {
+          ...(nextLayout.yaxis || layout.yaxis || {}),
+          range: axisSnapshot.y.slice(),
+          autorange: false
+        };
+      } else if (layout.yaxis?.range) {
+        nextLayout.yaxis = {
+          ...(nextLayout.yaxis || layout.yaxis || {}),
+          range: layout.yaxis.range.slice(),
+          autorange: false
+        };
+      }
+      if (axisSnapshot?.x) {
+        nextLayout.xaxis = {
+          ...(nextLayout.xaxis || layout.xaxis || {}),
+          range: axisSnapshot.x.slice(),
+          autorange: false
+        };
+      } else if (layout.xaxis?.range) {
+        nextLayout.xaxis = {
+          ...(nextLayout.xaxis || layout.xaxis || {}),
+          range: layout.xaxis.range.slice(),
+          autorange: false
+        };
+      }
+
+      const nextFigure = {
+        ...figure,
+        data,
+        layout: nextLayout
+      };
+
+      pushHistoryEntry?.({ label: 'Peak marking' });
+      commitFigure(panelId, nextFigure);
+      lastResult = { panelId, peaks };
+      if (!peaks.length) {
+        if (!silentEmpty) {
+          notify?.('No peaks detected on this graph.', 'warning');
+        }
+      } else if (!silentEmpty) {
+        notify?.(`Marked ${peaks.length} peak${peaks.length === 1 ? '' : 's'}.`, 'success');
+      }
+      return true;
+    };
+
+    const clearPeaksForPanel = (panelId, { silent = false } = {}) => {
+      if (!panelId) return false;
+      const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+      if (!figure) return false;
+      const { data, layout } = baseFigureWithoutOverlays(figure);
+      const hadOverlays = data.length !== ensureArray(figure.data).length
+        || layout.shapes.length !== ensureArray(figure.layout?.shapes).length
+        || layout.annotations.length !== ensureArray(figure.layout?.annotations).length
+        || figure.layout?.meta?.peakMarking?.enabled;
+      if (!hadOverlays) {
+        return false;
+      }
+      const nextFigure = {
+        ...figure,
+        data,
+        layout: {
+          ...layout,
+          meta: {
+            ...(layout.meta || {}),
+            peakMarking: {
+              ...(layout.meta?.peakMarking || {}),
+              enabled: false,
+              peakCount: 0,
+              clearedAt: Date.now()
+            }
+          }
+        }
+      };
+      pushHistoryEntry?.({ label: 'Peak marking' });
+      commitFigure(panelId, nextFigure);
+      if (!silent) {
+        notify?.('Peak markers cleared.', 'info');
+      }
+      if (lastResult?.panelId === panelId) {
+        lastResult = { panelId: null, peaks: [] };
+      }
+      return true;
+    };
+
+    const handleToggle = (event) => {
+      if (event?.type === 'click' && event.button !== 0) return;
+      const hasExplicitState = typeof event?.currentTarget?.checked === 'boolean';
+      const next = hasExplicitState ? event.currentTarget.checked : !state.enabled;
+      if (next) {
+        setToggleState(true);
+        const success = detectPeaksForPanel(getActivePanel());
+        if (!success) {
+          setToggleState(false);
+        }
+      } else {
+        const panelId = getActivePanel();
+        const removed = clearPeaksForPanel(panelId, { silent: false });
+        if (!removed && !panelId) {
+          notify?.('No graph selected to clear.', 'info');
+        }
+        setToggleState(false);
+      }
+    };
+
+    const handleVisibilityToggle = (event) => {
+      const button = event.currentTarget;
+      const key = button?.dataset?.peakVisibility;
+      if (!key) return;
+      const next = !button.classList.contains('is-active');
+      button.classList.toggle('is-active', next);
+      button.setAttribute('aria-pressed', String(next));
+      if (key === 'markers') {
+        state.showMarkers = next;
+      } else if (key === 'lines') {
+        state.showLines = next;
+      } else if (key === 'labels') {
+        state.showLabels = next;
+      }
+      requestRerun();
+    };
+
+    const handleMarkerStyleClick = (event) => {
+      const button = event.currentTarget;
+      const style = button?.dataset?.peakMarkerStyle || 'dot';
+      dom.markerButtons.forEach((btn) => {
+        const active = btn === button;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+      state.markerStyle = style;
+      requestRerun();
+    };
+
+    const handleCopyPeaks = async () => {
+      const activeId = getActivePanel();
+      const peaks = activeId && lastResult?.panelId === activeId
+        ? lastResult.peaks
+        : lastResult?.peaks;
+      if (!Array.isArray(peaks) || !peaks.length) {
+        notify?.('Run peak detection before copying values.', 'info');
+        return;
+      }
+      const rows = buildPeakTableRows(peaks, { includeTrace: true });
+      const header = '#\tWavenumber (cm⁻¹)\tIntensity\tTrace';
+      const lines = rows.map((row) => {
+        const wave = Number(row.wavenumber).toFixed(4);
+        const intensity = Number(row.intensity).toFixed(4);
+        const trace = row.traceLabel || '';
+        return `${row.rowIndex}\t${wave}\t${intensity}\t${trace}`;
+      });
+      const payload = [header, ...lines].join('\n');
+      try {
+        await writeToClipboard(payload);
+        notify?.('Peak values copied to clipboard.', 'success');
+      } catch (error) {
+        console.warn('Peak copy failed', error);
+        notify?.('Copy failed. Select and copy manually.', 'danger');
+      }
+    };
+
+    const handleSpreadsheetClick = () => {
+      notify?.('Peaks spreadsheet export is coming soon.', 'info');
+    };
+
+    addListener(dom.menuToggle, 'change', handleToggle);
+    addListener(dom.sensitivity, 'input', () => {
+      state.sensitivity = toNumber(dom.sensitivity.value, state.sensitivity);
+      updateSensitivityLabel();
+      requestRerun();
+    });
+    addListener(dom.distance, 'input', () => {
+      state.distance = toNumber(dom.distance.value, state.distance);
+      updateDistanceLabel();
+      requestRerun();
+    });
+    addListener(dom.baseline, 'change', () => {
+      state.applyBaseline = dom.baseline.checked;
+      requestRerun();
+    });
+    addListener(dom.smoothing, 'change', () => {
+      state.applySmoothing = dom.smoothing.checked;
+      requestRerun();
+    });
+    addListener(dom.labelFormat, 'change', () => {
+      state.labelFormat = dom.labelFormat.value || 'wavenumber';
+      requestRerun();
+    });
+    addListener(dom.lineStyle, 'change', () => {
+      state.lineStyle = dom.lineStyle.value || 'solid';
+      requestRerun();
+    });
+    dom.visibilityButtons.forEach((button) => addListener(button, 'click', handleVisibilityToggle));
+    dom.markerButtons.forEach((button) => addListener(button, 'click', handleMarkerStyleClick));
+    addListener(dom.copyButton, 'click', handleCopyPeaks);
+    addListener(dom.spreadsheetButton, 'click', handleSpreadsheetClick);
+
+    updateSensitivityLabel();
+    updateDistanceLabel();
+    updateTargetLabel(getActivePanel());
+
+    return {
+      handleActivePanelChange(panelId) {
+        updateTargetLabel(panelId);
+      },
+      teardown() {
+        cancelScheduledRerun();
+        listeners.forEach(({ node, event, handler }) => {
+          if (node && typeof node.removeEventListener === 'function') {
+            node.removeEventListener(event, handler);
+          }
+        });
+      }
+    };
   }
 
   updateHistoryButtons();
@@ -5523,6 +6135,8 @@ let updateCanvasState = () => {};
     }
     hudButtonsHandles = null;
     globalCommandsController?.dispose?.();
+    peakMarkingController?.teardown?.();
+    peakMarkingController = null;
     devToggleButton = null;
     cdpToggleButton = null;
     ghostToggleButton = null;

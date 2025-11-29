@@ -221,17 +221,31 @@
          aria-labelledby="tb2_peak_marking"
          data-peak-menu>
       <div class="workspace-peak-menu-header">
-        <div>
-          <p class="workspace-peak-menu-kicker">Peak detection</p>
+        <div class="workspace-peak-menu-heading">
           <h3>Mark peaks &amp; guides</h3>
         </div>
-        <p class="workspace-peak-menu-hint">Use Shift+3 to toggle the markers quickly.</p>
+        <div class="workspace-peak-menu-target">
+          <span class="workspace-peak-menu-target-text">Mark peaks for <em data-peak-target-label>the active graph</em></span>
+          <div class="form-check form-switch workspace-peak-menu-switch">
+            <input class="form-check-input"
+                   type="checkbox"
+                   role="switch"
+                   id="tb2_peak_menu_toggle"
+                   aria-label="Toggle peak marking"
+                   data-peak-menu-toggle>
+          </div>
+        </div>
       </div>
       <div class="workspace-peak-menu-grid">
         <section class="workspace-peak-menu-section" aria-label="Detection parameters">
-          <header>Detection</header>
+          <header>Peak detection</header>
           <div class="workspace-peak-field">
-            <label for="tb2_peak_sensitivity">Peak sensitivity</label>
+            <label for="tb2_peak_sensitivity" class="workspace-peak-field-label">
+              <span>Peak sensitivity</span>
+              <i class="bi bi-info-circle workspace-peak-info"
+                 aria-label="Peak sensitivity formula"
+                 title="min prominence = (max-min) * (0.15 + (1 - sensitivity) * 0.35)"></i>
+            </label>
             <div class="workspace-peak-field-control">
               <input id="tb2_peak_sensitivity"
                      type="range"
@@ -270,6 +284,20 @@
               Smooth trace before detection
             </label>
           </div>
+          <div class="workspace-peak-menu-actions">
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-peak-copy-btn"
+                    data-peak-copy="clipboard">
+              <i class="bi bi-clipboard-check me-2" aria-hidden="true"></i>
+              Copy peak values
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-peak-spreadsheet-btn"
+                    data-peak-export="spreadsheet">
+              <i class="bi bi-table me-2" aria-hidden="true"></i>
+              Open spreadsheet
+            </button>
+          </div>
         </section>
         <section class="workspace-peak-menu-section" aria-label="Display options">
           <header>Display</header>
@@ -288,16 +316,20 @@
             <span class="workspace-peak-style-label">Marker style</span>
             <div class="workspace-peak-style-grid" role="radiogroup" aria-label="Marker style">
               <button type="button" class="workspace-peak-style is-active" data-peak-marker-style="dot" aria-pressed="true">
-                <span class="workspace-peak-style-preview dot"></span>
-                Dot
+                <span class="workspace-peak-style-preview dot" aria-hidden="true"></span>
+                <span class="visually-hidden">Dot marker</span>
               </button>
               <button type="button" class="workspace-peak-style" data-peak-marker-style="triangle" aria-pressed="false">
-                <span class="workspace-peak-style-preview triangle"></span>
-                Triangle
+                <span class="workspace-peak-style-preview triangle" aria-hidden="true"></span>
+                <span class="visually-hidden">Triangle marker</span>
               </button>
               <button type="button" class="workspace-peak-style" data-peak-marker-style="square" aria-pressed="false">
-                <span class="workspace-peak-style-preview square"></span>
-                Square
+                <span class="workspace-peak-style-preview square" aria-hidden="true"></span>
+                <span class="visually-hidden">Square marker</span>
+              </button>
+              <button type="button" class="workspace-peak-style" data-peak-marker-style="cross" aria-pressed="false">
+                <span class="workspace-peak-style-preview cross" aria-hidden="true"></span>
+                <span class="visually-hidden">Cross marker</span>
               </button>
             </div>
           </div>
@@ -317,16 +349,6 @@
               <option value="dotted">Dotted</option>
             </select>
           </div>
-        </section>
-        <section class="workspace-peak-menu-section" aria-label="Reporting">
-          <header>Reporting</header>
-          <p class="workspace-peak-menu-copy">Need table-ready values? Send the detected list to a spreadsheet panel to edit or export.</p>
-          <button type="button"
-                  class="btn btn-outline-secondary workspace-peak-spreadsheet-btn"
-                  data-peak-export="spreadsheet">
-            <i class="bi bi-table me-2" aria-hidden="true"></i>
-            Peaks spreadsheet
-          </button>
         </section>
       </div>
     </div>

@@ -1776,8 +1776,21 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   transition: box-shadow .2s ease, border-color .2s ease;
 }
 .workspace-panel.is-active{
-  box-shadow: 0 24px 40px var(--workspace-theme-panel-shadow-color, rgba(13,110,253,.22));
-  border-color: var(--workspace-theme-panel-border-active, color-mix(in oklab, var(--bs-primary) 65%, transparent));
+  box-shadow:
+    0 16px 26px color-mix(in srgb, var(--bs-primary) 10%, rgba(15,23,42,.22)),
+    0 0 0 2px color-mix(in oklab, var(--bs-primary) 35%, transparent);
+  border-color: color-mix(in oklab, var(--bs-primary) 45%, transparent);
+  backdrop-filter: none;
+}
+.workspace-panel.is-active::before{
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(.375rem + 2px);
+  border: 2px solid color-mix(in oklab, var(--bs-primary) 18%, transparent);
+  pointer-events: none;
+  box-shadow: 0 0 6px color-mix(in oklab, var(--bs-primary) 15%, transparent);
+  opacity: .45;
 }
 .workspace-panel.is-fullscreen{
   position: fixed !important;
@@ -3170,30 +3183,61 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-peak-menu-header{
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
 }
-.workspace-peak-menu-header h3{
+.workspace-peak-menu-heading{
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  min-width: 200px;
+}
+.workspace-peak-menu-heading h3{
   margin: 0;
   font-size: 1.25rem;
 }
-.workspace-peak-menu-kicker{
-  font-size: .78rem;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--bs-secondary-color);
-  margin: 0 0 .25rem;
+.workspace-peak-menu-target{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .5rem;
+  flex-wrap: wrap;
 }
-.workspace-peak-menu-hint{
-  font-size: .82rem;
-  margin: 0;
+.workspace-peak-menu-target-text{
+  font-size: .85rem;
   color: var(--bs-secondary-color);
+}
+.workspace-peak-menu-target-text em{
+  font-style: normal;
+  font-weight: 600;
+  color: var(--bs-body-color);
+}
+.workspace-peak-menu-switch{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+.workspace-peak-menu-switch .form-check-input{
+  cursor: pointer;
+  width: 2.5rem;
+  height: 1.3rem;
+}
+.workspace-peak-menu-actions{
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .5rem;
+  justify-content: flex-end;
+  width: 100%;
+}
+.workspace-peak-menu-actions .btn{
+  flex: 1 1 50%;
+  font-size: .8rem;
 }
 .workspace-peak-menu-grid{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
 }
 .workspace-peak-menu-section{
@@ -3217,6 +3261,16 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   display: flex;
   flex-direction: column;
   gap: .3rem;
+}
+.workspace-peak-field-label{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+.workspace-peak-info{
+  font-size: .95rem;
+  color: var(--bs-secondary-color);
+  cursor: help;
 }
 .workspace-peak-field label{
   font-size: .85rem;
@@ -3270,18 +3324,19 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 }
 .workspace-peak-style-grid{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: .4rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .45rem;
 }
 .workspace-peak-style{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
   border-radius: .9rem;
-  padding: .45rem .65rem;
+  padding: .35rem;
   display: inline-flex;
   align-items: center;
-  gap: .45rem;
+  justify-content: center;
+  gap: .2rem;
   background: transparent;
-  font-size: .82rem;
+  font-size: 1rem;
   cursor: pointer;
 }
 .workspace-peak-style:focus-visible{
@@ -3312,6 +3367,27 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   border-bottom: 12px solid currentColor;
   border-top: none;
   border-radius: 0;
+}
+.workspace-peak-style-preview.cross{
+  border-radius: 0;
+  border: none;
+  width: 16px;
+  height: 16px;
+  position: relative;
+}
+.workspace-peak-style-preview.cross::before,
+.workspace-peak-style-preview.cross::after{
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 16px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+.workspace-peak-style-preview.cross::after{
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 .workspace-peak-select{
   font-size: .82rem;

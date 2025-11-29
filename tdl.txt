@@ -5,7 +5,7 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
 - [-] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
 - [-] 2/ Graph type (main = line, secondary = bars, scatter, etc).
 - [-] Buttons for tech = FT-IR
-    - [-] 3/ Peak marking
+    - [-] 3/ Peak marking (auto + manual)
     - [ ] 4/ Integration
     - [ ] 5/ ATR correction
     - [ ] 6/ Smoothing
@@ -43,7 +43,7 @@ Phase 4 – Plotly & canvas interaction upgrades
 
 Phase 5 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
-- [ ] Workspace graph polish (popup width, remove titles when redundant).
+- [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
 
 Phase 6 – Workflow refinements
@@ -80,6 +80,8 @@ Step 4 - Spreadsheet export & QA
     Task 1: Wire the menu’s spreadsheet button to `createPanelOfType('spreadsheet', { title, content })`, pre-populating columns for index, x-position, intensity, trace label, prominence, and detection parameters.
     Task 2: Document manual smoke tests (toggle on/off, sensitivity sweeps, marker/line visibility, spreadsheet export) plus regression notes tying the feature to tb2 s3.
     Task 3: Capture follow-up risks/ideas (e.g., hooking into integration/ATR buttons later) so future work is logged next to the plan.
+
+ADD MANUAL MARKING
 
 Peak finding tooling & methodology notes:
 - Detection stack: start by optionally applying a lightweight baseline correction (rolling minimum subtraction) and Savitzky–Golay smoothing to suppress acquisition noise, then score candidate peaks via first-derivative sign changes plus prominence / half-width checks; prominence thresholds and minimum spacing come directly from the S3 menu inputs.

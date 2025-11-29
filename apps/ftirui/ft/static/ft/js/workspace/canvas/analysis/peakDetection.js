@@ -6,6 +6,7 @@ const DEFAULT_SENSITIVITY = 0.65;
 const DEFAULT_DISTANCE = 35;
 const DEFAULT_BASELINE_WINDOW = 25;
 const DEFAULT_SMOOTHING_WINDOW = 7;
+const DEFAULT_BAND_WINDOW = 30; // cm-1 window for band picking
 
 export const DEFAULT_PEAK_OPTIONS = {
   sensitivity: DEFAULT_SENSITIVITY,
@@ -13,13 +14,16 @@ export const DEFAULT_PEAK_OPTIONS = {
   smoothingWindow: DEFAULT_SMOOTHING_WINDOW,
   baselineWindow: DEFAULT_BASELINE_WINDOW,
   applyBaseline: false,
-  applySmoothing: true
+  applySmoothing: true,
+  target: 'dip',
+  bandWindow: DEFAULT_BAND_WINDOW
 };
 
 const MARKER_STYLE_MAP = {
   dot: { symbol: 'circle', size: 11 },
   triangle: { symbol: 'triangle-up', size: 12 },
-  square: { symbol: 'square', size: 11 }
+  square: { symbol: 'square', size: 11 },
+  cross: { symbol: 'x', size: 13 }
 };
 
 const LINE_STYLE_MAP = {
@@ -50,7 +54,11 @@ const normalizeOptions = (options = {}) => ({
     ? Math.max(1, Math.floor(options.baselineWindow))
     : DEFAULT_BASELINE_WINDOW,
   applyBaseline: options.applyBaseline === true,
-  applySmoothing: options.applySmoothing !== false
+  applySmoothing: options.applySmoothing !== false,
+  target: typeof options.target === 'string' ? options.target : DEFAULT_PEAK_OPTIONS.target,
+  bandWindow: isFiniteNumber(options.bandWindow)
+    ? Math.max(1, options.bandWindow)
+    : DEFAULT_BAND_WINDOW
 });
 
 const pairSamples = (trace) => {
@@ -85,116 +93,279 @@ const applyMovingAverage = (samples, windowSize) => {
   });
 };
 
-const flattenBaseline = (samples, windowSize) => {
+const flattenBaseline = (samples, windowSize, { reference = 'min' } = {}) => {
   const half = Math.max(1, Math.floor(windowSize / 2));
+  const useMax = reference === 'max';
   return samples.map((sample, index) => {
-    let localMin = sample.y;
+    let pivot = sample.y;
     for (let offset = -half; offset <= half; offset += 1) {
       const neighbor = samples[index + offset];
       if (!neighbor) continue;
-      if (neighbor.y < localMin) {
-        localMin = neighbor.y;
+      if (useMax ? neighbor.y > pivot : neighbor.y < pivot) {
+        pivot = neighbor.y;
       }
     }
     return {
       ...sample,
-      baseline: localMin,
-      y: sample.y - localMin
+      baseline: pivot,
+      y: useMax ? pivot - sample.y : sample.y - pivot
     };
   });
 };
 
-const estimateProminence = (samples, targetIndex) => {
-  const peakY = samples[targetIndex]?.y ?? 0;
-  let leftMin = peakY;
+const estimateProminence = (values, targetIndex) => {
+  const peakValue = values[targetIndex] ?? 0;
+  let leftValue = peakValue;
+  let leftIndex = targetIndex;
   for (let i = targetIndex - 1; i >= 0; i -= 1) {
-    const value = samples[i].y;
-    leftMin = Math.min(leftMin, value);
-    if (value > samples[i + 1].y) break;
+    const current = values[i];
+    if (current > values[i + 1]) break;
+    if (current < leftValue) {
+      leftValue = current;
+      leftIndex = i;
+    }
   }
-  let rightMin = peakY;
-  for (let i = targetIndex + 1; i < samples.length; i += 1) {
-    const value = samples[i].y;
-    rightMin = Math.min(rightMin, value);
-    if (value > samples[i - 1].y) break;
+  let rightValue = peakValue;
+  let rightIndex = targetIndex;
+  for (let i = targetIndex + 1; i < values.length; i += 1) {
+    const current = values[i];
+    if (current > values[i - 1]) break;
+    if (current < rightValue) {
+      rightValue = current;
+      rightIndex = i;
+    }
   }
-  const base = Math.max(leftMin, rightMin);
+  const base = Math.max(leftValue, rightValue);
   return {
-    prominence: peakY - base,
-    leftBase: leftMin,
-    rightBase: rightMin
+    prominence: peakValue - base,
+    leftIndex,
+    rightIndex
   };
 };
 
-const computeRange = (samples) => {
-  if (!samples.length) return 0;
-  let min = samples[0].y;
-  let max = samples[0].y;
-  samples.forEach((sample) => {
-    if (sample.y < min) min = sample.y;
-    if (sample.y > max) max = sample.y;
+const computeRange = (values) => {
+  const list = ensureArray(values);
+  if (!list.length) return 0;
+  let min = list[0];
+  let max = list[0];
+  list.forEach((value) => {
+    if (value < min) min = value;
+    if (value > max) max = value;
   });
   return max - min;
 };
 
-const detectPeaksInSeries = (samples, trace, options) => {
+const computeDataRange = (traces = [], axisKey = 'y') => {
+  const values = [];
+  traces.forEach((trace) => {
+    const series = ensureArray(trace?.[axisKey]);
+    series.forEach((value) => {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        values.push(numeric);
+      }
+    });
+  });
+  if (!values.length) return null;
+  let min = values[0];
+  let max = values[0];
+  values.forEach((value) => {
+    if (value < min) min = value;
+    if (value > max) max = value;
+  });
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  if (min === max) {
+    const delta = Math.abs(min) || 1;
+    return [min - delta * 0.05, max + delta * 0.05];
+  }
+  return [min, max];
+};
+
+const detectPeaksInSeries = (samples, detectionValues, trace, options, { polarity = 'peak' } = {}) => {
   if (samples.length < 3) return [];
-  const { minDistance, sensitivity } = options;
-  const valueRange = computeRange(samples);
-  const minProminence = valueRange * (0.15 + (1 - sensitivity) * 0.35);
+  const baseValues = Array.isArray(detectionValues) && detectionValues.length === samples.length
+    ? detectionValues
+    : samples.map((sample) => sample.y);
+  const baseMax = Math.max(...baseValues);
+  const values = polarity === 'dip'
+    ? baseValues.map((value) => baseMax - value)
+    : baseValues.slice();
+  const { sensitivity } = options;
+  const valueRange = computeRange(values);
+  // Lower floor for high sensitivity to capture smaller features without over-triggering.
+  const minProminence = valueRange * (0.003 + (1 - sensitivity) * 0.20);
+  const effectiveMinDistance = Math.max(0, options.minDistance ?? 0);
 
   const peaks = [];
   let lastAcceptedX = Number.NEGATIVE_INFINITY;
 
   for (let i = 1; i < samples.length - 1; i += 1) {
-    const prev = samples[i - 1];
-    const curr = samples[i];
-    const next = samples[i + 1];
-    if (!(prev.y < curr.y && curr.y >= next.y)) continue;
-    const { prominence, leftBase, rightBase } = estimateProminence(samples, i);
+    const prev = values[i - 1];
+    const curr = values[i];
+    const next = values[i + 1];
+    if (!(prev < curr && curr >= next)) continue;
+    const { prominence, leftIndex, rightIndex } = estimateProminence(values, i);
     if (!isFiniteNumber(prominence) || prominence <= 0 || prominence < minProminence) continue;
-    if ((curr.x - lastAcceptedX) < minDistance) {
+    const currentX = samples[i].x;
+    if (Math.abs(currentX - lastAcceptedX) < effectiveMinDistance) {
       const lastPeak = peaks[peaks.length - 1];
       if (lastPeak && prominence <= lastPeak.prominence) {
         continue;
       }
       peaks.pop();
     }
+    const leftBase = samples[leftIndex]?.rawY ?? samples[i].rawY;
+    const rightBase = samples[rightIndex]?.rawY ?? samples[i].rawY;
     peaks.push({
-      id: `${trace?.id || 'trace'}-${i}`,
+      id: `${trace?.id || 'trace'}-${polarity}-${i}`,
       traceId: trace?.id ?? null,
       traceLabel: trace?.label || trace?.name || trace?.legendgroup || 'Trace',
       color: trace?.line?.color || trace?.marker?.color || trace?.color || null,
       index: i,
-      x: curr.x,
-      y: curr.rawY ?? curr.y,
-      processedY: curr.y,
+      x: currentX,
+      y: samples[i].rawY ?? samples[i].y,
+      processedY: samples[i].y,
       prominence,
       leftBase,
       rightBase,
+      direction: polarity === 'dip' ? 'dip' : 'peak',
       source: {
         applyBaseline: options.applyBaseline,
         applySmoothing: options.applySmoothing
       }
     });
-    lastAcceptedX = curr.x;
+    lastAcceptedX = currentX;
   }
   return peaks;
+};
+
+const scorePeaks = (peaks) => peaks.reduce((sum, peak) => sum + Math.max(0, Number(peak?.prominence) || 0), 0);
+
+const choosePeakSet = (primary, secondary) => {
+  if (!secondary.length) return primary;
+  if (!primary.length) return secondary;
+  if (secondary.length > primary.length) return secondary;
+  if (primary.length > secondary.length) return primary;
+  const primaryScore = scorePeaks(primary);
+  const secondaryScore = scorePeaks(secondary);
+  if (secondaryScore > primaryScore) return secondary;
+  return primary;
+};
+
+const dedupeByDistance = (points, minDistance) => {
+  const deduped = [];
+  points
+    .slice()
+    .sort((a, b) => a.x - b.x)
+    .forEach((peak) => {
+      const tooClose = deduped.some((p) => Math.abs(p.x - peak.x) < minDistance);
+      if (!tooClose) {
+        deduped.push(peak);
+      }
+    });
+  return deduped;
+};
+
+const pickBandsFromPeaks = (peaks, { windowSize, minDistance = 0 } = {}) => {
+  if (!Array.isArray(peaks) || peaks.length === 0) return [];
+
+  const sorted = peaks.slice().sort((a, b) => a.x - b.x);
+  const grouped = [];
+  let windowStart = sorted[0].x;
+  let bucket = [];
+
+  sorted.forEach((peak) => {
+    if (bucket.length === 0) {
+      bucket.push(peak);
+      return;
+    }
+    const withinWindow = (peak.x - windowStart) <= windowSize;
+    if (withinWindow) {
+      bucket.push(peak);
+    } else {
+      grouped.push(bucket);
+      bucket = [peak];
+      windowStart = peak.x;
+    }
+  });
+  if (bucket.length) grouped.push(bucket);
+
+  const windowPicks = grouped.map((group) => group.reduce(
+    (best, candidate) => {
+      if (!best) return candidate;
+      const bestProm = Number(best.prominence) || 0;
+      const candProm = Number(candidate.prominence) || 0;
+      if (candProm > bestProm) return candidate;
+      if (candProm === bestProm && candidate.x < best.x) return candidate;
+      return best;
+    },
+    null
+  ));
+
+  return dedupeByDistance(
+    windowPicks.map((peak) => ({
+      ...peak,
+      source: { ...(peak.source || {}), bandPicked: true, window: windowSize }
+    })),
+    minDistance
+  );
 };
 
 export function findPeaks(traces = [], rawOptions = {}) {
   const options = normalizeOptions(rawOptions);
   const results = [];
   traces.forEach((trace) => {
-    let samples = pairSamples(trace);
-    if (!samples.length) return;
-    if (options.applyBaseline) {
-      samples = flattenBaseline(samples, options.baselineWindow);
+    const prepareSamples = (mode) => {
+      let prepared = pairSamples(trace);
+      if (!prepared.length) return prepared;
+      if (options.applyBaseline) {
+        prepared = flattenBaseline(prepared, options.baselineWindow, {
+          reference: mode === 'dip' ? 'max' : 'min'
+        });
+      }
+      if (options.applySmoothing) {
+        prepared = applyMovingAverage(prepared, options.smoothingWindow);
+      }
+      return prepared;
+    };
+
+    const peakSamples = prepareSamples('peak');
+    const dipSamples = prepareSamples('dip');
+    if (!peakSamples.length || !dipSamples.length) return;
+
+    const maxima = detectPeaksInSeries(
+      peakSamples,
+      peakSamples.map((sample) => sample.y),
+      trace,
+      options,
+      { polarity: 'peak' }
+    );
+    const minima = detectPeaksInSeries(
+      dipSamples,
+      dipSamples.map((sample) => sample.y),
+      trace,
+      options,
+      { polarity: 'dip' }
+    );
+    let chosen = minima;
+    if (options.target === 'peak') {
+      chosen = maxima;
+    } else if (options.target === 'auto') {
+      chosen = choosePeakSet(maxima, minima);
     }
-    if (options.applySmoothing) {
-      samples = applyMovingAverage(samples, options.smoothingWindow);
-    }
-    results.push(...detectPeaksInSeries(samples, trace, options));
+    const baseCandidates = chosen.length ? chosen : [...maxima, ...minima];
+    const bandCandidates = pickBandsFromPeaks(
+      baseCandidates,
+      {
+        windowSize: options.bandWindow,
+        minDistance: options.minDistance
+      }
+    );
+
+    const merged = bandCandidates.length ? bandCandidates : baseCandidates;
+    const deduped = dedupeByDistance(merged, options.minDistance);
+    const sorted = deduped.slice().sort((a, b) => (b?.prominence || 0) - (a?.prominence || 0));
+    results.push(...sorted);
   });
   return results;
 }
@@ -203,24 +374,19 @@ export function buildPeakOverlays(peaks = [], {
   markerStyle = 'dot',
   lineStyle = 'solid',
   labelFormat = 'wavenumber',
-  color: overrideColor = null
+  color: overrideColor = null,
+  yMin = null
 } = {}) {
-  if (!Array.isArray(peaks) || !peaks.length) {
-    return {
-      markerTrace: null,
-      lineShapes: [],
-      labelAnnotations: []
-    };
-  }
+  const safePeaks = Array.isArray(peaks) ? peaks.slice() : [];
   const markerConfig = MARKER_STYLE_MAP[markerStyle] || MARKER_STYLE_MAP.dot;
   const lineDash = LINE_STYLE_MAP[lineStyle] || LINE_STYLE_MAP.solid;
   const formatLabel = LABEL_FORMATTERS[labelFormat] || LABEL_FORMATTERS.wavenumber;
 
-  const markerTrace = {
+  const markerTrace = safePeaks.length ? {
     type: 'scatter',
     mode: 'markers',
     name: 'Peaks',
-    hovertemplate: 'Peak %{customdata.traceLabel}<br>%{x:.2f} cm^-1<br>Intensity %{y:.2f}<extra></extra>',
+    hovertemplate: '%{customdata.kind} %{customdata.traceLabel}<br>%{x:.2f} cm^-1<br>Intensity %{y:.2f}<extra></extra>',
     x: peaks.map((peak) => peak.x),
     y: peaks.map((peak) => peak.y),
     marker: {
@@ -232,22 +398,39 @@ export function buildPeakOverlays(peaks = [], {
     customdata: peaks.map((peak) => ({
       traceLabel: peak.traceLabel,
       prominence: peak.prominence,
-      index: peak.index
+      index: peak.index,
+      kind: peak.direction === 'dip' ? 'Dip' : 'Peak'
     }))
+  } : null;
+
+  const resolveBaseline = (peak) => {
+    if (peak.direction === 'dip') {
+      if (Number.isFinite(yMin)) {
+        return yMin;
+      }
+      return peak.y;
+    }
+    const left = isFiniteNumber(peak.leftBase) ? peak.leftBase : peak.y;
+    const right = isFiniteNumber(peak.rightBase) ? peak.rightBase : peak.y;
+    return Math.min(left, right);
   };
 
-  const lineShapes = peaks.map((peak) => ({
-    type: 'line',
-    x0: peak.x,
-    x1: peak.x,
-    y0: peak.leftBase ?? 0,
-    y1: peak.y,
-    line: {
-      color: overrideColor || peak.color || '#e85d04',
-      dash: lineDash,
-      width: 1
-    }
-  }));
+  const lineShapes = safePeaks.map((peak) => {
+    const baseline = resolveBaseline(peak);
+    return {
+      type: 'line',
+      x0: peak.x,
+      x1: peak.x,
+      y0: baseline,
+      y1: peak.y,
+      line: {
+        color: overrideColor || peak.color || '#e85d04',
+        dash: lineDash,
+        width: 1
+      },
+      meta: { peakOverlay: true, peakOverlayType: 'guide' }
+    };
+  });
 
   const labelAnnotations = peaks.map((peak) => ({
     x: peak.x,
@@ -262,7 +445,8 @@ export function buildPeakOverlays(peaks = [], {
     bgcolor: 'rgba(255,255,255,.9)',
     bordercolor: 'rgba(15,23,42,.15)',
     borderpad: 2,
-    ay: -10
+    ay: peak.direction === 'dip' ? 12 : -10,
+    meta: { peakOverlay: true, peakOverlayType: 'label' }
   }));
 
   return {
@@ -282,6 +466,7 @@ export function buildPeakTableRows(peaks = [], { includeTrace = true } = {}) {
     prominence: peak.prominence,
     traceLabel: includeTrace ? peak.traceLabel : undefined,
     traceId: includeTrace ? peak.traceId : undefined,
+     direction: peak.direction,
     detectionMeta: peak.source
   }));
 }

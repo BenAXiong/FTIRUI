@@ -25,6 +25,7 @@ gr hide header buttons on out of focus panes
 gr insert button: arrow, line, txt, etc
 tb1 consider merging 1 & 2 + add import canvas from backup
 br instead of the left/right chevron to pin/unpin the browser, switch to the empty/full pin icon
+can graph "ears" (tabs) to auto display spreadsheet on same panel + detachable (still linked and retachable)
 _________________________________________________________________________________________________
 Polishing
 
@@ -46,6 +47,7 @@ Polishing
 - dash/main: extra column = contributors
 - dash/main: open canvas on row click, not just name
 - wks/tb1/exp: review all 3 formats
+- wks/tb2/s3: efficient marker styling (type, color, thickness, size)
 ___________________________________________________________
 Future work
 

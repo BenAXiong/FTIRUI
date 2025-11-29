@@ -48,7 +48,8 @@ export function createPanelInteractions({
   } = plot;
 
   const {
-    bringPanelToFront = () => {}
+    bringPanelToFront = () => {},
+    isPanelActive = () => false
   } = utils;
 
   const {
@@ -83,10 +84,12 @@ export function createPanelInteractions({
         || runtime?.visual
         || { x: 0, y: 0, width: minWidth, height: minHeight };
       const baseGeometry = clampGeometryToCanvas(sourceGeometry);
+      const wasActive = isPanelActive(panelId) || rootEl.classList.contains('is-active');
       updatePanelRuntime(panelId, {
         dragSnapshot: {
           mode,
           operationId: operationId || null,
+          wasActive,
           initial: { ...baseGeometry },
           current: { ...baseGeometry }
         }
@@ -128,6 +131,10 @@ export function createPanelInteractions({
       updatePanelRuntime(panelId, { dragSnapshot: null });
       rootEl.classList.remove('is-active');
       canvas?.classList.remove('is-active');
+      const shouldRestoreActive = snapshot?.wasActive || isPanelActive(panelId);
+      if (shouldRestoreActive) {
+        rootEl.classList.add('is-active');
+      }
       persist();
       updateHistoryButtons();
       const opId = snapshot?.operationId;

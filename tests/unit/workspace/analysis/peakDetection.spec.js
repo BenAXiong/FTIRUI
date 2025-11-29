@@ -21,7 +21,8 @@ describe('peakDetection findPeaks', () => {
       sensitivity: 0.55,
       minDistance: 1,
       applyBaseline: false,
-      applySmoothing: false
+      applySmoothing: false,
+      target: 'peak'
     });
     expect(peaks).toHaveLength(2);
     expect(peaks[0].x).toBeCloseTo(2);
@@ -42,7 +43,8 @@ describe('peakDetection findPeaks', () => {
       sensitivity: 0.4,
       applyBaseline: true,
       applySmoothing: false,
-      minDistance: 0.5
+      minDistance: 0.5,
+      target: 'peak'
     });
     expect(peaks.length).toBeGreaterThanOrEqual(1);
     expect(peaks[0].x).toBeCloseTo(3);
