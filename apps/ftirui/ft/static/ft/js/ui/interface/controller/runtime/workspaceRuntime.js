@@ -5499,6 +5499,9 @@ let updateCanvasState = () => {};
       return null;
     }
 
+    const dropdownApi = window.bootstrap?.Dropdown;
+    const canvasRoot = document.getElementById('c_canvas_root');
+
     const dom = {
       sensitivity: menu.querySelector('[data-peak-control="sensitivity"]'),
       distance: menu.querySelector('[data-peak-control="distance"]'),
@@ -5521,6 +5524,14 @@ let updateCanvasState = () => {};
       if (!node || typeof node.addEventListener !== 'function' || typeof handler !== 'function') return;
       node.addEventListener(event, handler);
       listeners.push({ node, event, handler });
+    };
+
+    const hidePeakMenu = () => {
+      if (!dropdownApi || !toggle) return;
+      const instance = dropdownApi.getOrCreateInstance
+        ? dropdownApi.getOrCreateInstance(toggle)
+        : dropdownApi.getInstance?.(toggle);
+      instance?.hide?.();
     };
 
     const toNumber = (value, fallback = 0) => {
@@ -5657,6 +5668,72 @@ let updateCanvasState = () => {};
       const meta = figure?.layout?.meta?.peakMarking;
       const overlaysActive = figureHasPeakOverlays(figure);
       setToggleState(meta?.enabled === true || overlaysActive);
+    };
+
+    const syncMenuFromFigure = (panelId) => {
+      if (!panelId || typeof getPanelFigure !== 'function') return;
+      const figure = getPanelFigure(panelId);
+      const meta = figure?.layout?.meta?.peakMarking;
+      const detection = meta?.detection || {};
+      const display = meta?.display || {};
+
+      // Detection controls
+      if (dom.sensitivity && Number.isFinite(detection.sensitivity)) {
+        state.sensitivity = Math.round(detection.sensitivity * 100);
+        dom.sensitivity.value = state.sensitivity;
+        updateSensitivityLabel();
+      }
+      if (dom.distance && Number.isFinite(detection.minDistance)) {
+        state.distance = detection.minDistance;
+        dom.distance.value = state.distance;
+        updateDistanceLabel();
+      }
+      if (dom.baseline) {
+        state.applyBaseline = !!detection.applyBaseline;
+        dom.baseline.checked = state.applyBaseline;
+      }
+      if (dom.smoothing) {
+        state.applySmoothing = detection.applySmoothing !== false;
+        dom.smoothing.checked = state.applySmoothing;
+      }
+
+      // Display controls
+      const setToggle = (buttons, key, value) => {
+        buttons.forEach((btn) => {
+          const isActive = btn.dataset.peakVisibility === key ? value : btn.classList.contains('is-active');
+          btn.classList.toggle('is-active', isActive);
+          btn.setAttribute('aria-pressed', String(isActive));
+        });
+      };
+      if (display.showMarkers !== undefined) {
+        setToggle(dom.visibilityButtons, 'markers', display.showMarkers);
+        state.showMarkers = !!display.showMarkers;
+      }
+      if (display.showLines !== undefined) {
+        setToggle(dom.visibilityButtons, 'lines', display.showLines);
+        state.showLines = !!display.showLines;
+      }
+      if (display.showLabels !== undefined) {
+        setToggle(dom.visibilityButtons, 'labels', display.showLabels);
+        state.showLabels = !!display.showLabels;
+      }
+
+      if (display.markerStyle && dom.markerButtons.length) {
+        dom.markerButtons.forEach((btn) => {
+          const active = btn.dataset.peakMarkerStyle === display.markerStyle;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+        state.markerStyle = display.markerStyle;
+      }
+      if (dom.labelFormat && typeof display.labelFormat === 'string') {
+        dom.labelFormat.value = display.labelFormat;
+        state.labelFormat = display.labelFormat;
+      }
+      if (dom.lineStyle && typeof display.lineStyle === 'string') {
+        dom.lineStyle.value = display.lineStyle;
+        state.lineStyle = display.lineStyle;
+      }
     };
 
     const writeToClipboard = async (text) => {
@@ -5968,9 +6045,17 @@ let updateCanvasState = () => {};
 
     const handleCopyPeaks = async () => {
       const activeId = getActivePanel();
-      const peaks = activeId && lastResult?.panelId === activeId
-        ? lastResult.peaks
-        : lastResult?.peaks;
+      if (!activeId) {
+        notify?.('Select a graph before copying values.', 'info');
+        return;
+      }
+      if (lastResult?.panelId !== activeId) {
+        const success = detectPeaksForPanel(activeId, { silentEmpty: true });
+        if (!success) {
+          return;
+        }
+      }
+      const peaks = lastResult?.panelId === activeId ? lastResult.peaks : [];
       if (!Array.isArray(peaks) || !peaks.length) {
         notify?.('Run peak detection before copying values.', 'info');
         return;
@@ -6028,13 +6113,25 @@ let updateCanvasState = () => {};
     dom.markerButtons.forEach((button) => addListener(button, 'click', handleMarkerStyleClick));
     addListener(dom.copyButton, 'click', handleCopyPeaks);
     addListener(dom.spreadsheetButton, 'click', handleSpreadsheetClick);
+    // Close peak menu when clicking empty canvas space; keep it open when clicking panels/graphs.
+    addListener(canvasRoot, 'click', (event) => {
+      const target = event?.target;
+      const insidePanel = typeof target?.closest === 'function' && target.closest('.workspace-panel');
+      if (insidePanel) return;
+      hidePeakMenu();
+    });
 
     updateSensitivityLabel();
     updateDistanceLabel();
     updateTargetLabel(getActivePanel());
+    syncMenuFromFigure(getActivePanel());
 
     return {
       handleActivePanelChange(panelId) {
+        if (panelId !== lastResult?.panelId) {
+          lastResult = { panelId: null, peaks: [] };
+        }
+        syncMenuFromFigure(panelId);
         updateTargetLabel(panelId);
       },
       teardown() {

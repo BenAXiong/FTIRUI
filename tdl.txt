@@ -79,7 +79,7 @@ Step 3 - Workspace runtime integration
 Step 4 - Manual marking
     Task 1: 
     Task 2: 
-    Task 3: 
+    Task _: 
 Step 5 - Spreadsheet export & QA
     Task 1: Wire the menu’s spreadsheet button to `createPanelOfType('spreadsheet', { title, content })`, pre-populating columns for index, x-position, intensity, trace label, prominence, and detection parameters.
     Task 2: Document manual smoke tests (toggle on/off, sensitivity sweeps, marker/line visibility, spreadsheet export) plus regression notes tying the feature to tb2 s3.
