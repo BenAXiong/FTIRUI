@@ -77,9 +77,9 @@ Step 3 - Workspace runtime integration
     Task 2: Hook into panel lifecycle signals (active panel changes, trace normalization, theme refresh) to re-run detection when needed and to strip overlays/history entries when the Shift+3 button is toggled off.
     Task 3: Emit toast feedback for edge cases (no peaks, detection errors) and ensure undo/redo captures overlay additions/removals.
 Step 4 - Manual marking
-    Task 1: 
-    Task 2: 
-    Task _: 
+    Task 1: Add a "Place manual markers" toggle to the S3 peak menu (default snap-on), and wire menu state so it reflects the active graph.
+    Task 2: Persist manual markers in panel meta, merge them into overlays/copy/export alongside auto peaks, and allow delete.
+    Task 3: Handle click-to-place with snap-to-trace (and optional free placement), including focus and undo/redo wiring.
 Step 5 - Spreadsheet export & QA
     Task 1: Wire the menu’s spreadsheet button to `createPanelOfType('spreadsheet', { title, content })`, pre-populating columns for index, x-position, intensity, trace label, prominence, and detection parameters.
     Task 2: Document manual smoke tests (toggle on/off, sensitivity sweeps, marker/line visibility, spreadsheet export) plus regression notes tying the feature to tb2 s3.
@@ -91,3 +91,6 @@ Peak finding tooling & methodology notes:
 - Overlay generation: reuse Plotly scatter traces for markers (custom symbols per style toggle) and `layout.shapes` for vertical guide lines; annotations can be added through Plotly’s text fields for label styles (e.g., wavenumber-only vs. wavenumber+intensity).
 - Baseline/integration/smoothing interplay: smoothing is tightly coupled with peak detection because it dictates S/N; baseline correction should be optional but encouraged before detection on strongly sloped spectra; integration is downstream (peaks found here can be passed to the integration feature but should stay decoupled so users can detect peaks without integrating).
 - Alternatives/future enhancements: consider FFT-based smoothing or continuous wavelet transforms for more robust multi-scale peak finding, allow per-trace overrides (different sensitivity per trace), expose peak templates (e.g., Gaussian vs. Lorentzian fits), or integrate a “reference library” cross-check where detected peaks are immediately compared to known band positions.
+
+______________________
+marker style : arrow & tick distant from peak

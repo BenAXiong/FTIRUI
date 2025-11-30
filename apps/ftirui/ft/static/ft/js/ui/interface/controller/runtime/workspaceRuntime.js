@@ -5507,6 +5507,7 @@ let updateCanvasState = () => {};
       distance: menu.querySelector('[data-peak-control="distance"]'),
       baseline: menu.querySelector('[data-peak-control="baseline"]'),
       smoothing: menu.querySelector('[data-peak-control="smoothing"]'),
+      manualPlacement: menu.querySelector('[data-peak-control="manual-mode"]'),
       labelFormat: menu.querySelector('[data-peak-control="label-format"]'),
       lineStyle: menu.querySelector('[data-peak-control="line-style"]'),
       sensitivityLabel: menu.querySelector('[data-peak-sensitivity-label]'),
@@ -5598,6 +5599,7 @@ let updateCanvasState = () => {};
       showMarkers: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'markers')?.classList.contains('is-active') ?? true,
       showLines: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'lines')?.classList.contains('is-active') ?? true,
       showLabels: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'labels')?.classList.contains('is-active') ?? false,
+      manualPlacement: dom.manualPlacement?.checked ?? false,
       activePanelAvailable: false
     };
 
@@ -5643,6 +5645,35 @@ let updateCanvasState = () => {};
       dom.distanceLabel.textContent = value <= 0 ? '0 cm⁻¹' : `${value} cm⁻¹`;
     };
 
+    const setManualPlacement = (enabled) => {
+      state.manualPlacement = !!enabled;
+      if (dom.manualPlacement) {
+        dom.manualPlacement.checked = state.manualPlacement;
+      }
+      const panelId = getActivePanel();
+      if (!panelId || typeof getPanelFigure !== 'function') return;
+      const figure = getPanelFigure(panelId);
+      if (!figure) return;
+      const nextFigure = {
+        ...figure,
+        layout: {
+          ...(figure.layout || {}),
+          meta: {
+            ...(figure.layout?.meta || {}),
+            peakMarking: {
+              ...(figure.layout?.meta?.peakMarking || {}),
+              manualPlacement: state.manualPlacement
+            }
+          }
+        }
+      };
+      updatePanelFigure(panelId, nextFigure);
+      renderPlot(panelId);
+      updateCanvasState();
+      persist();
+      scheduleCanvasSync();
+    };
+
     const figureHasPeakOverlays = (figure) => {
       if (!figure) return false;
       const shapes = ensureArray(figure.layout?.shapes);
@@ -5681,6 +5712,10 @@ let updateCanvasState = () => {};
       const display = meta?.display || {};
 
       // Detection controls
+      if (dom.manualPlacement) {
+        state.manualPlacement = !!meta?.manualPlacement;
+        dom.manualPlacement.checked = state.manualPlacement;
+      }
       if (dom.sensitivity && Number.isFinite(detection.sensitivity)) {
         state.sensitivity = Math.round(detection.sensitivity * 100);
         dom.sensitivity.value = state.sensitivity;
@@ -5898,6 +5933,7 @@ let updateCanvasState = () => {};
             enabled: true,
             panelId,
             peakCount: peaks.length,
+            manualPlacement: state.manualPlacement,
             detection: detectionOptions,
             display: {
               showMarkers: state.showMarkers,
@@ -6103,6 +6139,9 @@ let updateCanvasState = () => {};
     addListener(dom.smoothing, 'change', () => {
       state.applySmoothing = dom.smoothing.checked;
       requestRerun();
+    });
+    addListener(dom.manualPlacement, 'change', () => {
+      setManualPlacement(dom.manualPlacement.checked);
     });
     addListener(dom.labelFormat, 'change', () => {
       state.labelFormat = dom.labelFormat.value || 'wavenumber';
