@@ -238,7 +238,15 @@
       </div>
       <div class="workspace-peak-menu-grid">
         <section class="workspace-peak-menu-section" aria-label="Detection parameters">
-          <header>Peak detection</header>
+          <header class="d-flex justify-content-between align-items-center gap-2">
+            <span>Peak markers</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Manual vs auto peak markers">
+              <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_auto" autocomplete="off" checked data-peak-control="manual-mode-auto">
+              <label class="btn btn-outline-secondary" for="tb2_peak_mode_auto">Auto</label>
+              <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_manual" autocomplete="off" data-peak-control="manual-mode">
+              <label class="btn btn-outline-secondary" for="tb2_peak_mode_manual">Manual</label>
+            </div>
+          </header>
           <div class="workspace-peak-field">
             <label for="tb2_peak_sensitivity" class="workspace-peak-field-label">
               <span>Peak sensitivity</span>
@@ -282,12 +290,6 @@
             <input class="form-check-input" type="checkbox" value="1" id="tb2_peak_smoothing" data-peak-control="smoothing" checked>
             <label class="form-check-label" for="tb2_peak_smoothing">
               Smooth trace before detection
-            </label>
-          </div>
-          <div class="workspace-peak-checkbox">
-            <input class="form-check-input" type="checkbox" value="1" id="tb2_peak_manual_mode" data-peak-control="manual-mode">
-            <label class="form-check-label" for="tb2_peak_manual_mode">
-              Place manual markers (snap to trace)
             </label>
           </div>
           <div class="workspace-peak-menu-actions">

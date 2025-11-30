@@ -5508,6 +5508,7 @@ let updateCanvasState = () => {};
       distance: menu.querySelector('[data-peak-control="distance"]'),
       baseline: menu.querySelector('[data-peak-control="baseline"]'),
       smoothing: menu.querySelector('[data-peak-control="smoothing"]'),
+      manualModeAuto: menu.querySelector('[data-peak-control="manual-mode-auto"]'),
       manualPlacement: menu.querySelector('[data-peak-control="manual-mode"]'),
       labelFormat: menu.querySelector('[data-peak-control="label-format"]'),
       lineStyle: menu.querySelector('[data-peak-control="line-style"]'),
@@ -5602,6 +5603,7 @@ let updateCanvasState = () => {};
       showLines: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'lines')?.classList.contains('is-active') ?? true,
       showLabels: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'labels')?.classList.contains('is-active') ?? false,
       manualPlacement: dom.manualPlacement?.checked ?? false,
+      manualModeAuto: dom.manualModeAuto?.checked ?? true,
       activePanelAvailable: false
     };
 
@@ -5649,6 +5651,10 @@ let updateCanvasState = () => {};
 
     const setManualPlacement = (enabled) => {
       state.manualPlacement = !!enabled;
+      state.manualModeAuto = !enabled;
+      if (dom.manualModeAuto) {
+        dom.manualModeAuto.checked = state.manualModeAuto;
+      }
       if (dom.manualPlacement) {
         dom.manualPlacement.checked = state.manualPlacement;
       }
@@ -5717,6 +5723,10 @@ let updateCanvasState = () => {};
       if (dom.manualPlacement) {
         state.manualPlacement = !!meta?.manualPlacement;
         dom.manualPlacement.checked = state.manualPlacement;
+      }
+      if (dom.manualModeAuto) {
+        state.manualModeAuto = !state.manualPlacement;
+        dom.manualModeAuto.checked = state.manualModeAuto;
       }
       if (dom.sensitivity && Number.isFinite(detection.sensitivity)) {
         state.sensitivity = Math.round(detection.sensitivity * 100);
@@ -5925,6 +5935,48 @@ let updateCanvasState = () => {};
         if (!state.manualPlacement) return;
         const pt = Array.isArray(event?.points) ? event.points.find((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)) : null;
         if (!pt) return;
+        const isShift = !!event?.event?.shiftKey;
+        const isMarker = pt?.data?.meta?.peakOverlay === true || pt?.customdata?.peakOverlay === true;
+        if (isShift && isMarker) {
+          event?.event?.preventDefault?.();
+          const markerId = pt?.customdata?.id || pt?.data?.customdata?.[pt.pointIndex]?.id;
+          const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+          if (!figure) return;
+          const manualList = Array.isArray(figure?.layout?.meta?.manualMarkers) ? figure.layout.meta.manualMarkers.slice() : [];
+          const manualIdx = manualList.findIndex((m) => m.id === markerId);
+          if (manualIdx >= 0) {
+            manualList.splice(manualIdx, 1);
+            writeManualMarkers(panelId, manualList);
+            detectPeaksForPanel(panelId, { silentEmpty: true });
+            return;
+          }
+          const hidden = Array.isArray(figure?.layout?.meta?.peakMarking?.hiddenIds)
+            ? figure.layout.meta.peakMarking.hiddenIds.slice()
+            : [];
+          if (markerId && !hidden.includes(markerId)) {
+            hidden.push(markerId);
+          }
+          const nextFigure = {
+            ...figure,
+            layout: {
+              ...(figure.layout || {}),
+              meta: {
+                ...(figure.layout?.meta || {}),
+                peakMarking: {
+                  ...(figure.layout?.meta?.peakMarking || {}),
+                  hiddenIds: hidden
+                }
+              }
+            }
+          };
+          updatePanelFigure(panelId, nextFigure);
+          renderPlot(panelId);
+          updateCanvasState();
+          persist();
+          scheduleCanvasSync();
+          detectPeaksForPanel(panelId, { silentEmpty: true });
+          return;
+        }
         const marker = {
           id: `${panelId}-manual-${Date.now()}`,
           traceId: pt.data?.uid || pt.data?._canvasId || null,
@@ -6237,6 +6289,16 @@ let updateCanvasState = () => {};
       notify?.('Manual markers cleared.', 'success');
     };
 
+    const hideAutoOptions = (disabled) => {
+      const section = menu.querySelector('[aria-label="Detection parameters"]');
+      if (!section) return;
+      section.classList.toggle('is-disabled', !!disabled);
+      section.querySelectorAll('input, select, button').forEach((el) => {
+        if (el.id === 'tb2_peak_mode_manual' || el.id === 'tb2_peak_mode_auto') return;
+        el.disabled = !!disabled;
+      });
+    };
+
     addListener(dom.menuToggle, 'change', handleToggle);
     addListener(dom.sensitivity, 'input', () => {
       state.sensitivity = toNumber(dom.sensitivity.value, state.sensitivity);
@@ -6259,6 +6321,13 @@ let updateCanvasState = () => {};
     addListener(dom.manualPlacement, 'change', () => {
       setManualPlacement(dom.manualPlacement.checked);
       attachManualHandler(getActivePanel());
+      hideAutoOptions(state.manualPlacement);
+    });
+    addListener(dom.manualModeAuto, 'change', () => {
+      if (dom.manualModeAuto.checked) {
+        setManualPlacement(false);
+        hideAutoOptions(false);
+      }
     });
     addListener(dom.labelFormat, 'change', () => {
       state.labelFormat = dom.labelFormat.value || 'wavenumber';
@@ -6286,6 +6355,7 @@ let updateCanvasState = () => {};
     updateTargetLabel(getActivePanel());
     syncMenuFromFigure(getActivePanel());
     attachManualHandler(getActivePanel());
+    hideAutoOptions(state.manualPlacement);
 
     return {
       handleActivePanelChange(panelId) {
