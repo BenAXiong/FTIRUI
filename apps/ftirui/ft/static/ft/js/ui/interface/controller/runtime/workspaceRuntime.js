@@ -5517,7 +5517,8 @@ let updateCanvasState = () => {};
       visibilityButtons: Array.from(menu.querySelectorAll('[data-peak-visibility]')),
       markerButtons: Array.from(menu.querySelectorAll('[data-peak-marker-style]')),
       copyButton: menu.querySelector('[data-peak-copy]'),
-      spreadsheetButton: menu.querySelector('[data-peak-export]')
+      spreadsheetButton: menu.querySelector('[data-peak-export]'),
+      clearManualButton: menu.querySelector('[data-peak-clear-manual]')
     };
 
     const listeners = [];
@@ -5864,6 +5865,27 @@ let updateCanvasState = () => {};
       applySmoothing: state.applySmoothing
     });
 
+    const writeManualMarkers = (panelId, markers = []) => {
+      if (!panelId || typeof getPanelFigure !== 'function') return;
+      const figure = getPanelFigure(panelId);
+      if (!figure) return;
+      const nextFigure = {
+        ...figure,
+        layout: {
+          ...(figure.layout || {}),
+          meta: {
+            ...(figure.layout?.meta || {}),
+            manualMarkers: markers
+          }
+        }
+      };
+      updatePanelFigure(panelId, nextFigure);
+      renderPlot(panelId);
+      updateCanvasState();
+      persist();
+      scheduleCanvasSync();
+    };
+
     const detectPeaksForPanel = (panelId, { silentEmpty = false } = {}) => {
       if (!panelId) {
         if (!silentEmpty) {
@@ -5903,13 +5925,40 @@ let updateCanvasState = () => {};
       const yBaseline = Number.isFinite(axisSnapshot?.y?.[0])
         ? axisSnapshot.y[0]
         : layout?.yaxis?.range?.[0];
-      const overlays = buildPeakOverlays(peaks, {
+      const figureManualMarkers = Array.isArray(figure?.layout?.meta?.manualMarkers)
+        ? figure.layout.meta.manualMarkers
+        : [];
+      const manualPeaks = figureManualMarkers.map((marker, idx) => {
+        const trace = candidateTraces.find((t) => t.id === marker.traceId);
+        const traceLabel = trace?.label || marker?.traceLabel || 'Manual';
+        const color = marker?.color || trace?.color || trace?.line?.color || trace?.marker?.color || null;
+        return {
+          id: marker?.id || `${panelId}-manual-${idx}`,
+          traceId: marker?.traceId || null,
+          traceLabel,
+          color,
+          index: marker?.index ?? idx,
+          x: marker?.x,
+          y: marker?.y,
+          processedY: marker?.y,
+          prominence: marker?.prominence ?? 0,
+          leftBase: marker?.y,
+          rightBase: marker?.y,
+          direction: marker?.direction || 'peak',
+          source: {
+            manual: true,
+            snap: marker?.snap !== false
+          }
+        };
+      });
+      const mergedPeaks = [...peaks, ...manualPeaks];
+      const overlays = buildPeakOverlays(mergedPeaks, {
         markerStyle: state.markerStyle,
         lineStyle: state.lineStyle,
         labelFormat: state.labelFormat,
         yMin: yBaseline
       });
-      const markerAnnotations = state.showMarkers ? buildMarkerAnnotations(peaks, overlays.markerTrace?.marker?.color) : [];
+      const markerAnnotations = state.showMarkers ? buildMarkerAnnotations(mergedPeaks, overlays.markerTrace?.marker?.color) : [];
       const labelAnnotations = state.showLabels
         ? overlays.labelAnnotations.map((annotation) => ({
           ...annotation,
@@ -5932,7 +5981,7 @@ let updateCanvasState = () => {};
           peakMarking: {
             enabled: true,
             panelId,
-            peakCount: peaks.length,
+            peakCount: mergedPeaks.length,
             manualPlacement: state.manualPlacement,
             detection: detectionOptions,
             display: {
@@ -5983,13 +6032,13 @@ let updateCanvasState = () => {};
 
       pushHistoryEntry?.({ label: 'Peak marking' });
       commitFigure(panelId, nextFigure);
-      lastResult = { panelId, peaks };
-      if (!peaks.length) {
+      lastResult = { panelId, peaks: mergedPeaks };
+      if (!mergedPeaks.length) {
         if (!silentEmpty) {
           notify?.('No peaks detected on this graph.', 'warning');
         }
       } else if (!silentEmpty) {
-        notify?.(`Marked ${peaks.length} peak${peaks.length === 1 ? '' : 's'}.`, 'success');
+        notify?.(`Marked ${mergedPeaks.length} peak${mergedPeaks.length === 1 ? '' : 's'}.`, 'success');
       }
       return true;
     };
@@ -6121,6 +6170,18 @@ let updateCanvasState = () => {};
       notify?.('Peaks spreadsheet export is coming soon.', 'info');
     };
 
+    const handleClearManualMarkers = () => {
+      const panelId = getActivePanel();
+      if (!panelId) {
+        notify?.('Select a graph to clear manual markers.', 'info');
+        return;
+      }
+      writeManualMarkers(panelId, []);
+      // Re-run detection to rebuild overlays without manual markers.
+      detectPeaksForPanel(panelId, { silentEmpty: true });
+      notify?.('Manual markers cleared.', 'success');
+    };
+
     addListener(dom.menuToggle, 'change', handleToggle);
     addListener(dom.sensitivity, 'input', () => {
       state.sensitivity = toNumber(dom.sensitivity.value, state.sensitivity);
@@ -6155,6 +6216,7 @@ let updateCanvasState = () => {};
     dom.markerButtons.forEach((button) => addListener(button, 'click', handleMarkerStyleClick));
     addListener(dom.copyButton, 'click', handleCopyPeaks);
     addListener(dom.spreadsheetButton, 'click', handleSpreadsheetClick);
+    addListener(dom.clearManualButton, 'click', handleClearManualMarkers);
     // Close peak menu when clicking empty canvas space; keep it open when clicking panels/graphs.
     addListener(canvasRoot, 'click', (event) => {
       const target = event?.target;
