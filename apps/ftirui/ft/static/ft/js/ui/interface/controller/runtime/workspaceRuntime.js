@@ -5501,6 +5501,7 @@ let updateCanvasState = () => {};
 
     const dropdownApi = window.bootstrap?.Dropdown;
     const canvasRoot = document.getElementById('c_canvas_root');
+    const manualClickHandlers = new Map();
 
     const dom = {
       sensitivity: menu.querySelector('[data-peak-control="sensitivity"]'),
@@ -5886,6 +5887,60 @@ let updateCanvasState = () => {};
       scheduleCanvasSync();
     };
 
+    const addManualMarker = (panelId, marker) => {
+      if (!panelId || !marker) return false;
+      const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+      if (!figure) return false;
+      const existing = Array.isArray(figure?.layout?.meta?.manualMarkers)
+        ? figure.layout.meta.manualMarkers.slice()
+        : [];
+      existing.push(marker);
+      writeManualMarkers(panelId, existing);
+      // Rebuild overlays with manual markers included.
+      detectPeaksForPanel(panelId, { silentEmpty: true });
+      return true;
+    };
+
+    const detachManualHandler = (panelId) => {
+      const entry = manualClickHandlers.get(panelId);
+      if (!entry) return;
+      if (entry.plotEl) {
+        if (typeof entry.plotEl.removeListener === 'function') {
+          entry.plotEl.removeListener('plotly_click', entry.handler);
+        } else if (typeof entry.plotEl.off === 'function') {
+          entry.plotEl.off('plotly_click', entry.handler);
+        }
+      }
+      manualClickHandlers.delete(panelId);
+    };
+
+    const attachManualHandler = (panelId) => {
+      detachManualHandler(panelId);
+      if (!state.manualPlacement) return;
+      if (!panelId || typeof getPanelDom !== 'function') return;
+      const panelDom = getPanelDom(panelId);
+      const plotEl = panelDom?.plotEl;
+      if (!plotEl || typeof plotEl.on !== 'function') return;
+      const handler = (event) => {
+        if (!state.manualPlacement) return;
+        const pt = Array.isArray(event?.points) ? event.points.find((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)) : null;
+        if (!pt) return;
+        const marker = {
+          id: `${panelId}-manual-${Date.now()}`,
+          traceId: pt.data?.uid || pt.data?._canvasId || null,
+          traceLabel: pt.data?.name || 'Trace',
+          color: pt.data?.marker?.color || pt.data?.line?.color || null,
+          x: pt.x,
+          y: pt.y,
+          snap: true,
+          direction: 'peak'
+        };
+        addManualMarker(panelId, marker);
+      };
+      plotEl.on('plotly_click', handler);
+      manualClickHandlers.set(panelId, { plotEl, handler });
+    };
+
     const detectPeaksForPanel = (panelId, { silentEmpty = false } = {}) => {
       if (!panelId) {
         if (!silentEmpty) {
@@ -6203,6 +6258,7 @@ let updateCanvasState = () => {};
     });
     addListener(dom.manualPlacement, 'change', () => {
       setManualPlacement(dom.manualPlacement.checked);
+      attachManualHandler(getActivePanel());
     });
     addListener(dom.labelFormat, 'change', () => {
       state.labelFormat = dom.labelFormat.value || 'wavenumber';
@@ -6229,6 +6285,7 @@ let updateCanvasState = () => {};
     updateDistanceLabel();
     updateTargetLabel(getActivePanel());
     syncMenuFromFigure(getActivePanel());
+    attachManualHandler(getActivePanel());
 
     return {
       handleActivePanelChange(panelId) {
@@ -6237,6 +6294,7 @@ let updateCanvasState = () => {};
         }
         syncMenuFromFigure(panelId);
         updateTargetLabel(panelId);
+        attachManualHandler(panelId);
       },
       teardown() {
         cancelScheduledRerun();
@@ -6245,6 +6303,7 @@ let updateCanvasState = () => {};
             node.removeEventListener(event, handler);
           }
         });
+        manualClickHandlers.forEach((_, panelId) => detachManualHandler(panelId));
       }
     };
   }
