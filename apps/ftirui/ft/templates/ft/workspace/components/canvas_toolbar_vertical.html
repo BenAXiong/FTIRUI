@@ -222,7 +222,7 @@
          data-peak-menu>
       <div class="workspace-peak-menu-header">
         <div class="workspace-peak-menu-heading">
-          <h3>Mark peaks &amp; guides</h3>
+          <h3>Peak markers</h3>
         </div>
         <div class="workspace-peak-menu-target">
           <span class="workspace-peak-menu-target-text">
@@ -241,7 +241,7 @@
       <div class="workspace-peak-menu-grid">
         <section class="workspace-peak-menu-section" aria-label="Detection parameters">
           <header class="d-flex justify-content-between align-items-center gap-2">
-            <span>Peak markers</span>
+            <span>Peak finding</span>
             <div class="d-flex align-items-center gap-2">
               <div class="btn-group btn-group-sm" role="group" aria-label="Manual vs auto peak markers">
                 <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_auto" autocomplete="off" checked data-peak-control="manual-mode-auto">
@@ -258,38 +258,34 @@
               </button>
             </div>
           </header>
-          <div class="workspace-peak-field">
-            <label for="tb2_peak_sensitivity" class="workspace-peak-field-label">
+          <div class="workspace-peak-inline-style">
+            <label for="tb2_peak_sensitivity" class="workspace-peak-style-label mb-0 d-flex align-items-center gap-1 flex-shrink-0">
               <span>Peak sensitivity</span>
               <i class="bi bi-info-circle workspace-peak-info"
                  aria-label="Peak sensitivity formula"
                  title="min prominence = (max-min) * (0.15 + (1 - sensitivity) * 0.35)"></i>
             </label>
-            <div class="workspace-peak-field-control">
-              <input id="tb2_peak_sensitivity"
-                     type="range"
-                     class="form-range workspace-peak-range"
-                     min="0"
-                     max="100"
-                     value="65"
-                     step="5"
-                     data-peak-control="sensitivity">
-              <span class="workspace-peak-field-value" data-peak-sensitivity-label>Balanced</span>
-            </div>
+            <input id="tb2_peak_sensitivity"
+                   type="range"
+                   class="form-range workspace-peak-range flex-grow-1"
+                   min="0"
+                   max="100"
+                   value="65"
+                   step="5"
+                   data-peak-control="sensitivity">
+            <span class="workspace-peak-field-value text-nowrap" data-peak-sensitivity-label>Balanced</span>
           </div>
-          <div class="workspace-peak-field">
-            <label for="tb2_peak_distance">Minimum distance</label>
-            <div class="workspace-peak-field-control">
-              <input id="tb2_peak_distance"
-                     type="range"
-                     class="form-range workspace-peak-range"
-                     min="0"
-                     max="200"
-                     value="35"
-                     step="5"
-                     data-peak-control="distance">
-              <span class="workspace-peak-field-value" data-peak-distance-label>35 cm<sup>-1</sup></span>
-            </div>
+          <div class="workspace-peak-inline-style">
+            <label for="tb2_peak_distance" class="workspace-peak-style-label mb-0 flex-shrink-0">Minimum distance</label>
+            <input id="tb2_peak_distance"
+                   type="range"
+                   class="form-range workspace-peak-range flex-grow-1"
+                   min="0"
+                   max="200"
+                   value="35"
+                   step="5"
+                   data-peak-control="distance">
+            <span class="workspace-peak-field-value text-nowrap" data-peak-distance-label>35 cm<sup>-1</sup></span>
           </div>
           <div class="workspace-peak-checkbox">
             <input class="form-check-input" type="checkbox" value="1" id="tb2_peak_baseline" data-peak-control="baseline">
@@ -319,7 +315,7 @@
           </div>
         </section>
         <section class="workspace-peak-menu-section" aria-label="Display options">
-          <header>Display</header>
+          <header class="visually-hidden">Display</header>
           <div class="workspace-peak-toggle-group" role="group" aria-label="Peak overlays">
             <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="markers" aria-pressed="true">
               Markers
@@ -335,7 +331,8 @@
                       aria-haspopup="true"
                       aria-expanded="false"
                       title="Guide options"
-                      aria-label="Guide options">
+                      aria-label="Guide options"
+                      style="min-width:32px">
                 <i class="bi bi-chevron-down" aria-hidden="true"></i>
               </button>
               <div class="dropdown-menu dropdown-menu-end workspace-peak-guide-options" data-bs-auto-close="outside">
@@ -366,14 +363,15 @@
                       aria-haspopup="true"
                       aria-expanded="false"
                       title="Label options"
-                      aria-label="Label options">
+                      aria-label="Label options"
+                      style="min-width:32px">
                 <i class="bi bi-chevron-down" aria-hidden="true"></i>
               </button>
               <div class="dropdown-menu dropdown-menu-end workspace-peak-label-options" data-bs-auto-close="outside">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <span class="workspace-peak-style-label mb-0">Label options</span>
                   <button type="button"
-                          class="btn btn-outline-secondary btn-sm"
+                          class="btn btn-outline-secondary btn-sm workspace-peak-label-reset-btn"
                           data-peak-label-reset>
                     Reset
                   </button>
@@ -435,8 +433,8 @@
               </div>
             </div>
           </div>
-          <div class="workspace-peak-style-block">
-            <span class="workspace-peak-style-label">Marker style</span>
+          <div class="workspace-peak-style-block workspace-peak-style-inline">
+            <label class="workspace-peak-style-label mb-0">Style</label>
             <div class="workspace-peak-style-grid" role="radiogroup" aria-label="Marker style">
               <button type="button" class="workspace-peak-style is-active" data-peak-marker-style="dot" aria-pressed="true">
                 <span class="workspace-peak-style-preview dot" aria-hidden="true"></span>
@@ -449,10 +447,6 @@
               <button type="button" class="workspace-peak-style" data-peak-marker-style="square" aria-pressed="false">
                 <span class="workspace-peak-style-preview square" aria-hidden="true"></span>
                 <span class="visually-hidden">Square marker</span>
-              </button>
-              <button type="button" class="workspace-peak-style" data-peak-marker-style="cross" aria-pressed="false">
-                <span class="workspace-peak-style-preview cross" aria-hidden="true"></span>
-                <span class="visually-hidden">Cross marker</span>
               </button>
               <button type="button" class="workspace-peak-style" data-peak-marker-style="slit" aria-pressed="false">
                 <span class="workspace-peak-style-preview slit" aria-hidden="true"></span>
@@ -468,33 +462,29 @@
               </button>
             </div>
           </div>
-          <div class="workspace-peak-style-block">
-            <div class="d-flex align-items-center gap-2">
-              <label for="tb2_peak_marker_offset_amount" class="workspace-peak-style-label mb-0 fw-normal flex-shrink-0">Offset</label>
-              <input id="tb2_peak_marker_offset_amount"
-                     type="range"
-                     class="form-range workspace-peak-range flex-grow-1"
-                     min="0"
-                     max="120"
-                     step="5"
-                     value="0"
-                     data-peak-control="marker-offset-amount">
-              <span class="workspace-peak-field-value text-nowrap" data-peak-offset-label>0%</span>
-            </div>
+          <div class="workspace-peak-style-block workspace-peak-inline-style">
+            <label for="tb2_peak_marker_offset_amount" class="workspace-peak-style-label mb-0 fw-normal flex-shrink-0">Offset</label>
+            <input id="tb2_peak_marker_offset_amount"
+                   type="range"
+                   class="form-range workspace-peak-range flex-grow-1"
+                   min="0"
+                   max="120"
+                   step="5"
+                   value="0"
+                   data-peak-control="marker-offset-amount">
+            <span class="workspace-peak-field-value text-nowrap" data-peak-offset-label>0%</span>
           </div>
-          <div class="workspace-peak-style-block">
-            <div class="d-flex align-items-center gap-2">
-              <label for="tb2_peak_marker_size" class="workspace-peak-style-label mb-0 fw-normal flex-shrink-0">Size</label>
-              <input id="tb2_peak_marker_size"
-                     type="range"
-                     class="form-range workspace-peak-range flex-grow-1"
-                     min="6"
-                     max="24"
-                     step="1"
-                     value="12"
-                     data-peak-control="marker-size">
-              <span class="workspace-peak-field-value text-nowrap" data-peak-size-label>12 px</span>
-            </div>
+          <div class="workspace-peak-style-block workspace-peak-inline-style">
+            <label for="tb2_peak_marker_size" class="workspace-peak-style-label mb-0 fw-normal flex-shrink-0">Size</label>
+            <input id="tb2_peak_marker_size"
+                   type="range"
+                   class="form-range workspace-peak-range flex-grow-1"
+                   min="6"
+                   max="24"
+                   step="1"
+                   value="12"
+                   data-peak-control="marker-size">
+            <span class="workspace-peak-field-value text-nowrap" data-peak-size-label>12 px</span>
           </div>
         </section>
       </div>

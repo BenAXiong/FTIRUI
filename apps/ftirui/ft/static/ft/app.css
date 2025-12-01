@@ -3173,12 +3173,13 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   padding: .45rem .9rem;
 }
 .workspace-toolbar-dropdown .dropdown-menu.workspace-toolbar-peak-menu{
-  width: min(760px, 95vw);
-  max-width: min(760px, 95vw);
+  width: min(456px, 95vw);
+  max-width: min(456px, 95vw);
   padding: 1rem 1rem;
   border-radius: 1.25rem;
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
   box-shadow: 0 28px 48px rgba(15,23,42,.22);
+  margin-left: -8px;
 }
 .workspace-peak-menu-header{
   display: flex;
@@ -3236,8 +3237,8 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-size: .8rem;
 }
 .workspace-peak-menu-grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 .workspace-peak-menu-section{
@@ -3403,6 +3404,17 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   flex-direction: row;
   align-items: center;
 }
+.workspace-peak-label-reset-btn{
+  color: #fff;
+  border-color: color-mix(in srgb, #b91c1c 45%, var(--bs-border-color));
+  background: color-mix(in srgb, #b91c1c 8%, transparent);
+  border-radius: 999px;
+}
+.workspace-peak-label-reset-btn:hover{
+  color: #fff;
+  border-color: color-mix(in srgb, #b91c1c 65%, var(--bs-border-color));
+  background: color-mix(in srgb, #b91c1c 14%, transparent);
+}
 .workspace-peak-no-divider{
   border-bottom: none;
   padding-bottom: 0;
@@ -3484,21 +3496,46 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   flex-direction: column;
   gap: .35rem;
 }
+.workspace-peak-style-inline{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .75rem;
+}
+.workspace-peak-style-inline > .workspace-peak-style-label{
+  min-width: 70px;
+  margin: 0;
+}
+.workspace-peak-inline-style{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .75rem;
+}
+.workspace-peak-inline-style > label{
+  min-width: 70px;
+  margin: 0;
+}
+.workspace-peak-inline-style .workspace-peak-field-value{
+  min-width: 48px;
+  text-align: right;
+}
 .workspace-peak-style-label{
   font-size: .82rem;
   font-weight: 500;
 }
 .workspace-peak-style-grid{
   display: flex;
-  gap: .45rem;
+  gap: .35rem;
   flex-wrap: nowrap;
   overflow-x: auto;
+  align-items: center;
 }
 .workspace-peak-style{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
   border-radius: 50%;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   display: inline-flex;
   align-items: center;
