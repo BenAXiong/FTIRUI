@@ -6273,8 +6273,65 @@ let updateCanvasState = () => {};
       }
     };
 
+    const buildSpreadsheetContent = (peaks = [], detection = {}) => {
+      const columns = [
+        { id: 'col-1', label: '#' },
+        { id: 'col-2', label: 'Trace', type: 'text' },
+        { id: 'col-3', label: 'Wavenumber (cm⁻¹)' },
+        { id: 'col-4', label: 'Intensity' },
+        { id: 'col-5', label: 'Prominence' },
+        { id: 'col-6', label: 'Source', type: 'text' },
+        { id: 'col-7', label: 'Sensitivity' },
+        { id: 'col-8', label: 'Min distance' },
+        { id: 'col-9', label: 'Baseline', type: 'text' },
+        { id: 'col-10', label: 'Smoothing', type: 'text' }
+      ];
+      const rows = peaks.map((peak, idx) => ({
+        id: `row-${idx + 1}`,
+        'col-1': idx + 1,
+        'col-2': peak.traceLabel || '',
+        'col-3': Number(peak.x) || 0,
+        'col-4': Number(peak.y) || 0,
+        'col-5': Number(peak.prominence) || 0,
+        'col-6': peak?.source?.manual ? 'Manual' : 'Auto',
+        'col-7': typeof detection.sensitivity === 'number' ? Math.round(detection.sensitivity * 100) : '',
+        'col-8': typeof detection.minDistance === 'number' ? detection.minDistance : '',
+        'col-9': detection.applyBaseline ? 'On' : 'Off',
+        'col-10': detection.applySmoothing === false ? 'Off' : 'On'
+      }));
+      return { columns, rows, formulas: {} };
+    };
+
     const handleSpreadsheetClick = () => {
-      notify?.('Peaks spreadsheet export is coming soon.', 'info');
+      const activeId = getActivePanel();
+      if (!activeId) {
+        notify?.('Select a graph before exporting peaks.', 'info');
+        return;
+      }
+      if (lastResult?.panelId !== activeId) {
+        const success = detectPeaksForPanel(activeId, { silentEmpty: true });
+        if (!success) {
+          return;
+        }
+      }
+      const peaks = Array.isArray(lastResult?.peaks) ? lastResult.peaks : [];
+      if (!peaks.length) {
+        notify?.('Run peak detection before exporting peaks.', 'info');
+        return;
+      }
+      const figure = typeof getPanelFigure === 'function' ? getPanelFigure(activeId) : null;
+      const detection = figure?.layout?.meta?.peakMarking?.detection || getDetectionOptions();
+      const content = buildSpreadsheetContent(peaks, detection);
+      const canvasRect = canvasRoot?.getBoundingClientRect?.();
+      const desiredHeight = Number.isFinite(canvasRect?.height)
+        ? Math.max(240, Math.round(canvasRect.height * 0.8))
+        : undefined;
+      createPanelOfType('spreadsheet', {
+        title: 'Peaks',
+        content,
+        height: desiredHeight
+      });
+      notify?.('Opened peaks in a spreadsheet panel.', 'success');
     };
 
     const handleClearManualMarkers = () => {

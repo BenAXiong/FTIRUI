@@ -85,12 +85,23 @@ Step 5 - Spreadsheet export & QA
     Task 2: Document manual smoke tests (toggle on/off, sensitivity sweeps, marker/line visibility, spreadsheet export) plus regression notes tying the feature to tb2 s3.
     Task 3: Capture follow-up risks/ideas (e.g., hooking into integration/ATR buttons later) so future work is logged next to the plan.
 Step 6 - UI/UX polishing
-    Task 1: Marker style (distant from traces)
+    Task 1: Marker style (distant from traces) + activate 'guides' when manual is on
     Task 2: Labels
     Task 3: ?
 ______________________
 Peak finding tooling & methodology notes:
-- Detection stack: start by optionally applying a lightweight baseline correction (rolling minimum subtraction) and Savitzky–Golay smoothing to suppress acquisition noise, then score candidate peaks via first-derivative sign changes plus prominence / half-width checks; prominence thresholds and minimum spacing come directly from the S3 menu inputs.
-- Overlay generation: reuse Plotly scatter traces for markers (custom symbols per style toggle) and `layout.shapes` for vertical guide lines; annotations can be added through Plotly’s text fields for label styles (e.g., wavenumber-only vs. wavenumber+intensity).
-- Baseline/integration/smoothing interplay: smoothing is tightly coupled with peak detection because it dictates S/N; baseline correction should be optional but encouraged before detection on strongly sloped spectra; integration is downstream (peaks found here can be passed to the integration feature but should stay decoupled so users can detect peaks without integrating).
-- Alternatives/future enhancements: consider FFT-based smoothing or continuous wavelet transforms for more robust multi-scale peak finding, allow per-trace overrides (different sensitivity per trace), expose peak templates (e.g., Gaussian vs. Lorentzian fits), or integrate a “reference library” cross-check where detected peaks are immediately compared to known band positions.
+- Detection stack: start by optionally applying a lightweight baseline correction 
+    (rolling minimum subtraction) and Savitzky–Golay smoothing to suppress acquisition noise, 
+    then score candidate peaks via first-derivative sign changes plus prominence / half-width checks; 
+    prominence thresholds and minimum spacing come directly from the S3 menu inputs.
+- Overlay generation: reuse Plotly scatter traces for markers (custom symbols per style toggle) 
+    and `layout.shapes` for vertical guide lines; annotations can be added through Plotly’s text fields 
+    for label styles (e.g., wavenumber-only vs. wavenumber+intensity).
+- Baseline/integration/smoothing interplay: smoothing is tightly coupled with peak detection 
+    because it dictates S/N; baseline correction should be optional but encouraged before detection 
+    on strongly sloped spectra; integration is downstream (peaks found here can be passed 
+    to the integration feature but should stay decoupled so users can detect peaks without integrating).
+- Alternatives/future enhancements: consider FFT-based smoothing or continuous wavelet transforms 
+    for more robust multi-scale peak finding, allow per-trace overrides (different sensitivity per trace), 
+    expose peak templates (e.g., Gaussian vs. Lorentzian fits), or integrate a “reference library” cross-check 
+    where detected peaks are immediately compared to known band positions.
