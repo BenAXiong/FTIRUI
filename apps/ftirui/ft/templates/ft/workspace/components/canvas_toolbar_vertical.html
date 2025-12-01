@@ -319,19 +319,15 @@
         </section>
         <section class="workspace-peak-menu-section" aria-label="Display options">
           <header>Display</header>
-          <div class="workspace-peak-toggle-group" role="group" aria-label="Peak overlays">
-            <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="markers" aria-pressed="true">
-              Markers
-            </button>
-            <div class="form-check form-switch d-inline-flex align-items-center ms-2">
-              <input class="form-check-input" type="checkbox" value="1" id="tb2_peak_marker_offset" data-peak-control="marker-offset">
-              <label class="form-check-label small" for="tb2_peak_marker_offset">Offset</label>
-            </div>
-            <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="lines" aria-pressed="true">
-              Guides
-            </button>
-            <button type="button" class="btn btn-outline-secondary workspace-peak-toggle" data-peak-visibility="labels" aria-pressed="false">
-              Labels
+            <div class="workspace-peak-toggle-group" role="group" aria-label="Peak overlays">
+              <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="markers" aria-pressed="true">
+                Markers
+              </button>
+              <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="lines" aria-pressed="true">
+                Guides
+              </button>
+              <button type="button" class="btn btn-outline-secondary workspace-peak-toggle" data-peak-visibility="labels" aria-pressed="false">
+                Labels
             </button>
           </div>
           <div class="workspace-peak-style-block">
@@ -361,6 +357,38 @@
                 <span class="workspace-peak-style-preview chevron" aria-hidden="true"></span>
                 <span class="visually-hidden">Chevron marker</span>
               </button>
+              <button type="button" class="workspace-peak-style" data-peak-marker-style="triangle-down" aria-pressed="false">
+                <span class="workspace-peak-style-preview triangle-down" aria-hidden="true"></span>
+                <span class="visually-hidden">Triangle down marker</span>
+              </button>
+            </div>
+          </div>
+          <div class="workspace-peak-style-block">
+            <div class="d-flex align-items-center gap-2">
+              <label for="tb2_peak_marker_offset_amount" class="workspace-peak-style-label mb-0 fw-normal flex-shrink-0">Offset</label>
+              <input id="tb2_peak_marker_offset_amount"
+                     type="range"
+                     class="form-range workspace-peak-range flex-grow-1"
+                     min="0"
+                     max="120"
+                     step="5"
+                     value="0"
+                     data-peak-control="marker-offset-amount">
+              <span class="workspace-peak-field-value text-nowrap" data-peak-offset-label>0%</span>
+            </div>
+          </div>
+          <div class="workspace-peak-style-block">
+            <div class="d-flex align-items-center gap-2">
+              <label for="tb2_peak_marker_size" class="workspace-peak-style-label mb-0 fw-normal flex-shrink-0">Size</label>
+              <input id="tb2_peak_marker_size"
+                     type="range"
+                     class="form-range workspace-peak-range flex-grow-1"
+                     min="6"
+                     max="24"
+                     step="1"
+                     value="12"
+                     data-peak-control="marker-size">
+              <span class="workspace-peak-field-value text-nowrap" data-peak-size-label>12 px</span>
             </div>
           </div>
           <div class="workspace-peak-style-block">

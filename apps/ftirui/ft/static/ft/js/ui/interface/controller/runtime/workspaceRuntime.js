@@ -3227,6 +3227,8 @@ const recordOperation = (entry) => {
   };
 
   const getPanelTraces = (panelId) => panelsModel.getPanelTraces(panelId) || [];
+  // Hide overlay/peak traces from the browser tree; S3 menu controls them.
+  const getBrowserPanelTraces = (panelId) => getPanelTraces(panelId).filter((trace) => trace?.meta?.peakOverlay !== true);
 
   const ensurePanelRuntime = (panelId) => {
     if (!panelId) return null;
@@ -5361,7 +5363,7 @@ let updateCanvasState = () => {};
     },
     selectors: {
       ensureArray,
-      getPanelTraces,
+      getPanelTraces: getBrowserPanelTraces,
       normalizePanelTraces,
       getPanelFigure,
       isSectionVisible,
@@ -5502,6 +5504,7 @@ let updateCanvasState = () => {};
     const dropdownApi = window.bootstrap?.Dropdown;
     const canvasRoot = document.getElementById('c_canvas_root');
     const manualClickHandlers = new Map();
+    const relayoutHandlers = new Map();
 
     const dom = {
       sensitivity: menu.querySelector('[data-peak-control="sensitivity"]'),
@@ -5510,7 +5513,10 @@ let updateCanvasState = () => {};
       smoothing: menu.querySelector('[data-peak-control="smoothing"]'),
       manualModeAuto: menu.querySelector('[data-peak-control="manual-mode-auto"]'),
       manualPlacement: menu.querySelector('[data-peak-control="manual-mode"]'),
-      offsetMarkers: menu.querySelector('[data-peak-control="marker-offset"]'),
+      offsetAmount: menu.querySelector('[data-peak-control="marker-offset-amount"]'),
+      offsetAmountLabel: menu.querySelector('[data-peak-offset-label]'),
+      markerSize: menu.querySelector('[data-peak-control="marker-size"]'),
+      markerSizeLabel: menu.querySelector('[data-peak-size-label]'),
       labelFormat: menu.querySelector('[data-peak-control="label-format"]'),
       lineStyle: menu.querySelector('[data-peak-control="line-style"]'),
       sensitivityLabel: menu.querySelector('[data-peak-sensitivity-label]'),
@@ -5547,6 +5553,12 @@ let updateCanvasState = () => {};
     };
 
     const ensureArray = (value) => (Array.isArray(value) ? value : []);
+    const expandRange = (range) => {
+      if (!Array.isArray(range) || range.length !== 2) return null;
+      const [min, max] = range;
+      const pad = (max - min) * 0.05 || 0.5;
+      return [min - pad, max + pad];
+    };
 
     const readAxisRanges = (panelId) => {
       if (!panelId || typeof getPanelDom !== 'function') return null;
@@ -5607,7 +5619,8 @@ let updateCanvasState = () => {};
       showLabels: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'labels')?.classList.contains('is-active') ?? false,
       manualPlacement: dom.manualPlacement?.checked ?? false,
       manualModeAuto: dom.manualModeAuto?.checked ?? true,
-      offsetMarkers: dom.offsetMarkers?.checked ?? false,
+      offsetAmount: toNumber(dom.offsetAmount?.value ?? 0, 0),
+      markerSize: toNumber(dom.markerSize?.value ?? 12, 12),
       detectionTarget: DEFAULT_PEAK_OPTIONS.target,
       activePanelAvailable: false
     };
@@ -5617,6 +5630,7 @@ let updateCanvasState = () => {};
     const markerGlyph = {
       dot: '●',
       triangle: { symbol: '▲', altSymbol: '▼' },
+      'triangle-down': { symbol: '▼', altSymbol: '▲' },
       square: '■',
       cross: '✚',
       slit: '|',
@@ -5654,6 +5668,16 @@ let updateCanvasState = () => {};
       if (!dom.distanceLabel) return;
       const value = Math.max(0, state.distance);
       dom.distanceLabel.textContent = value <= 0 ? '0 cm⁻¹' : `${value} cm⁻¹`;
+    };
+
+    const updateOffsetLabel = () => {
+      if (!dom.offsetAmountLabel) return;
+      dom.offsetAmountLabel.textContent = `${Math.round(Math.max(0, state.offsetAmount))}%`;
+    };
+
+    const updateMarkerSizeLabel = () => {
+      if (!dom.markerSizeLabel) return;
+      dom.markerSizeLabel.textContent = `${Math.round(Math.max(1, state.markerSize))} px`;
     };
 
     const setManualPlacement = (enabled) => {
@@ -5770,6 +5794,20 @@ let updateCanvasState = () => {};
       }
       state.detectionTarget = typeof detection.target === 'string' ? detection.target : DEFAULT_PEAK_OPTIONS.target;
       updateChevronPreview(state.detectionTarget);
+      const resolvedOffset = typeof display.offsetAmount === 'number'
+        ? display.offsetAmount
+        : (display.offsetMarkers === false ? 0 : state.offsetAmount);
+      state.offsetAmount = resolvedOffset;
+      if (dom.offsetAmount) {
+        dom.offsetAmount.value = resolvedOffset;
+        updateOffsetLabel();
+      }
+      const resolvedSize = typeof display.markerSize === 'number' ? display.markerSize : state.markerSize;
+      state.markerSize = resolvedSize;
+      if (dom.markerSize) {
+        dom.markerSize.value = resolvedSize;
+        updateMarkerSizeLabel();
+      }
 
       // Display controls
       const setToggle = (buttons, key, value) => {
@@ -5790,10 +5828,6 @@ let updateCanvasState = () => {};
       if (display.showLabels !== undefined) {
         setToggle(dom.visibilityButtons, 'labels', display.showLabels);
         state.showLabels = !!display.showLabels;
-      }
-      if (dom.offsetMarkers && display.offsetMarkers !== undefined) {
-        dom.offsetMarkers.checked = !!display.offsetMarkers;
-        state.offsetMarkers = !!display.offsetMarkers;
       }
 
       if (display.markerStyle && dom.markerButtons.length) {
@@ -6042,6 +6076,56 @@ let updateCanvasState = () => {};
       manualClickHandlers.set(panelId, { plotEl, handler });
     };
 
+    const detachRelayoutHandler = (panelId) => {
+      const entry = relayoutHandlers.get(panelId);
+      if (!entry) return;
+      if (entry.plotEl) {
+        if (typeof entry.plotEl.removeListener === 'function') {
+          entry.plotEl.removeListener('plotly_relayout', entry.handler);
+        } else if (typeof entry.plotEl.off === 'function') {
+          entry.plotEl.off('plotly_relayout', entry.handler);
+        }
+      }
+      relayoutHandlers.delete(panelId);
+    };
+
+    const attachRelayoutHandler = (panelId) => {
+      detachRelayoutHandler(panelId);
+      if (!panelId || typeof getPanelDom !== 'function') return;
+      const panelDom = getPanelDom(panelId);
+      const plotEl = panelDom?.plotEl;
+      const Plotly = typeof window !== 'undefined' ? window.Plotly : null;
+      if (!plotEl || typeof plotEl.on !== 'function' || !Plotly?.relayout) return;
+      const handler = (relayoutData) => {
+        const wantsXAuto = relayoutData?.['xaxis.autorange'] === true;
+        const wantsYAuto = relayoutData?.['yaxis.autorange'] === true;
+        if (!wantsXAuto && !wantsYAuto) return;
+        const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+        if (!figure) return;
+        const base = baseFigureWithoutOverlays(figure);
+        const updates = {};
+        if (wantsXAuto) {
+          const xRange = computeTraceRange(base.data, 'x');
+          if (xRange) {
+            updates['xaxis.range'] = expandRange(xRange) || xRange;
+            updates['xaxis.autorange'] = false;
+          }
+        }
+        if (wantsYAuto) {
+          const yRange = computeTraceRange(base.data, 'y');
+          if (yRange) {
+            updates['yaxis.range'] = expandRange(yRange) || yRange;
+            updates['yaxis.autorange'] = false;
+          }
+        }
+        if (Object.keys(updates).length) {
+          Plotly.relayout(plotEl, updates);
+        }
+      };
+      plotEl.on('plotly_relayout', handler);
+      relayoutHandlers.set(panelId, { plotEl, handler });
+    };
+
     const detectPeaksForPanel = (panelId, { silentEmpty = false } = {}) => {
       if (!panelId) {
         if (!silentEmpty) {
@@ -6089,6 +6173,7 @@ let updateCanvasState = () => {};
         const trace = candidateTraces.find((t) => t.id === marker.traceId);
         const traceLabel = trace?.label || marker?.traceLabel || 'Manual';
         const color = marker?.color || trace?.color || trace?.line?.color || trace?.marker?.color || null;
+        const baseline = Number.isFinite(yBaseline) ? yBaseline : marker?.y;
         return {
           id: marker?.id || `${panelId}-manual-${idx}`,
           traceId: marker?.traceId || null,
@@ -6099,8 +6184,8 @@ let updateCanvasState = () => {};
           y: marker?.y,
           processedY: marker?.y,
           prominence: marker?.prominence ?? 0,
-          leftBase: marker?.y,
-          rightBase: marker?.y,
+          leftBase: Number.isFinite(marker?.leftBase) ? marker.leftBase : baseline,
+          rightBase: Number.isFinite(marker?.rightBase) ? marker.rightBase : baseline,
           direction: marker?.direction || 'peak',
           source: {
             manual: true,
@@ -6114,12 +6199,12 @@ let updateCanvasState = () => {};
         lineStyle: state.lineStyle,
         labelFormat: state.labelFormat,
         yMin: yBaseline,
-        offsetMarkers: state.offsetMarkers,
+        offsetAmount: state.offsetAmount,
+        markerSize: state.markerSize,
         detectionTarget: detectionOptions.target
       });
-      const markerAnnotations = state.showMarkers
-        ? buildMarkerAnnotations(mergedPeaks, overlays.markerTrace?.marker?.color, detectionOptions.target)
-        : [];
+      const markerTrace = state.showMarkers ? overlays.markerTrace : null;
+      const markerAnnotations = []; // use Plotly marker trace for positioning accuracy
       const labelAnnotations = state.showLabels
         ? overlays.labelAnnotations.map((annotation) => ({
           ...annotation,
@@ -6152,12 +6237,17 @@ let updateCanvasState = () => {};
               markerStyle: state.markerStyle,
               lineStyle: state.lineStyle,
               labelFormat: state.labelFormat,
-              offsetMarkers: state.offsetMarkers
+              offsetMarkers: state.offsetAmount > 0,
+              offsetAmount: state.offsetAmount,
+              markerSize: state.markerSize
             },
             updatedAt: Date.now()
           }
         }
       };
+
+      const baseYRange = computeTraceRange(candidateTraces, 'y');
+      const adjustedRange = baseYRange ? expandRange(baseYRange) || baseYRange : null;
 
       if (axisSnapshot?.y) {
         nextLayout.yaxis = {
@@ -6165,10 +6255,10 @@ let updateCanvasState = () => {};
           range: axisSnapshot.y.slice(),
           autorange: false
         };
-      } else if (layout.yaxis?.range) {
+      } else if (adjustedRange) {
         nextLayout.yaxis = {
           ...(nextLayout.yaxis || layout.yaxis || {}),
-          range: layout.yaxis.range.slice(),
+          range: adjustedRange,
           autorange: false
         };
       }
@@ -6188,12 +6278,13 @@ let updateCanvasState = () => {};
 
       const nextFigure = {
         ...figure,
-        data,
+        data: markerTrace ? [...data, markerTrace] : data,
         layout: nextLayout
       };
 
       pushHistoryEntry?.({ label: 'Peak marking' });
       commitFigure(panelId, nextFigure);
+      attachRelayoutHandler(panelId);
       lastResult = { panelId, peaks: mergedPeaks };
       if (!mergedPeaks.length) {
         if (!silentEmpty) {
@@ -6454,8 +6545,14 @@ let updateCanvasState = () => {};
         hideAutoOptions(false);
       }
     });
-    addListener(dom.offsetMarkers, 'change', () => {
-      state.offsetMarkers = dom.offsetMarkers.checked;
+    addListener(dom.offsetAmount, 'input', () => {
+      state.offsetAmount = toNumber(dom.offsetAmount.value, state.offsetAmount);
+      updateOffsetLabel();
+      requestRerun();
+    });
+    addListener(dom.markerSize, 'input', () => {
+      state.markerSize = toNumber(dom.markerSize.value, state.markerSize);
+      updateMarkerSizeLabel();
       requestRerun();
     });
     addListener(dom.labelFormat, 'change', () => {
@@ -6481,6 +6578,8 @@ let updateCanvasState = () => {};
 
     updateSensitivityLabel();
     updateDistanceLabel();
+    updateOffsetLabel();
+    updateMarkerSizeLabel();
     updateTargetLabel(getActivePanel());
     syncMenuFromFigure(getActivePanel());
     attachManualHandler(getActivePanel());
@@ -6494,6 +6593,7 @@ let updateCanvasState = () => {};
         syncMenuFromFigure(panelId);
         updateTargetLabel(panelId);
         attachManualHandler(panelId);
+        attachRelayoutHandler(panelId);
       },
       teardown() {
         cancelScheduledRerun();
@@ -6503,6 +6603,7 @@ let updateCanvasState = () => {};
           }
         });
         manualClickHandlers.forEach((_, panelId) => detachManualHandler(panelId));
+        relayoutHandlers.forEach((_, panelId) => detachRelayoutHandler(panelId));
       }
     };
   }

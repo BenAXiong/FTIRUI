@@ -22,10 +22,12 @@ export const DEFAULT_PEAK_OPTIONS = {
 const MARKER_STYLE_MAP = {
   dot: { symbol: 'circle', size: 11 },
   triangle: { symbol: 'triangle-up', size: 12 },
+  'triangle-down': { symbol: 'triangle-down', size: 12 },
   square: { symbol: 'square', size: 11 },
   cross: { symbol: 'x', size: 13 },
   slit: { symbol: 'line-ns', size: 16 },
-  chevron: { symbol: 'triangle-up-open', altSymbol: 'triangle-down-open', size: 14 }
+  // Arrowheads (inverted: default points down for peaks; alt points up for dips)
+  chevron: { symbol: 'arrow-down', altSymbol: 'arrow-up', size: 14 }
 };
 
 const LINE_STYLE_MAP = {
@@ -379,7 +381,8 @@ export function buildPeakOverlays(peaks = [], {
   labelFormat = 'wavenumber',
   color: overrideColor = null,
   yMin = null,
-  offsetMarkers = false,
+  offsetAmount = 0,
+  markerSize = null,
   detectionTarget = null
 } = {}) {
   const safePeaks = Array.isArray(peaks) ? peaks.slice() : [];
@@ -387,12 +390,29 @@ export function buildPeakOverlays(peaks = [], {
   const lineDash = LINE_STYLE_MAP[lineStyle] || LINE_STYLE_MAP.solid;
   const formatLabel = LABEL_FORMATTERS[labelFormat] || LABEL_FORMATTERS.wavenumber;
 
+  const resolveBaseline = (peak) => {
+    if (peak.direction === 'dip') {
+      if (Number.isFinite(yMin)) {
+        return yMin;
+      }
+      return peak.y;
+    }
+    const left = isFiniteNumber(peak.leftBase) ? peak.leftBase : peak.y;
+    const right = isFiniteNumber(peak.rightBase) ? peak.rightBase : peak.y;
+    return Math.min(left, right);
+  };
+
   const computeMarkerY = (peak) => {
-    if (!offsetMarkers) return peak.y;
+    if (!offsetAmount || offsetAmount <= 0) return peak.y;
     const baseline = resolveBaseline(peak);
-    const span = Math.max(Math.abs(peak.y - baseline), Math.max(Math.abs(peak.y), Math.abs(baseline)) * 0.2, 1);
-    const direction = peak.direction === 'dip' ? -1 : 1;
-    return peak.y + direction * span * 0.6;
+    const span = Math.max(Math.abs(peak.y - baseline), 1);
+    const shift = span * (offsetAmount / 400); // 100% now represents one-quarter of the span to baseline
+    const direction = -1; // always shift downward; dips now move down instead of up
+    const target = peak.y + direction * shift;
+    const minY = Math.min(peak.y, baseline);
+    const maxY = Math.max(peak.y, baseline);
+    const clamped = Math.min(maxY, Math.max(minY, target));
+    return clamped;
   };
 
   const markerSymbols = safePeaks.map((peak) => {
@@ -410,15 +430,17 @@ export function buildPeakOverlays(peaks = [], {
     type: 'scatter',
     mode: 'markers',
     name: 'Peaks',
+    showlegend: false,
     hovertemplate: '%{customdata.kind} %{customdata.traceLabel}<br>%{x:.2f} cm^-1<br>Intensity %{y:.2f}<extra></extra>',
     x: peaks.map((peak) => peak.x),
     y: peaks.map((peak) => computeMarkerY(peak)),
     marker: {
-      size: markerConfig.size,
+      size: markerSize ?? markerConfig.size,
       symbol: markerSymbols,
       color: overrideColor || peaks[0]?.color || '#e85d04',
       line: { width: 1, color: '#fff' }
     },
+    meta: { peakOverlay: true, peakOverlayType: 'marker' },
     customdata: peaks.map((peak) => ({
       id: peak.id,
       traceLabel: peak.traceLabel,
@@ -427,18 +449,6 @@ export function buildPeakOverlays(peaks = [], {
       kind: peak.direction === 'dip' ? 'Dip' : 'Peak'
     }))
   } : null;
-
-  const resolveBaseline = (peak) => {
-    if (peak.direction === 'dip') {
-      if (Number.isFinite(yMin)) {
-        return yMin;
-      }
-      return peak.y;
-    }
-    const left = isFiniteNumber(peak.leftBase) ? peak.leftBase : peak.y;
-    const right = isFiniteNumber(peak.rightBase) ? peak.rightBase : peak.y;
-    return Math.min(left, right);
-  };
 
   const lineShapes = safePeaks.map((peak) => {
     const baseline = resolveBaseline(peak);

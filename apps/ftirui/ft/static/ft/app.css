@@ -3330,12 +3330,13 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 }
 .workspace-peak-style{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
-  border-radius: .9rem;
-  padding: .35rem;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .2rem;
   background: transparent;
   font-size: 1rem;
   cursor: pointer;
@@ -3356,6 +3357,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   border: 2px solid currentColor;
   display: inline-block;
   position: relative;
+  box-sizing: border-box;
 }
 .workspace-peak-style-preview.square{
   border-radius: .2rem;
@@ -3367,6 +3369,15 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   border-right: 7px solid transparent;
   border-bottom: 12px solid currentColor;
   border-top: none;
+  border-radius: 0;
+}
+.workspace-peak-style-preview.triangle-down{
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 12px solid currentColor;
+  border-bottom: none;
   border-radius: 0;
 }
 .workspace-peak-style-preview.cross{
@@ -3401,8 +3412,8 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-peak-style-preview.chevron{
   border: none;
   border-radius: 0;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   position: relative;
 }
 .workspace-peak-style-preview.chevron::before{
