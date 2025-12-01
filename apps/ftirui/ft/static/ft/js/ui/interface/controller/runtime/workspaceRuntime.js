@@ -5514,6 +5514,7 @@ let updateCanvasState = () => {};
       lineStyle: menu.querySelector('[data-peak-control="line-style"]'),
       sensitivityLabel: menu.querySelector('[data-peak-sensitivity-label]'),
       distanceLabel: menu.querySelector('[data-peak-distance-label]'),
+      targetPrefix: menu.querySelector('[data-peak-target-prefix]'),
       targetLabel: menu.querySelector('[data-peak-target-label]'),
       menuToggle: menu.querySelector('[data-peak-menu-toggle]'),
       visibilityButtons: Array.from(menu.querySelectorAll('[data-peak-visibility]')),
@@ -5694,7 +5695,18 @@ let updateCanvasState = () => {};
       const hasTargetLabel = !!dom.targetLabel;
       if (!panelId) {
         if (hasTargetLabel) {
-          dom.targetLabel.textContent = 'no graph selected';
+          if (dom.targetPrefix) dom.targetPrefix.textContent = '';
+          dom.targetLabel.textContent = 'Select a plot to mark peaks';
+        }
+        state.activePanelAvailable = false;
+        setToggleState(false);
+        return;
+      }
+      const isPlot = typeof panelSupportsPlot === 'function' ? panelSupportsPlot(panelId) : true;
+      if (!isPlot) {
+        if (hasTargetLabel) {
+          if (dom.targetPrefix) dom.targetPrefix.textContent = '';
+          dom.targetLabel.textContent = 'Select a plot to mark peaks';
         }
         state.activePanelAvailable = false;
         setToggleState(false);
@@ -5703,6 +5715,7 @@ let updateCanvasState = () => {};
       const record = typeof getPanelRecord === 'function' ? getPanelRecord(panelId) : null;
       const title = record ? resolvePanelTitle(record) : 'Graph';
       if (hasTargetLabel) {
+        if (dom.targetPrefix) dom.targetPrefix.textContent = 'Mark peaks for ';
         dom.targetLabel.textContent = title;
       }
       state.activePanelAvailable = true;
