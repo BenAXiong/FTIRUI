@@ -17,7 +17,7 @@
                 type="button"
                 data-tech-option="ftir"
                 data-tech-label="FT-IR"
-                data-tech-symbol="FT">
+                data-tech-symbol="IR">
           <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">FT</span>
           <span class="visually-hidden">Switch to FT-IR controls</span>
         </button>
@@ -242,11 +242,20 @@
         <section class="workspace-peak-menu-section" aria-label="Detection parameters">
           <header class="d-flex justify-content-between align-items-center gap-2">
             <span>Peak markers</span>
-            <div class="btn-group btn-group-sm" role="group" aria-label="Manual vs auto peak markers">
-              <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_auto" autocomplete="off" checked data-peak-control="manual-mode-auto">
-              <label class="btn btn-outline-secondary" for="tb2_peak_mode_auto">Auto</label>
-              <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_manual" autocomplete="off" data-peak-control="manual-mode">
-              <label class="btn btn-outline-secondary" for="tb2_peak_mode_manual">Manual</label>
+            <div class="d-flex align-items-center gap-2">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Manual vs auto peak markers">
+                <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_auto" autocomplete="off" checked data-peak-control="manual-mode-auto">
+                <label class="btn btn-outline-secondary" for="tb2_peak_mode_auto">Auto</label>
+                <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_manual" autocomplete="off" data-peak-control="manual-mode">
+                <label class="btn btn-outline-secondary" for="tb2_peak_mode_manual">Manual</label>
+              </div>
+              <button type="button"
+                      class="btn btn-outline-secondary btn-sm"
+                      data-peak-clear-manual
+                      title="Clear manual markers"
+                      aria-label="Clear manual markers">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
             </div>
           </header>
           <div class="workspace-peak-field">
@@ -296,14 +305,6 @@
           </div>
           <div class="workspace-peak-menu-actions">
             <button type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    data-peak-clear-manual>
-              <i class="bi bi-eraser me-1" aria-hidden="true"></i>
-              Clear manual markers
-            </button>
-          </div>
-          <div class="workspace-peak-menu-actions">
-            <button type="button"
                     class="btn btn-outline-secondary workspace-peak-copy-btn"
                     data-peak-copy="clipboard">
               <i class="bi bi-clipboard-check me-2" aria-hidden="true"></i>
@@ -319,16 +320,120 @@
         </section>
         <section class="workspace-peak-menu-section" aria-label="Display options">
           <header>Display</header>
-            <div class="workspace-peak-toggle-group" role="group" aria-label="Peak overlays">
-              <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="markers" aria-pressed="true">
-                Markers
-              </button>
+          <div class="workspace-peak-toggle-group" role="group" aria-label="Peak overlays">
+            <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="markers" aria-pressed="true">
+              Markers
+            </button>
+            <div class="btn-group workspace-peak-guide-group" role="group" aria-label="Guide visibility and options">
               <button type="button" class="btn btn-outline-secondary workspace-peak-toggle is-active" data-peak-visibility="lines" aria-pressed="true">
                 Guides
               </button>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-peak-toggle workspace-peak-guide-options-toggle btn-sm"
+                      data-bs-toggle="dropdown"
+                      data-bs-auto-close="outside"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                      title="Guide options"
+                      aria-label="Guide options">
+                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-peak-guide-options" data-bs-auto-close="outside">
+                <div class="workspace-peak-label-options-section workspace-peak-inline-control workspace-peak-no-divider">
+                  <label class="workspace-peak-style-label mb-0">Style</label>
+                  <div class="btn-group btn-group-sm workspace-peak-label-style-buttons" role="group" aria-label="Guide style">
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-format-btn is-active" data-peak-line-style="solid" aria-pressed="true" title="Solid">
+                      <i class="bi bi-dash-lg" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-format-btn" data-peak-line-style="dashed" aria-pressed="false" title="Dashed">
+                      <i class="bi bi-dash" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-format-btn" data-peak-line-style="dotted" aria-pressed="false" title="Dotted">
+                      <i class="bi bi-three-dots" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="btn-group workspace-peak-label-group" role="group" aria-label="Label visibility and options">
               <button type="button" class="btn btn-outline-secondary workspace-peak-toggle" data-peak-visibility="labels" aria-pressed="false">
                 Labels
-            </button>
+              </button>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-peak-toggle workspace-peak-label-options-toggle btn-sm"
+                      data-bs-toggle="dropdown"
+                      data-bs-auto-close="outside"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                      title="Label options"
+                      aria-label="Label options">
+                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end workspace-peak-label-options" data-bs-auto-close="outside">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="workspace-peak-style-label mb-0">Label options</span>
+                  <button type="button"
+                          class="btn btn-outline-secondary btn-sm"
+                          data-peak-label-reset>
+                    Reset
+                  </button>
+                </div>
+                <div class="workspace-peak-label-options-section workspace-peak-inline-control workspace-peak-label-palette-row">
+                  <div class="workspace-peak-label-palette swatch-grid flex-grow-1" role="group" aria-label="Label color" data-peak-label-palette></div>
+                </div>
+                <div class="workspace-peak-label-options-section workspace-peak-inline-control workspace-peak-no-divider">
+                  <label class="workspace-peak-style-label mb-0">Position</label>
+                  <div class="btn-group btn-group-sm workspace-peak-inline-buttons" role="group" aria-label="Label position">
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-align-btn" data-peak-label-align="left" aria-pressed="false">Left</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-align-btn is-active" data-peak-label-align="center" aria-pressed="true">Center</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-align-btn" data-peak-label-align="right" aria-pressed="false">Right</button>
+                  </div>
+                </div>
+                <div class="workspace-peak-label-options-section workspace-peak-inline-control workspace-peak-label-style-row workspace-peak-no-divider">
+                  <label class="workspace-peak-style-label mb-0">Style</label>
+                  <div class="btn-group btn-group-sm workspace-peak-label-style-buttons" role="group" aria-label="Label style">
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-style-toggle" data-peak-label-style="bold" aria-pressed="false">B</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-style-toggle" data-peak-label-style="italic" aria-pressed="false">I</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-style-toggle" data-peak-label-style="underline" aria-pressed="false">U</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-style-toggle workspace-peak-style-strike" data-peak-label-style="strike" aria-pressed="false">S</button>
+                  </div>
+                </div>
+                <div class="workspace-peak-label-options-section workspace-peak-no-divider">
+                  <div class="workspace-peak-inline-control">
+                    <label for="tb2_peak_label_size" class="workspace-peak-style-label mb-0">Size</label>
+                    <input id="tb2_peak_label_size"
+                           type="range"
+                           class="form-range workspace-peak-range workspace-peak-inline-range"
+                           min="8"
+                           max="18"
+                           step="1"
+                           value="11"
+                           data-peak-control="label-size">
+                  </div>
+                </div>
+                <div class="workspace-peak-label-options-section workspace-peak-no-divider">
+                  <div class="workspace-peak-inline-control">
+                    <label for="tb2_peak_label_box_thickness" class="workspace-peak-style-label mb-0">Box</label>
+                    <input id="tb2_peak_label_box_thickness"
+                           type="range"
+                           class="form-range workspace-peak-range workspace-peak-inline-range"
+                           min="0"
+                           max="6"
+                           step="1"
+                           value="0"
+                           data-peak-control="label-box-thickness">
+                  </div>
+                </div>
+                <div class="workspace-peak-label-options-section workspace-peak-inline-control">
+                  <label class="workspace-peak-style-label mb-0">Format</label>
+                  <div class="btn-group btn-group-sm workspace-peak-label-format-buttons" role="group" aria-label="Label format">
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-format-btn is-active" data-peak-label-format="wavenumber" aria-pressed="true">wn</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-format-btn" data-peak-label-format="peak-index" aria-pressed="false">peak #</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-peak-format-btn" data-peak-label-format="index-wavenumber" aria-pressed="false">#. wn</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="workspace-peak-style-block">
             <span class="workspace-peak-style-label">Marker style</span>
@@ -390,22 +495,6 @@
                      data-peak-control="marker-size">
               <span class="workspace-peak-field-value text-nowrap" data-peak-size-label>12 px</span>
             </div>
-          </div>
-          <div class="workspace-peak-style-block">
-            <label for="tb2_peak_label_format" class="workspace-peak-style-label">Label format</label>
-            <select id="tb2_peak_label_format" class="form-select form-select-sm workspace-peak-select" data-peak-control="label-format">
-              <option value="wavenumber">Wavenumber only</option>
-              <option value="wavenumber-intensity">Wavenumber + intensity</option>
-              <option value="wavenumber-trace">Wavenumber + trace name</option>
-            </select>
-          </div>
-          <div class="workspace-peak-style-block">
-            <label for="tb2_peak_line_style" class="workspace-peak-style-label">Guide style</label>
-            <select id="tb2_peak_line_style" class="form-select form-select-sm workspace-peak-select" data-peak-control="line-style">
-              <option value="solid">Solid</option>
-              <option value="dashed">Dashed</option>
-              <option value="dotted">Dotted</option>
-            </select>
           </div>
         </section>
       </div>

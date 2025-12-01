@@ -43,4 +43,12 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
             Task 2: Persist manual markers in panel meta, merge them into overlays/copy/export alongside auto peaks, and allow delete.
             Task 3: Handle click-to-place with snap-to-trace (and optional free placement), including focus and undo/redo wiring.
         Step 5 - Spreadsheet export & QA
+            Task 1: Wire the menu’s spreadsheet button to `createPanelOfType('spreadsheet', { title, content })`, pre-populating columns for index, x-position, intensity, trace label, prominence, and detection parameters.
+            Task 2: Document manual smoke tests (toggle on/off, sensitivity sweeps, marker/line visibility, spreadsheet export) plus regression notes tying the feature to tb2 s3.
+                - Smoke: peak toggle on/off (per-graph), sensitivity sweep high vs low, min distance >0 vs auto, label/marker/line toggles, menu auto/manual toggle greys out detection controls, manual add (click) and remove (Shift+click), clear manual markers, graph switch updates menu, copy/export reflect active graph peaks, spreadsheet opens at ~80% canvas height with merged peaks (auto+manual).
+                - Regression notes: manual markers stored in `layout.meta.manualMarkers`, hidden auto ids in `layout.meta.peakMarking.hiddenIds`, peak counts include auto+manual, meta sync per graph, export uses merged peak list and detection options, S3 dropdown auto-close disabled but closes on empty canvas click.
+            Task 3: Capture follow-up risks/ideas (e.g., hooking into integration/ATR buttons later) so future work is logged next to the plan.
+                - Risks: manual marker removal hides auto peaks via hiddenIds; need a reset/restore UI if users hide too much. Undo/redo coverage for manual add/remove should be verified in history stack.
+                - Ideas: route peak list into integration/ATR actions; add export CSV direct from S3; allow per-trace detection options; add free-placement (no snap) toggle; expose hiddenIds reset in menu.
+        
     - [ ] 4/ Integration

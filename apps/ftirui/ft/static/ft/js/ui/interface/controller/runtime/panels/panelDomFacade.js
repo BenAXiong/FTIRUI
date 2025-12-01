@@ -218,7 +218,8 @@ export function createPanelDomFacade({
           }
         };
 
-        if (isPlotPanel) {
+    let cursorBtn = null;
+    if (isPlotPanel) {
         const popoverClosers = [];
         const registerPopoverCloser = (fn) => {
           if (typeof fn !== 'function') return;
@@ -321,7 +322,7 @@ export function createPanelDomFacade({
           registerPopoverButton(buttonEl, popoverEl);
         };
 
-        const cursorBtn = createToggleButton({
+        cursorBtn = createToggleButton({
           icon: 'bi-crosshair',
           title: 'Toggle crosshair cursor',
           onClick: (isOn) => safeHandleHeaderAction(panelId, 'cursor', { on: isOn })
@@ -1951,6 +1952,7 @@ export function createPanelDomFacade({
           headerEl: header,
           titleEl: title,
           plotEl: resolvedPlotHost,
+          cursorButton: cursorBtn,
           runtime,
           contentHandles
         };

@@ -37,9 +37,18 @@ const LINE_STYLE_MAP = {
 };
 
 const LABEL_FORMATTERS = {
-  wavenumber: (peak) => `${peak.x.toFixed(2)} cm^-1`,
-  'wavenumber-intensity': (peak) => `${peak.x.toFixed(2)} cm^-1 · ${peak.y.toFixed(2)}`,
-  'wavenumber-trace': (peak) => `${peak.x.toFixed(2)} cm^-1 · ${peak.traceLabel || 'Trace'}`
+  wavenumber: (peak) => `${peak.x.toFixed(1)}`,
+  'wavenumber-intensity': (peak) => `${peak.x.toFixed(1)} · ${peak.y.toFixed(1)}`,
+  'wavenumber-trace': (peak) => `${peak.x.toFixed(1)} · ${peak.traceLabel || 'Trace'}`,
+  'peak-index': (peak) => {
+    const idx = Number.isFinite(peak.displayIndex) ? peak.displayIndex : (Number.isFinite(peak.index) ? peak.index + 1 : '');
+    return idx ? `${idx}` : '';
+  },
+  'index-wavenumber': (peak) => {
+    const idx = Number.isFinite(peak.displayIndex) ? peak.displayIndex : (Number.isFinite(peak.index) ? peak.index + 1 : '');
+    const prefix = idx ? `${idx}. ` : '';
+    return `${prefix}${peak.x.toFixed(1)}`;
+  }
 };
 
 const normalizeSensitivity = (value) => {
@@ -383,9 +392,20 @@ export function buildPeakOverlays(peaks = [], {
   yMin = null,
   offsetAmount = 0,
   markerSize = null,
-  detectionTarget = null
+  detectionTarget = null,
+  labelColor = null,
+  labelSize = null,
+  labelBox = false,
+  labelBoxThickness = 1,
+  labelAlign = 'center',
+  labelStyle = {}
 } = {}) {
   const safePeaks = Array.isArray(peaks) ? peaks.slice() : [];
+  // Sort peaks by descending wavenumber for consistent numbering/labels.
+  safePeaks.sort((a, b) => (Number(b?.x) || 0) - (Number(a?.x) || 0));
+  safePeaks.forEach((peak, idx) => {
+    peak.displayIndex = idx + 1;
+  });
   const markerConfig = MARKER_STYLE_MAP[markerStyle] || MARKER_STYLE_MAP.dot;
   const lineDash = LINE_STYLE_MAP[lineStyle] || LINE_STYLE_MAP.solid;
   const formatLabel = LABEL_FORMATTERS[labelFormat] || LABEL_FORMATTERS.wavenumber;
@@ -432,20 +452,20 @@ export function buildPeakOverlays(peaks = [], {
     name: 'Peaks',
     showlegend: false,
     hovertemplate: '%{customdata.kind} %{customdata.traceLabel}<br>%{x:.2f} cm^-1<br>Intensity %{y:.2f}<extra></extra>',
-    x: peaks.map((peak) => peak.x),
-    y: peaks.map((peak) => computeMarkerY(peak)),
+    x: safePeaks.map((peak) => peak.x),
+    y: safePeaks.map((peak) => computeMarkerY(peak)),
     marker: {
       size: markerSize ?? markerConfig.size,
       symbol: markerSymbols,
-      color: overrideColor || peaks[0]?.color || '#e85d04',
+      color: overrideColor || safePeaks[0]?.color || '#e85d04',
       line: { width: 1, color: '#fff' }
     },
     meta: { peakOverlay: true, peakOverlayType: 'marker' },
-    customdata: peaks.map((peak) => ({
+    customdata: safePeaks.map((peak) => ({
       id: peak.id,
       traceLabel: peak.traceLabel,
       prominence: peak.prominence,
-      index: peak.index,
+      index: peak.displayIndex ?? peak.index,
       kind: peak.direction === 'dip' ? 'Dip' : 'Peak'
     }))
   } : null;
@@ -467,22 +487,52 @@ export function buildPeakOverlays(peaks = [], {
     };
   });
 
-  const labelAnnotations = peaks.map((peak) => ({
-    x: peak.x,
-    y: computeMarkerY(peak),
-    text: formatLabel(peak),
-    showarrow: false,
-    font: {
-      size: 11,
-      color: '#0f172a',
-      family: 'inherit'
-    },
-    bgcolor: 'rgba(255,255,255,.9)',
-    bordercolor: 'rgba(15,23,42,.15)',
-    borderpad: 2,
-    ay: peak.direction === 'dip' ? 12 : -10,
+  const labelAnnotations = safePeaks.map((peak) => {
+    const alignLeft = labelAlign === 'left';
+    const alignRight = labelAlign === 'right';
+    const alignCenter = !alignLeft && !alignRight;
+    const xshift = alignLeft ? -10 : alignRight ? 10 : 0;
+    // Anchor/align so "left" truly places text to the left of the marker, and vice versa.
+    const textAlign = alignLeft ? 'right' : alignRight ? 'left' : 'center';
+    const anchor = alignLeft ? 'right' : alignRight ? 'left' : 'center';
+    const fontSize = Math.max(8, labelSize ?? 11);
+    const pad = labelBox ? Math.max(4, Math.round(fontSize * 0.55)) : Math.max(3, Math.round(fontSize * 0.45));
+    const markerY = computeMarkerY(peak);
+    const gap = Math.max(6, Math.round(fontSize * 0.8));
+    const labelY = markerY;
+    // Keep center above marker; left/right sit inline, and lift when boxed to avoid covering the marker.
+    const boxLift = labelBox ? Math.max(3, Math.round(fontSize * 0.35)) : 0;
+    const yshift = alignCenter ? -(gap + boxLift * 3) : -(boxLift * 3);
+    const styledText = (() => {
+      let txt = formatLabel(peak);
+      const style = typeof labelStyle === 'object' && labelStyle ? labelStyle : {};
+      if (style.bold) txt = `<b>${txt}</b>`;
+      if (style.italic) txt = `<i>${txt}</i>`;
+      if (style.underline) txt = `<u>${txt}</u>`;
+      if (style.strike) txt = `<s>${txt}</s>`;
+      return txt;
+    })();
+    return {
+      x: peak.x,
+      y: labelY,
+      text: `\u00a0${styledText}\u00a0`,
+      showarrow: false,
+      font: {
+        size: fontSize,
+        color: labelColor || peak.color || '#0f172a',
+        family: 'inherit'
+      },
+      bgcolor: labelBox ? 'rgba(255,255,255,.9)' : 'transparent',
+      bordercolor: labelBox ? (labelColor || peak.color || 'rgba(15,23,42,.35)') : 'transparent',
+      borderpad: pad,
+      borderwidth: labelBox ? Math.max(0, Number(labelBoxThickness) || 1) : 0,
+    yshift,
+    xshift,
+    align: textAlign,
+    xanchor: anchor,
     meta: { peakOverlay: true, peakOverlayType: 'label' }
-  }));
+    };
+  });
 
   return {
     markerTrace,

@@ -3308,6 +3308,172 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-size: .82rem;
   padding: .4rem .75rem;
 }
+.workspace-peak-label-group .workspace-peak-toggle{
+  border-radius: .25rem 0 0 .25rem;
+}
+.workspace-peak-label-options-toggle{
+  padding: .2rem .5rem;
+  min-width: 32px;
+  border-radius: 0 .25rem .25rem 0;
+}
+.workspace-peak-label-options{
+  padding: .88rem .88rem;
+  min-width: 292px;
+}
+.workspace-toolbar-dropdown .workspace-peak-label-options{
+  padding: .88rem .88rem; /* override dropdown-menu reset so contents aren’t flush to the edge */
+  min-width: 292px;
+}
+.workspace-peak-guide-options{
+  padding: .88rem .88rem;
+  min-width: 220px;
+}
+.workspace-toolbar-dropdown .workspace-peak-guide-options{
+  padding: .88rem .88rem;
+  min-width: 220px;
+}
+.workspace-peak-label-options-section{
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  padding: .35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+}
+.workspace-peak-label-options-section.workspace-peak-no-divider{
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.workspace-peak-label-options-section:last-child{
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.workspace-peak-label-palette{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+  justify-content: center;
+  background: transparent;
+  border: none;
+}
+.workspace-peak-color-swatch{
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  border-radius: 999px;
+  padding: .25rem .5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: #fff;
+}
+.workspace-peak-color-swatch.is-active{
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bs-primary) 15%, transparent);
+}
+.workspace-peak-color-dot{
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+}
+.workspace-peak-color-dot.default{
+  background: linear-gradient(135deg,#fa3c3c,#e6dc32,#1e3cff,#a000c8);
+}
+.workspace-peak-color-dot.contrast{
+  background: linear-gradient(135deg,#111827,#0ea5e9,#f59e0b,#10b981);
+}
+.workspace-peak-label-palette .chip-swatch{
+  --chip-swatch-size: 15px;
+  border: 1px solid color-mix(in srgb, #fff 22%, var(--bs-border-color) 58%);
+  box-shadow: 0 2px 6px rgba(0,0,0,.08), 0 0 0 1px rgba(255,255,255,.04);
+}
+.workspace-peak-label-palette .chip-swatch.chip-swatch-lg{
+  --chip-swatch-size: 14.9px;
+}
+.workspace-peak-label-palette .chip-swatch.is-active{
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+}
+.workspace-peak-inline-control{
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+.workspace-peak-label-options-section.workspace-peak-inline-control{
+  flex-direction: row;
+  align-items: center;
+}
+.workspace-peak-no-divider{
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.workspace-peak-label-options-section.workspace-peak-inline-control .workspace-peak-style-label{
+  min-width: 70px;
+}
+.workspace-peak-label-palette-row{
+  justify-content: center;
+}
+.workspace-peak-inline-control label{
+  margin: 0;
+  min-width: 70px;
+}
+.workspace-peak-inline-range{
+  flex: 1 1 170px;
+  max-width: 220px;
+  margin-left: auto;
+}
+.workspace-peak-inline-buttons{
+  display: flex;
+  justify-content: space-between;
+  gap: .35rem;
+  flex: 1 1 170px;
+  max-width: 220px;
+  margin-left: auto;
+}
+.workspace-peak-align-btn{
+  flex: 1 1 0;
+  min-width: 0;
+}
+.workspace-peak-align-btn.is-active{
+  color: #fff;
+  background: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.workspace-peak-label-format-buttons{
+  display: flex;
+  gap: .35rem;
+  flex: 1 1 170px;
+  max-width: 220px;
+  margin-left: auto;
+}
+.workspace-peak-format-btn{
+  flex: 1 1 0;
+  min-width: 0;
+}
+.workspace-peak-format-btn.is-active{
+  color: #fff;
+  background: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.workspace-peak-label-style-buttons{
+  display: flex;
+  gap: .35rem;
+  flex: 1 1 170px;
+  max-width: 220px;
+  margin-left: auto;
+}
+.workspace-peak-style-toggle{
+  flex: 1 1 0;
+  min-width: 0;
+}
+.workspace-peak-style-toggle.is-active{
+  color: #fff;
+  background: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.workspace-peak-style-strike{
+  text-decoration: line-through;
+}
 .workspace-peak-toggle.is-active{
   color: #fff;
   background: var(--bs-primary);

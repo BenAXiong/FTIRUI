@@ -47,7 +47,8 @@ Polishing
 - dash/main: extra column = contributors
 - dash/main: open canvas on row click, not just name
 - wks/tb1/exp: review all 3 formats
-- wks/tb2/s3: efficient marker styling (type, color, thickness, size)
+- wks/tb2/s3: detect peak type: single and in band etx to determine auto label position
+- wks/tb2/s3: label format: custom
 ___________________________________________________________
 Future work
 
@@ -81,3 +82,13 @@ Peak marking follow-ups (tb2 s3)
 - Consider direct CSV export (in addition to spreadsheet panel) from S3.
 - Allow per-trace detection overrides (sensitivity/min distance) or scoped manual mode.
 - Wire peak list into integration/ATR actions when those buttons are live.
+
+Peak finding tech notes:
+- Baseline/integration/smoothing interplay: smoothing is tightly coupled with peak detection 
+    because it dictates S/N; baseline correction should be optional but encouraged before detection 
+    on strongly sloped spectra; integration is downstream (peaks found here can be passed 
+    to the integration feature but should stay decoupled so users can detect peaks without integrating).
+- Alternatives/future enhancements: consider FFT-based smoothing or continuous wavelet transforms 
+    for more robust multi-scale peak finding, allow per-trace overrides (different sensitivity per trace), 
+    expose peak templates (e.g., Gaussian vs. Lorentzian fits), or integrate a “reference library” cross-check 
+    where detected peaks are immediately compared to known band positions.

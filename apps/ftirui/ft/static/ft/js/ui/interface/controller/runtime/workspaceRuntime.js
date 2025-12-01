@@ -49,16 +49,16 @@ registerPanelType(imagePanelType);
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 200;
-const TRACE_PALETTE_ROWS = [
-  {
-    id: 'spectrum',
-    label: 'Spectrum',
-    icon: 'bi-palette-fill',
-    colors: [
-      '#fa3c3c', '#f08228', '#e6dc32', '#00dc00', '#00d28c',
-      '#00c8c8', '#00a0ff', '#1e3cff', '#6e00dc', '#a000c8'
-    ]
-  },
+  const TRACE_PALETTE_ROWS = [
+    {
+      id: 'spectrum',
+      label: 'Spectrum',
+      icon: 'bi-palette-fill',
+      colors: [
+        '#fa3c3c', '#f08228', '#e6dc32', '#00dc00', '#00d28c',
+        '#00c8c8', '#00a0ff', '#1e3cff', '#6e00dc', '#a000c8'
+      ]
+    },
   {
     id: 'earth-alloy',
     label: 'Earth & Alloy',
@@ -78,7 +78,7 @@ const TRACE_PALETTE_ROWS = [
     ]
   }
 ];
-const TRACE_PALETTE_DEFAULT = TRACE_PALETTE_ROWS.flatMap((row) => row.colors);
+  const TRACE_PALETTE_DEFAULT = TRACE_PALETTE_ROWS.flatMap((row) => row.colors);
 let activeTracePalette = TRACE_PALETTE_DEFAULT.slice();
 
 const ONE_CLICK_VIEWER_HTML = `<!doctype html>
@@ -3103,6 +3103,7 @@ const recordOperation = (entry) => {
       headerEl: handles.headerEl ?? existing.headerEl ?? null,
       titleEl: handles.titleEl ?? existing.titleEl ?? null,
       plotEl: handles.plotEl ?? existing.plotEl ?? null,
+      cursorButton: handles.cursorButton ?? existing.cursorButton ?? null,
       contentHandles: handles.contentHandles ?? existing.contentHandles ?? null,
       runtime
     };
@@ -5039,6 +5040,7 @@ let updateCanvasState = () => {};
     getPanelDom,
     panelSupportsPlot,
     renderPlot,
+    handleHeaderAction,
     pushHistory,
     showToast,
     updateCanvasState,
@@ -5490,6 +5492,7 @@ let updateCanvasState = () => {};
     getPanelDom,
     panelSupportsPlot,
     renderPlot,
+    handleHeaderAction,
     pushHistory: pushHistoryEntry,
     showToast: notify,
     updateCanvasState,
@@ -5517,8 +5520,16 @@ let updateCanvasState = () => {};
       offsetAmountLabel: menu.querySelector('[data-peak-offset-label]'),
       markerSize: menu.querySelector('[data-peak-control="marker-size"]'),
       markerSizeLabel: menu.querySelector('[data-peak-size-label]'),
-      labelFormat: menu.querySelector('[data-peak-control="label-format"]'),
+      labelSize: menu.querySelector('[data-peak-control="label-size"]'),
       lineStyle: menu.querySelector('[data-peak-control="line-style"]'),
+      labelPalette: menu.querySelector('[data-peak-label-palette]'),
+      labelBox: menu.querySelector('[data-peak-control="label-box"]'),
+      labelBoxThickness: menu.querySelector('[data-peak-control="label-box-thickness"]'),
+      labelAlignButtons: Array.from(menu.querySelectorAll('[data-peak-label-align]')) || [],
+      labelFormatButtons: Array.from(menu.querySelectorAll('[data-peak-label-format]')) || [],
+      labelStyleButtons: Array.from(menu.querySelectorAll('[data-peak-label-style]')) || [],
+      guideStyleButtons: Array.from(document.querySelectorAll('[data-peak-line-style]')) || [],
+      labelReset: menu.querySelector('[data-peak-label-reset]'),
       sensitivityLabel: menu.querySelector('[data-peak-sensitivity-label]'),
       distanceLabel: menu.querySelector('[data-peak-distance-label]'),
       targetPrefix: menu.querySelector('[data-peak-target-prefix]'),
@@ -5531,12 +5542,43 @@ let updateCanvasState = () => {};
       spreadsheetButton: menu.querySelector('[data-peak-export]'),
       clearManualButton: menu.querySelector('[data-peak-clear-manual]')
     };
+    const labelOptions = {
+      menu: menu.querySelector('.workspace-peak-label-options'),
+      palette: menu.querySelector('[data-peak-label-palette]')
+    };
 
     const listeners = [];
     const addListener = (node, event, handler) => {
       if (!node || typeof node.addEventListener !== 'function' || typeof handler !== 'function') return;
       node.addEventListener(event, handler);
       listeners.push({ node, event, handler });
+    };
+
+    const hydrateLabelSwatches = () => {
+      if (!labelOptions.palette) return;
+      labelOptions.palette.innerHTML = '';
+      const basePalette = TRACE_PALETTE_ROWS?.[0]?.colors || [];
+      const defaultPalette = ['#000000', '#ffffff', ...basePalette];
+      defaultPalette.forEach((color, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip-swatch chip-swatch-lg';
+        btn.style.setProperty('--c', color);
+        btn.dataset.peakLabelColor = color;
+        btn.setAttribute('aria-label', `Label color ${idx + 1}`);
+        btn.addEventListener('click', () => {
+          state.labelColor = color;
+          labelOptions.palette.querySelectorAll('.chip-swatch').forEach((sw) => {
+            sw.classList.toggle('is-active', sw === btn);
+          });
+          requestRerun();
+        });
+        labelOptions.palette.appendChild(btn);
+        if (idx === 0) {
+          btn.classList.add('is-active');
+          state.labelColor = color;
+        }
+      });
     };
 
     const hidePeakMenu = () => {
@@ -5558,6 +5600,15 @@ let updateCanvasState = () => {};
       const [min, max] = range;
       const pad = (max - min) * 0.05 || 0.5;
       return [min - pad, max + pad];
+    };
+    const setCursorButtonState = (panelId, isOn) => {
+      if (!panelId || typeof getPanelDom !== 'function') return;
+      const dom = getPanelDom(panelId);
+      const btn = dom?.cursorButton;
+      if (!btn) return;
+      const next = !!isOn;
+      btn.setAttribute('aria-pressed', String(next));
+      btn.classList.toggle('is-active', next);
     };
 
     const readAxisRanges = (panelId) => {
@@ -5609,8 +5660,10 @@ let updateCanvasState = () => {};
       distance: toNumber(dom.distance?.value ?? 35, 35),
       applyBaseline: dom.baseline?.checked ?? false,
       applySmoothing: dom.smoothing ? dom.smoothing.checked !== false : true,
-      labelFormat: dom.labelFormat?.value || 'wavenumber',
-      lineStyle: dom.lineStyle?.value || 'solid',
+      labelFormat: dom.labelFormatButtons?.find((btn) => btn.classList.contains('is-active'))?.dataset?.peakLabelFormat || 'wavenumber',
+      lineStyle: dom.guideStyleButtons?.find((btn) => btn.classList.contains('is-active'))?.dataset?.peakLineStyle
+        || dom.lineStyle?.value
+        || 'solid',
       markerStyle: dom.markerButtons?.find((btn) => btn.classList.contains('is-active'))?.dataset?.peakMarkerStyle
         || dom.markerButtons?.[0]?.dataset?.peakMarkerStyle
         || 'dot',
@@ -5621,9 +5674,24 @@ let updateCanvasState = () => {};
       manualModeAuto: dom.manualModeAuto?.checked ?? true,
       offsetAmount: toNumber(dom.offsetAmount?.value ?? 0, 0),
       markerSize: toNumber(dom.markerSize?.value ?? 12, 12),
+      labelSize: toNumber(dom.labelSize?.value ?? 11, 11),
+      labelColor: null,
+      labelBox: false,
+      labelBoxThickness: 0,
+      labelAlign: 'center',
+      labelStyle: { bold: true, italic: false, underline: false, strike: false },
       detectionTarget: DEFAULT_PEAK_OPTIONS.target,
       activePanelAvailable: false
     };
+
+    if (dom.labelStyleButtons?.length) {
+      dom.labelStyleButtons.forEach((btn) => {
+        const key = btn.dataset.peakLabelStyle;
+        const active = key === 'bold';
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+    }
 
     let lastResult = { panelId: null, peaks: [] };
     let rerunHandle = null;
@@ -5680,7 +5748,7 @@ let updateCanvasState = () => {};
       dom.markerSizeLabel.textContent = `${Math.round(Math.max(1, state.markerSize))} px`;
     };
 
-    const setManualPlacement = (enabled) => {
+      const setManualPlacement = (enabled) => {
       state.manualPlacement = !!enabled;
       state.manualModeAuto = !enabled;
       if (dom.manualModeAuto) {
@@ -5708,6 +5776,10 @@ let updateCanvasState = () => {};
       };
       updatePanelFigure(panelId, nextFigure);
       renderPlot(panelId);
+      if (typeof handleHeaderAction === 'function') {
+        handleHeaderAction(panelId, 'cursor', { on: state.manualPlacement });
+      }
+      setCursorButtonState(panelId, state.manualPlacement);
       updateCanvasState();
       persist();
       scheduleCanvasSync();
@@ -5774,6 +5846,10 @@ let updateCanvasState = () => {};
         state.manualModeAuto = !state.manualPlacement;
         dom.manualModeAuto.checked = state.manualModeAuto;
       }
+      if (state.manualPlacement && typeof handleHeaderAction === 'function' && panelId) {
+        handleHeaderAction(panelId, 'cursor', { on: true });
+      }
+      setCursorButtonState(panelId, state.manualPlacement);
       if (dom.sensitivity && Number.isFinite(detection.sensitivity)) {
         state.sensitivity = Math.round(detection.sensitivity * 100);
         dom.sensitivity.value = state.sensitivity;
@@ -5838,11 +5914,70 @@ let updateCanvasState = () => {};
         });
         state.markerStyle = display.markerStyle;
       }
-      if (dom.labelFormat && typeof display.labelFormat === 'string') {
-        dom.labelFormat.value = display.labelFormat;
-        state.labelFormat = display.labelFormat;
+      if (dom.labelSize && Number.isFinite(display.labelSize)) {
+        state.labelSize = display.labelSize;
+        dom.labelSize.value = display.labelSize;
       }
-      if (dom.lineStyle && typeof display.lineStyle === 'string') {
+      if (dom.labelFormatButtons?.length && typeof display.labelFormat === 'string') {
+        state.labelFormat = display.labelFormat;
+        dom.labelFormatButtons.forEach((btn) => {
+          const active = btn.dataset.peakLabelFormat === display.labelFormat;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      if (labelOptions.palette && display.labelColor) {
+        state.labelColor = display.labelColor;
+        labelOptions.palette.querySelectorAll('.chip-swatch').forEach((sw) => {
+          const active = sw.dataset.peakLabelColor === display.labelColor;
+          sw.classList.toggle('is-active', active);
+        });
+      }
+      const boxThickness = Number.isFinite(display.labelBoxThickness) ? display.labelBoxThickness : (display.labelBox ? 1 : 0);
+      state.labelBoxThickness = boxThickness;
+      state.labelBox = boxThickness > 0;
+      if (dom.labelBoxThickness) {
+        dom.labelBoxThickness.value = boxThickness;
+      }
+      if (dom.labelAlignButtons?.length && typeof display.labelAlign === 'string') {
+        const align = ['left', 'center', 'right'].includes(display.labelAlign) ? display.labelAlign : 'center';
+        state.labelAlign = align;
+        dom.labelAlignButtons.forEach((btn) => {
+          const active = btn.dataset.peakLabelAlign === align;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      if (dom.labelStyleButtons?.length && display.labelStyle && typeof display.labelStyle === 'object') {
+        state.labelStyle = {
+          bold: display.labelStyle.bold === true,
+          italic: display.labelStyle.italic === true,
+          underline: display.labelStyle.underline === true,
+          strike: display.labelStyle.strike === true
+        };
+        dom.labelStyleButtons.forEach((btn) => {
+          const key = btn.dataset.peakLabelStyle;
+          const active = state.labelStyle[key] === true;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      } else if (dom.labelStyleButtons?.length) {
+        state.labelStyle = { bold: true, italic: false, underline: false, strike: false };
+        dom.labelStyleButtons.forEach((btn) => {
+          const key = btn.dataset.peakLabelStyle;
+          const active = key === 'bold';
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      if (dom.guideStyleButtons?.length && typeof display.lineStyle === 'string') {
+        state.lineStyle = display.lineStyle;
+        dom.guideStyleButtons.forEach((btn) => {
+          const active = btn.dataset.peakLineStyle === display.lineStyle;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      } else if (dom.lineStyle && typeof display.lineStyle === 'string') {
         dom.lineStyle.value = display.lineStyle;
         state.lineStyle = display.lineStyle;
       }
@@ -6201,7 +6336,13 @@ let updateCanvasState = () => {};
         yMin: yBaseline,
         offsetAmount: state.offsetAmount,
         markerSize: state.markerSize,
-        detectionTarget: detectionOptions.target
+        detectionTarget: detectionOptions.target,
+        labelColor: state.labelColor,
+        labelSize: state.labelSize,
+        labelBox: state.labelBox,
+        labelBoxThickness: state.labelBoxThickness,
+        labelAlign: state.labelAlign,
+        labelStyle: state.labelStyle
       });
       const markerTrace = state.showMarkers ? overlays.markerTrace : null;
       const markerAnnotations = []; // use Plotly marker trace for positioning accuracy
@@ -6239,7 +6380,13 @@ let updateCanvasState = () => {};
               labelFormat: state.labelFormat,
               offsetMarkers: state.offsetAmount > 0,
               offsetAmount: state.offsetAmount,
-              markerSize: state.markerSize
+              markerSize: state.markerSize,
+              labelColor: state.labelColor,
+              labelSize: state.labelSize,
+              labelBox: state.labelBox,
+              labelBoxThickness: state.labelBoxThickness,
+              labelAlign: state.labelAlign,
+              labelStyle: state.labelStyle
             },
             updatedAt: Date.now()
           }
@@ -6355,7 +6502,7 @@ let updateCanvasState = () => {};
       }
     };
 
-    const handleVisibilityToggle = (event) => {
+      const handleVisibilityToggle = (event) => {
       const button = event.currentTarget;
       const key = button?.dataset?.peakVisibility;
       if (!key) return;
@@ -6369,7 +6516,14 @@ let updateCanvasState = () => {};
       } else if (key === 'labels') {
         state.showLabels = next;
       }
-      requestRerun();
+      if (state.enabled) {
+        requestRerun();
+      } else {
+        const panelId = getActivePanel();
+        if (panelId) {
+          detectPeaksForPanel(panelId, { silentEmpty: true });
+        }
+      }
     };
 
     const handleMarkerStyleClick = (event) => {
@@ -6381,6 +6535,51 @@ let updateCanvasState = () => {};
         btn.setAttribute('aria-pressed', String(active));
       });
       state.markerStyle = style;
+      requestRerun();
+    };
+
+    const resetLabelOptions = () => {
+      // Clear explicit color to use trace color, and restore defaults for label styling.
+      state.labelColor = null;
+      if (labelOptions.palette) {
+        labelOptions.palette.querySelectorAll('.chip-swatch').forEach((sw) => sw.classList.remove('is-active'));
+      }
+      state.labelSize = 11;
+      if (dom.labelSize) {
+        dom.labelSize.value = state.labelSize;
+      }
+      state.labelBox = false;
+      if (dom.labelBox) {
+        dom.labelBox.checked = false;
+      }
+      state.labelBoxThickness = 0;
+      if (dom.labelBoxThickness) {
+        dom.labelBoxThickness.value = 0;
+      }
+      state.labelFormat = 'wavenumber';
+      if (dom.labelFormatButtons?.length) {
+        dom.labelFormatButtons.forEach((btn) => {
+          const active = btn.dataset.peakLabelFormat === 'wavenumber';
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      state.labelStyle = { bold: true, italic: false, underline: false, strike: false };
+      if (dom.labelStyleButtons?.length) {
+        dom.labelStyleButtons.forEach((btn) => {
+          const active = btn.dataset.peakLabelStyle === 'bold';
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      state.labelAlign = 'center';
+      if (dom.labelAlignButtons?.length) {
+        dom.labelAlignButtons.forEach((btn) => {
+          const active = btn.dataset.peakLabelAlign === 'center';
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
       requestRerun();
     };
 
@@ -6495,9 +6694,9 @@ let updateCanvasState = () => {};
     const hideAutoOptions = (disabled) => {
       const section = menu.querySelector('[aria-label="Detection parameters"]');
       if (!section) return;
-      section.classList.toggle('is-disabled', !!disabled);
       section.querySelectorAll('input, select, button').forEach((el) => {
         if (el.id === 'tb2_peak_mode_manual' || el.id === 'tb2_peak_mode_auto') return;
+        if (el.dataset?.peakClearManual !== undefined) return;
         el.disabled = !!disabled;
       });
     };
@@ -6505,10 +6704,18 @@ let updateCanvasState = () => {};
     const setMenuEnabled = (enabled) => {
       const controls = menu.querySelectorAll('input, select, button');
       controls.forEach((el) => {
-        el.disabled = !enabled;
+        const isManualClear = el.dataset?.peakClearManual !== undefined;
+        el.disabled = !enabled && !isManualClear;
       });
       const sections = menu.querySelectorAll('.workspace-peak-menu-section');
-      sections.forEach((sec) => sec.classList.toggle('is-disabled', !enabled));
+      sections.forEach((sec) => {
+        const hasManualClear = sec.querySelector('[data-peak-clear-manual]');
+        const disableSection = !enabled && !hasManualClear;
+        sec.classList.toggle('is-disabled', disableSection);
+        if (hasManualClear && !enabled) {
+          sec.classList.remove('is-disabled');
+        }
+      });
       // Re-apply auto-options masking when re-enabling.
       if (enabled) {
         hideAutoOptions(state.manualPlacement);
@@ -6555,14 +6762,61 @@ let updateCanvasState = () => {};
       updateMarkerSizeLabel();
       requestRerun();
     });
-    addListener(dom.labelFormat, 'change', () => {
-      state.labelFormat = dom.labelFormat.value || 'wavenumber';
+    addListener(dom.labelSize, 'input', () => {
+      state.labelSize = toNumber(dom.labelSize.value, state.labelSize);
       requestRerun();
     });
-    addListener(dom.lineStyle, 'change', () => {
-      state.lineStyle = dom.lineStyle.value || 'solid';
+    addListener(dom.labelBoxThickness, 'input', () => {
+      state.labelBoxThickness = Math.max(0, toNumber(dom.labelBoxThickness.value, state.labelBoxThickness));
+      state.labelBox = state.labelBoxThickness > 0;
       requestRerun();
     });
+    (dom.labelStyleButtons || []).forEach((btn) => addListener(btn, 'click', () => {
+      const key = btn.dataset.peakLabelStyle;
+      if (!key) return;
+      const next = !btn.classList.contains('is-active');
+      state.labelStyle = {
+        ...state.labelStyle,
+        [key]: next
+      };
+      dom.labelStyleButtons.forEach((b) => {
+        const active = state.labelStyle[b.dataset.peakLabelStyle] === true;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-pressed', String(active));
+      });
+      requestRerun();
+    }));
+    (dom.labelAlignButtons || []).forEach((btn) => addListener(btn, 'click', () => {
+      const align = btn.dataset.peakLabelAlign || 'center';
+      state.labelAlign = align;
+      (dom.labelAlignButtons || []).forEach((b) => {
+        const active = b === btn;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-pressed', String(active));
+      });
+      requestRerun();
+    }));
+    (dom.labelFormatButtons || []).forEach((btn) => addListener(btn, 'click', () => {
+      const format = btn.dataset.peakLabelFormat || 'wavenumber';
+      dom.labelFormatButtons.forEach((b) => {
+        const active = b === btn;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-pressed', String(active));
+      });
+      state.labelFormat = format;
+      requestRerun();
+    }));
+    (dom.guideStyleButtons || []).forEach((btn) => addListener(btn, 'click', () => {
+      const style = btn.dataset.peakLineStyle || 'solid';
+      dom.guideStyleButtons.forEach((b) => {
+        const active = b === btn;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-pressed', String(active));
+      });
+      state.lineStyle = style;
+      requestRerun();
+    }));
+    addListener(dom.labelReset, 'click', resetLabelOptions);
     dom.visibilityButtons.forEach((button) => addListener(button, 'click', handleVisibilityToggle));
     dom.markerButtons.forEach((button) => addListener(button, 'click', handleMarkerStyleClick));
     addListener(dom.copyButton, 'click', handleCopyPeaks);
@@ -6584,6 +6838,7 @@ let updateCanvasState = () => {};
     syncMenuFromFigure(getActivePanel());
     attachManualHandler(getActivePanel());
     hideAutoOptions(state.manualPlacement);
+    hydrateLabelSwatches();
 
     return {
       handleActivePanelChange(panelId) {
@@ -6806,5 +7061,4 @@ let updateCanvasState = () => {};
       }
     }
   }
-
 }

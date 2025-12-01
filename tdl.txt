@@ -64,32 +64,11 @@ MVP Part 5/5 -- Polishing and publishing
 _________________________________________________________________________________________________
 **Plan of action**
 
-Step 5 - Spreadsheet export & QA
-    Task 1: Wire the menu’s spreadsheet button to `createPanelOfType('spreadsheet', { title, content })`, pre-populating columns for index, x-position, intensity, trace label, prominence, and detection parameters.
-    Task 2: Document manual smoke tests (toggle on/off, sensitivity sweeps, marker/line visibility, spreadsheet export) plus regression notes tying the feature to tb2 s3.
-        - Smoke: peak toggle on/off (per-graph), sensitivity sweep high vs low, min distance >0 vs auto, label/marker/line toggles, menu auto/manual toggle greys out detection controls, manual add (click) and remove (Shift+click), clear manual markers, graph switch updates menu, copy/export reflect active graph peaks, spreadsheet opens at ~80% canvas height with merged peaks (auto+manual).
-        - Regression notes: manual markers stored in `layout.meta.manualMarkers`, hidden auto ids in `layout.meta.peakMarking.hiddenIds`, peak counts include auto+manual, meta sync per graph, export uses merged peak list and detection options, S3 dropdown auto-close disabled but closes on empty canvas click.
-    Task 3: Capture follow-up risks/ideas (e.g., hooking into integration/ATR buttons later) so future work is logged next to the plan.
-        - Risks: manual marker removal hides auto peaks via hiddenIds; need a reset/restore UI if users hide too much. Undo/redo coverage for manual add/remove should be verified in history stack.
-        - Ideas: route peak list into integration/ATR actions; add export CSV direct from S3; allow per-trace detection options; add free-placement (no snap) toggle; expose hiddenIds reset in menu.
 Step 6 - UI/UX polishing and bug fixes
     Task 1: Remove marker toggle if non-graph is selected and add "select a graph to..."
     Task 2: Marker style (distant from traces) + activate 'guides' when manual is on
-    Task 3: Labels: options for style (color, borders, size)
-    Task 4: Fix marker deletion reappearance
-    Task 5: Unredo behavior for markers, auto and manual (hidden auto?)
-    task 6: Add "Set as default" in menu options
-
-marker labels:
-1. remove the auto "cm^-1"
-2. add a thin vertical 3 dots option submenu beside the Label toggle that displays 3 placeholders choices on click
-______________________
-Peak finding tech notes:
-- Baseline/integration/smoothing interplay: smoothing is tightly coupled with peak detection 
-    because it dictates S/N; baseline correction should be optional but encouraged before detection 
-    on strongly sloped spectra; integration is downstream (peaks found here can be passed 
-    to the integration feature but should stay decoupled so users can detect peaks without integrating).
-- Alternatives/future enhancements: consider FFT-based smoothing or continuous wavelet transforms 
-    for more robust multi-scale peak finding, allow per-trace overrides (different sensitivity per trace), 
-    expose peak templates (e.g., Gaussian vs. Lorentzian fits), or integrate a “reference library” cross-check 
-    where detected peaks are immediately compared to known band positions.
+    Task 3: Labels: options for style (color, borders, size + format)
+    Task 4: Add "Set as default" in menu options
+    Task 5: Fix marker deletion reappearance
+    task 6: Unredo behavior for markers, auto and manual (hidden auto?)
+_________________________________________________________________________________________________
