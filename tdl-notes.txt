@@ -73,3 +73,12 @@ Bugs
     "Vendor bundle (apps/ftirui/ft/static/ft/vendor/coloris/…) remains untracked so you can add it when ready." ?
 - pinned browser header wraps
 - palettes might not apply right away (queue?)
+
+___________________________________________________________
+Peak marking follow-ups (tb2 s3)
+
+- Provide reset/restore for hidden auto peaks (`layout.meta.peakMarking.hiddenIds`) in the S3 menu.
+- Verify undo/redo covers manual add/remove and hidden auto peaks.
+- Consider direct CSV export (in addition to spreadsheet panel) from S3.
+- Allow per-trace detection overrides (sensitivity/min distance) or scoped manual mode.
+- Wire peak list into integration/ATR actions when those buttons are live.

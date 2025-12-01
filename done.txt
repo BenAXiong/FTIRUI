@@ -20,3 +20,27 @@ Phase 2 – Global commands (aka tb1): toolbar modernization
     [x] add sections or filters or tabs
     [x] fix br width vs scroll bar
 
+Phase 3 – Tech controls (aka tb2): toolbar modernization
+- [x] Overall layout
+- [-] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
+- [-] 2/ Graph type (main = line, secondary = bars, scatter, etc).
+- [-] Buttons for tech = FT-IR
+    - [-] 3/ Peak marking (auto + manual)
+        Step 1 - Peak controls UI scaffolding (tb2 s3 / Shift+3)
+            Task 1: Rework `tb2_peak_marking` (the Shift+3 shortcut button) in `canvas_toolbar_vertical.html` so it uses aria-pressed states, communicates toggle status, and anchors a dropstart menu dedicated exclusively to peak marking.
+            Task 2: Build the new dropstart menu markup right under the S3 button: include sensitivity slider, minimum distance slider, marker/line toggles, style radio buttons, label formatting dropdown, and a spreadsheet export button that mirrors tb1 button 4 behaviour.
+            Task 3: Add/adjust CSS in `apps/ftirui/ft/static/ft/app.css` for the S3 menu layout (grid, slider spacing, toggle chips, help text) and ensure icon states match existing toolbar affordances.
+        Step 2 - Peak detection utilities
+            Task 1: Introduce `workspace/canvas/analysis/peakDetection.js` exporting composable helpers (baseline flattening hook, Savitzky–Golay smoothing, prominence scoring, adaptive min-distance) plus a `findPeaks(traces, options)` function that returns normalized peak objects.
+            Task 2: Add formatter helpers that map peaks to Plotly overlays (scatter markers + optional vertical line shapes + optional label annotations) and to spreadsheet row payloads.
+            Task 3: Cover deterministic scenarios with fast unit tests (single-peak, noisy trace, multi-trace) so tuning sensitivity is less error-prone.
+        Step 3 - Workspace runtime integration
+            Task 1: In `workspaceRuntime.js`, register an S3 controller that wires the menu inputs, stores preferences (session + panel meta), and toggles `figure.layout.meta.peakMarking` before calling `panelsModel.updatePanelFigure`.
+            Task 2: Hook into panel lifecycle signals (active panel changes, trace normalization, theme refresh) to re-run detection when needed and to strip overlays/history entries when the Shift+3 button is toggled off.
+            Task 3: Emit toast feedback for edge cases (no peaks, detection errors) and ensure undo/redo captures overlay additions/removals.
+        Step 4 - Manual marking
+            Task 1: Add a "Place manual markers" toggle to the S3 peak menu (default snap-on), and wire menu state so it reflects the active graph.
+            Task 2: Persist manual markers in panel meta, merge them into overlays/copy/export alongside auto peaks, and allow delete.
+            Task 3: Handle click-to-place with snap-to-trace (and optional free placement), including focus and undo/redo wiring.
+        Step 5 - Spreadsheet export & QA
+    - [ ] 4/ Integration
