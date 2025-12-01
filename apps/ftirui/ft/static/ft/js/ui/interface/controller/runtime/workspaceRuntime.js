@@ -5510,6 +5510,7 @@ let updateCanvasState = () => {};
       smoothing: menu.querySelector('[data-peak-control="smoothing"]'),
       manualModeAuto: menu.querySelector('[data-peak-control="manual-mode-auto"]'),
       manualPlacement: menu.querySelector('[data-peak-control="manual-mode"]'),
+      offsetMarkers: menu.querySelector('[data-peak-control="marker-offset"]'),
       labelFormat: menu.querySelector('[data-peak-control="label-format"]'),
       lineStyle: menu.querySelector('[data-peak-control="line-style"]'),
       sensitivityLabel: menu.querySelector('[data-peak-sensitivity-label]'),
@@ -5519,6 +5520,7 @@ let updateCanvasState = () => {};
       menuToggle: menu.querySelector('[data-peak-menu-toggle]'),
       visibilityButtons: Array.from(menu.querySelectorAll('[data-peak-visibility]')),
       markerButtons: Array.from(menu.querySelectorAll('[data-peak-marker-style]')),
+      chevronPreview: menu.querySelector('[data-peak-marker-style="chevron"] .workspace-peak-style-preview.chevron'),
       copyButton: menu.querySelector('[data-peak-copy]'),
       spreadsheetButton: menu.querySelector('[data-peak-export]'),
       clearManualButton: menu.querySelector('[data-peak-clear-manual]')
@@ -5605,6 +5607,8 @@ let updateCanvasState = () => {};
       showLabels: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'labels')?.classList.contains('is-active') ?? false,
       manualPlacement: dom.manualPlacement?.checked ?? false,
       manualModeAuto: dom.manualModeAuto?.checked ?? true,
+      offsetMarkers: dom.offsetMarkers?.checked ?? false,
+      detectionTarget: DEFAULT_PEAK_OPTIONS.target,
       activePanelAvailable: false
     };
 
@@ -5612,9 +5616,11 @@ let updateCanvasState = () => {};
     let rerunHandle = null;
     const markerGlyph = {
       dot: '●',
-      triangle: '▲',
+      triangle: { symbol: '▲', altSymbol: '▼' },
       square: '■',
-      cross: '✚'
+      cross: '✚',
+      slit: '|',
+      chevron: { symbol: '⌃', altSymbol: '⌄' }
     };
 
     const setToggleState = (enabled) => {
@@ -5700,6 +5706,7 @@ let updateCanvasState = () => {};
         }
         state.activePanelAvailable = false;
         setToggleState(false);
+        setMenuEnabled(false);
         return;
       }
       const isPlot = typeof panelSupportsPlot === 'function' ? panelSupportsPlot(panelId) : true;
@@ -5710,6 +5717,7 @@ let updateCanvasState = () => {};
         }
         state.activePanelAvailable = false;
         setToggleState(false);
+        setMenuEnabled(false);
         return;
       }
       const record = typeof getPanelRecord === 'function' ? getPanelRecord(panelId) : null;
@@ -5719,6 +5727,7 @@ let updateCanvasState = () => {};
         dom.targetLabel.textContent = title;
       }
       state.activePanelAvailable = true;
+      setMenuEnabled(true);
       const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
       const meta = figure?.layout?.meta?.peakMarking;
       const overlaysActive = figureHasPeakOverlays(figure);
@@ -5759,6 +5768,8 @@ let updateCanvasState = () => {};
         state.applySmoothing = detection.applySmoothing !== false;
         dom.smoothing.checked = state.applySmoothing;
       }
+      state.detectionTarget = typeof detection.target === 'string' ? detection.target : DEFAULT_PEAK_OPTIONS.target;
+      updateChevronPreview(state.detectionTarget);
 
       // Display controls
       const setToggle = (buttons, key, value) => {
@@ -5779,6 +5790,10 @@ let updateCanvasState = () => {};
       if (display.showLabels !== undefined) {
         setToggle(dom.visibilityButtons, 'labels', display.showLabels);
         state.showLabels = !!display.showLabels;
+      }
+      if (dom.offsetMarkers && display.offsetMarkers !== undefined) {
+        dom.offsetMarkers.checked = !!display.offsetMarkers;
+        state.offsetMarkers = !!display.offsetMarkers;
       }
 
       if (display.markerStyle && dom.markerButtons.length) {
@@ -5843,10 +5858,30 @@ let updateCanvasState = () => {};
       }
     };
 
-    const buildMarkerAnnotations = (peaks, overrideColor = null) => peaks.map((peak) => ({
+    const updateChevronPreview = (orientation) => {
+      if (!dom.chevronPreview) return;
+      const down = orientation === 'peak';
+      dom.chevronPreview.classList.toggle('chevron-down', down);
+      dom.chevronPreview.classList.toggle('chevron-up', !down);
+    };
+
+    const resolveMarkerGlyph = (peak, detectionTarget = null) => {
+      const glyph = markerGlyph[state.markerStyle] || markerGlyph.dot;
+      const useDetectionTarget = state.markerStyle === 'chevron';
+      const orientation = useDetectionTarget && (detectionTarget === 'peak' || detectionTarget === 'dip')
+        ? (detectionTarget === 'dip' ? 'peak' : 'dip') // invert to match visual cue
+        : (peak?.direction === 'dip' ? 'peak' : 'dip');
+      if (typeof glyph === 'string') return glyph;
+      if (orientation === 'dip' && glyph.altSymbol) return glyph.altSymbol;
+      if (orientation === 'peak' && glyph.symbol) return glyph.symbol;
+      if (peak?.direction === 'dip' && glyph.altSymbol) return glyph.altSymbol;
+      return glyph.symbol || glyph.altSymbol || markerGlyph.dot;
+    };
+
+    const buildMarkerAnnotations = (peaks, overrideColor = null, detectionTarget = null) => peaks.map((peak) => ({
       x: peak.x,
       y: peak.y,
-      text: markerGlyph[state.markerStyle] || markerGlyph.dot,
+      text: resolveMarkerGlyph(peak, detectionTarget),
       showarrow: false,
       font: {
         size: 18,
@@ -5886,7 +5921,8 @@ let updateCanvasState = () => {};
       sensitivity: Math.min(1, Math.max(0.05, state.sensitivity / 100)),
       minDistance: Math.max(0, state.distance),
       applyBaseline: state.applyBaseline,
-      applySmoothing: state.applySmoothing
+      applySmoothing: state.applySmoothing,
+      target: state.detectionTarget || DEFAULT_PEAK_OPTIONS.target
     });
 
     const writeManualMarkers = (panelId, markers = []) => {
@@ -6040,6 +6076,7 @@ let updateCanvasState = () => {};
         return false;
       }
       const detectionOptions = getDetectionOptions();
+      updateChevronPreview(detectionOptions.target);
       const peaks = findPeaks(candidateTraces, detectionOptions);
       const axisSnapshot = readAxisRanges(panelId);
       const yBaseline = Number.isFinite(axisSnapshot?.y?.[0])
@@ -6076,9 +6113,13 @@ let updateCanvasState = () => {};
         markerStyle: state.markerStyle,
         lineStyle: state.lineStyle,
         labelFormat: state.labelFormat,
-        yMin: yBaseline
+        yMin: yBaseline,
+        offsetMarkers: state.offsetMarkers,
+        detectionTarget: detectionOptions.target
       });
-      const markerAnnotations = state.showMarkers ? buildMarkerAnnotations(mergedPeaks, overlays.markerTrace?.marker?.color) : [];
+      const markerAnnotations = state.showMarkers
+        ? buildMarkerAnnotations(mergedPeaks, overlays.markerTrace?.marker?.color, detectionOptions.target)
+        : [];
       const labelAnnotations = state.showLabels
         ? overlays.labelAnnotations.map((annotation) => ({
           ...annotation,
@@ -6110,7 +6151,8 @@ let updateCanvasState = () => {};
               showLabels: state.showLabels,
               markerStyle: state.markerStyle,
               lineStyle: state.lineStyle,
-              labelFormat: state.labelFormat
+              labelFormat: state.labelFormat,
+              offsetMarkers: state.offsetMarkers
             },
             updatedAt: Date.now()
           }
@@ -6369,6 +6411,19 @@ let updateCanvasState = () => {};
       });
     };
 
+    const setMenuEnabled = (enabled) => {
+      const controls = menu.querySelectorAll('input, select, button');
+      controls.forEach((el) => {
+        el.disabled = !enabled;
+      });
+      const sections = menu.querySelectorAll('.workspace-peak-menu-section');
+      sections.forEach((sec) => sec.classList.toggle('is-disabled', !enabled));
+      // Re-apply auto-options masking when re-enabling.
+      if (enabled) {
+        hideAutoOptions(state.manualPlacement);
+      }
+    };
+
     addListener(dom.menuToggle, 'change', handleToggle);
     addListener(dom.sensitivity, 'input', () => {
       state.sensitivity = toNumber(dom.sensitivity.value, state.sensitivity);
@@ -6398,6 +6453,10 @@ let updateCanvasState = () => {};
         setManualPlacement(false);
         hideAutoOptions(false);
       }
+    });
+    addListener(dom.offsetMarkers, 'change', () => {
+      state.offsetMarkers = dom.offsetMarkers.checked;
+      requestRerun();
     });
     addListener(dom.labelFormat, 'change', () => {
       state.labelFormat = dom.labelFormat.value || 'wavenumber';

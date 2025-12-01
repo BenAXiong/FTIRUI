@@ -3323,9 +3323,10 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-weight: 500;
 }
 .workspace-peak-style-grid{
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
   gap: .45rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 .workspace-peak-style{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
@@ -3388,6 +3389,41 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 }
 .workspace-peak-style-preview.cross::after{
   transform: translate(-50%, -50%) rotate(90deg);
+}
+.workspace-peak-style-preview.slit{
+  width: 2px;
+  height: 16px;
+  border-radius: 0;
+  border: none;
+  background: currentColor;
+  position: relative;
+}
+.workspace-peak-style-preview.chevron{
+  border: none;
+  border-radius: 0;
+  width: 14px;
+  height: 14px;
+  position: relative;
+}
+.workspace-peak-style-preview.chevron::before{
+  content: '';
+  display: none;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+}
+.workspace-peak-style-preview.chevron.chevron-up::before{
+  display: block;
+  transform: translate(-50%, -50%) rotate(135deg);
+}
+.workspace-peak-style-preview.chevron.chevron-down::before{
+  display: block;
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 .workspace-peak-select{
   font-size: .82rem;

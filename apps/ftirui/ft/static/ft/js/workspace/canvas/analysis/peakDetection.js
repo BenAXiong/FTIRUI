@@ -23,7 +23,9 @@ const MARKER_STYLE_MAP = {
   dot: { symbol: 'circle', size: 11 },
   triangle: { symbol: 'triangle-up', size: 12 },
   square: { symbol: 'square', size: 11 },
-  cross: { symbol: 'x', size: 13 }
+  cross: { symbol: 'x', size: 13 },
+  slit: { symbol: 'line-ns', size: 16 },
+  chevron: { symbol: 'triangle-up-open', altSymbol: 'triangle-down-open', size: 14 }
 };
 
 const LINE_STYLE_MAP = {
@@ -376,12 +378,33 @@ export function buildPeakOverlays(peaks = [], {
   lineStyle = 'solid',
   labelFormat = 'wavenumber',
   color: overrideColor = null,
-  yMin = null
+  yMin = null,
+  offsetMarkers = false,
+  detectionTarget = null
 } = {}) {
   const safePeaks = Array.isArray(peaks) ? peaks.slice() : [];
   const markerConfig = MARKER_STYLE_MAP[markerStyle] || MARKER_STYLE_MAP.dot;
   const lineDash = LINE_STYLE_MAP[lineStyle] || LINE_STYLE_MAP.solid;
   const formatLabel = LABEL_FORMATTERS[labelFormat] || LABEL_FORMATTERS.wavenumber;
+
+  const computeMarkerY = (peak) => {
+    if (!offsetMarkers) return peak.y;
+    const baseline = resolveBaseline(peak);
+    const span = Math.max(Math.abs(peak.y - baseline), Math.max(Math.abs(peak.y), Math.abs(baseline)) * 0.2, 1);
+    const direction = peak.direction === 'dip' ? -1 : 1;
+    return peak.y + direction * span * 0.6;
+  };
+
+  const markerSymbols = safePeaks.map((peak) => {
+    const isDip = peak.direction === 'dip';
+    const orientation = detectionTarget === 'peak' || detectionTarget === 'dip'
+      ? detectionTarget
+      : (isDip ? 'dip' : 'peak');
+    if (markerConfig.altSymbol && markerStyle === 'chevron') {
+      return orientation === 'dip' ? markerConfig.altSymbol : markerConfig.symbol;
+    }
+    return markerConfig.symbol || 'circle';
+  });
 
   const markerTrace = safePeaks.length ? {
     type: 'scatter',
@@ -389,14 +412,15 @@ export function buildPeakOverlays(peaks = [], {
     name: 'Peaks',
     hovertemplate: '%{customdata.kind} %{customdata.traceLabel}<br>%{x:.2f} cm^-1<br>Intensity %{y:.2f}<extra></extra>',
     x: peaks.map((peak) => peak.x),
-    y: peaks.map((peak) => peak.y),
+    y: peaks.map((peak) => computeMarkerY(peak)),
     marker: {
       size: markerConfig.size,
-      symbol: markerConfig.symbol,
+      symbol: markerSymbols,
       color: overrideColor || peaks[0]?.color || '#e85d04',
       line: { width: 1, color: '#fff' }
     },
     customdata: peaks.map((peak) => ({
+      id: peak.id,
       traceLabel: peak.traceLabel,
       prominence: peak.prominence,
       index: peak.index,
@@ -435,7 +459,7 @@ export function buildPeakOverlays(peaks = [], {
 
   const labelAnnotations = peaks.map((peak) => ({
     x: peak.x,
-    y: peak.y,
+    y: computeMarkerY(peak),
     text: formatLabel(peak),
     showarrow: false,
     font: {
