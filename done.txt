@@ -50,5 +50,11 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
             Task 3: Capture follow-up risks/ideas (e.g., hooking into integration/ATR buttons later) so future work is logged next to the plan.
                 - Risks: manual marker removal hides auto peaks via hiddenIds; need a reset/restore UI if users hide too much. Undo/redo coverage for manual add/remove should be verified in history stack.
                 - Ideas: route peak list into integration/ATR actions; add export CSV direct from S3; allow per-trace detection options; add free-placement (no snap) toggle; expose hiddenIds reset in menu.
-        
+        Step 6 - UI/UX polishing and bug fixes
+            Task 1: Remove marker toggle if non-graph is selected and add "select a graph to..."
+            Task 2: Marker style (distant from traces) + activate 'guides' when manual is on
+            Task 3: Labels: options for style (color, borders, size + format)
+            Task 4: Fix manual marker deletion reappearance
+            Task 5: Add "Set as default" & "Apply default" in menu options
+            Task 6: (mostly doneby def) Unredo behavior for markers, auto and manual (hidden auto?)
     - [ ] 4/ Integration

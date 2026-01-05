@@ -44,3 +44,15 @@ Fast Node tests cover:
 * History helper queue semantics and snapshot manager restore flows.
 
 These tests live in `runtime/__tests__` and exercise the new context contracts in isolation.
+
+## Orchestrator Rules (workspaceRuntime.js)
+
+Use this file as a wiring layer only. The goal is to keep orchestration readable and move feature
+logic into focused facades or helper modules.
+
+- **No business logic** in `workspaceRuntime.js`. Compose and route only.
+- **Inject dependencies** into facades/modules; avoid hidden imports or globals.
+- **No direct DOM/Plotly/storage calls** from the orchestrator.
+- **Keep functions short**; split when a function grows beyond ~50-80 lines.
+- **Centralize state mutations** in models/facades; orchestration should not mutate models directly.
+- **Add tests** for new facades or non-trivial behaviors (or note why not).

@@ -58,6 +58,7 @@ Polishing
 - can/tb1: drawing for handy notes and highlitghing (see observable)
 - can/tb2: s3 separate marker styling for each trace (esp colors), possibly niche, make auto color first
 - can/tb2: behavior of traces migration when markers are present?
+- can/tb2: S3 markers cannot be manually dragged (ex user wants to declutter one by one). Not straightforward to circumvent...
 ___________________________________________________________
 Future work
 
