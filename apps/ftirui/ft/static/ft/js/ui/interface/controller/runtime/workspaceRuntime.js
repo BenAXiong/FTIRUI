@@ -39,6 +39,8 @@ import { initCanvasSnapshots } from '../../canvasSnapshots.js';
 import { createSectionManager } from './sections/manager.js';
 import { createHudButtons } from './controls/createHudButtons.js';
 import { createGlobalCommandsController } from './toolbar/globalCommands.js';
+import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js';
+import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
 import { findPeaks, buildPeakOverlays, buildPeakTableRows, DEFAULT_PEAK_OPTIONS } from '../../../../workspace/canvas/analysis/peakDetection.js';
 
@@ -3616,84 +3618,19 @@ let updateCanvasState = () => {};
     };
   })();
 
-  const TECH_TOOLBAR_BUTTONS = [
-    { id: 'tb2_peak_marking', slot: 3 },
-    { id: 'tb2_peak_integration', slot: 4 },
-    { id: 'tb2_atr_correction', slot: 5 },
-    { id: 'tb2_smoothing', slot: 6 },
-    { id: 'tb2_derivatization', slot: 7 },
-    { id: 'tb2_spectral_library', slot: 8 },
-    { id: 'tb2_placeholder_help', slot: 9 }
-  ];
-  const techToolbarDefaults = new Map();
-
-  const captureTechToolbarDefaults = () => {
-    TECH_TOOLBAR_BUTTONS.forEach(({ id }) => {
-      const button = document.getElementById(id);
-      if (!button) return;
-      const hidden = button.querySelector('.visually-hidden');
-      techToolbarDefaults.set(id, {
-        title: button.getAttribute('title') || '',
-        ariaLabel: button.getAttribute('aria-label') || '',
-        hiddenText: hidden ? hidden.textContent : ''
-      });
-    });
-  };
-
-  const restoreTechToolbarDefaults = () => {
-    TECH_TOOLBAR_BUTTONS.forEach(({ id }) => {
-      const button = document.getElementById(id);
-      const defaults = techToolbarDefaults.get(id);
-      if (!button || !defaults) return;
-      button.setAttribute('title', defaults.title);
-      button.setAttribute('aria-label', defaults.ariaLabel);
-      const hidden = button.querySelector('.visually-hidden');
-      if (hidden) {
-        hidden.textContent = defaults.hiddenText;
-      }
-    });
-  };
-
-  const resolveTechToken = (techKey) => {
-    const options = techSelectorController?.options || [];
-    const option = options.find((opt) => opt.getAttribute('data-tech-option') === techKey);
-    const symbol = option?.getAttribute('data-tech-symbol')
-      || option?.getAttribute('data-tech-label')
-      || techKey
-      || 'Tech';
-    return symbol.replace(/\s+/g, '');
-  };
-
-  const updateTechToolbarLabels = (techKey) => {
-    if (!techKey) return;
-    if (!techToolbarDefaults.size) {
-      captureTechToolbarDefaults();
-    }
-    if (techKey === 'ftir') {
-      restoreTechToolbarDefaults();
-      return;
-    }
-    const token = resolveTechToken(techKey).toUpperCase();
-    TECH_TOOLBAR_BUTTONS.forEach(({ id, slot }) => {
-      const button = document.getElementById(id);
-      if (!button) return;
-      const label = `${token}${slot}`;
-      button.setAttribute('title', label);
-      button.setAttribute('aria-label', label);
-      const hidden = button.querySelector('.visually-hidden');
-      if (hidden) {
-        hidden.textContent = label;
-      }
-    });
-  };
-
-  if (techSelectorController?.toggle) {
-    captureTechToolbarDefaults();
-    updateTechToolbarLabels(techSelectorController.toggle.dataset.techKey || 'ftir');
-    techSelectorController.toggle.addEventListener('workspace:tech-change', (event) => {
-      updateTechToolbarLabels(event?.detail?.key || techSelectorController.toggle.dataset.techKey);
-    });
-  }
+  const techToolbarLabelController = createTechToolbarLabelController({
+    techToggle: techSelectorController?.toggle || null,
+    techOptions: techSelectorController?.options || [],
+    buttons: [
+      { node: document.getElementById('tb2_peak_marking'), slot: 3 },
+      { node: document.getElementById('tb2_peak_integration'), slot: 4 },
+      { node: document.getElementById('tb2_atr_correction'), slot: 5 },
+      { node: document.getElementById('tb2_smoothing'), slot: 6 },
+      { node: document.getElementById('tb2_derivatization'), slot: 7 },
+      { node: document.getElementById('tb2_spectral_library'), slot: 8 },
+      { node: document.getElementById('tb2_placeholder_help'), slot: 9 }
+    ]
+  });
 
   const getBrowserRootEl = () => panelDom.tree || null;
 
@@ -5614,6 +5551,7 @@ let updateCanvasState = () => {};
     const manualClickHandlers = new Map();
     const relayoutHandlers = new Map();
     const tooltipHandlers = new Map();
+    let peakDefaultsController = null;
 
     const dom = {
       sensitivity: menu.querySelector('[data-peak-control="sensitivity"]'),
@@ -5804,6 +5742,7 @@ let updateCanvasState = () => {};
 
     let lastResult = { panelId: null, peaks: [] };
     let rerunHandle = null;
+    let detectPeaksForPanel = null;
     const markerGlyph = {
       dot: '●',
       triangle: { symbol: '▲', altSymbol: '▼' },
@@ -5845,151 +5784,6 @@ let updateCanvasState = () => {};
     };
 
     setAutoVisibility(state.showAutoMarkers);
-
-    const PEAK_DEFAULTS_STORAGE_KEY = 'ftir.workspace.peakDefaults.v1';
-
-    const getActiveTechKey = () => {
-      const key = techSelectorController?.toggle?.dataset?.techKey
-        || document.getElementById('tb2_tech_selector')?.dataset?.techKey;
-      return key || 'default';
-    };
-
-    const readPeakDefaults = () => {
-      try {
-        const raw = window?.localStorage?.getItem(PEAK_DEFAULTS_STORAGE_KEY);
-        if (!raw) return {};
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch {
-        return {};
-      }
-    };
-
-    const writePeakDefaults = (nextDefaults) => {
-      try {
-        window?.localStorage?.setItem(PEAK_DEFAULTS_STORAGE_KEY, JSON.stringify(nextDefaults || {}));
-      } catch {
-        /* ignore storage failures */
-      }
-    };
-
-    const buildDisplayDefaults = () => ({
-      showMarkers: state.showMarkers,
-      showLines: state.showLines,
-      showLabels: state.showLabels,
-      showAutoMarkers: state.showAutoMarkers,
-      markerStyle: state.markerStyle,
-      lineStyle: state.lineStyle,
-      labelFormat: state.labelFormat,
-      offsetAmount: state.offsetAmount,
-      markerSize: state.markerSize,
-      labelSize: state.labelSize,
-      labelBox: state.labelBox,
-      labelBoxThickness: state.labelBoxThickness,
-      labelAlign: state.labelAlign,
-      labelStyle: { ...(state.labelStyle || {}) }
-    });
-
-    const applyDisplayDefaults = (display = {}) => {
-      const setVisibilityToggle = (key, value) => {
-        dom.visibilityButtons.forEach((btn) => {
-          if (btn.dataset.peakVisibility !== key) return;
-          btn.classList.toggle('is-active', value);
-          btn.setAttribute('aria-pressed', String(value));
-        });
-      };
-      if (display.showMarkers !== undefined) {
-        state.showMarkers = !!display.showMarkers;
-        setVisibilityToggle('markers', state.showMarkers);
-      }
-      if (display.showLines !== undefined) {
-        state.showLines = !!display.showLines;
-        setVisibilityToggle('lines', state.showLines);
-      }
-      if (display.showLabels !== undefined) {
-        state.showLabels = !!display.showLabels;
-        setVisibilityToggle('labels', state.showLabels);
-      }
-      if (display.showAutoMarkers !== undefined) {
-        setAutoVisibility(display.showAutoMarkers);
-      }
-      if (display.markerStyle && dom.markerButtons.length) {
-        state.markerStyle = display.markerStyle;
-        dom.markerButtons.forEach((btn) => {
-          const active = btn.dataset.peakMarkerStyle === display.markerStyle;
-          btn.classList.toggle('is-active', active);
-          btn.setAttribute('aria-pressed', String(active));
-        });
-      }
-      if (display.lineStyle && dom.guideStyleButtons.length) {
-        state.lineStyle = display.lineStyle;
-        dom.guideStyleButtons.forEach((btn) => {
-          const active = btn.dataset.peakLineStyle === display.lineStyle;
-          btn.classList.toggle('is-active', active);
-          btn.setAttribute('aria-pressed', String(active));
-        });
-      } else if (dom.lineStyle && typeof display.lineStyle === 'string') {
-        dom.lineStyle.value = display.lineStyle;
-        state.lineStyle = display.lineStyle;
-      }
-      if (dom.labelFormatButtons?.length && typeof display.labelFormat === 'string') {
-        state.labelFormat = display.labelFormat;
-        dom.labelFormatButtons.forEach((btn) => {
-          const active = btn.dataset.peakLabelFormat === display.labelFormat;
-          btn.classList.toggle('is-active', active);
-          btn.setAttribute('aria-pressed', String(active));
-        });
-      }
-      const boxThickness = Number.isFinite(display.labelBoxThickness)
-        ? display.labelBoxThickness
-        : (display.labelBox ? 1 : 0);
-      state.labelBoxThickness = boxThickness;
-      state.labelBox = boxThickness > 0;
-      if (dom.labelBoxThickness) {
-        dom.labelBoxThickness.value = boxThickness;
-      }
-      if (dom.labelAlignButtons?.length && typeof display.labelAlign === 'string') {
-        const align = ['left', 'center', 'right'].includes(display.labelAlign) ? display.labelAlign : 'center';
-        state.labelAlign = align;
-        dom.labelAlignButtons.forEach((btn) => {
-          const active = btn.dataset.peakLabelAlign === align;
-          btn.classList.toggle('is-active', active);
-          btn.setAttribute('aria-pressed', String(active));
-        });
-      }
-      if (dom.labelStyleButtons?.length && display.labelStyle && typeof display.labelStyle === 'object') {
-        state.labelStyle = {
-          bold: display.labelStyle.bold === true,
-          italic: display.labelStyle.italic === true,
-          underline: display.labelStyle.underline === true,
-          strike: display.labelStyle.strike === true
-        };
-        dom.labelStyleButtons.forEach((btn) => {
-          const key = btn.dataset.peakLabelStyle;
-          const active = state.labelStyle[key] === true;
-          btn.classList.toggle('is-active', active);
-          btn.setAttribute('aria-pressed', String(active));
-        });
-      }
-      state.labelColor = null;
-      if (labelOptions.palette) {
-        labelOptions.palette.querySelectorAll('.chip-swatch').forEach((sw) => sw.classList.remove('is-active'));
-      }
-      if (Number.isFinite(display.labelSize) && dom.labelSize) {
-        state.labelSize = display.labelSize;
-        dom.labelSize.value = state.labelSize;
-      }
-      if (Number.isFinite(display.offsetAmount) && dom.offsetAmount) {
-        state.offsetAmount = display.offsetAmount;
-        dom.offsetAmount.value = state.offsetAmount;
-        updateOffsetLabel();
-      }
-      if (Number.isFinite(display.markerSize) && dom.markerSize) {
-        state.markerSize = display.markerSize;
-        dom.markerSize.value = state.markerSize;
-        updateMarkerSizeLabel();
-      }
-    };
 
     const describeSensitivity = (value) => {
       const labelValue = Math.round(value);
@@ -6287,6 +6081,7 @@ let updateCanvasState = () => {};
 
     const requestRerun = () => {
       if (!state.enabled) return;
+      if (typeof detectPeaksForPanel !== 'function') return;
       const panelId = getActivePanel();
       if (!panelId) return;
       cancelScheduledRerun();
@@ -6300,6 +6095,8 @@ let updateCanvasState = () => {};
         rerunHandle = window.setTimeout(run, 80);
       }
     };
+
+    const getActiveTechKey = () => techSelectorController?.toggle?.dataset?.techKey || 'default';
 
     const updateChevronPreview = (orientation) => {
       if (!dom.chevronPreview) return;
@@ -6640,7 +6437,7 @@ let updateCanvasState = () => {};
       relayoutHandlers.set(panelId, { plotEl, handler });
     };
 
-    const detectPeaksForPanel = (panelId, {
+    detectPeaksForPanel = (panelId, {
       silentEmpty = false,
       detectionOverride = null,
       displayOverride = null,
@@ -6933,37 +6730,6 @@ let updateCanvasState = () => {};
       }
     };
 
-    const handleDefaultActionClick = (event) => {
-      const action = event?.currentTarget?.dataset?.peakDefaultAction;
-      if (!action) return;
-      const techKey = getActiveTechKey();
-      if (action === 'set') {
-        const defaults = readPeakDefaults();
-        defaults[techKey] = buildDisplayDefaults();
-        writePeakDefaults(defaults);
-        notify?.('Saved peak defaults for this tech.', 'success');
-        return;
-      }
-      if (action === 'apply') {
-        const defaults = readPeakDefaults();
-        const display = defaults?.[techKey];
-        if (!display) {
-          notify?.('No peak defaults saved for this tech.', 'info');
-          return;
-        }
-        applyDisplayDefaults(display);
-        if (state.enabled) {
-          requestRerun();
-        } else {
-          const panelId = getActivePanel();
-          if (panelId) {
-            detectPeaksForPanel(panelId, { silentEmpty: true });
-          }
-        }
-        notify?.('Applied peak defaults.', 'success');
-      }
-    };
-
     const handleTraceStyleChange = (panelId) => {
       if (!panelId) return;
       const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
@@ -6978,6 +6744,13 @@ let updateCanvasState = () => {};
         manualPlacementOverride: meta?.manualPlacement,
         updateUi: panelId === getActivePanel()
       });
+    };
+
+    const handleApplyPeakDefaults = () => {
+      const panelId = getActivePanel();
+      if (panelId) {
+        detectPeaksForPanel(panelId, { silentEmpty: true });
+      }
     };
 
     const handleMarkerStyleClick = (event) => {
@@ -7207,7 +6980,6 @@ let updateCanvasState = () => {};
         hideAutoOptions(false);
       }
     });
-    (dom.defaultActionButtons || []).forEach((button) => addListener(button, 'click', handleDefaultActionClick));
     addListener(dom.autoVisibilityButton, 'click', handleAutoVisibilityToggle);
     addListener(dom.offsetAmount, 'input', () => {
       state.offsetAmount = toNumber(dom.offsetAmount.value, state.offsetAmount);
@@ -7291,6 +7063,20 @@ let updateCanvasState = () => {};
     updateDistanceLabel();
     updateOffsetLabel();
     updateMarkerSizeLabel();
+    peakDefaultsController = createPeakDefaultsController({
+      preferences: preferencesFacade,
+      dom,
+      labelOptions,
+      state,
+      setAutoVisibility,
+      updateOffsetLabel,
+      updateMarkerSizeLabel,
+      requestRerun,
+      getActivePanel,
+      getActiveTechKey,
+      notify,
+      onApply: handleApplyPeakDefaults
+    });
     updateTargetLabel(getActivePanel());
     syncMenuFromFigure(getActivePanel());
     attachManualHandler(getActivePanel());
@@ -7319,6 +7105,7 @@ let updateCanvasState = () => {};
             node.removeEventListener(event, handler);
           }
         });
+        peakDefaultsController?.teardown?.();
         manualClickHandlers.forEach((_, panelId) => detachManualHandler(panelId));
         tooltipHandlers.forEach((_, panelId) => detachTooltipHandler(panelId));
         relayoutHandlers.forEach((_, panelId) => detachRelayoutHandler(panelId));
@@ -7413,6 +7200,7 @@ let updateCanvasState = () => {};
     }
     hudButtonsHandles = null;
     globalCommandsController?.dispose?.();
+    techToolbarLabelController?.teardown?.();
     peakMarkingController?.teardown?.();
     peakMarkingController = null;
     devToggleButton = null;

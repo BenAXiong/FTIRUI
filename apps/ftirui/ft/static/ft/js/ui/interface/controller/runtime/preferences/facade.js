@@ -9,6 +9,7 @@ const toStorage = (store) => {
 export function createUiPreferencesFacade({
   collapseKey = 'ftir.workspace.panelCollapsed.v1',
   pinKey = 'ftir.workspace.panelPinned.v1',
+  peakDefaultsKey = 'ftir.workspace.peakDefaults.v1',
   sessionStorage: session = typeof globalThis !== 'undefined' ? globalThis.sessionStorage : undefined,
   localStorage: local = typeof globalThis !== 'undefined' ? globalThis.localStorage : undefined
 } = {}) {
@@ -75,6 +76,36 @@ export function createUiPreferencesFacade({
     }
   };
 
+  const readPeakDefaults = (fallback = {}) => {
+    if (!localStore) return fallback;
+    try {
+      const raw = localStore.getItem(peakDefaultsKey);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writePeakDefaults = (value) => {
+    if (!localStore) return;
+    try {
+      localStore.setItem(peakDefaultsKey, JSON.stringify(value || {}));
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
+  const clearPeakDefaults = () => {
+    if (!localStore) return;
+    try {
+      localStore.removeItem(peakDefaultsKey);
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
   const teardown = () => {};
 
   return {
@@ -84,6 +115,9 @@ export function createUiPreferencesFacade({
     setPinned,
     readPinned,
     clearPinned,
+    readPeakDefaults,
+    writePeakDefaults,
+    clearPeakDefaults,
     teardown
   };
 }

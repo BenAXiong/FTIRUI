@@ -2932,6 +2932,20 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-size: 1.1rem;
   line-height: 1;
 }
+.workspace-toolbar-tech-badge{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  font-size: calc(.75rem * .75);
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  border: none;
+  background: transparent;
+  color: #fff;
+}
 .workspace-toolbar-dropdown .dropdown-menu{
   min-width: 220px;
   padding: .5rem 0;
