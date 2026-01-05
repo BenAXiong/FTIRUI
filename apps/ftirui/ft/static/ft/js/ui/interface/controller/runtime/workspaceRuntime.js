@@ -6289,6 +6289,37 @@ let updateCanvasState = () => {};
       target: state.detectionTarget || DEFAULT_PEAK_OPTIONS.target
     });
 
+    const resolveDisplayOptions = (override = null) => {
+      const base = {
+        showMarkers: state.showMarkers,
+        showLines: state.showLines,
+        showLabels: state.showLabels,
+        showAutoMarkers: state.showAutoMarkers,
+        markerStyle: state.markerStyle,
+        lineStyle: state.lineStyle,
+        labelFormat: state.labelFormat,
+        offsetAmount: state.offsetAmount,
+        markerSize: state.markerSize,
+        labelColor: state.labelColor,
+        labelSize: state.labelSize,
+        labelBox: state.labelBox,
+        labelBoxThickness: state.labelBoxThickness,
+        labelAlign: state.labelAlign,
+        labelStyle: { ...(state.labelStyle || {}) }
+      };
+      if (!override || typeof override !== 'object') return base;
+      const next = { ...base, ...override };
+      if (override.labelStyle && typeof override.labelStyle === 'object') {
+        next.labelStyle = {
+          bold: override.labelStyle.bold === true,
+          italic: override.labelStyle.italic === true,
+          underline: override.labelStyle.underline === true,
+          strike: override.labelStyle.strike === true
+        };
+      }
+      return next;
+    };
+
     const writeManualMarkers = (panelId, markers = []) => {
       if (!panelId || typeof getPanelFigure !== 'function') return;
       const figure = getPanelFigure(panelId);
@@ -6530,7 +6561,13 @@ let updateCanvasState = () => {};
       relayoutHandlers.set(panelId, { plotEl, handler });
     };
 
-    const detectPeaksForPanel = (panelId, { silentEmpty = false } = {}) => {
+    const detectPeaksForPanel = (panelId, {
+      silentEmpty = false,
+      detectionOverride = null,
+      displayOverride = null,
+      manualPlacementOverride = null,
+      updateUi = true
+    } = {}) => {
       if (!panelId) {
         if (!silentEmpty) {
           notify?.('Select a graph to run peak marking.', 'warning');
@@ -6563,8 +6600,12 @@ let updateCanvasState = () => {};
         }
         return false;
       }
-      const detectionOptions = getDetectionOptions();
-      updateChevronPreview(detectionOptions.target);
+      const detectionOptions = detectionOverride
+        ? { ...DEFAULT_PEAK_OPTIONS, ...detectionOverride }
+        : getDetectionOptions();
+      if (updateUi) {
+        updateChevronPreview(detectionOptions.target);
+      }
       const peaks = findPeaks(candidateTraces, detectionOptions);
       const axisSnapshot = readAxisRanges(panelId);
       const yBaseline = Number.isFinite(axisSnapshot?.y?.[0])
@@ -6598,33 +6639,35 @@ let updateCanvasState = () => {};
         };
       });
       const mergedPeaks = [...peaks, ...manualPeaks];
-      const overlayPeaks = state.showAutoMarkers
+      const display = resolveDisplayOptions(displayOverride);
+      const manualPlacement = manualPlacementOverride ?? state.manualPlacement;
+      const overlayPeaks = display.showAutoMarkers
         ? mergedPeaks
         : mergedPeaks.filter((peak) => peak?.source?.manual);
       const overlays = buildPeakOverlays(overlayPeaks, {
-        markerStyle: state.markerStyle,
-        lineStyle: state.lineStyle,
-        labelFormat: state.labelFormat,
+        markerStyle: display.markerStyle,
+        lineStyle: display.lineStyle,
+        labelFormat: display.labelFormat,
         yMin: yBaseline,
-        offsetAmount: state.offsetAmount,
-        markerSize: state.markerSize,
+        offsetAmount: display.offsetAmount,
+        markerSize: display.markerSize,
         detectionTarget: detectionOptions.target,
-        labelColor: state.labelColor,
-        labelSize: state.labelSize,
-        labelBox: state.labelBox,
-        labelBoxThickness: state.labelBoxThickness,
-        labelAlign: state.labelAlign,
-        labelStyle: state.labelStyle
+        labelColor: display.labelColor,
+        labelSize: display.labelSize,
+        labelBox: display.labelBox,
+        labelBoxThickness: display.labelBoxThickness,
+        labelAlign: display.labelAlign,
+        labelStyle: display.labelStyle
       });
-      const markerTrace = state.showMarkers ? overlays.markerTrace : null;
+      const markerTrace = display.showMarkers ? overlays.markerTrace : null;
       const markerAnnotations = []; // use Plotly marker trace for positioning accuracy
-      const labelAnnotations = state.showLabels
+      const labelAnnotations = display.showLabels
         ? overlays.labelAnnotations.map((annotation) => ({
           ...annotation,
           meta: { ...(annotation.meta || {}), peakOverlay: true, peakOverlayType: 'label' }
         }))
         : [];
-      const lineShapes = state.showLines
+      const lineShapes = display.showLines
         ? overlays.lineShapes.map((shape) => ({
           ...shape,
           meta: { ...(shape.meta || {}), peakOverlay: true }
@@ -6641,25 +6684,25 @@ let updateCanvasState = () => {};
             enabled: true,
             panelId,
             peakCount: mergedPeaks.length,
-            manualPlacement: state.manualPlacement,
+            manualPlacement,
             detection: detectionOptions,
             display: {
-              showMarkers: state.showMarkers,
-              showLines: state.showLines,
-              showLabels: state.showLabels,
-              showAutoMarkers: state.showAutoMarkers,
-              markerStyle: state.markerStyle,
-              lineStyle: state.lineStyle,
-              labelFormat: state.labelFormat,
-              offsetMarkers: state.offsetAmount > 0,
-              offsetAmount: state.offsetAmount,
-              markerSize: state.markerSize,
-              labelColor: state.labelColor,
-              labelSize: state.labelSize,
-              labelBox: state.labelBox,
-              labelBoxThickness: state.labelBoxThickness,
-              labelAlign: state.labelAlign,
-              labelStyle: state.labelStyle
+              showMarkers: display.showMarkers,
+              showLines: display.showLines,
+              showLabels: display.showLabels,
+              showAutoMarkers: display.showAutoMarkers,
+              markerStyle: display.markerStyle,
+              lineStyle: display.lineStyle,
+              labelFormat: display.labelFormat,
+              offsetMarkers: display.offsetAmount > 0,
+              offsetAmount: display.offsetAmount,
+              markerSize: display.markerSize,
+              labelColor: display.labelColor,
+              labelSize: display.labelSize,
+              labelBox: display.labelBox,
+              labelBoxThickness: display.labelBoxThickness,
+              labelAlign: display.labelAlign,
+              labelStyle: display.labelStyle
             },
             updatedAt: Date.now()
           }
@@ -6844,12 +6887,18 @@ let updateCanvasState = () => {};
 
     const handleTraceStyleChange = (panelId) => {
       if (!panelId) return;
-      if (panelId !== getActivePanel()) return;
       const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
       if (!figure) return;
-      const overlaysActive = figure.layout?.meta?.peakMarking?.enabled || figureHasPeakOverlays(figure);
+      const meta = figure.layout?.meta?.peakMarking || {};
+      const overlaysActive = meta?.enabled || figureHasPeakOverlays(figure);
       if (!overlaysActive) return;
-      detectPeaksForPanel(panelId, { silentEmpty: true });
+      detectPeaksForPanel(panelId, {
+        silentEmpty: true,
+        detectionOverride: meta?.detection || null,
+        displayOverride: meta?.display || null,
+        manualPlacementOverride: meta?.manualPlacement,
+        updateUi: panelId === getActivePanel()
+      });
     };
 
     const handleMarkerStyleClick = (event) => {
