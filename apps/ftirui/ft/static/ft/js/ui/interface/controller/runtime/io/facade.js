@@ -526,9 +526,12 @@ export function createIoFacade({
       showToast('No files selected for folder import.', 'warning');
       return;
     }
-    const rootSectionId = ensureSectionId(analysis.rootName) || null;
+    let rootSectionId = null;
     const subgroupIds = new Map();
     const getSubgroupId = (folderKey) => {
+      if (!rootSectionId) {
+        rootSectionId = ensureSectionId(analysis.rootName) || null;
+      }
       if (!rootSectionId) return null;
       if (folderKey === ROOT_FOLDER_KEY) return rootSectionId;
       if (subgroupIds.has(folderKey)) return subgroupIds.get(folderKey);
@@ -565,8 +568,9 @@ export function createIoFacade({
         }
       }
       if (!payloads.length) continue;
+      // Only create the root section if we actually ingested something.
       ensureHistory();
-      const sectionId = rootSectionId ? getSubgroupId(folderKey) : null;
+      const sectionId = getSubgroupId(folderKey);
       const panelId = ingestPanel(payloads, {
         skipHistory: true,
         skipPersist: true,
@@ -989,9 +993,19 @@ export function createIoFacade({
   };
 
   const onAddSampleClick = () => {
-    ingestPanel({
-      name: `Sample ${getNextPanelSequence()}`
-    });
+    const sampleIndex = getNextPanelSequence();
+    const baseWavenumbers = [4000, 3600, 3200, 2800, 2400, 2000, 1800, 1600, 1400, 1200, 1000, 800, 600, 400];
+    const sampleTrace = {
+      name: `Sample ${sampleIndex}`,
+      x: baseWavenumbers, // descending to match FTIR convention
+      y: baseWavenumbers.map((wn, idx) => Math.sin(idx / 1.8) * 0.2 + 1 - idx * 0.02),
+      meta: {
+        X_INVERTED: true,
+        X_UNITS: 'Wavenumber (cm^-1)',
+        Y_UNITS: 'Absorbance'
+      }
+    };
+    ingestPanel(sampleTrace);
     showToast('Sample graph added to workspace.', 'success');
     updateHistoryButtons();
   };

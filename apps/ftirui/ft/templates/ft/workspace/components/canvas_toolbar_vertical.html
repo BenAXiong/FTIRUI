@@ -243,6 +243,14 @@
           <header class="d-flex justify-content-between align-items-center gap-2">
             <span>Peak finding</span>
             <div class="d-flex align-items-center gap-2">
+              <button type="button"
+                      class="btn btn-outline-secondary btn-sm is-active"
+                      data-peak-auto-visibility
+                      title="Hide auto markers"
+                      aria-label="Hide auto markers"
+                      aria-pressed="true">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
               <div class="btn-group btn-group-sm" role="group" aria-label="Manual vs auto peak markers">
                 <input type="radio" class="btn-check" name="peak-mode" id="tb2_peak_mode_auto" autocomplete="off" checked data-peak-control="manual-mode-auto">
                 <label class="btn btn-outline-secondary" for="tb2_peak_mode_auto">Auto</label>
@@ -432,23 +440,28 @@
                 </div>
               </div>
             </div>
+            <div class="dropdown ms-auto">
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-peak-toggle btn-sm"
+                      data-bs-toggle="dropdown"
+                      data-bs-auto-close="outside"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                      title="Peak defaults"
+                      aria-label="Peak defaults"
+                      style="min-width:32px">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+              </button>
+              <div class="dropdown-menu dropdown-menu-end">
+                <button type="button" class="dropdown-item" data-peak-default-action="set">Set as default</button>
+                <button type="button" class="dropdown-item" data-peak-default-action="apply">Apply default</button>
+              </div>
+            </div>
           </div>
           <div class="workspace-peak-style-block workspace-peak-style-inline">
             <label class="workspace-peak-style-label mb-0">Style</label>
             <div class="workspace-peak-style-grid" role="radiogroup" aria-label="Marker style">
-              <button type="button" class="workspace-peak-style is-active" data-peak-marker-style="dot" aria-pressed="true">
-                <span class="workspace-peak-style-preview dot" aria-hidden="true"></span>
-                <span class="visually-hidden">Dot marker</span>
-              </button>
-              <button type="button" class="workspace-peak-style" data-peak-marker-style="triangle" aria-pressed="false">
-                <span class="workspace-peak-style-preview triangle" aria-hidden="true"></span>
-                <span class="visually-hidden">Triangle marker</span>
-              </button>
-              <button type="button" class="workspace-peak-style" data-peak-marker-style="square" aria-pressed="false">
-                <span class="workspace-peak-style-preview square" aria-hidden="true"></span>
-                <span class="visually-hidden">Square marker</span>
-              </button>
-              <button type="button" class="workspace-peak-style" data-peak-marker-style="slit" aria-pressed="false">
+              <button type="button" class="workspace-peak-style is-active" data-peak-marker-style="slit" aria-pressed="true">
                 <span class="workspace-peak-style-preview slit" aria-hidden="true"></span>
                 <span class="visually-hidden">Slit marker</span>
               </button>
@@ -456,9 +469,21 @@
                 <span class="workspace-peak-style-preview chevron" aria-hidden="true"></span>
                 <span class="visually-hidden">Chevron marker</span>
               </button>
+              <button type="button" class="workspace-peak-style" data-peak-marker-style="triangle" aria-pressed="false">
+                <span class="workspace-peak-style-preview triangle" aria-hidden="true"></span>
+                <span class="visually-hidden">Triangle marker</span>
+              </button>
               <button type="button" class="workspace-peak-style" data-peak-marker-style="triangle-down" aria-pressed="false">
                 <span class="workspace-peak-style-preview triangle-down" aria-hidden="true"></span>
                 <span class="visually-hidden">Triangle down marker</span>
+              </button>
+              <button type="button" class="workspace-peak-style" data-peak-marker-style="dot" aria-pressed="false">
+                <span class="workspace-peak-style-preview dot" aria-hidden="true"></span>
+                <span class="visually-hidden">Dot marker</span>
+              </button>
+              <button type="button" class="workspace-peak-style" data-peak-marker-style="square" aria-pressed="false">
+                <span class="workspace-peak-style-preview square" aria-hidden="true"></span>
+                <span class="visually-hidden">Square marker</span>
               </button>
             </div>
           </div>

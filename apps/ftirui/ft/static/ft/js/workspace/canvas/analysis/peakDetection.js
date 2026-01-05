@@ -25,7 +25,7 @@ const MARKER_STYLE_MAP = {
   'triangle-down': { symbol: 'triangle-down', size: 12 },
   square: { symbol: 'square', size: 11 },
   cross: { symbol: 'x', size: 13 },
-  slit: { symbol: 'line-ns', size: 16 },
+  slit: { symbol: 'line-ns-open', size: 28 },
   // Arrowheads (inverted: default points down for peaks; alt points up for dips)
   chevron: { symbol: 'arrow-down', altSymbol: 'arrow-up', size: 14 }
 };
@@ -451,14 +451,14 @@ export function buildPeakOverlays(peaks = [], {
     mode: 'markers',
     name: 'Peaks',
     showlegend: false,
-    hovertemplate: '%{customdata.kind} %{customdata.traceLabel}<br>%{x:.2f} cm^-1<br>Intensity %{y:.2f}<extra></extra>',
+    hoverinfo: 'skip',
     x: safePeaks.map((peak) => peak.x),
     y: safePeaks.map((peak) => computeMarkerY(peak)),
     marker: {
       size: markerSize ?? markerConfig.size,
       symbol: markerSymbols,
       color: overrideColor || safePeaks[0]?.color || '#e85d04',
-      line: { width: 1, color: '#fff' }
+      line: { width: markerStyle === 'slit' ? 1.5 : 1, color: '#fff' }
     },
     meta: { peakOverlay: true, peakOverlayType: 'marker' },
     customdata: safePeaks.map((peak) => ({

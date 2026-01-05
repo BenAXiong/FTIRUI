@@ -3170,6 +3170,7 @@ const recordOperation = (entry) => {
     }
     panelsModel.updatePanelFigure(panelId, nextFigure);
     Plot.renderNow(panelId, { reason });
+    peakMarkingController?.handleTraceStyleChange?.(panelId);
   };
 
   const applyThemeToAllPlotPanels = ({
@@ -3929,6 +3930,7 @@ let updateCanvasState = () => {};
                 pushHistory();
                 Actions.setTraceColor(handle.panelId, handle.traceIndex, colorValue);
                 persist();
+                peakMarkingController?.handleTraceStyleChange?.(handle.panelId);
               }
               target.color = colorValue;
               target.line = target.line || {};
@@ -4106,14 +4108,28 @@ let updateCanvasState = () => {};
       || payload.meta?.Y_UNITS
       || 'Intensity';
     const xLabel = payload.meta?.X_UNITS || 'Wavenumber';
-  const axisDefaults = {
-    showgrid: false,
-    showline: true,
-    mirror: true,
-    ticks: 'outside',
-    linewidth: 1,
-    zeroline: false
-  };
+    const xValues = ensureArray(payload?.x || payload?.wavenumber);
+    const resolveAutorange = () => {
+      if (payload?.meta?.X_INVERTED === true) return 'reversed';
+      if (payload?.meta?.X_INVERTED === false) return true;
+      const numericX = xValues.map((value) => Number(value)).filter((value) => Number.isFinite(value));
+      if (numericX.length >= 2) {
+        const first = numericX[0];
+        const last = numericX[numericX.length - 1];
+        if (first > last) return 'reversed';
+      }
+      // FTIR convention: default to decreasing wavenumber (high -> low)
+      return 'reversed';
+    };
+    const autorange = resolveAutorange();
+    const axisDefaults = {
+      showgrid: false,
+      showline: true,
+      mirror: true,
+      ticks: 'outside',
+      linewidth: 1,
+      zeroline: false
+    };
 
     const baseLayout = {
       hovermode: 'x',
@@ -4124,7 +4140,7 @@ let updateCanvasState = () => {};
           ticks: 'outside',
           showgrid: false
         },
-        autorange: true,
+        autorange,
         title: { text: xLabel }
       },
       yaxis: {
@@ -4611,9 +4627,19 @@ let updateCanvasState = () => {};
 
   const addGraphToSection = (sectionId) => {
     if (!sectionManager.has(sectionId)) return;
-    const panelId = ingestPayloadAsPanel({
-      name: `Sample ${getNextPanelSequence()}`
-    }, { sectionId });
+    const sampleIndex = getNextPanelSequence();
+    const baseWavenumbers = [4000, 3600, 3200, 2800, 2400, 2000, 1800, 1600, 1400, 1200, 1000, 800, 600, 400];
+    const sampleTrace = {
+      name: `Sample ${sampleIndex}`,
+      x: baseWavenumbers, // descending to match FTIR convention
+      y: baseWavenumbers.map((wn, idx) => Math.sin(idx / 1.8) * 0.2 + 1 - idx * 0.02),
+      meta: {
+        X_INVERTED: true,
+        X_UNITS: 'Wavenumber (cm^-1)',
+        Y_UNITS: 'Absorbance'
+      }
+    };
+    const panelId = ingestPayloadAsPanel(sampleTrace, { sectionId });
     if (panelId) {
       const record = getPanelRecord(panelId);
       const label = resolvePanelTitle(record);
@@ -5508,6 +5534,7 @@ let updateCanvasState = () => {};
     const canvasRoot = document.getElementById('c_canvas_root');
     const manualClickHandlers = new Map();
     const relayoutHandlers = new Map();
+    const tooltipHandlers = new Map();
 
     const dom = {
       sensitivity: menu.querySelector('[data-peak-control="sensitivity"]'),
@@ -5516,6 +5543,7 @@ let updateCanvasState = () => {};
       smoothing: menu.querySelector('[data-peak-control="smoothing"]'),
       manualModeAuto: menu.querySelector('[data-peak-control="manual-mode-auto"]'),
       manualPlacement: menu.querySelector('[data-peak-control="manual-mode"]'),
+      autoVisibilityButton: menu.querySelector('[data-peak-auto-visibility]'),
       offsetAmount: menu.querySelector('[data-peak-control="marker-offset-amount"]'),
       offsetAmountLabel: menu.querySelector('[data-peak-offset-label]'),
       markerSize: menu.querySelector('[data-peak-control="marker-size"]'),
@@ -5540,7 +5568,8 @@ let updateCanvasState = () => {};
       chevronPreview: menu.querySelector('[data-peak-marker-style="chevron"] .workspace-peak-style-preview.chevron'),
       copyButton: menu.querySelector('[data-peak-copy]'),
       spreadsheetButton: menu.querySelector('[data-peak-export]'),
-      clearManualButton: menu.querySelector('[data-peak-clear-manual]')
+      clearManualButton: menu.querySelector('[data-peak-clear-manual]'),
+      defaultActionButtons: Array.from(menu.querySelectorAll('[data-peak-default-action]'))
     };
     const labelOptions = {
       menu: menu.querySelector('.workspace-peak-label-options'),
@@ -5670,6 +5699,7 @@ let updateCanvasState = () => {};
       showMarkers: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'markers')?.classList.contains('is-active') ?? true,
       showLines: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'lines')?.classList.contains('is-active') ?? true,
       showLabels: dom.visibilityButtons?.find((btn) => btn.dataset.peakVisibility === 'labels')?.classList.contains('is-active') ?? false,
+      showAutoMarkers: dom.autoVisibilityButton?.classList.contains('is-active') ?? true,
       manualPlacement: dom.manualPlacement?.checked ?? false,
       manualModeAuto: dom.manualModeAuto?.checked ?? true,
       offsetAmount: toNumber(dom.offsetAmount?.value ?? 0, 0),
@@ -5717,6 +5747,168 @@ let updateCanvasState = () => {};
       if (dom.menuToggle) {
         dom.menuToggle.checked = enabled;
         dom.menuToggle.disabled = !state.activePanelAvailable;
+      }
+    };
+
+    const setAutoVisibility = (visible) => {
+      state.showAutoMarkers = !!visible;
+      if (!dom.autoVisibilityButton) return;
+      const label = state.showAutoMarkers ? 'Hide auto markers' : 'Show auto markers';
+      dom.autoVisibilityButton.classList.toggle('is-active', state.showAutoMarkers);
+      dom.autoVisibilityButton.setAttribute('aria-pressed', String(state.showAutoMarkers));
+      dom.autoVisibilityButton.setAttribute('aria-label', label);
+      dom.autoVisibilityButton.setAttribute('title', label);
+      const icon = dom.autoVisibilityButton.querySelector('i');
+      if (icon) {
+        icon.classList.toggle('bi-eye', state.showAutoMarkers);
+        icon.classList.toggle('bi-eye-slash', !state.showAutoMarkers);
+      }
+    };
+
+    setAutoVisibility(state.showAutoMarkers);
+
+    const PEAK_DEFAULTS_STORAGE_KEY = 'ftir.workspace.peakDefaults.v1';
+
+    const getActiveTechKey = () => {
+      const key = techSelectorController?.toggle?.dataset?.techKey
+        || document.getElementById('tb2_tech_selector')?.dataset?.techKey;
+      return key || 'default';
+    };
+
+    const readPeakDefaults = () => {
+      try {
+        const raw = window?.localStorage?.getItem(PEAK_DEFAULTS_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+
+    const writePeakDefaults = (nextDefaults) => {
+      try {
+        window?.localStorage?.setItem(PEAK_DEFAULTS_STORAGE_KEY, JSON.stringify(nextDefaults || {}));
+      } catch {
+        /* ignore storage failures */
+      }
+    };
+
+    const buildDisplayDefaults = () => ({
+      showMarkers: state.showMarkers,
+      showLines: state.showLines,
+      showLabels: state.showLabels,
+      showAutoMarkers: state.showAutoMarkers,
+      markerStyle: state.markerStyle,
+      lineStyle: state.lineStyle,
+      labelFormat: state.labelFormat,
+      offsetAmount: state.offsetAmount,
+      markerSize: state.markerSize,
+      labelSize: state.labelSize,
+      labelBox: state.labelBox,
+      labelBoxThickness: state.labelBoxThickness,
+      labelAlign: state.labelAlign,
+      labelStyle: { ...(state.labelStyle || {}) }
+    });
+
+    const applyDisplayDefaults = (display = {}) => {
+      const setVisibilityToggle = (key, value) => {
+        dom.visibilityButtons.forEach((btn) => {
+          if (btn.dataset.peakVisibility !== key) return;
+          btn.classList.toggle('is-active', value);
+          btn.setAttribute('aria-pressed', String(value));
+        });
+      };
+      if (display.showMarkers !== undefined) {
+        state.showMarkers = !!display.showMarkers;
+        setVisibilityToggle('markers', state.showMarkers);
+      }
+      if (display.showLines !== undefined) {
+        state.showLines = !!display.showLines;
+        setVisibilityToggle('lines', state.showLines);
+      }
+      if (display.showLabels !== undefined) {
+        state.showLabels = !!display.showLabels;
+        setVisibilityToggle('labels', state.showLabels);
+      }
+      if (display.showAutoMarkers !== undefined) {
+        setAutoVisibility(display.showAutoMarkers);
+      }
+      if (display.markerStyle && dom.markerButtons.length) {
+        state.markerStyle = display.markerStyle;
+        dom.markerButtons.forEach((btn) => {
+          const active = btn.dataset.peakMarkerStyle === display.markerStyle;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      if (display.lineStyle && dom.guideStyleButtons.length) {
+        state.lineStyle = display.lineStyle;
+        dom.guideStyleButtons.forEach((btn) => {
+          const active = btn.dataset.peakLineStyle === display.lineStyle;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      } else if (dom.lineStyle && typeof display.lineStyle === 'string') {
+        dom.lineStyle.value = display.lineStyle;
+        state.lineStyle = display.lineStyle;
+      }
+      if (dom.labelFormatButtons?.length && typeof display.labelFormat === 'string') {
+        state.labelFormat = display.labelFormat;
+        dom.labelFormatButtons.forEach((btn) => {
+          const active = btn.dataset.peakLabelFormat === display.labelFormat;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      const boxThickness = Number.isFinite(display.labelBoxThickness)
+        ? display.labelBoxThickness
+        : (display.labelBox ? 1 : 0);
+      state.labelBoxThickness = boxThickness;
+      state.labelBox = boxThickness > 0;
+      if (dom.labelBoxThickness) {
+        dom.labelBoxThickness.value = boxThickness;
+      }
+      if (dom.labelAlignButtons?.length && typeof display.labelAlign === 'string') {
+        const align = ['left', 'center', 'right'].includes(display.labelAlign) ? display.labelAlign : 'center';
+        state.labelAlign = align;
+        dom.labelAlignButtons.forEach((btn) => {
+          const active = btn.dataset.peakLabelAlign === align;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      if (dom.labelStyleButtons?.length && display.labelStyle && typeof display.labelStyle === 'object') {
+        state.labelStyle = {
+          bold: display.labelStyle.bold === true,
+          italic: display.labelStyle.italic === true,
+          underline: display.labelStyle.underline === true,
+          strike: display.labelStyle.strike === true
+        };
+        dom.labelStyleButtons.forEach((btn) => {
+          const key = btn.dataset.peakLabelStyle;
+          const active = state.labelStyle[key] === true;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      }
+      state.labelColor = null;
+      if (labelOptions.palette) {
+        labelOptions.palette.querySelectorAll('.chip-swatch').forEach((sw) => sw.classList.remove('is-active'));
+      }
+      if (Number.isFinite(display.labelSize) && dom.labelSize) {
+        state.labelSize = display.labelSize;
+        dom.labelSize.value = state.labelSize;
+      }
+      if (Number.isFinite(display.offsetAmount) && dom.offsetAmount) {
+        state.offsetAmount = display.offsetAmount;
+        dom.offsetAmount.value = state.offsetAmount;
+        updateOffsetLabel();
+      }
+      if (Number.isFinite(display.markerSize) && dom.markerSize) {
+        state.markerSize = display.markerSize;
+        dom.markerSize.value = state.markerSize;
+        updateMarkerSizeLabel();
       }
     };
 
@@ -5904,6 +6096,9 @@ let updateCanvasState = () => {};
       if (display.showLabels !== undefined) {
         setToggle(dom.visibilityButtons, 'labels', display.showLabels);
         state.showLabels = !!display.showLabels;
+      }
+      if (display.showAutoMarkers !== undefined) {
+        setAutoVisibility(display.showAutoMarkers);
       }
 
       if (display.markerStyle && dom.markerButtons.length) {
@@ -6157,6 +6352,8 @@ let updateCanvasState = () => {};
         const isMarker = pt?.data?.meta?.peakOverlay === true || pt?.customdata?.peakOverlay === true;
         if (isShift && isMarker) {
           event?.event?.preventDefault?.();
+          event?.event?.stopPropagation?.();
+          event?.event?.stopImmediatePropagation?.();
           const markerId = pt?.customdata?.id || pt?.data?.customdata?.[pt.pointIndex]?.id;
           const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
           if (!figure) return;
@@ -6211,6 +6408,75 @@ let updateCanvasState = () => {};
       manualClickHandlers.set(panelId, { plotEl, handler });
     };
 
+    const detachTooltipHandler = (panelId) => {
+      const entry = tooltipHandlers.get(panelId);
+      if (!entry) return;
+      if (entry.plotEl) {
+        if (typeof entry.plotEl.removeListener === 'function') {
+          entry.plotEl.removeListener('plotly_click', entry.clickHandler);
+        } else if (typeof entry.plotEl.off === 'function') {
+          entry.plotEl.off('plotly_click', entry.clickHandler);
+        }
+      }
+      tooltipHandlers.delete(panelId);
+    };
+
+    const attachTooltipHandler = (panelId) => {
+      detachTooltipHandler(panelId);
+      if (!panelId || typeof getPanelDom !== 'function') return;
+      const panelDom = getPanelDom(panelId);
+      const plotEl = panelDom?.plotEl;
+      const Plotly = typeof window !== 'undefined' ? window.Plotly : null;
+      if (!plotEl || typeof plotEl.on !== 'function' || !Plotly?.relayout) return;
+      const isPeakMarker = (pt) => pt?.data?.meta?.peakOverlay === true
+        && pt?.data?.meta?.peakOverlayType === 'marker';
+      const buildTooltipText = (pt) => {
+        const kind = pt?.customdata?.kind || 'Peak';
+        const traceLabel = pt?.customdata?.traceLabel || 'Trace';
+        const x = Number.isFinite(pt?.x) ? pt.x.toFixed(2) : pt?.x;
+        const y = Number.isFinite(pt?.y) ? pt.y.toFixed(2) : pt?.y;
+        return `${kind} ${traceLabel}<br>${x} cm^-1<br>Intensity ${y}`;
+      };
+      const clickHandler = (event) => {
+        if (state.manualPlacement) return;
+        const pt = Array.isArray(event?.points) ? event.points[0] : null;
+        const baseAnnotations = ensureArray(plotEl.layout?.annotations);
+        const keep = baseAnnotations.filter((ann) => ann?.meta?.peakOverlayType !== 'click-tooltip');
+        if (!isPeakMarker(pt)) {
+          if (keep.length !== baseAnnotations.length) {
+            Plotly.relayout(plotEl, { annotations: keep });
+          }
+          return;
+        }
+        const hoverLabel = plotEl._fullLayout?.hoverlabel || {};
+        const font = { ...(hoverLabel.font || {}) };
+        if (!font.color) font.color = '#0f172a';
+        if (!font.size) font.size = 12;
+        const tooltip = {
+          x: pt.x,
+          y: pt.y,
+          text: buildTooltipText(pt),
+          showarrow: true,
+          ax: 0,
+          ay: -24,
+          xanchor: 'center',
+          yanchor: 'bottom',
+          align: 'left',
+          bgcolor: hoverLabel.bgcolor || '#ffffff',
+          bordercolor: hoverLabel.bordercolor || '#0f172a',
+          borderwidth: 1,
+          font,
+          meta: { peakOverlay: true, peakOverlayType: 'click-tooltip' }
+        };
+        Plotly.relayout(plotEl, { annotations: [...keep, tooltip] });
+      };
+      plotEl.on('plotly_click', clickHandler);
+      tooltipHandlers.set(panelId, {
+        plotEl,
+        clickHandler
+      });
+    };
+
     const detachRelayoutHandler = (panelId) => {
       const entry = relayoutHandlers.get(panelId);
       if (!entry) return;
@@ -6232,8 +6498,8 @@ let updateCanvasState = () => {};
       const Plotly = typeof window !== 'undefined' ? window.Plotly : null;
       if (!plotEl || typeof plotEl.on !== 'function' || !Plotly?.relayout) return;
       const handler = (relayoutData) => {
-        const wantsXAuto = relayoutData?.['xaxis.autorange'] === true;
-        const wantsYAuto = relayoutData?.['yaxis.autorange'] === true;
+        const wantsXAuto = relayoutData?.['xaxis.autorange'];
+        const wantsYAuto = relayoutData?.['yaxis.autorange'];
         if (!wantsXAuto && !wantsYAuto) return;
         const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
         if (!figure) return;
@@ -6242,7 +6508,10 @@ let updateCanvasState = () => {};
         if (wantsXAuto) {
           const xRange = computeTraceRange(base.data, 'x');
           if (xRange) {
-            updates['xaxis.range'] = expandRange(xRange) || xRange;
+            const currentAuto = figure?.layout?.xaxis?.autorange;
+            const isReversed = wantsXAuto === 'reversed' || currentAuto === 'reversed';
+            const range = expandRange(xRange) || xRange;
+            updates['xaxis.range'] = isReversed ? [range[1], range[0]] : range;
             updates['xaxis.autorange'] = false;
           }
         }
@@ -6329,7 +6598,10 @@ let updateCanvasState = () => {};
         };
       });
       const mergedPeaks = [...peaks, ...manualPeaks];
-      const overlays = buildPeakOverlays(mergedPeaks, {
+      const overlayPeaks = state.showAutoMarkers
+        ? mergedPeaks
+        : mergedPeaks.filter((peak) => peak?.source?.manual);
+      const overlays = buildPeakOverlays(overlayPeaks, {
         markerStyle: state.markerStyle,
         lineStyle: state.lineStyle,
         labelFormat: state.labelFormat,
@@ -6375,6 +6647,7 @@ let updateCanvasState = () => {};
               showMarkers: state.showMarkers,
               showLines: state.showLines,
               showLabels: state.showLabels,
+              showAutoMarkers: state.showAutoMarkers,
               markerStyle: state.markerStyle,
               lineStyle: state.lineStyle,
               labelFormat: state.labelFormat,
@@ -6524,6 +6797,59 @@ let updateCanvasState = () => {};
           detectPeaksForPanel(panelId, { silentEmpty: true });
         }
       }
+    };
+
+    const handleAutoVisibilityToggle = () => {
+      setAutoVisibility(!state.showAutoMarkers);
+      if (state.enabled) {
+        requestRerun();
+      } else {
+        const panelId = getActivePanel();
+        if (panelId) {
+          detectPeaksForPanel(panelId, { silentEmpty: true });
+        }
+      }
+    };
+
+    const handleDefaultActionClick = (event) => {
+      const action = event?.currentTarget?.dataset?.peakDefaultAction;
+      if (!action) return;
+      const techKey = getActiveTechKey();
+      if (action === 'set') {
+        const defaults = readPeakDefaults();
+        defaults[techKey] = buildDisplayDefaults();
+        writePeakDefaults(defaults);
+        notify?.('Saved peak defaults for this tech.', 'success');
+        return;
+      }
+      if (action === 'apply') {
+        const defaults = readPeakDefaults();
+        const display = defaults?.[techKey];
+        if (!display) {
+          notify?.('No peak defaults saved for this tech.', 'info');
+          return;
+        }
+        applyDisplayDefaults(display);
+        if (state.enabled) {
+          requestRerun();
+        } else {
+          const panelId = getActivePanel();
+          if (panelId) {
+            detectPeaksForPanel(panelId, { silentEmpty: true });
+          }
+        }
+        notify?.('Applied peak defaults.', 'success');
+      }
+    };
+
+    const handleTraceStyleChange = (panelId) => {
+      if (!panelId) return;
+      if (panelId !== getActivePanel()) return;
+      const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+      if (!figure) return;
+      const overlaysActive = figure.layout?.meta?.peakMarking?.enabled || figureHasPeakOverlays(figure);
+      if (!overlaysActive) return;
+      detectPeaksForPanel(panelId, { silentEmpty: true });
     };
 
     const handleMarkerStyleClick = (event) => {
@@ -6697,6 +7023,7 @@ let updateCanvasState = () => {};
       section.querySelectorAll('input, select, button').forEach((el) => {
         if (el.id === 'tb2_peak_mode_manual' || el.id === 'tb2_peak_mode_auto') return;
         if (el.dataset?.peakClearManual !== undefined) return;
+        if (el.dataset?.peakAutoVisibility !== undefined) return;
         el.disabled = !!disabled;
       });
     };
@@ -6752,6 +7079,8 @@ let updateCanvasState = () => {};
         hideAutoOptions(false);
       }
     });
+    (dom.defaultActionButtons || []).forEach((button) => addListener(button, 'click', handleDefaultActionClick));
+    addListener(dom.autoVisibilityButton, 'click', handleAutoVisibilityToggle);
     addListener(dom.offsetAmount, 'input', () => {
       state.offsetAmount = toNumber(dom.offsetAmount.value, state.offsetAmount);
       updateOffsetLabel();
@@ -6837,6 +7166,7 @@ let updateCanvasState = () => {};
     updateTargetLabel(getActivePanel());
     syncMenuFromFigure(getActivePanel());
     attachManualHandler(getActivePanel());
+    attachTooltipHandler(getActivePanel());
     hideAutoOptions(state.manualPlacement);
     hydrateLabelSwatches();
 
@@ -6848,7 +7178,11 @@ let updateCanvasState = () => {};
         syncMenuFromFigure(panelId);
         updateTargetLabel(panelId);
         attachManualHandler(panelId);
+        attachTooltipHandler(panelId);
         attachRelayoutHandler(panelId);
+      },
+      handleTraceStyleChange(panelId) {
+        handleTraceStyleChange(panelId);
       },
       teardown() {
         cancelScheduledRerun();
@@ -6858,6 +7192,7 @@ let updateCanvasState = () => {};
           }
         });
         manualClickHandlers.forEach((_, panelId) => detachManualHandler(panelId));
+        tooltipHandlers.forEach((_, panelId) => detachTooltipHandler(panelId));
         relayoutHandlers.forEach((_, panelId) => detachRelayoutHandler(panelId));
       }
     };

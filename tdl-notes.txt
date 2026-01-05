@@ -1,8 +1,11 @@
+$env:WORKSPACE_LEGACY_ENABLED = "false"
+___________________________________
 Misc improvements
 
 br -- consider tabs: panels, explorer, dashboard (to see current project and switch canvases)
 back to dash baord button...
 gr eye !!!
+gr add revert x axis
 share!
 can highligh onfocus panel (will be needed for multi select)
 regroup axes, ticks, + in big popup?
@@ -26,6 +29,8 @@ gr insert button: arrow, line, txt, etc
 tb1 consider merging 1 & 2 + add import canvas from backup
 br instead of the left/right chevron to pin/unpin the browser, switch to the empty/full pin icon
 can graph "ears" (tabs) to auto display spreadsheet on same panel + detachable (still linked and retachable)
+gr lock graphs to prevent accidental modifications
+bug tb2/s3 set/apply default unredo 
 _________________________________________________________________________________________________
 Polishing
 
@@ -49,6 +54,10 @@ Polishing
 - wks/tb1/exp: review all 3 formats
 - wks/tb2/s3: detect peak type: single and in band etx to determine auto label position
 - wks/tb2/s3: label format: custom
+- wks/gr: hide graphs headers when not in focus but leave a trace of the name and tag like miro frames
+- can/tb1: drawing for handy notes and highlitghing (see observable)
+- can/tb2: s3 separate marker styling for each trace (esp colors), possibly niche, make auto color first
+- can/tb2: behavior of traces migration when markers are present?
 ___________________________________________________________
 Future work
 
@@ -65,6 +74,7 @@ Future work
 - import opj and opju
 - attach files like gdocs for collab
 - .ben = binned/basic/? experiment notebook
+- custom tags (based on existing)
 ___________________________________________________________
 Bugs
 
