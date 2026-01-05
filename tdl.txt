@@ -5,7 +5,7 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
 - [-] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
 - [-] 2/ Graph type (main = line, secondary = bars, scatter, etc).
 - [-] Buttons for tech = FT-IR
-    - [-] 3/ Peak marking (auto + manual)
+    - [x] 3/ Peak marking (auto + manual)
     - [ ] 4/ Integration
     - [ ] 5/ ATR correction
     - [ ] 6/ Smoothing
@@ -13,26 +13,24 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
     - [ ] 8/ Spectral library
     - [ ] 9/ Placeholder
     - [ ] 0/ Options: move to other project, ???
-- [ ] Buttons for other techs: placeholders
+- [ ] Buttons for other techs: auto placeholders (XRD1, XRD2,..., MS1,...)
 
 Phase 4 – Graph controls & exports
-- [ ] Ship graph header utilities (Style Painter, templates, pin/lock).
-- [ ] Expand export dialog (vector graphic, zoom/dpi, presets, selection vs all, watermark).
-- [ ] Clarify graph renaming area and support double-click header to toggle full screen.
+- [ ] New graph header utilities.
+    - [ ] 1/ Style Painter
+    - [ ] 2/ Templates
+    - [ ] 3/ Pin/lock
+- [ ] Expand export dialog. (vector graphic, z, p, s, watermark).
+    - [ ] 1/ Vector graphic
+    - [ ] 2/ Zoom/dpi
+    - [ ] 3/ Presets
+    - [ ] 4/ Selection (current view) vs all
+    - [ ] 1/ 
+    - [ ] 1/ 
+- [ ] ? Clarify graph renaming area
+- [ ] ? Support double-click header to toggle full screen.
 
-    Graphs features (header buttons)
-    - [ ] Style painter (duplicate / copy-paste specific)
-    - [ ] Export
-        - [ ] Plot as "vector graphic"
-        - [ ] MVP options (e.g. zoom, dpi)
-        - [ ] Presets / templates
-        - [ ] Current view (plot selection) vs all data
-        - [ ] Watermark for anonymous (?
-    - [ ] Templates (save up to 3)
-    - [ ] Pin and lock
-    - [ ] Limit rename to just the name area and double click header to trigger full screen.
-
-Phase 4 – Plotly & canvas interaction upgrades
+Phase 5 – Plotly & canvas interaction upgrades
 - [ ] Remove unused Plotly icons and refine manual axis input UX (double-click behavior, zoom snap).
 - [ ] Support zooming from plot borders and other interaction affordances.
 
@@ -41,7 +39,7 @@ Phase 4 – Plotly & canvas interaction upgrades
     - [ ] (see Plotly manual) rethink axis manual input (double click somewhere? & match current zoom + snap to nearest round number maybe
     - [ ] zoom from plot borders
 
-Phase 5 – Polishing pass
+Phase 6 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).

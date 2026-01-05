@@ -3616,6 +3616,85 @@ let updateCanvasState = () => {};
     };
   })();
 
+  const TECH_TOOLBAR_BUTTONS = [
+    { id: 'tb2_peak_marking', slot: 3 },
+    { id: 'tb2_peak_integration', slot: 4 },
+    { id: 'tb2_atr_correction', slot: 5 },
+    { id: 'tb2_smoothing', slot: 6 },
+    { id: 'tb2_derivatization', slot: 7 },
+    { id: 'tb2_spectral_library', slot: 8 },
+    { id: 'tb2_placeholder_help', slot: 9 }
+  ];
+  const techToolbarDefaults = new Map();
+
+  const captureTechToolbarDefaults = () => {
+    TECH_TOOLBAR_BUTTONS.forEach(({ id }) => {
+      const button = document.getElementById(id);
+      if (!button) return;
+      const hidden = button.querySelector('.visually-hidden');
+      techToolbarDefaults.set(id, {
+        title: button.getAttribute('title') || '',
+        ariaLabel: button.getAttribute('aria-label') || '',
+        hiddenText: hidden ? hidden.textContent : ''
+      });
+    });
+  };
+
+  const restoreTechToolbarDefaults = () => {
+    TECH_TOOLBAR_BUTTONS.forEach(({ id }) => {
+      const button = document.getElementById(id);
+      const defaults = techToolbarDefaults.get(id);
+      if (!button || !defaults) return;
+      button.setAttribute('title', defaults.title);
+      button.setAttribute('aria-label', defaults.ariaLabel);
+      const hidden = button.querySelector('.visually-hidden');
+      if (hidden) {
+        hidden.textContent = defaults.hiddenText;
+      }
+    });
+  };
+
+  const resolveTechToken = (techKey) => {
+    const options = techSelectorController?.options || [];
+    const option = options.find((opt) => opt.getAttribute('data-tech-option') === techKey);
+    const symbol = option?.getAttribute('data-tech-symbol')
+      || option?.getAttribute('data-tech-label')
+      || techKey
+      || 'Tech';
+    return symbol.replace(/\s+/g, '');
+  };
+
+  const updateTechToolbarLabels = (techKey) => {
+    if (!techKey) return;
+    if (!techToolbarDefaults.size) {
+      captureTechToolbarDefaults();
+    }
+    if (techKey === 'ftir') {
+      restoreTechToolbarDefaults();
+      return;
+    }
+    const token = resolveTechToken(techKey).toUpperCase();
+    TECH_TOOLBAR_BUTTONS.forEach(({ id, slot }) => {
+      const button = document.getElementById(id);
+      if (!button) return;
+      const label = `${token}${slot}`;
+      button.setAttribute('title', label);
+      button.setAttribute('aria-label', label);
+      const hidden = button.querySelector('.visually-hidden');
+      if (hidden) {
+        hidden.textContent = label;
+      }
+    });
+  };
+
+  if (techSelectorController?.toggle) {
+    captureTechToolbarDefaults();
+    updateTechToolbarLabels(techSelectorController.toggle.dataset.techKey || 'ftir');
+    techSelectorController.toggle.addEventListener('workspace:tech-change', (event) => {
+      updateTechToolbarLabels(event?.detail?.key || techSelectorController.toggle.dataset.techKey);
+    });
+  }
+
   const getBrowserRootEl = () => panelDom.tree || null;
 
   const browserHotspot = (() => {

@@ -2881,11 +2881,35 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.08) 8%);
   min-width: 16rem;
 }
+.workspace-tech-selector-header{
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--bs-body-color);
+  margin-bottom: .75rem;
+}
+.workspace-tech-selector-title{
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: color-mix(in srgb, var(--bs-body-color) 65%, transparent);
+  margin-bottom: .4rem;
+}
+.workspace-tech-selector-section + .workspace-tech-selector-section{
+  margin-top: .85rem;
+  padding-top: .7rem;
+  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
+}
 .workspace-tech-selector-grid{
   display: grid;
   grid-template-columns: repeat(5, 2.75rem);
   gap: .4rem;
   justify-items: center;
+}
+.workspace-tech-option:disabled{
+  opacity: .45;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 .workspace-tech-option{
   transition: transform .15s ease, box-shadow .15s ease;

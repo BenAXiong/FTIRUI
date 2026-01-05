@@ -12,87 +12,204 @@
       <span class="visually-hidden" data-tech-label-target>FT-IR controls</span>
     </button>
     <div class="dropdown-menu workspace-tech-selector-menu" aria-labelledby="tb2_tech_selector" data-tech-selector-menu>
-      <div class="workspace-tech-selector-grid">
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option is-active"
-                type="button"
-                data-tech-option="ftir"
-                data-tech-label="FT-IR"
-                data-tech-symbol="IR">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">FT</span>
-          <span class="visually-hidden">Switch to FT-IR controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="nmr"
-                data-tech-label="NMR"
-                data-tech-symbol="NMR">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">NMR</span>
-          <span class="visually-hidden">Switch to NMR controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="xps"
-                data-tech-label="XPS"
-                data-tech-symbol="XPS">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">XPS</span>
-          <span class="visually-hidden">Switch to XPS controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="ec"
-                data-tech-label="EC"
-                data-tech-symbol="EC">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">EC</span>
-          <span class="visually-hidden">Switch to EC controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="xrd"
-                data-tech-label="XRD"
-                data-tech-symbol="XRD">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">XRD</span>
-          <span class="visually-hidden">Switch to XRD controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="ups"
-                data-tech-label="UPS"
-                data-tech-symbol="UPS">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">UPS</span>
-          <span class="visually-hidden">Switch to UPS controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="ms"
-                data-tech-label="MS"
-                data-tech-symbol="MS">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">MS</span>
-          <span class="visually-hidden">Switch to MS controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="xxx"
-                data-tech-label="XXX"
-                data-tech-symbol="XXX">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">XXX</span>
-          <span class="visually-hidden">Switch to XXX controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="yyy"
-                data-tech-label="YYY"
-                data-tech-symbol="YYY">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">YYY</span>
-          <span class="visually-hidden">Switch to YYY controls</span>
-        </button>
-        <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
-                type="button"
-                data-tech-option="zzz"
-                data-tech-label="ZZZ"
-                data-tech-symbol="ZZZ">
-          <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">ZZZ</span>
-          <span class="visually-hidden">Switch to ZZZ controls</span>
-        </button>
+      <div class="workspace-tech-selector-header">Select a <em>Tech</em> to customize the Tech Bar</div>
+      <div class="workspace-tech-selector-section" data-tech-section="spectroscopy">
+        <div class="workspace-tech-selector-title">Spectroscopy</div>
+        <div class="workspace-tech-selector-grid">
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option is-active"
+                  type="button"
+                  data-tech-option="ftir"
+                  data-tech-label="FT-IR"
+                  data-tech-symbol="FT">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">FT</span>
+            <span class="visually-hidden">Switch to FT-IR controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="raman"
+                  data-tech-label="Raman"
+                  data-tech-symbol="RAM">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">RAM</span>
+            <span class="visually-hidden">Switch to Raman controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="uvvis"
+                  data-tech-label="UV-Vis"
+                  data-tech-symbol="UV">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">UV</span>
+            <span class="visually-hidden">Switch to UV-Vis controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="fluorescence"
+                  data-tech-label="Fluorescence"
+                  data-tech-symbol="FL">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">FL</span>
+            <span class="visually-hidden">Switch to Fluorescence controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="epr"
+                  data-tech-label="EPR/ESR"
+                  data-tech-symbol="EPR">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">EPR</span>
+            <span class="visually-hidden">Switch to EPR/ESR controls</span>
+          </button>
+        </div>
+      </div>
+      <div class="workspace-tech-selector-section" data-tech-section="chromatography">
+        <div class="workspace-tech-selector-title">Chromatography / Separation</div>
+        <div class="workspace-tech-selector-grid">
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="gcms"
+                  data-tech-label="GC-MS"
+                  data-tech-symbol="GC">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">GC</span>
+            <span class="visually-hidden">Switch to GC-MS controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="lcms"
+                  data-tech-label="LC-MS"
+                  data-tech-symbol="LC">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">LC</span>
+            <span class="visually-hidden">Switch to LC-MS controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="hplc"
+                  data-tech-label="HPLC"
+                  data-tech-symbol="HP">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">HP</span>
+            <span class="visually-hidden">Switch to HPLC controls</span>
+          </button>
+        </div>
+      </div>
+      <div class="workspace-tech-selector-section" data-tech-section="surface">
+        <div class="workspace-tech-selector-title">Surface / Thin Film</div>
+        <div class="workspace-tech-selector-grid">
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="ellipsometry"
+                  data-tech-label="Ellipsometry"
+                  data-tech-symbol="EL">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">EL</span>
+            <span class="visually-hidden">Switch to Ellipsometry controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="xrf"
+                  data-tech-label="XRF"
+                  data-tech-symbol="XRF">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">XRF</span>
+            <span class="visually-hidden">Switch to XRF controls</span>
+          </button>
+        </div>
+      </div>
+      <div class="workspace-tech-selector-section" data-tech-section="thermal">
+        <div class="workspace-tech-selector-title">Thermal / Materials</div>
+        <div class="workspace-tech-selector-grid">
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="dsc"
+                  data-tech-label="DSC"
+                  data-tech-symbol="DSC">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">DSC</span>
+            <span class="visually-hidden">Switch to DSC controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="tga"
+                  data-tech-label="TGA"
+                  data-tech-symbol="TGA">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">TGA</span>
+            <span class="visually-hidden">Switch to TGA controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="dma"
+                  data-tech-label="DMA"
+                  data-tech-symbol="DMA">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">DMA</span>
+            <span class="visually-hidden">Switch to DMA controls</span>
+          </button>
+        </div>
+      </div>
+      <div class="workspace-tech-selector-section" data-tech-section="electrochemistry">
+        <div class="workspace-tech-selector-title">Electrochemistry</div>
+        <div class="workspace-tech-selector-grid">
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="ec"
+                  data-tech-label="EC"
+                  data-tech-symbol="EC">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">EC</span>
+            <span class="visually-hidden">Switch to EC controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="lsv"
+                  data-tech-label="LSV"
+                  data-tech-symbol="LSV">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">LSV</span>
+            <span class="visually-hidden">Switch to LSV controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="it"
+                  data-tech-label="i-t"
+                  data-tech-symbol="IT">
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">IT</span>
+            <span class="visually-hidden">Switch to i-t controls</span>
+          </button>
+        </div>
+      </div>
+      <div class="workspace-tech-selector-section" data-tech-section="microscopy">
+        <div class="workspace-tech-selector-title">Microscopy / Imaging</div>
+        <div class="workspace-tech-selector-grid">
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="sem"
+                  data-tech-label="SEM"
+                  data-tech-symbol="SEM"
+                  aria-disabled="true"
+                  disabled>
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">SEM</span>
+            <span class="visually-hidden">Switch to SEM controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="tem"
+                  data-tech-label="TEM"
+                  data-tech-symbol="TEM"
+                  aria-disabled="true"
+                  disabled>
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">TEM</span>
+            <span class="visually-hidden">Switch to TEM controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="afm"
+                  data-tech-label="AFM"
+                  data-tech-symbol="AFM"
+                  aria-disabled="true"
+                  disabled>
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">AFM</span>
+            <span class="visually-hidden">Switch to AFM controls</span>
+          </button>
+          <button class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-no-counter workspace-tech-option"
+                  type="button"
+                  data-tech-option="confocal"
+                  data-tech-label="Confocal"
+                  data-tech-symbol="CF"
+                  aria-disabled="true"
+                  disabled>
+            <span class="workspace-toolbar-icon workspace-tech-symbol" aria-hidden="true">CF</span>
+            <span class="visually-hidden">Switch to Confocal controls</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
