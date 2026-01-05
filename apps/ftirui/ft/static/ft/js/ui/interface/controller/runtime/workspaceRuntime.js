@@ -40,6 +40,7 @@ import { createSectionManager } from './sections/manager.js';
 import { createHudButtons } from './controls/createHudButtons.js';
 import { createGlobalCommandsController } from './toolbar/globalCommands.js';
 import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js';
+import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
 import { findPeaks, buildPeakOverlays, buildPeakTableRows, DEFAULT_PEAK_OPTIONS } from '../../../../workspace/canvas/analysis/peakDetection.js';
@@ -3631,6 +3632,11 @@ let updateCanvasState = () => {};
       { node: document.getElementById('tb2_placeholder_help'), slot: 9 }
     ]
   });
+  const techToolbarHandlers = registerTechPlaceholderHandlers({
+    controller: techToolbarLabelController,
+    techOptions: techSelectorController?.options || [],
+    notify: showToast
+  });
 
   const getBrowserRootEl = () => panelDom.tree || null;
 
@@ -7200,6 +7206,7 @@ let updateCanvasState = () => {};
     }
     hudButtonsHandles = null;
     globalCommandsController?.dispose?.();
+    techToolbarHandlers?.teardown?.();
     techToolbarLabelController?.teardown?.();
     peakMarkingController?.teardown?.();
     peakMarkingController = null;

@@ -1,21 +1,20 @@
-const resolveToken = (techKey, techOptions = []) => {
-  if (!techKey) return 'TECH';
-  const option = techOptions.find((opt) => opt?.getAttribute?.('data-tech-option') === techKey);
-  const symbol = option?.getAttribute?.('data-tech-symbol')
-    || option?.getAttribute?.('data-tech-label')
-    || techKey;
-  return String(symbol || 'TECH').replace(/\s+/g, '').toUpperCase();
-};
+import {
+  DEFAULT_TECH_KEY,
+  DEFAULT_TECH_FEATURES,
+  resolveTechFeatureSet
+} from './techToolbarConfig.js';
 
 const captureDefaults = (buttons = []) => {
   const defaults = new Map();
   buttons.forEach(({ node }) => {
     if (!node) return;
     const hidden = node.querySelector('.visually-hidden');
+    const icon = getOriginalIcon(node);
     defaults.set(node, {
       title: node.getAttribute('title') || '',
       ariaLabel: node.getAttribute('aria-label') || '',
-      hiddenText: hidden ? hidden.textContent : ''
+      hiddenText: hidden ? hidden.textContent : '',
+      iconClass: icon ? icon.className : ''
     });
   });
   return defaults;
@@ -48,6 +47,55 @@ const getBadge = (node, icon) => {
   return badge;
 };
 
+const updateIconGlyph = (icon, iconClass) => {
+  if (!icon || !iconClass) return;
+  icon.classList.forEach((cls) => {
+    if (cls.startsWith('bi-')) {
+      icon.classList.remove(cls);
+    }
+  });
+  if (!icon.classList.contains('bi')) {
+    icon.classList.add('bi');
+  }
+  icon.classList.add(iconClass);
+};
+
+const updateButtonLabel = (node, label) => {
+  if (!node) return;
+  node.setAttribute('title', label);
+  node.setAttribute('aria-label', label);
+  const hidden = node.querySelector('.visually-hidden');
+  if (hidden) {
+    hidden.textContent = label;
+  }
+};
+
+const updateButtonAction = (node, feature, slot) => {
+  if (!node) return;
+  if (feature?.action) {
+    node.dataset.techAction = feature.action;
+  }
+  if (slot) {
+    node.dataset.techSlot = String(slot);
+  }
+  if (feature?.isPlaceholder) {
+    node.dataset.techPlaceholder = 'true';
+  } else {
+    delete node.dataset.techPlaceholder;
+  }
+};
+
+const updateButtonAvailability = (node, feature) => {
+  if (!node) return;
+  if (typeof feature?.disabled === 'boolean') {
+    node.disabled = feature.disabled;
+    node.setAttribute('aria-disabled', String(feature.disabled));
+  } else {
+    node.disabled = false;
+    node.removeAttribute('aria-disabled');
+  }
+};
+
 const restoreDefaults = (defaults, buttons = []) => {
   buttons.forEach(({ node }) => {
     const fallback = defaults.get(node);
@@ -60,33 +108,51 @@ const restoreDefaults = (defaults, buttons = []) => {
     }
     const icon = getOriginalIcon(node);
     if (icon) {
+      if (fallback.iconClass) {
+        icon.className = fallback.iconClass;
+      }
       icon.hidden = false;
     }
     const badge = node.querySelector('[data-tech-badge]');
     if (badge) {
       badge.hidden = true;
     }
+    node.disabled = false;
+    node.removeAttribute('aria-disabled');
+    delete node.dataset.techPlaceholder;
   });
 };
 
-const applyTechLabels = (token, buttons = []) => {
+const applyFeatureSet = (features, buttons = []) => {
   buttons.forEach(({ node, slot }) => {
     if (!node) return;
-    const label = `${token}${slot}`;
-    node.setAttribute('title', label);
-    node.setAttribute('aria-label', label);
-    const hidden = node.querySelector('.visually-hidden');
-    if (hidden) {
-      hidden.textContent = label;
-    }
+    const feature = features?.[slot] || {};
+    const label = feature.label || `Slot ${slot}`;
+    updateButtonLabel(node, label);
+    updateButtonAction(node, feature, slot);
+    updateButtonAvailability(node, feature);
+
     const icon = getOriginalIcon(node);
+    const wantsBadge = feature.display === 'badge';
     const badge = getBadge(node, icon);
-    if (icon) {
-      icon.hidden = true;
-    }
-    if (badge) {
-      badge.textContent = label;
-      badge.hidden = false;
+    if (wantsBadge) {
+      if (icon) {
+        icon.hidden = true;
+      }
+      if (badge) {
+        badge.textContent = label;
+        badge.hidden = false;
+      }
+    } else {
+      if (icon) {
+        if (feature.iconClass) {
+          updateIconGlyph(icon, feature.iconClass);
+        }
+        icon.hidden = false;
+      }
+      if (badge) {
+        badge.hidden = true;
+      }
     }
   });
 };
@@ -95,31 +161,88 @@ export function createTechToolbarLabelController({
   techToggle,
   techOptions = [],
   buttons = [],
-  defaultTech = 'ftir'
+  defaultTech = DEFAULT_TECH_KEY,
+  resolveFeatures = resolveTechFeatureSet,
+  handlers = {}
 } = {}) {
   if (!techToggle || !buttons.length) return null;
   const defaults = captureDefaults(buttons);
+  const handlerMap = new Map(Object.entries(handlers || {}));
+  let activeTechKey = techToggle.dataset?.techKey || defaultTech;
+  let activeFeatureSet = resolveFeatures({ techKey: activeTechKey, techOptions, defaultTech });
 
-  const updateLabels = (techKey) => {
-    if (!techKey || techKey === defaultTech) {
+  const updateToolbar = (techKey) => {
+    const nextKey = techKey || defaultTech;
+    activeTechKey = nextKey;
+    activeFeatureSet = resolveFeatures({ techKey: nextKey, techOptions, defaultTech });
+    if (!nextKey || nextKey === defaultTech) {
       restoreDefaults(defaults, buttons);
-      return;
+    } else {
+      applyFeatureSet(activeFeatureSet, buttons);
     }
-    const token = resolveToken(techKey, techOptions);
-    applyTechLabels(token, buttons);
+    Object.entries(DEFAULT_TECH_FEATURES).forEach(([slot, feature]) => {
+      const button = buttons.find((entry) => String(entry.slot) === String(slot))?.node;
+      if (!button) return;
+      updateButtonAction(button, feature, Number(slot));
+    });
+    if (nextKey && nextKey !== defaultTech) {
+      buttons.forEach(({ node, slot }) => {
+        updateButtonAction(node, activeFeatureSet?.[slot], slot);
+      });
+    }
   };
 
   const handleTechChange = (event) => {
-    updateLabels(event?.detail?.key || techToggle.dataset?.techKey);
+    updateToolbar(event?.detail?.key || techToggle.dataset?.techKey);
   };
 
-  updateLabels(techToggle.dataset?.techKey || defaultTech);
+  const handleButtonClick = (event) => {
+    const button = event?.currentTarget;
+    if (!button || button.disabled) return;
+    const action = button.dataset?.techAction;
+    if (!action) return;
+    const handler = handlerMap.get(action);
+    if (typeof handler !== 'function') return;
+    handler({
+      action,
+      slot: Number(button.dataset?.techSlot || 0),
+      techKey: activeTechKey,
+      feature: activeFeatureSet?.[button.dataset?.techSlot],
+      button,
+      event
+    });
+  };
+
+  buttons.forEach(({ node }) => {
+    if (!node || typeof node.addEventListener !== 'function') return;
+    node.addEventListener('click', handleButtonClick);
+  });
+
+  updateToolbar(activeTechKey);
   techToggle.addEventListener('workspace:tech-change', handleTechChange);
 
   return {
-    updateLabels,
+    updateToolbar,
+    getActiveTechKey() {
+      return activeTechKey;
+    },
+    getActiveFeatureSet() {
+      return activeFeatureSet;
+    },
+    registerHandler(action, handler) {
+      if (!action || typeof handler !== 'function') return;
+      handlerMap.set(action, handler);
+    },
+    unregisterHandler(action) {
+      if (!action) return;
+      handlerMap.delete(action);
+    },
     teardown() {
       techToggle.removeEventListener('workspace:tech-change', handleTechChange);
+      buttons.forEach(({ node }) => {
+        if (!node || typeof node.removeEventListener !== 'function') return;
+        node.removeEventListener('click', handleButtonClick);
+      });
     }
   };
 }
