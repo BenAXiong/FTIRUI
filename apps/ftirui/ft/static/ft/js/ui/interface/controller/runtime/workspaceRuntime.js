@@ -20,6 +20,7 @@ import { createBrowserFacade } from './browser/facade.js';
 import { createPersistenceFacade } from './persistence/facade.js';
 import { createPanelsFacade } from './panels/facade.js';
 import { createPanelDomFacade } from './panels/panelDomFacade.js';
+import { createStylePainterController } from './panels/stylePainterController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
 import { plotPanelType } from './panels/registry/plotPanel.js';
 import { markdownPanelType } from './panels/registry/markdownPanel.js';
@@ -3107,6 +3108,8 @@ const recordOperation = (entry) => {
       titleEl: handles.titleEl ?? existing.titleEl ?? null,
       plotEl: handles.plotEl ?? existing.plotEl ?? null,
       cursorButton: handles.cursorButton ?? existing.cursorButton ?? null,
+      stylePainterButton: handles.stylePainterButton ?? existing.stylePainterButton ?? null,
+      stylePainterPopover: handles.stylePainterPopover ?? existing.stylePainterPopover ?? null,
       contentHandles: handles.contentHandles ?? existing.contentHandles ?? null,
       runtime
     };
@@ -3298,6 +3301,7 @@ const createPanelOfType = (typeId, state = {}) => {
   return registerPanel(nextState);
 };
 let panelDomFacade = null;
+let stylePainterController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -5029,6 +5033,20 @@ let updateCanvasState = () => {};
     }
   });
 
+  stylePainterController = createStylePainterController({
+    canvas,
+    getPanelDom,
+    getPanelFigure,
+    updatePanelFigure: (panelId, figure) => panelsModel.updatePanelFigure(panelId, figure),
+    renderPlot,
+    pushHistory,
+    updateHistoryButtons,
+    persist,
+    panelSupportsPlot,
+    showToast,
+    onTraceStyleChange: (panelId) => peakMarkingController?.handleTraceStyleChange?.(panelId)
+  });
+
   panelDomFacade = createPanelDomFacade({
     canvas,
     registerPanelDom,
@@ -5039,7 +5057,10 @@ let updateCanvasState = () => {};
       bringPanelToFront,
       updateToolbarMetrics,
       startPanelRename,
-      setPanelContent
+      setPanelContent,
+      onStylePainterSelectionChange: stylePainterController?.handleSelectionChange,
+      onStylePainterPopoverOpen: stylePainterController?.handlePopoverOpen,
+      onStylePainterButtonClick: stylePainterController?.handleButtonClick
     },
     selectors: {
       getPanelFigure,
@@ -7208,6 +7229,8 @@ let updateCanvasState = () => {};
     globalCommandsController?.dispose?.();
     techToolbarHandlers?.teardown?.();
     techToolbarLabelController?.teardown?.();
+    stylePainterController?.teardown?.();
+    stylePainterController = null;
     peakMarkingController?.teardown?.();
     peakMarkingController = null;
     devToggleButton = null;

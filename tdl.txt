@@ -26,6 +26,7 @@ Phase 7 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
+- [ ] Consider for MVP: alternate version with graph buttons on right side + lables
 
 Phase x – Workflow refinements
 - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.

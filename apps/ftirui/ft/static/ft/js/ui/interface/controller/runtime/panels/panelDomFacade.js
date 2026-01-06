@@ -8,13 +8,16 @@ export function createPanelDomFacade({
   actions = {},
   selectors = {}
 } = {}) {
-  const {
-    handleHeaderAction = () => {},
-    removePanel = () => {},
-    bringPanelToFront = () => {},
-    updateToolbarMetrics = () => {},
-    startPanelRename = () => {},
-    setPanelContent = () => {}
+    const {
+      handleHeaderAction = () => {},
+      removePanel = () => {},
+      bringPanelToFront = () => {},
+      updateToolbarMetrics = () => {},
+      startPanelRename = () => {},
+      setPanelContent = () => {},
+      onStylePainterSelectionChange = () => {},
+      onStylePainterPopoverOpen = () => {},
+      onStylePainterButtonClick = () => {}
   } = actions;
 
     const {
@@ -29,6 +32,15 @@ export function createPanelDomFacade({
   const safeRemovePanel = typeof removePanel === 'function' ? removePanel : () => {};
   const safeBringPanelToFront = typeof bringPanelToFront === 'function' ? bringPanelToFront : () => {};
   const safeUpdateToolbarMetrics = typeof updateToolbarMetrics === 'function' ? updateToolbarMetrics : () => {};
+  const safeStylePainterSelectionChange = typeof onStylePainterSelectionChange === 'function'
+    ? onStylePainterSelectionChange
+    : () => {};
+  const safeStylePainterPopoverOpen = typeof onStylePainterPopoverOpen === 'function'
+    ? onStylePainterPopoverOpen
+    : () => {};
+  const safeStylePainterButtonClick = typeof onStylePainterButtonClick === 'function'
+    ? onStylePainterButtonClick
+    : () => {};
     const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
     const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
     const safeListPlotPanels = typeof listPlotPanels === 'function' ? listPlotPanels : (() => []);
@@ -219,6 +231,8 @@ export function createPanelDomFacade({
         };
 
     let cursorBtn = null;
+    let stylePainterBtn = null;
+    let stylePainterPopover = null;
     if (isPlotPanel) {
         const popoverClosers = [];
         const registerPopoverCloser = (fn) => {
@@ -1245,15 +1259,16 @@ export function createPanelDomFacade({
         });
         appendActionItem(legendBtn);
 
-        const stylePainterBtn = document.createElement('button');
+        stylePainterBtn = document.createElement('button');
         stylePainterBtn.type = 'button';
         stylePainterBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
         stylePainterBtn.innerHTML = '<i class="bi bi-brush"></i>';
         stylePainterBtn.title = 'Style painter';
         stylePainterBtn.setAttribute('aria-label', 'Style painter');
         stylePainterBtn.setAttribute('aria-expanded', 'false');
+        stylePainterBtn.setAttribute('aria-pressed', 'false');
         stylePainterBtn.dataset.panelAction = 'style-painter';
-        const stylePainterPopover = document.createElement('div');
+        stylePainterPopover = document.createElement('div');
         stylePainterPopover.className = 'workspace-panel-popover workspace-panel-popover-style-painter';
         stylePainterPopover.innerHTML = `
           <div class="workspace-panel-popover-label">SELECT FORMATTING TO COPY</div>
@@ -1270,6 +1285,7 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-colors" aria-pressed="false">Trace colors</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-styles" aria-pressed="false">Trace styles</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-markers" aria-pressed="false">Trace markers</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="line-smoothing" aria-pressed="false">Line smoothing</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="color-scales" aria-pressed="false">Color scales</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="graph-dimensions" aria-pressed="false">Graph dimensions</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="scales" aria-pressed="false">Scales</button>
@@ -1278,6 +1294,8 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="gridlines" aria-pressed="false">Gridlines</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="legend" aria-pressed="false">Legend</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="background" aria-pressed="false">Background</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="annotations" aria-pressed="false">Annotations</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="hover-labels" aria-pressed="false">Hover labels</button>
             </div>
           </div>
         `;
@@ -1292,6 +1310,32 @@ export function createPanelDomFacade({
           Array.from(stylePainterPopover.querySelectorAll('[data-style-preset]'));
         const getStylePainterDetails = () =>
           Array.from(stylePainterPopover.querySelectorAll('[data-style-detail]'));
+        const readStylePainterSelection = () => {
+          const presetBtn = getStylePainterPresets()
+            .find((btn) => btn.getAttribute('aria-pressed') === 'true');
+          const details = getStylePainterDetails()
+            .filter((btn) => btn.getAttribute('aria-pressed') === 'true')
+            .map((btn) => btn.dataset.styleDetail)
+            .filter(Boolean);
+          return {
+            preset: presetBtn?.dataset?.stylePreset || null,
+            details
+          };
+        };
+        const applyStylePainterSelection = (selection = {}) => {
+          const preset = typeof selection.preset === 'string' ? selection.preset : null;
+          const detailSet = new Set(
+            Array.isArray(selection.details) ? selection.details.filter(Boolean) : []
+          );
+          getStylePainterPresets().forEach((btn) => {
+            setStylePainterToggle(btn, preset && btn.dataset.stylePreset === preset);
+          });
+          getStylePainterDetails().forEach((btn) => {
+            const isActive = !preset && detailSet.has(btn.dataset.styleDetail);
+            setStylePainterToggle(btn, isActive);
+          });
+          updateStylePainterDetailsState();
+        };
 
         const updateStylePainterDetailsState = () => {
           const hasPreset = getStylePainterPresets()
@@ -1312,6 +1356,7 @@ export function createPanelDomFacade({
             getStylePainterPresets().forEach((btn) => setStylePainterToggle(btn, false));
             setStylePainterToggle(presetBtn, next);
             updateStylePainterDetailsState();
+            safeStylePainterSelectionChange(panelId, readStylePainterSelection());
             event.stopPropagation();
             return;
           }
@@ -1325,15 +1370,22 @@ export function createPanelDomFacade({
             }
             const next = detailBtn.getAttribute('aria-pressed') !== 'true';
             setStylePainterToggle(detailBtn, next);
+            safeStylePainterSelectionChange(panelId, readStylePainterSelection());
             event.stopPropagation();
           }
         });
 
         stylePainterPopover.onOpen = () => {
+          safeStylePainterPopoverOpen(panelId, stylePainterPopover);
           updateStylePainterDetailsState();
         };
+        stylePainterPopover.__getSelection = readStylePainterSelection;
+        stylePainterPopover.__applySelection = applyStylePainterSelection;
 
         appendPopoverControl(stylePainterBtn, stylePainterPopover);
+        stylePainterBtn.addEventListener('click', () => {
+          safeStylePainterButtonClick(panelId, stylePainterBtn);
+        });
 
         const templatesBtn = document.createElement('button');
         templatesBtn.type = 'button';
@@ -2061,6 +2113,8 @@ export function createPanelDomFacade({
           titleEl: title,
           plotEl: resolvedPlotHost,
           cursorButton: cursorBtn,
+          stylePainterButton: stylePainterBtn,
+          stylePainterPopover,
           runtime,
           contentHandles
         };
