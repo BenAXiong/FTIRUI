@@ -25,7 +25,7 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
 - [-] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
 - [-] 2/ Graph type (main = line, secondary = bars, scatter, etc).
 - [-] Buttons for tech = FT-IR
-    - [-] 3/ Peak marking (auto + manual)
+    - [x] 3/ Peak marking (auto + manual)
         Step 1 - Peak controls UI scaffolding (tb2 s3 / Shift+3)
             Task 1: Rework `tb2_peak_marking` (the Shift+3 shortcut button) in `canvas_toolbar_vertical.html` so it uses aria-pressed states, communicates toggle status, and anchors a dropstart menu dedicated exclusively to peak marking.
             Task 2: Build the new dropstart menu markup right under the S3 button: include sensitivity slider, minimum distance slider, marker/line toggles, style radio buttons, label formatting dropdown, and a spreadsheet export button that mirrors tb1 button 4 behaviour.
@@ -57,4 +57,20 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
             Task 4: Fix manual marker deletion reappearance
             Task 5: Add "Set as default" & "Apply default" in menu options
             Task 6: (mostly doneby def) Unredo behavior for markers, auto and manual (hidden auto?)
+
+    ***skipped many features, from here***
     - [ ] 4/ Integration
+    - [ ] 5/ ATR correction
+    - [ ] 6/ Smoothing
+    - [ ] 7/ Derivation
+    - [ ] 8/ Spectral library
+    - [ ] 9/ Placeholder
+    - [ ] 0/ Options: move to other project, ???
+    ***till here***
+- [x] Buttons for other techs: auto placeholders (XRD1, XRD2,..., MS1,...)
+
+Phase 4 – Graph controls & exports
+- [ ] New graph header utilities.
+    - [ ] 1/ Style Painter
+    - [ ] 2/ Templates
+    - [ ] 3/ Pin/lock

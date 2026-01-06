@@ -1245,6 +1245,33 @@ export function createPanelDomFacade({
         });
         appendActionItem(legendBtn);
 
+        const stylePainterBtn = document.createElement('button');
+        stylePainterBtn.type = 'button';
+        stylePainterBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        stylePainterBtn.innerHTML = '<i class="bi bi-brush"></i>';
+        stylePainterBtn.title = 'Style painter';
+        stylePainterBtn.setAttribute('aria-label', 'Style painter');
+        stylePainterBtn.dataset.panelAction = 'style-painter';
+        appendActionItem(stylePainterBtn);
+
+        const templatesBtn = document.createElement('button');
+        templatesBtn.type = 'button';
+        templatesBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        templatesBtn.innerHTML = '<i class="bi bi-collection"></i>';
+        templatesBtn.title = 'Templates';
+        templatesBtn.setAttribute('aria-label', 'Templates');
+        templatesBtn.dataset.panelAction = 'templates';
+        appendActionItem(templatesBtn);
+
+        const lockBtn = document.createElement('button');
+        lockBtn.type = 'button';
+        lockBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        lockBtn.innerHTML = '<i class="bi bi-lock"></i>';
+        lockBtn.title = 'Lock';
+        lockBtn.setAttribute('aria-label', 'Lock');
+        lockBtn.dataset.panelAction = 'lock';
+        appendActionItem(lockBtn);
+
         const annotationsBtn = document.createElement('button');
         annotationsBtn.type = 'button';
         annotationsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';

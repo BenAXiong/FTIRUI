@@ -1,20 +1,5 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-Phase 3 – Tech controls (aka tb2): toolbar modernization
-- [x] Overall layout
-- [-] 1/ Tech selector (gating, per-tech controls) — FTIR default, NMR, XPS, EC, XRD, etc
-- [-] 2/ Graph type (main = line, secondary = bars, scatter, etc).
-- [-] Buttons for tech = FT-IR
-    - [x] 3/ Peak marking (auto + manual)
-    - [ ] 4/ Integration
-    - [ ] 5/ ATR correction
-    - [ ] 6/ Smoothing
-    - [ ] 7/ Derivation
-    - [ ] 8/ Spectral library
-    - [ ] 9/ Placeholder
-    - [ ] 0/ Options: move to other project, ???
-- [ ] Buttons for other techs: auto placeholders (XRD1, XRD2,..., MS1,...)
-
 Phase 4 – Graph controls & exports
 - [ ] New graph header utilities.
     - [ ] 1/ Style Painter
@@ -34,23 +19,23 @@ Phase 5 – Plotly & canvas interaction upgrades
 
     Plotly interaction
     - [ ] plotly remove all icons
-    - [ ] (see Plotly manual) rethink axis manual input (double click somewhere? & match current zoom + snap to nearest round number maybe
+    - [ ] (see Plotly manual) rethink axis manual input (double click somewhere? & match current zoom + snap to nearest round number maybe)
     - [ ] zoom from plot borders
 
-Phase 6 – Polishing pass
+Phase 7 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
 
-Phase 6 – Workflow refinements
+Phase x – Workflow refinements
 - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
 - [ ] Explore Papers/Reports workflow integration.
 
-Phase 7 – Future explorations
+Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
 - [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
 
-Phase 8 – Bugs & technical debt
+Phase x – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 
 
