@@ -1247,12 +1247,93 @@ export function createPanelDomFacade({
 
         const stylePainterBtn = document.createElement('button');
         stylePainterBtn.type = 'button';
-        stylePainterBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        stylePainterBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
         stylePainterBtn.innerHTML = '<i class="bi bi-brush"></i>';
         stylePainterBtn.title = 'Style painter';
         stylePainterBtn.setAttribute('aria-label', 'Style painter');
+        stylePainterBtn.setAttribute('aria-expanded', 'false');
         stylePainterBtn.dataset.panelAction = 'style-painter';
-        appendActionItem(stylePainterBtn);
+        const stylePainterPopover = document.createElement('div');
+        stylePainterPopover.className = 'workspace-panel-popover workspace-panel-popover-style-painter';
+        stylePainterPopover.innerHTML = `
+          <div class="workspace-panel-popover-label">SELECT FORMATTING TO COPY</div>
+          <div class="workspace-panel-popover-section" data-role="style-painter-presets">
+            <div class="workspace-panel-popover-items">
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-preset="all" aria-pressed="false">All styles</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-preset="scales" aria-pressed="false">Only scales</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-preset="traces" aria-pressed="false">Only traces</button>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-divider" aria-hidden="true"></div>
+          <div class="workspace-panel-popover-section" data-role="style-painter-details">
+            <div class="workspace-panel-popover-items">
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-colors" aria-pressed="false">Trace colors</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-styles" aria-pressed="false">Trace styles</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-markers" aria-pressed="false">Trace markers</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="color-scales" aria-pressed="false">Color scales</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="graph-dimensions" aria-pressed="false">Graph dimensions</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="scales" aria-pressed="false">Scales</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="fonts" aria-pressed="false">Fonts</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="axis-formatting" aria-pressed="false">Axis formatting</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="gridlines" aria-pressed="false">Gridlines</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="legend" aria-pressed="false">Legend</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="background" aria-pressed="false">Background</button>
+            </div>
+          </div>
+        `;
+
+        const setStylePainterToggle = (btn, on) => {
+          if (!btn) return;
+          btn.setAttribute('aria-pressed', String(on));
+          btn.classList.toggle('is-active', on);
+        };
+
+        const getStylePainterPresets = () =>
+          Array.from(stylePainterPopover.querySelectorAll('[data-style-preset]'));
+        const getStylePainterDetails = () =>
+          Array.from(stylePainterPopover.querySelectorAll('[data-style-detail]'));
+
+        const updateStylePainterDetailsState = () => {
+          const hasPreset = getStylePainterPresets()
+            .some((btn) => btn.getAttribute('aria-pressed') === 'true');
+          getStylePainterDetails().forEach((btn) => {
+            btn.classList.toggle('is-disabled', hasPreset);
+            btn.setAttribute('aria-disabled', String(hasPreset));
+            if (hasPreset) {
+              setStylePainterToggle(btn, false);
+            }
+          });
+        };
+
+        stylePainterPopover.addEventListener('click', (event) => {
+          const presetBtn = event.target.closest('[data-style-preset]');
+          if (presetBtn) {
+            const next = presetBtn.getAttribute('aria-pressed') !== 'true';
+            getStylePainterPresets().forEach((btn) => setStylePainterToggle(btn, false));
+            setStylePainterToggle(presetBtn, next);
+            updateStylePainterDetailsState();
+            event.stopPropagation();
+            return;
+          }
+          const detailBtn = event.target.closest('[data-style-detail]');
+          if (detailBtn) {
+            const presetsActive = getStylePainterPresets()
+              .some((btn) => btn.getAttribute('aria-pressed') === 'true');
+            if (presetsActive) {
+              getStylePainterPresets().forEach((btn) => setStylePainterToggle(btn, false));
+              updateStylePainterDetailsState();
+            }
+            const next = detailBtn.getAttribute('aria-pressed') !== 'true';
+            setStylePainterToggle(detailBtn, next);
+            event.stopPropagation();
+          }
+        });
+
+        stylePainterPopover.onOpen = () => {
+          updateStylePainterDetailsState();
+        };
+
+        appendPopoverControl(stylePainterBtn, stylePainterPopover);
 
         const templatesBtn = document.createElement('button');
         templatesBtn.type = 'button';

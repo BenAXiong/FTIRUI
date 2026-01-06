@@ -2579,6 +2579,45 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   flex-wrap: wrap;
   gap: .4rem;
 }
+.workspace-panel-popover-style-painter{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 3fr);
+  column-gap: .75rem;
+  row-gap: .5rem;
+  align-items: start;
+  width: clamp(420px, 52vw, 640px);
+}
+.workspace-panel-popover-style-painter > .workspace-panel-popover-label{
+  grid-column: 1 / -1;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.workspace-panel-popover-style-painter [data-role="style-painter-presets"]{
+  grid-column: 1;
+}
+.workspace-panel-popover-style-painter [data-role="style-painter-details"]{
+  grid-column: 3;
+}
+.workspace-panel-popover-style-painter .workspace-panel-popover-divider{
+  grid-column: 2;
+  width: 1px;
+  background: var(--bs-border-color);
+  align-self: stretch;
+  justify-self: center;
+}
+.workspace-panel-popover-style-painter .workspace-panel-popover-section{
+  margin-bottom: 0;
+}
+.workspace-panel-popover-style-painter .workspace-panel-popover-items{
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+}
+.workspace-panel-popover-style-painter [data-role="style-painter-details"] .workspace-panel-popover-items{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .4rem;
+}
 .workspace-panel-popover-btn{
   min-width: 2.1rem;
   height: 2.1rem;
@@ -2589,6 +2628,30 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   padding: .35rem .55rem;
   font-size: .75rem;
   transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.workspace-panel-popover-style-painter .workspace-panel-popover-btn{
+  width: 100%;
+  justify-content: space-between;
+}
+.workspace-panel-popover-style-painter [data-role="style-painter-presets"] .workspace-panel-popover-btn{
+  height: auto;
+  min-height: 2.1rem;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.15;
+}
+.workspace-panel-popover-style-painter [data-role="style-painter-details"] .workspace-panel-popover-btn{
+  height: auto;
+  min-height: 2.1rem;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.15;
+}
+.workspace-panel-popover-style-painter .workspace-panel-popover-btn.is-disabled{
+  opacity: .55;
+  filter: grayscale(.1);
 }
 .workspace-panel-popover-btn i{
   font-size: .9rem;
