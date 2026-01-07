@@ -1386,12 +1386,46 @@ export function createPanelDomFacade({
 
         const templatesBtn = document.createElement('button');
         templatesBtn.type = 'button';
-        templatesBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        templatesBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
         templatesBtn.innerHTML = '<i class="bi bi-collection"></i>';
         templatesBtn.title = 'Templates';
         templatesBtn.setAttribute('aria-label', 'Templates');
+        templatesBtn.setAttribute('aria-expanded', 'false');
         templatesBtn.dataset.panelAction = 'templates';
-        appendActionItem(templatesBtn);
+
+        const templatesPopover = document.createElement('div');
+        templatesPopover.className = 'workspace-panel-popover workspace-panel-popover-templates';
+        templatesPopover.innerHTML = `
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Current template</div>
+            <div class="workspace-panel-popover-items">
+              <div class="workspace-panel-popover-subtle" data-template-current>none</div>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Set current style</div>
+            <div class="workspace-panel-popover-items">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-template-save>
+                Set current style as new template
+              </button>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Apply template</div>
+            <div class="workspace-panel-popover-items flex-column gap-2">
+              <select class="form-select form-select-sm" data-template-select>
+                <option value="" selected disabled>No templates saved</option>
+              </select>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Recent templates</div>
+            <div class="workspace-panel-popover-items flex-column gap-2" data-template-recent-list>
+              <div class="workspace-panel-popover-subtle">No recent templates</div>
+            </div>
+          </div>
+        `;
+        appendPopoverControl(templatesBtn, templatesPopover);
 
         const lockBtn = document.createElement('button');
         lockBtn.type = 'button';
