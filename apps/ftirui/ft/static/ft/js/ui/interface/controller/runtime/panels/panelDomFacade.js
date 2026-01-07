@@ -23,7 +23,9 @@ export function createPanelDomFacade({
       onTemplatesApply = () => {},
       onTemplatesRename = () => {},
       onTemplatesDelete = () => {},
-      onTemplatesDuplicate = () => {}
+      onTemplatesDuplicate = () => {},
+      onPanelLockToggle = () => {},
+      onPanelPinToggle = () => {}
   } = actions;
 
     const {
@@ -65,6 +67,8 @@ export function createPanelDomFacade({
   const safeTemplatesDuplicate = typeof onTemplatesDuplicate === 'function'
     ? onTemplatesDuplicate
     : () => {};
+  const safePanelLockToggle = typeof onPanelLockToggle === 'function' ? onPanelLockToggle : () => {};
+  const safePanelPinToggle = typeof onPanelPinToggle === 'function' ? onPanelPinToggle : () => {};
     const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
     const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
     const safeListPlotPanels = typeof listPlotPanels === 'function' ? listPlotPanels : (() => []);
@@ -292,10 +296,24 @@ export function createPanelDomFacade({
             btn.setAttribute('aria-pressed', String(next));
             btn.classList.toggle('is-active', next);
             if (typeof onClick === 'function') {
-              onClick(next, btn);
+              const result = onClick(next, btn);
+              if (result === false) {
+                const reverted = !next;
+                btn.setAttribute('aria-pressed', String(reverted));
+                btn.classList.toggle('is-active', reverted);
+              }
             }
           });
           return btn;
+        };
+
+        const readPanelLockState = () => {
+          const meta = safeGetPanelFigure(panelId)?.layout?.meta;
+          const panelMeta = meta && typeof meta === 'object' ? meta.workspacePanel : null;
+          return {
+            editLocked: panelMeta?.editLocked === true,
+            pinned: panelMeta?.pinned === true
+          };
         };
 
         const controlsWrapper = document.createElement('div');
@@ -1491,14 +1509,24 @@ export function createPanelDomFacade({
         };
         appendPopoverControl(templatesBtn, templatesPopover);
 
-        const lockBtn = document.createElement('button');
-        lockBtn.type = 'button';
-        lockBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-        lockBtn.innerHTML = '<i class="bi bi-lock"></i>';
-        lockBtn.title = 'Lock';
-        lockBtn.setAttribute('aria-label', 'Lock');
+        const lockState = readPanelLockState();
+        const lockBtn = createToggleButton({
+          icon: 'bi-lock',
+          title: 'Lock graph',
+          pressed: lockState.editLocked,
+          onClick: (isOn) => safePanelLockToggle(panelId, { on: isOn })
+        });
         lockBtn.dataset.panelAction = 'lock';
         appendActionItem(lockBtn);
+
+        const pinBtn = createToggleButton({
+          icon: 'bi-pin-angle',
+          title: 'Pin position',
+          pressed: lockState.pinned,
+          onClick: (isOn) => safePanelPinToggle(panelId, { on: isOn })
+        });
+        pinBtn.dataset.panelAction = 'pin';
+        appendActionItem(pinBtn);
 
         const annotationsBtn = document.createElement('button');
         annotationsBtn.type = 'button';

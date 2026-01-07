@@ -22,6 +22,7 @@ import { createPanelsFacade } from './panels/facade.js';
 import { createPanelDomFacade } from './panels/panelDomFacade.js';
 import { createStylePainterController } from './panels/stylePainterController.js';
 import { createTemplatesController } from './panels/templatesController.js';
+import { createPanelLockController } from './panels/panelLockController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
 import { plotPanelType } from './panels/registry/plotPanel.js';
 import { markdownPanelType } from './panels/registry/markdownPanel.js';
@@ -3315,9 +3316,14 @@ const createPanelOfType = (typeId, state = {}) => {
 let panelDomFacade = null;
 let stylePainterController = null;
 let templatesController = null;
+let panelLockController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
+const isPanelEditLocked = (panelId) =>
+  panelLockController?.isPanelEditLocked?.(panelId) ?? false;
+const isPanelPinned = (panelId) =>
+  panelLockController?.isPanelPinned?.(panelId) ?? false;
 
   const historyHelpers = createHistoryHelpers({
     pushHistory: (...args) => pushHistory(...args),
@@ -4253,7 +4259,11 @@ let updateCanvasState = () => {};
     history: historyHelpers,
     persistence: { persist },
     plot: { resize: (panelId) => resizePlotForPanel(panelId) },
-    utils: { bringPanelToFront, isPanelActive: (panelId) => panelId === activePanelId },
+    utils: {
+      bringPanelToFront,
+      isPanelActive: (panelId) => panelId === activePanelId,
+      isPanelPinned
+    },
     dimensions: {
       minWidth: MIN_WIDTH,
       minHeight: MIN_HEIGHT
@@ -5044,6 +5054,9 @@ let updateCanvasState = () => {};
       undo: (...args) => undo(...args),
       redo: (...args) => redo(...args)
     },
+    permissions: {
+      isPanelEditLocked
+    },
     selectors: {
       getPanelDom,
       getPanelFigure,
@@ -5063,6 +5076,17 @@ let updateCanvasState = () => {};
     }
   });
 
+  panelLockController = createPanelLockController({
+    getPanelFigure,
+    updatePanelFigure,
+    renderPlot,
+    pushHistory,
+    updateHistoryButtons,
+    persist,
+    panelSupportsPlot,
+    showToast
+  });
+
   templatesController = createTemplatesController({
     getPanelDom,
     getPanelFigure,
@@ -5072,6 +5096,7 @@ let updateCanvasState = () => {};
     updateHistoryButtons,
     persist,
     panelSupportsPlot,
+    isPanelEditLocked,
     showToast
   });
 
@@ -5085,6 +5110,7 @@ let updateCanvasState = () => {};
     updateHistoryButtons,
     persist,
     panelSupportsPlot,
+    isPanelEditLocked,
     showToast,
     onTraceStyleChange: (panelId) => peakMarkingController?.handleTraceStyleChange?.(panelId)
   });
@@ -5108,7 +5134,9 @@ let updateCanvasState = () => {};
       onTemplatesApply: templatesController?.handleApplyTemplate,
       onTemplatesRename: templatesController?.handleRenameTemplate,
       onTemplatesDelete: templatesController?.handleDeleteTemplate,
-      onTemplatesDuplicate: templatesController?.handleDuplicateTemplate
+      onTemplatesDuplicate: templatesController?.handleDuplicateTemplate,
+      onPanelLockToggle: panelLockController?.handleLockToggle,
+      onPanelPinToggle: panelLockController?.handlePinToggle
     },
     selectors: {
       getPanelFigure,
@@ -7323,6 +7351,8 @@ let updateCanvasState = () => {};
     globalCommandsController?.dispose?.();
     techToolbarHandlers?.teardown?.();
     techToolbarLabelController?.teardown?.();
+    panelLockController?.teardown?.();
+    panelLockController = null;
     stylePainterController?.teardown?.();
     stylePainterController = null;
     templatesController?.teardown?.();

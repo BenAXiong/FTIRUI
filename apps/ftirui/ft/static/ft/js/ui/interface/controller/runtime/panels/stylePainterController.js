@@ -309,6 +309,7 @@ export function createStylePainterController({
   updateHistoryButtons = () => {},
   persist = () => {},
   panelSupportsPlot = () => true,
+  isPanelEditLocked = () => false,
   showToast = () => {},
   onTraceStyleChange = () => {}
 } = {}) {
@@ -477,6 +478,11 @@ export function createStylePainterController({
           break;
       }
     });
+
+    if (typeof isPanelEditLocked === 'function' && isPanelEditLocked(targetPanelId)) {
+      showToast('Graph is locked.', 'info');
+      return false;
+    }
 
     const nextFigure = {
       ...targetFigure,

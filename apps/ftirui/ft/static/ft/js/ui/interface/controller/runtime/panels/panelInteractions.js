@@ -49,7 +49,8 @@ export function createPanelInteractions({
 
   const {
     bringPanelToFront = () => {},
-    isPanelActive = () => false
+    isPanelActive = () => false,
+    isPanelPinned = () => false
   } = utils;
 
   const {
@@ -163,7 +164,7 @@ export function createPanelInteractions({
       .draggable({
         inertia: false,
         allowFrom: '.workspace-panel-header',
-        ignoreFrom: '.workspace-panel-body',
+        ignoreFrom: '.workspace-panel-body, .workspace-panel-actions, .workspace-panel-actions *',
         modifiers: [
           interact.modifiers.restrictRect({
             restriction: canvas,
@@ -172,10 +173,11 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
-            if (rootEl.classList.contains('is-fullscreen')) return;
+            if (rootEl.classList.contains('is-fullscreen') || isPanelPinned(panelId)) return;
             beginInteraction('drag');
           },
           move: (event) => {
+            if (isPanelPinned(panelId)) return;
             if (!runtime?.dragSnapshot) return;
             const snapshot = runtime.dragSnapshot;
             const previous = snapshot.current || snapshot.initial;
@@ -189,6 +191,7 @@ export function createPanelInteractions({
             dom?.runtime?.refreshActionOverflow?.();
           },
           end: () => {
+            if (isPanelPinned(panelId)) return;
             finalizeInteraction('drag');
           }
         }
@@ -208,10 +211,11 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
-            if (rootEl.classList.contains('is-fullscreen')) return;
+            if (rootEl.classList.contains('is-fullscreen') || isPanelPinned(panelId)) return;
             beginInteraction('resize');
           },
           move: (event) => {
+            if (isPanelPinned(panelId)) return;
             if (!runtime?.dragSnapshot) return;
             const snapshot = runtime.dragSnapshot;
             const previous = snapshot.current || snapshot.initial;
@@ -229,6 +233,7 @@ export function createPanelInteractions({
             }
           },
           end: () => {
+            if (isPanelPinned(panelId)) return;
             finalizeInteraction('resize');
           }
         }

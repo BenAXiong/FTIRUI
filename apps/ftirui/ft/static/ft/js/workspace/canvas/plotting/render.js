@@ -16,6 +16,17 @@ const plotConfig = {
     legendPosition: true
   }
 };
+const lockedPlotConfig = {
+  ...plotConfig,
+  displayModeBar: false,
+  editable: false,
+  staticPlot: true
+};
+const resolvePlotConfig = (figure) => (
+  figure?.layout?.meta?.workspacePanel?.editLocked === true
+    ? lockedPlotConfig
+    : plotConfig
+);
 
 function _scheduleResizeFlush() {
   if (resizeRaf) return;
@@ -46,7 +57,7 @@ export function isRendered(containerEl) {
 export async function renderInitial(panelId, containerEl, figure) {
   if (!containerEl) throw new Error('renderInitial: missing containerEl');
   // eslint-disable-next-line no-undef
-  await Plotly.newPlot(containerEl, figure?.data ?? [], figure?.layout ?? {}, plotConfig);
+  await Plotly.newPlot(containerEl, figure?.data ?? [], figure?.layout ?? {}, resolvePlotConfig(figure));
   rendered.add(containerEl);
 }
 
@@ -57,7 +68,7 @@ export async function renderUpdate(panelId, containerEl, figure) {
     return;
   }
   // eslint-disable-next-line no-undef
-  await Plotly.react(containerEl, figure?.data ?? [], figure?.layout ?? {}, plotConfig);
+  await Plotly.react(containerEl, figure?.data ?? [], figure?.layout ?? {}, resolvePlotConfig(figure));
   rendered.add(containerEl);
 }
 

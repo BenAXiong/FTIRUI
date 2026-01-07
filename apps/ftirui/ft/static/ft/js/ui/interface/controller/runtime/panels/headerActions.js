@@ -46,6 +46,10 @@ export function createHeaderActions(context = {}) {
     return value;
   };
   const historyApi = context.historyApi || {};
+  const permissions = context.permissions || {};
+  const isPanelEditLocked = typeof permissions.isPanelEditLocked === 'function'
+    ? permissions.isPanelEditLocked
+    : (() => false);
 
   const clampSubdivisions = (value) => Math.max(1, Math.min(10, Math.round(Number(value) || 1)));
   const MUTATION_CONTEXT_KEY = '__mutationContext__';
@@ -280,8 +284,11 @@ export function createHeaderActions(context = {}) {
     return runLayoutMutations(panelId, ...args);
   };
 
+  const allowWhenLocked = new Set(['export', 'toggle-fullscreen', 'spreadsheet-plot-columns']);
+
   const handleHeaderAction = (panelId, act, payload = {}) => {
     if (!panelId) return;
+    if (isPanelEditLocked(panelId) && !allowWhenLocked.has(act)) return false;
 
     const dom = getPanelDom(panelId);
 
@@ -295,6 +302,7 @@ export function createHeaderActions(context = {}) {
         if (!traces.length) break;
         const mode = payload.mode === 'existing' ? 'existing' : 'new';
         if (mode === 'existing' && payload.targetPanelId) {
+          if (isPanelEditLocked(payload.targetPanelId)) break;
           addTracesToPanel(payload.targetPanelId, traces);
           break;
         }

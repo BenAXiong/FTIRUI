@@ -9,6 +9,11 @@ import { applyLayoutPatch, guardAxisGrid, cloneFigure } from './patchLayout.js';
 let _getFigureById = null;
 let _setFigureById = null;
 let _renderNow = null;
+const isPanelEditLocked = (panelId) => {
+  if (!_getFigureById) return false;
+  const fig = _getFigureById(panelId);
+  return fig?.layout?.meta?.workspacePanel?.editLocked === true;
+};
 
 /**
  * Wire model + renderer from workspaceCanvas.
@@ -28,6 +33,7 @@ export function applyLayout(panelId, patch) {
   if (!_getFigureById || !_setFigureById || !_renderNow) return;
   const cur = _getFigureById(panelId);
   if (!cur) return;
+  if (isPanelEditLocked(panelId)) return;
 
   // Make an isolated copy, apply patch, run any guards, then persist.
   const next = applyLayoutPatch(cur, patch);
@@ -117,6 +123,7 @@ export function setTraceLineWidth(panelId, traceIndex, widthPx = 2) {
   if (!_getFigureById || !_setFigureById || !_renderNow) return;
   const fig = _getFigureById(panelId);
   if (!fig) return;
+  if (isPanelEditLocked(panelId)) return;
   const next = cloneFigure(fig);
   const numericWidth = Number(widthPx);
   const width = Number.isFinite(numericWidth) && numericWidth > 0 ? numericWidth : 1;
@@ -133,6 +140,7 @@ export function setTraceColor(panelId, traceIndex, color) {
   if (!_getFigureById || !_setFigureById || !_renderNow) return;
   const fig = _getFigureById(panelId);
   if (!fig) return;
+  if (isPanelEditLocked(panelId)) return;
   const next = cloneFigure(fig);
   const resolved = typeof color === 'string' && color ? color : '#1f77b4';
   next.data = (next.data || []).map((trace, idx) => {
@@ -155,6 +163,7 @@ export function setTraceLineDash(panelId, traceIndex, dash) {
   if (!_getFigureById || !_setFigureById || !_renderNow) return;
   const fig = _getFigureById(panelId);
   if (!fig) return;
+  if (isPanelEditLocked(panelId)) return;
   const next = cloneFigure(fig);
   const resolved = typeof dash === 'string' && dash ? dash : 'solid';
   next.data = (next.data || []).map((trace, idx) => {
@@ -170,6 +179,7 @@ export function setTraceOpacity(panelId, traceIndex, opacity) {
   if (!_getFigureById || !_setFigureById || !_renderNow) return;
   const fig = _getFigureById(panelId);
   if (!fig) return;
+  if (isPanelEditLocked(panelId)) return;
   const next = cloneFigure(fig);
   const numeric = Number(opacity);
   const resolved = Number.isFinite(numeric) ? Math.min(1, Math.max(0.05, numeric)) : 1;

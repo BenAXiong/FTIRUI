@@ -361,6 +361,7 @@ export function createTemplatesController({
   updateHistoryButtons = () => {},
   persist = () => {},
   panelSupportsPlot = () => true,
+  isPanelEditLocked = () => false,
   showToast = () => {}
 } = {}) {
   const state = loadStoredTemplates();
@@ -520,6 +521,10 @@ export function createTemplatesController({
     if (!panelId || !name) return;
     if (typeof panelSupportsPlot === 'function' && !panelSupportsPlot(panelId)) {
       showToast('Templates only apply to plot panels.', 'info');
+      return;
+    }
+    if (typeof isPanelEditLocked === 'function' && isPanelEditLocked(panelId)) {
+      showToast('Graph is locked.', 'info');
       return;
     }
     const template = state.templates[name];
