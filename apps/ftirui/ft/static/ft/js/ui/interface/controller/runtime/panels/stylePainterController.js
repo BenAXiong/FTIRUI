@@ -243,6 +243,14 @@ const AXIS_GRID_PATHS = [
   ['minor', 'gridcolor'],
   ['minor', 'gridwidth']
 ];
+
+const markTraceManualColor = (trace) => {
+  if (!trace || typeof trace !== 'object') return;
+  const meta = { ...(trace.meta || {}) };
+  meta.manualColor = true;
+  delete meta.autoColorIndex;
+  trace.meta = meta;
+};
 const buildTraceClone = (trace) => {
   if (!trace || typeof trace !== 'object') return trace;
   const next = { ...trace };
@@ -429,6 +437,7 @@ export function createStylePainterController({
       switch (detail) {
         case 'trace-colors':
           applyTraceCopy(sourceTraces, targetTraces, TRACE_COLOR_PATHS);
+          targetTraces.forEach((trace) => markTraceManualColor(trace));
           copyPaths(layoutPatch, sourceLayout, LAYOUT_TRACE_COLOR_PATHS);
           break;
         case 'trace-styles':

@@ -21,6 +21,7 @@ import { createPersistenceFacade } from './persistence/facade.js';
 import { createPanelsFacade } from './panels/facade.js';
 import { createPanelDomFacade } from './panels/panelDomFacade.js';
 import { createStylePainterController } from './panels/stylePainterController.js';
+import { createTemplatesController } from './panels/templatesController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
 import { plotPanelType } from './panels/registry/plotPanel.js';
 import { markdownPanelType } from './panels/registry/markdownPanel.js';
@@ -944,19 +945,25 @@ const applyTracePaletteToFigure = (figure, { palette = null } = {}) => {
       line: { ...(original.line || {}) }
     };
     const meta = { ...(original.meta || {}) };
-    let paletteIndex;
-    if (Number.isInteger(meta.autoColorIndex)) {
-      paletteIndex = meta.autoColorIndex;
-    } else {
+    const hasManualColor = meta.manualColor === true;
+    const explicitColor = trace.line?.color || trace.color;
+    let paletteIndex = Number.isInteger(meta.autoColorIndex) ? meta.autoColorIndex : null;
+    if (!hasManualColor && !Number.isInteger(paletteIndex) && !explicitColor) {
       paletteIndex = fallbackCursor;
       meta.autoColorIndex = paletteIndex;
     }
-    fallbackCursor = Math.max(fallbackCursor, paletteIndex) + 1;
-    const normalizedIndex = ((paletteIndex % resolvedPalette.length) + resolvedPalette.length) % resolvedPalette.length;
-    const nextColor = toHexColor(resolvedPalette[normalizedIndex] || getFallbackTraceColor());
-    if (nextColor) {
-      trace.line.color = nextColor;
-      trace.color = nextColor;
+    if (Number.isInteger(paletteIndex) && !hasManualColor) {
+      const normalizedIndex = ((paletteIndex % resolvedPalette.length) + resolvedPalette.length) % resolvedPalette.length;
+      const paletteColor = toHexColor(resolvedPalette[normalizedIndex] || getFallbackTraceColor());
+      const currentColor = toHexColor(trace.line?.color || trace.color || '');
+      if (currentColor && paletteColor && currentColor.toLowerCase() !== paletteColor.toLowerCase()) {
+        meta.manualColor = true;
+        delete meta.autoColorIndex;
+      } else if (paletteColor) {
+        fallbackCursor = Math.max(fallbackCursor, paletteIndex) + 1;
+        trace.line.color = paletteColor;
+        trace.color = paletteColor;
+      }
     }
     trace.meta = meta;
     return trace;
@@ -3143,16 +3150,21 @@ const recordOperation = (entry) => {
     return panelsModel.getPanelFigure(panelId) || { data: [], layout: {} };
   };
 
+  const updatePanelFigure = (panelId, figure, options = {}) => {
+    const record = getPanelRecord(panelId);
+    if (!record || record.type !== 'plot') return null;
+    const result = panelsModel.updatePanelFigure(panelId, figure);
+    templatesController?.handlePanelFigureUpdate?.(panelId, options);
+    return result;
+  };
+
   const getPanelContent = (panelId) => panelsModel.getPanelContent(panelId) || null;
 
   const Plot = createPlotFacade({
     getPanelDom,
     getPanelFigure,
-    setPanelFigure: (panelId, figure) => {
-      const record = getPanelRecord(panelId);
-      if (!record || record.type !== 'plot') return null;
-      return panelsModel.updatePanelFigure(panelId, figure);
-    },
+    setPanelFigure: (panelId, figure) =>
+      updatePanelFigure(panelId, figure, { source: 'plot-facade' }),
     actionsController: Actions
   });
 
@@ -3174,7 +3186,7 @@ const recordOperation = (entry) => {
     if (applyPalette) {
       nextFigure = applyTracePaletteToFigure(nextFigure, { palette: theme?.tracePalette });
     }
-    panelsModel.updatePanelFigure(panelId, nextFigure);
+    updatePanelFigure(panelId, nextFigure, { source: 'theme' });
     Plot.renderNow(panelId, { reason });
     peakMarkingController?.handleTraceStyleChange?.(panelId);
   };
@@ -3302,6 +3314,7 @@ const createPanelOfType = (typeId, state = {}) => {
 };
 let panelDomFacade = null;
 let stylePainterController = null;
+let templatesController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -3981,6 +3994,23 @@ let updateCanvasState = () => {};
                 persist();
               }
               target.opacity = clamped;
+              return true;
+            }
+            if (prop === 'dash') {
+              const resolved = typeof value === 'string' && value ? value : 'solid';
+              const currentTraces = getPanelTraces(handle.panelId);
+              const current = currentTraces[handle.traceIndex];
+              const prevDash = typeof current?.line?.dash === 'string'
+                ? current.line.dash
+                : (typeof current?.dash === 'string' ? current.dash : 'solid');
+              if (resolved !== prevDash) {
+                pushHistory();
+                Actions.setTraceLineDash(handle.panelId, handle.traceIndex, resolved);
+                persist();
+              }
+              target.dash = resolved;
+              target.line = target.line || {};
+              target.line.dash = resolved;
               return true;
             }
             target[prop] = value;
@@ -5033,11 +5063,23 @@ let updateCanvasState = () => {};
     }
   });
 
+  templatesController = createTemplatesController({
+    getPanelDom,
+    getPanelFigure,
+    updatePanelFigure,
+    renderPlot,
+    pushHistory,
+    updateHistoryButtons,
+    persist,
+    panelSupportsPlot,
+    showToast
+  });
+
   stylePainterController = createStylePainterController({
     canvas,
     getPanelDom,
     getPanelFigure,
-    updatePanelFigure: (panelId, figure) => panelsModel.updatePanelFigure(panelId, figure),
+    updatePanelFigure,
     renderPlot,
     pushHistory,
     updateHistoryButtons,
@@ -5060,7 +5102,13 @@ let updateCanvasState = () => {};
       setPanelContent,
       onStylePainterSelectionChange: stylePainterController?.handleSelectionChange,
       onStylePainterPopoverOpen: stylePainterController?.handlePopoverOpen,
-      onStylePainterButtonClick: stylePainterController?.handleButtonClick
+      onStylePainterButtonClick: stylePainterController?.handleButtonClick,
+      onTemplatesPopoverOpen: templatesController?.handlePopoverOpen,
+      onTemplatesSave: templatesController?.handleSaveTemplate,
+      onTemplatesApply: templatesController?.handleApplyTemplate,
+      onTemplatesRename: templatesController?.handleRenameTemplate,
+      onTemplatesDelete: templatesController?.handleDeleteTemplate,
+      onTemplatesDuplicate: templatesController?.handleDuplicateTemplate
     },
     selectors: {
       getPanelFigure,
@@ -5105,7 +5153,7 @@ let updateCanvasState = () => {};
     getActivePanelId,
     getPanelRecord,
     getPanelFigure,
-    updatePanelFigure: (panelId, figure) => panelsModel.updatePanelFigure(panelId, figure),
+    updatePanelFigure,
     getPanelDom,
     panelSupportsPlot,
     renderPlot,
@@ -6432,9 +6480,24 @@ let updateCanvasState = () => {};
       const Plotly = typeof window !== 'undefined' ? window.Plotly : null;
       if (!plotEl || typeof plotEl.on !== 'function' || !Plotly?.relayout) return;
       const handler = (relayoutData) => {
+        const rangeUpdates = {};
+        Object.entries(relayoutData || {}).forEach(([key, value]) => {
+          const match = key.match(/^(xaxis\\d*|yaxis\\d*)\\.range(?:\\[(0|1)\\])?$/);
+          if (!match) return;
+          const axisKey = match[1];
+          if (!rangeUpdates[axisKey]) rangeUpdates[axisKey] = { values: [] };
+          if (match[2]) {
+            const idx = Number(match[2]);
+            rangeUpdates[axisKey].values[idx] = value;
+          } else if (Array.isArray(value) && value.length === 2) {
+            rangeUpdates[axisKey].values = value.slice();
+          }
+        });
+
         const wantsXAuto = relayoutData?.['xaxis.autorange'];
         const wantsYAuto = relayoutData?.['yaxis.autorange'];
-        if (!wantsXAuto && !wantsYAuto) return;
+        const hasRangeUpdates = Object.keys(rangeUpdates).length > 0;
+        if (!wantsXAuto && !wantsYAuto && !hasRangeUpdates) return;
         const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
         if (!figure) return;
         const base = baseFigureWithoutOverlays(figure);
@@ -6458,6 +6521,37 @@ let updateCanvasState = () => {};
         }
         if (Object.keys(updates).length) {
           Plotly.relayout(plotEl, updates);
+        }
+
+        const shouldPersist = Object.keys(rangeUpdates).length || Object.keys(updates).length;
+        if (shouldPersist) {
+          const nextFigure = {
+            ...figure,
+            layout: {
+              ...(figure.layout || {})
+            }
+          };
+          Object.entries(rangeUpdates).forEach(([axisKey, info]) => {
+            if (!Array.isArray(info.values) || info.values.length !== 2) return;
+            nextFigure.layout[axisKey] = {
+              ...(nextFigure.layout[axisKey] || {}),
+              range: info.values.slice(),
+              autorange: false
+            };
+          });
+          Object.entries(updates).forEach(([key, value]) => {
+            const match = key.match(/^(xaxis\\d*|yaxis\\d*)\\.(range|autorange)$/);
+            if (!match) return;
+            const axisKey = match[1];
+            const prop = match[2];
+            nextFigure.layout[axisKey] = {
+              ...(nextFigure.layout[axisKey] || {}),
+              [prop]: Array.isArray(value) ? value.slice() : value
+            };
+          });
+          updatePanelFigure(panelId, nextFigure, { source: 'relayout', skipTemplateDirty: true });
+          persist();
+          scheduleCanvasSync();
         }
       };
       plotEl.on('plotly_relayout', handler);
@@ -7231,6 +7325,8 @@ let updateCanvasState = () => {};
     techToolbarLabelController?.teardown?.();
     stylePainterController?.teardown?.();
     stylePainterController = null;
+    templatesController?.teardown?.();
+    templatesController = null;
     peakMarkingController?.teardown?.();
     peakMarkingController = null;
     devToggleButton = null;

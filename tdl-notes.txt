@@ -3,7 +3,7 @@ ___________________________________
 Misc improvements
 
 br -- consider tabs: panels, explorer, dashboard (to see current project and switch canvases)
-back to dash baord button...
+back to dash baord button: fix placement when viewport aspect ratio is too high
 gr eye !!!
 gr add revert x axis
 share!
@@ -39,7 +39,7 @@ Polishing
 - wks/br: custom color swatched extra row
 - wks/br: filetr by tag? maybe in header option menu
 - wks/gr: solve popup width (increase or auto)
-- wks/gr: x
+- wks/gr: 
 - wks/gr: remove titles
 - wks/gr: persist hidden traces from plotly legend (sync with browser)
 - dash/exp: extensible to the right?
@@ -59,6 +59,7 @@ Polishing
 - can/tb2: s3 separate marker styling for each trace (esp colors), possibly niche, make auto color first
 - can/tb2: behavior of traces migration when markers are present?
 - can/tb2: S3 markers cannot be manually dragged (ex user wants to declutter one by one). Not straightforward to circumvent...
+- can/tb2: S3 manual marker display overlay will zoom-in trace for accurate placement (circle magnifier)
 ___________________________________________________________
 Future work
 
@@ -85,6 +86,8 @@ Bugs
     "Vendor bundle (apps/ftirui/ft/static/ft/vendor/coloris/…) remains untracked so you can add it when ready." ?
 - pinned browser header wraps
 - palettes might not apply right away (queue?)
+- plotly default buttons: behaviors or autoscale and reset axis conflict
+- plot behavior on click: sometimes reverses axis
 
 ___________________________________________________________
 Peak marking follow-ups (tb2 s3)

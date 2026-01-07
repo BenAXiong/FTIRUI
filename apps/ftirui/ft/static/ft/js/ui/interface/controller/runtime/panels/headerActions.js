@@ -51,6 +51,9 @@ export function createHeaderActions(context = {}) {
   const MUTATION_CONTEXT_KEY = '__mutationContext__';
   const wrapMutationContext = (info = {}) => ({ [MUTATION_CONTEXT_KEY]: info });
 
+  const axisKeysForLayout = (layout = {}) =>
+    Object.keys(layout).filter((key) => /^xaxis\d*$/.test(key) || /^yaxis\d*$/.test(key));
+
   const getRuntimeAxisState = (panelDom, axisKey) => {
     const plotEl = panelDom?.plotEl;
     if (!plotEl) return {};
@@ -230,6 +233,37 @@ export function createHeaderActions(context = {}) {
     return true;
   };
 
+  const withRuntimeAxisRanges = (panelId, patch = {}) => {
+    if (!panelId || !patch || typeof patch !== 'object') return patch;
+    const dom = getPanelDom(panelId);
+    if (!dom?.plotEl) return patch;
+    const runtimeLayout = dom.plotEl.layout || dom.plotEl._fullLayout || {};
+    const axisKeys = new Set([
+      ...axisKeysForLayout(runtimeLayout),
+      ...axisKeysForLayout(getPanelFigure(panelId)?.layout || {})
+    ]);
+    if (!axisKeys.size) return patch;
+    const nextPatch = { ...patch };
+    axisKeys.forEach((axisKey) => {
+      const rangeKey = `${axisKey}.range`;
+      const autorangeKey = `${axisKey}.autorange`;
+      if (Object.prototype.hasOwnProperty.call(nextPatch, rangeKey)
+        || Object.prototype.hasOwnProperty.call(nextPatch, autorangeKey)) {
+        return;
+      }
+      const runtimeAxis = getRuntimeAxisState(dom, axisKey);
+      if (Object.prototype.hasOwnProperty.call(runtimeAxis, 'autorange')) {
+        nextPatch[autorangeKey] = runtimeAxis.autorange;
+      }
+      const range = Array.isArray(runtimeAxis.range) ? runtimeAxis.range.slice() : null;
+      const isAuto = runtimeAxis.autorange === true || runtimeAxis.autorange === 'reversed';
+      if (range && !isAuto) {
+        nextPatch[rangeKey] = range;
+      }
+    });
+    return nextPatch;
+  };
+
   const commitLayoutPatch = (panelId, patch, context = null) => {
     if (!patch || typeof patch !== 'object' || !Object.keys(patch).length) {
       return false;
@@ -237,8 +271,9 @@ export function createHeaderActions(context = {}) {
     if (typeof applyLayout !== 'function') {
       return false;
     }
+    const nextPatch = withRuntimeAxisRanges(panelId, patch);
     const contextArg = context ? wrapMutationContext(context) : null;
-    const args = [() => applyLayout(panelId, patch)];
+    const args = [() => applyLayout(panelId, nextPatch)];
     if (contextArg) {
       args.push(contextArg);
     }
@@ -293,7 +328,7 @@ export function createHeaderActions(context = {}) {
           ? () => setHoverMode(panelId, on ? 'x' : 'closest')
           : null;
         const layoutTask = typeof applyLayout === 'function'
-          ? () => applyLayout(panelId, patch)
+          ? () => applyLayout(panelId, withRuntimeAxisRanges(panelId, patch))
           : null;
         runLayoutMutations(panelId, hoverTask, layoutTask);
         break;
@@ -431,16 +466,18 @@ export function createHeaderActions(context = {}) {
           });
           break;
         }
-        const task = typeof toggleLegend === 'function'
-          ? () => toggleLegend(panelId)
-          : null;
-        runLayoutMutations(panelId, task, wrapMutationContext({
+        const figure = getPanelFigure(panelId);
+        const current = Object.prototype.hasOwnProperty.call(figure?.layout || {}, 'showlegend')
+          ? !!figure.layout.showlegend
+          : true;
+        const next = !current;
+        commitLayoutPatch(panelId, { showlegend: next }, {
           label: 'Legend',
           meta: {
             action: 'legend',
-            detail: 'Legend toggled'
+            detail: `Legend ${next ? 'shown' : 'hidden'}`
           }
-        }));
+        });
         break;
       }
 
@@ -450,16 +487,13 @@ export function createHeaderActions(context = {}) {
       case 'xscale-linear': {
         const axisKey = act.startsWith('y') ? 'yaxis' : 'xaxis';
         const mode = act.endsWith('log') ? 'log' : 'linear';
-        const task = typeof setAxisType === 'function'
-          ? () => setAxisType(panelId, axisKey, mode)
-          : null;
-        runLayoutMutations(panelId, task, wrapMutationContext({
+        commitLayoutPatch(panelId, { [`${axisKey}.type`]: mode }, {
           label: 'Axes',
           meta: {
             action: 'axis-scale',
             detail: `${axisKey === 'yaxis' ? 'Y axis' : 'X axis'} scale ${mode}`
           }
-        }));
+        });
         break;
       }
 

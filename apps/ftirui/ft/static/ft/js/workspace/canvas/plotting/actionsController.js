@@ -138,8 +138,29 @@ export function setTraceColor(panelId, traceIndex, color) {
   next.data = (next.data || []).map((trace, idx) => {
     if (idx !== traceIndex) return trace;
     const line = { ...(trace?.line || {}), color: resolved };
-    const marker = trace?.marker ? { ...trace.marker, color: resolved } : { color: resolved };
-    return { ...trace, color: resolved, line, marker };
+    const markerLine = trace?.marker?.line ? { ...trace.marker.line, color: resolved } : { color: resolved };
+    const marker = trace?.marker
+      ? { ...trace.marker, color: resolved, line: markerLine }
+      : { color: resolved, line: markerLine };
+    const meta = { ...(trace?.meta || {}) };
+    meta.manualColor = true;
+    delete meta.autoColorIndex;
+    return { ...trace, color: resolved, line, marker, meta };
+  });
+  _setFigureById(panelId, next);
+  _renderNow(panelId);
+}
+
+export function setTraceLineDash(panelId, traceIndex, dash) {
+  if (!_getFigureById || !_setFigureById || !_renderNow) return;
+  const fig = _getFigureById(panelId);
+  if (!fig) return;
+  const next = cloneFigure(fig);
+  const resolved = typeof dash === 'string' && dash ? dash : 'solid';
+  next.data = (next.data || []).map((trace, idx) => {
+    if (idx !== traceIndex) return trace;
+    const line = { ...(trace?.line || {}), dash: resolved };
+    return { ...trace, dash: resolved, line };
   });
   _setFigureById(panelId, next);
   _renderNow(panelId);

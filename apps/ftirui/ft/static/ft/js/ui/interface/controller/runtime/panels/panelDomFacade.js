@@ -17,7 +17,13 @@ export function createPanelDomFacade({
       setPanelContent = () => {},
       onStylePainterSelectionChange = () => {},
       onStylePainterPopoverOpen = () => {},
-      onStylePainterButtonClick = () => {}
+      onStylePainterButtonClick = () => {},
+      onTemplatesPopoverOpen = () => {},
+      onTemplatesSave = () => {},
+      onTemplatesApply = () => {},
+      onTemplatesRename = () => {},
+      onTemplatesDelete = () => {},
+      onTemplatesDuplicate = () => {}
   } = actions;
 
     const {
@@ -40,6 +46,24 @@ export function createPanelDomFacade({
     : () => {};
   const safeStylePainterButtonClick = typeof onStylePainterButtonClick === 'function'
     ? onStylePainterButtonClick
+    : () => {};
+  const safeTemplatesPopoverOpen = typeof onTemplatesPopoverOpen === 'function'
+    ? onTemplatesPopoverOpen
+    : () => {};
+  const safeTemplatesSave = typeof onTemplatesSave === 'function'
+    ? onTemplatesSave
+    : () => {};
+  const safeTemplatesApply = typeof onTemplatesApply === 'function'
+    ? onTemplatesApply
+    : () => {};
+  const safeTemplatesRename = typeof onTemplatesRename === 'function'
+    ? onTemplatesRename
+    : () => {};
+  const safeTemplatesDelete = typeof onTemplatesDelete === 'function'
+    ? onTemplatesDelete
+    : () => {};
+  const safeTemplatesDuplicate = typeof onTemplatesDuplicate === 'function'
+    ? onTemplatesDuplicate
     : () => {};
     const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
     const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
@@ -1403,10 +1427,10 @@ export function createPanelDomFacade({
             </div>
           </div>
           <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Set current style</div>
-            <div class="workspace-panel-popover-items">
+          <div class="workspace-panel-popover-label">Save as new template</div>
+          <div class="workspace-panel-popover-items">
               <button type="button" class="btn btn-outline-secondary btn-sm" data-template-save>
-                Set current style as new template
+                Save as new template
               </button>
             </div>
           </div>
@@ -1416,6 +1440,11 @@ export function createPanelDomFacade({
               <select class="form-select form-select-sm" data-template-select>
                 <option value="" selected disabled>No templates saved</option>
               </select>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-template-action="rename">Rename</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-template-action="duplicate">Duplicate</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-template-action="delete">Delete</button>
+              </div>
             </div>
           </div>
           <div class="workspace-panel-popover-section">
@@ -1425,6 +1454,41 @@ export function createPanelDomFacade({
             </div>
           </div>
         `;
+        templatesPopover.addEventListener('click', (event) => {
+          const saveBtn = event.target.closest('[data-template-save]');
+          if (saveBtn) {
+            safeTemplatesSave(panelId, templatesPopover);
+            event.stopPropagation();
+            return;
+          }
+          const actionBtn = event.target.closest('[data-template-action]');
+          if (actionBtn) {
+            const action = actionBtn.dataset.templateAction;
+            if (action === 'rename') {
+              safeTemplatesRename(panelId, templatesPopover);
+            } else if (action === 'duplicate') {
+              safeTemplatesDuplicate(panelId, templatesPopover);
+            } else if (action === 'delete') {
+              safeTemplatesDelete(panelId, templatesPopover);
+            }
+            event.stopPropagation();
+            return;
+          }
+          const recentBtn = event.target.closest('[data-template-recent]');
+          if (recentBtn) {
+            safeTemplatesApply(panelId, recentBtn.dataset.templateRecent || '', templatesPopover);
+            event.stopPropagation();
+          }
+        });
+        templatesPopover.addEventListener('change', (event) => {
+          const select = event.target.closest('[data-template-select]');
+          if (!select) return;
+          safeTemplatesApply(panelId, select.value, templatesPopover);
+          event.stopPropagation();
+        });
+        templatesPopover.onOpen = () => {
+          safeTemplatesPopoverOpen(panelId, templatesPopover);
+        };
         appendPopoverControl(templatesBtn, templatesPopover);
 
         const lockBtn = document.createElement('button');

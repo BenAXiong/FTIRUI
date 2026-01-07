@@ -3,8 +3,9 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 Phase 4 – Graph controls & exports
 - [-] New graph header utilities.
     - [x] 1/ Style Painter
-    - [ ] 2/ Templates
-    - [ ] 3/ Pin/lock
+    - [-] 2/ Templates
+    - [-] 3/ Pin/lock
+    - [ ] 4/ Hide
 - [ ] Expand export dialog. (vector graphic, z, p, s, watermark).
     - [ ] 1/ Vector graphic
     - [ ] 2/ Zoom/dpi
@@ -31,6 +32,8 @@ Phase 7 – Polishing pass
 Phase x – Workflow refinements
 - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
 - [ ] Explore Papers/Reports workflow integration.
+- [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
+- [ ] Consider collapsible right pane for more simulatenous controls
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
