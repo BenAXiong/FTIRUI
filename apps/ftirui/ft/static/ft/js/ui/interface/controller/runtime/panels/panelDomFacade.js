@@ -1608,15 +1608,28 @@ export function createPanelDomFacade({
         snapshotBtn.dataset.snapshotResolution = '2x';
         snapshotBtn.dataset.snapshotBackground = 'white';
         snapshotBtn.dataset.snapshotView = 'current';
+        snapshotBtn.dataset.snapshotPreset = 'custom';
 
         const snapshotPopover = document.createElement('div');
         snapshotPopover.className = 'workspace-panel-popover workspace-panel-popover-snapshot';
         snapshotPopover.innerHTML = `
           <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Preset</div>
+            <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-snapshot-preset>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="publication">Publication</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="presentation">Presentation</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="web">Web</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-preset="custom">Custom</button>
+            </div>
+            <div class="workspace-panel-popover-items justify-content-end">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-snapshot-save-preset>Save as custom preset</button>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Format</div>
             <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-snapshot-format>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-format="png">PNG</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="svg">SVG (vector)</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="svg">SVG</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="jpeg">JPEG</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="webp">WebP</button>
             </div>
@@ -1717,6 +1730,102 @@ export function createPanelDomFacade({
           }
         };
 
+        const SNAPSHOT_PRESETS = {
+          publication: {
+            format: 'png',
+            resolution: '4x',
+            background: 'white',
+            view: 'full'
+          },
+          presentation: {
+            format: 'png',
+            resolution: '2x',
+            background: 'white',
+            view: 'current'
+          },
+          web: {
+            format: 'png',
+            resolution: '1x',
+            background: 'transparent',
+            view: 'current'
+          }
+        };
+
+        const readCustomPreset = () => ({
+          format: snapshotBtn.dataset.snapshotCustomFormat,
+          resolution: snapshotBtn.dataset.snapshotCustomResolution,
+          background: snapshotBtn.dataset.snapshotCustomBackground,
+          view: snapshotBtn.dataset.snapshotCustomView,
+          width: snapshotBtn.dataset.snapshotCustomWidth,
+          height: snapshotBtn.dataset.snapshotCustomHeight
+        });
+
+        const applySnapshotOptions = (options = {}) => {
+          const widthInput = snapshotPopover.querySelector('[data-snapshot-width]');
+          const heightInput = snapshotPopover.querySelector('[data-snapshot-height]');
+          if (options.format) {
+            snapshotBtn.dataset.snapshotFormat = options.format;
+            syncSnapshotGroup('[data-snapshot-format]', 'data-format', options.format);
+          }
+          if (options.resolution) {
+            snapshotBtn.dataset.snapshotResolution = options.resolution;
+            syncSnapshotGroup('[data-snapshot-resolution]', 'data-resolution', options.resolution);
+          }
+          if (options.background) {
+            snapshotBtn.dataset.snapshotBackground = options.background;
+            syncSnapshotGroup('[data-snapshot-background]', 'data-bg', options.background);
+          }
+          if (options.view) {
+            snapshotBtn.dataset.snapshotView = options.view;
+            syncSnapshotGroup('[data-snapshot-view]', 'data-view', options.view);
+          }
+          if (options.width) {
+            snapshotBtn.dataset.snapshotWidth = String(options.width);
+            if (widthInput) widthInput.value = String(options.width);
+          }
+          if (options.height) {
+            snapshotBtn.dataset.snapshotHeight = String(options.height);
+            if (heightInput) heightInput.value = String(options.height);
+          }
+        };
+
+        const setSnapshotPreset = (preset, { apply = true } = {}) => {
+          const resolved = preset || 'custom';
+          snapshotBtn.dataset.snapshotPreset = resolved;
+          syncSnapshotGroup('[data-snapshot-preset]', 'data-preset', resolved);
+          if (!apply) return;
+          if (resolved === 'custom') {
+            const custom = readCustomPreset();
+            applySnapshotOptions(custom);
+          } else {
+            applySnapshotOptions(SNAPSHOT_PRESETS[resolved] || {});
+          }
+        };
+
+        const markSnapshotCustom = () => {
+          if (snapshotBtn.dataset.snapshotPreset !== 'custom') {
+            setSnapshotPreset('custom', { apply: false });
+          }
+        };
+
+        const saveCustomPreset = () => {
+          snapshotBtn.dataset.snapshotCustomFormat = snapshotBtn.dataset.snapshotFormat || 'png';
+          snapshotBtn.dataset.snapshotCustomResolution = snapshotBtn.dataset.snapshotResolution || '2x';
+          snapshotBtn.dataset.snapshotCustomBackground = snapshotBtn.dataset.snapshotBackground || 'white';
+          snapshotBtn.dataset.snapshotCustomView = snapshotBtn.dataset.snapshotView || 'current';
+          if (snapshotBtn.dataset.snapshotWidth) {
+            snapshotBtn.dataset.snapshotCustomWidth = snapshotBtn.dataset.snapshotWidth;
+          } else {
+            delete snapshotBtn.dataset.snapshotCustomWidth;
+          }
+          if (snapshotBtn.dataset.snapshotHeight) {
+            snapshotBtn.dataset.snapshotCustomHeight = snapshotBtn.dataset.snapshotHeight;
+          } else {
+            delete snapshotBtn.dataset.snapshotCustomHeight;
+          }
+          setSnapshotPreset('custom', { apply: false });
+        };
+
         snapshotPopover.onOpen = () => {
           const formatValue = snapshotBtn.dataset.snapshotFormat || 'png';
           syncSnapshotGroup('[data-snapshot-format]', 'data-format', formatValue);
@@ -1726,6 +1835,8 @@ export function createPanelDomFacade({
           syncSnapshotGroup('[data-snapshot-background]', 'data-bg', backgroundValue);
           const viewValue = snapshotBtn.dataset.snapshotView || 'current';
           syncSnapshotGroup('[data-snapshot-view]', 'data-view', viewValue);
+          const presetValue = snapshotBtn.dataset.snapshotPreset || 'custom';
+          syncSnapshotGroup('[data-snapshot-preset]', 'data-preset', presetValue);
           applySnapshotSizeDefaults();
         };
 
@@ -1744,6 +1855,7 @@ export function createPanelDomFacade({
               delete snapshotBtn.dataset.snapshotWidth;
               e.target.value = '';
             }
+            markSnapshotCustom();
             e.stopPropagation();
           }
           if (e.target.matches('[data-snapshot-height]')) {
@@ -1760,16 +1872,33 @@ export function createPanelDomFacade({
               delete snapshotBtn.dataset.snapshotHeight;
               e.target.value = '';
             }
+            markSnapshotCustom();
             e.stopPropagation();
           }
         });
 
         snapshotPopover.addEventListener('click', (e) => {
+          const presetButton = e.target.closest('[data-snapshot-preset] button[data-preset]');
+          if (presetButton) {
+            const chosen = presetButton.dataset.preset || 'custom';
+            applySnapshotSizeDefaults();
+            setSnapshotPreset(chosen);
+            e.stopPropagation();
+            return;
+          }
+
+          if (e.target.matches('[data-snapshot-save-preset]')) {
+            saveCustomPreset();
+            e.stopPropagation();
+            return;
+          }
+
           const formatButton = e.target.closest('[data-snapshot-format] button[data-format]');
           if (formatButton) {
             const chosen = formatButton.dataset.format || 'png';
             snapshotBtn.dataset.snapshotFormat = chosen;
             syncSnapshotGroup('[data-snapshot-format]', 'data-format', chosen);
+            markSnapshotCustom();
             e.stopPropagation();
             return;
           }
@@ -1779,6 +1908,7 @@ export function createPanelDomFacade({
             const chosen = resolutionButton.dataset.resolution || '2x';
             snapshotBtn.dataset.snapshotResolution = chosen;
             syncSnapshotGroup('[data-snapshot-resolution]', 'data-resolution', chosen);
+            markSnapshotCustom();
             e.stopPropagation();
             return;
           }
@@ -1788,6 +1918,7 @@ export function createPanelDomFacade({
             const chosen = backgroundButton.dataset.bg || 'white';
             snapshotBtn.dataset.snapshotBackground = chosen;
             syncSnapshotGroup('[data-snapshot-background]', 'data-bg', chosen);
+            markSnapshotCustom();
             e.stopPropagation();
             return;
           }
@@ -1797,6 +1928,7 @@ export function createPanelDomFacade({
             const chosen = viewButton.dataset.view || 'current';
             snapshotBtn.dataset.snapshotView = chosen;
             syncSnapshotGroup('[data-snapshot-view]', 'data-view', chosen);
+            markSnapshotCustom();
             e.stopPropagation();
             return;
           }
@@ -1814,6 +1946,7 @@ export function createPanelDomFacade({
               snapshotBtn.dataset.snapshotHeight = String(heightDefault);
               if (heightInput) heightInput.value = String(heightDefault);
             }
+            markSnapshotCustom();
             e.stopPropagation();
             return;
           }
