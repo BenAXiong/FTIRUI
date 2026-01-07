@@ -1737,6 +1737,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   border: none;
   border-radius: inherit;
   overflow: hidden;
+  z-index: 0;
   transition: box-shadow .2s ease;
 }
 .workspace-canvas.is-active{
@@ -3024,6 +3025,9 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   z-index: 2610;
   overflow: visible;
 }
+.workspace-toolbar-vertical .dropdown-menu{
+  z-index: 2610;
+}
 .workspace-toolbar-theme-menu{
   width: min(640px, 95vw);
   max-height: calc(90vh - 4rem);
@@ -4020,7 +4024,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   box-shadow: 0 18px 32px rgba(15,23,42,.16);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  z-index: 20;
+  z-index: 2600;
   align-items: center;
   transition: transform .2s ease, box-shadow .2s ease;
   counter-reset: workspace-toolbar-count;

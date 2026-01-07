@@ -4,7 +4,6 @@ const DETAIL_KEYS = new Set([
   'trace-colors',
   'trace-styles',
   'trace-markers',
-  'line-smoothing',
   'color-scales',
   'graph-dimensions',
   'scales',
@@ -12,15 +11,13 @@ const DETAIL_KEYS = new Set([
   'axis-formatting',
   'gridlines',
   'legend',
-  'background',
-  'annotations',
-  'hover-labels'
+  'background'
 ]);
 
 const PRESET_DETAILS = {
   all: Array.from(DETAIL_KEYS),
   scales: ['scales'],
-  traces: ['trace-colors', 'trace-styles', 'trace-markers', 'line-smoothing', 'color-scales']
+  traces: ['trace-colors', 'trace-styles', 'trace-markers', 'color-scales']
 };
 
 const cloneValue = (value) => {
@@ -88,6 +85,59 @@ const mergeDeep = (target, patch) => {
 const axisKeysForLayout = (layout = {}) =>
   Object.keys(layout).filter((key) => /^xaxis\d*$/.test(key) || /^yaxis\d*$/.test(key));
 
+const buildAxisOverrideLayout = (
+  panelId,
+  baseLayout = {},
+  getPanelDom,
+  paths = [],
+  { includeRange = false } = {}
+) => {
+  if (!panelId || typeof getPanelDom !== 'function') return baseLayout;
+  const plotEl = getPanelDom(panelId)?.plotEl;
+  const liveLayout = plotEl?.layout || null;
+  const fullLayout = plotEl?._fullLayout || null;
+  const axisKeys = new Set([
+    ...axisKeysForLayout(baseLayout),
+    ...axisKeysForLayout(liveLayout || {}),
+    ...axisKeysForLayout(fullLayout || {})
+  ]);
+  if (!axisKeys.size) return baseLayout;
+
+  const overrides = {};
+  axisKeys.forEach((axisKey) => {
+    const liveAxis = liveLayout?.[axisKey] || fullLayout?.[axisKey];
+    if (!liveAxis || typeof liveAxis !== 'object') return;
+    const nextAxis = {};
+    if (includeRange) {
+      if (Object.prototype.hasOwnProperty.call(liveAxis, 'autorange')) {
+        nextAxis.autorange = liveAxis.autorange;
+      }
+      const isAuto = liveAxis.autorange === true || liveAxis.autorange === 'reversed';
+      const range = Array.isArray(liveAxis.range) ? liveAxis.range.slice() : null;
+      if (range && !isAuto) {
+        nextAxis.range = range;
+      }
+    }
+    if (paths.length) {
+      copyPaths(nextAxis, liveAxis, paths);
+    }
+    if (Object.keys(nextAxis).length) {
+      overrides[axisKey] = nextAxis;
+    }
+  });
+
+  if (!Object.keys(overrides).length) return baseLayout;
+  const merged = { ...baseLayout };
+  Object.keys(overrides).forEach((axisKey) => {
+    const baseAxis = baseLayout?.[axisKey];
+    const baseAxisObj = baseAxis && typeof baseAxis === 'object' && !Array.isArray(baseAxis)
+      ? baseAxis
+      : {};
+    merged[axisKey] = { ...baseAxisObj, ...overrides[axisKey] };
+  });
+  return merged;
+};
+
 const TRACE_COLOR_PATHS = [
   ['line', 'color'],
   ['marker', 'color'],
@@ -108,10 +158,6 @@ const TRACE_MARKER_PATHS = [
   ['marker', 'line', 'width'],
   ['marker', 'line', 'color']
 ];
-const TRACE_SMOOTHING_PATHS = [
-  ['line', 'shape'],
-  ['line', 'smoothing']
-];
 const TRACE_COLOR_SCALE_PATHS = [
   ['colorscale'],
   ['autocolorscale'],
@@ -123,6 +169,11 @@ const TRACE_COLOR_SCALE_PATHS = [
   ['colorbar'],
   ['zmin'],
   ['zmax']
+];
+const PEAK_MARKER_STYLE_PATHS = [
+  ['meta', 'peakMarking', 'display', 'markerStyle'],
+  ['meta', 'peakMarking', 'display', 'offsetAmount'],
+  ['meta', 'peakMarking', 'display', 'markerSize']
 ];
 
 const LAYOUT_DIMENSION_PATHS = [
@@ -144,17 +195,6 @@ const LAYOUT_LEGEND_PATHS = [
 const LAYOUT_BACKGROUND_PATHS = [
   ['paper_bgcolor'],
   ['plot_bgcolor']
-];
-const LAYOUT_ANNOTATION_PATHS = [
-  ['annotations'],
-  ['shapes'],
-  ['images']
-];
-const LAYOUT_HOVER_PATHS = [
-  ['hovermode'],
-  ['hoverlabel'],
-  ['hoverdistance'],
-  ['spikedistance']
 ];
 const LAYOUT_TRACE_COLOR_PATHS = [
   ['colorway']
@@ -203,14 +243,6 @@ const AXIS_GRID_PATHS = [
   ['minor', 'gridcolor'],
   ['minor', 'gridwidth']
 ];
-const AXIS_HOVER_PATHS = [
-  ['showspikes'],
-  ['spikemode'],
-  ['spikesnap'],
-  ['spikecolor'],
-  ['spikethickness']
-];
-
 const buildTraceClone = (trace) => {
   if (!trace || typeof trace !== 'object') return trace;
   const next = { ...trace };
@@ -361,6 +393,32 @@ export function createStylePainterController({
     const targetFigure = getPanelFigure(targetPanelId);
     const sourceLayout = sourceFigure?.layout || {};
     const targetLayout = targetFigure?.layout || {};
+    const sourceLayoutForScales = buildAxisOverrideLayout(
+      sourcePanelId,
+      sourceLayout,
+      getPanelDom,
+      AXIS_SCALE_PATHS,
+      { includeRange: true }
+    );
+    const targetLayoutForMerge = buildAxisOverrideLayout(
+      targetPanelId,
+      targetLayout,
+      getPanelDom,
+      AXIS_SCALE_PATHS,
+      { includeRange: true }
+    );
+    const sourceLayoutForAxisFormat = buildAxisOverrideLayout(
+      sourcePanelId,
+      sourceLayout,
+      getPanelDom,
+      AXIS_FORMAT_PATHS
+    );
+    const sourceLayoutForGrid = buildAxisOverrideLayout(
+      sourcePanelId,
+      sourceLayout,
+      getPanelDom,
+      AXIS_GRID_PATHS
+    );
     const sourceTraces = Array.isArray(sourceFigure?.data) ? sourceFigure.data : [];
     const targetTraces = Array.isArray(targetFigure?.data)
       ? targetFigure.data.map((trace) => buildTraceClone(trace))
@@ -378,9 +436,7 @@ export function createStylePainterController({
           break;
         case 'trace-markers':
           applyTraceCopy(sourceTraces, targetTraces, TRACE_MARKER_PATHS);
-          break;
-        case 'line-smoothing':
-          applyTraceCopy(sourceTraces, targetTraces, TRACE_SMOOTHING_PATHS);
+          copyPaths(layoutPatch, sourceLayout, PEAK_MARKER_STYLE_PATHS);
           break;
         case 'color-scales':
           applyTraceCopy(sourceTraces, targetTraces, TRACE_COLOR_SCALE_PATHS);
@@ -390,30 +446,23 @@ export function createStylePainterController({
           copyPaths(layoutPatch, sourceLayout, LAYOUT_DIMENSION_PATHS);
           break;
         case 'scales':
-          applyAxisCopy(sourceLayout, layoutPatch, AXIS_SCALE_PATHS);
+          applyAxisCopy(sourceLayoutForScales, layoutPatch, AXIS_SCALE_PATHS);
           break;
         case 'fonts':
           copyPaths(layoutPatch, sourceLayout, LAYOUT_FONT_PATHS);
           applyAxisCopy(sourceLayout, layoutPatch, AXIS_FONT_PATHS);
           break;
         case 'axis-formatting':
-          applyAxisCopy(sourceLayout, layoutPatch, AXIS_FORMAT_PATHS);
+          applyAxisCopy(sourceLayoutForAxisFormat, layoutPatch, AXIS_FORMAT_PATHS);
           break;
         case 'gridlines':
-          applyAxisCopy(sourceLayout, layoutPatch, AXIS_GRID_PATHS);
+          applyAxisCopy(sourceLayoutForGrid, layoutPatch, AXIS_GRID_PATHS);
           break;
         case 'legend':
           copyPaths(layoutPatch, sourceLayout, LAYOUT_LEGEND_PATHS);
           break;
         case 'background':
           copyPaths(layoutPatch, sourceLayout, LAYOUT_BACKGROUND_PATHS);
-          break;
-        case 'annotations':
-          copyPaths(layoutPatch, sourceLayout, LAYOUT_ANNOTATION_PATHS);
-          break;
-        case 'hover-labels':
-          copyPaths(layoutPatch, sourceLayout, LAYOUT_HOVER_PATHS);
-          applyAxisCopy(sourceLayout, layoutPatch, AXIS_HOVER_PATHS);
           break;
         default:
           break;
@@ -423,7 +472,7 @@ export function createStylePainterController({
     const nextFigure = {
       ...targetFigure,
       data: targetTraces,
-      layout: mergeDeep({ ...targetLayout }, layoutPatch)
+      layout: mergeDeep({ ...targetLayoutForMerge }, layoutPatch)
     };
 
     pushHistory({

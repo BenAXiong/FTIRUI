@@ -1284,8 +1284,7 @@ export function createPanelDomFacade({
             <div class="workspace-panel-popover-items">
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-colors" aria-pressed="false">Trace colors</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-styles" aria-pressed="false">Trace styles</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-markers" aria-pressed="false">Trace markers</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="line-smoothing" aria-pressed="false">Line smoothing</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="trace-markers" aria-pressed="false">Markers</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="color-scales" aria-pressed="false">Color scales</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="graph-dimensions" aria-pressed="false">Graph dimensions</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="scales" aria-pressed="false">Scales</button>
@@ -1294,8 +1293,6 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="gridlines" aria-pressed="false">Gridlines</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="legend" aria-pressed="false">Legend</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="background" aria-pressed="false">Background</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="annotations" aria-pressed="false">Annotations</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-style-detail="hover-labels" aria-pressed="false">Hover labels</button>
             </div>
           </div>
         `;

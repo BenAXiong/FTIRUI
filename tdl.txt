@@ -2,7 +2,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Phase 4 – Graph controls & exports
 - [-] New graph header utilities.
-    - [-] 1/ Style Painter
+    - [x] 1/ Style Painter
     - [ ] 2/ Templates
     - [ ] 3/ Pin/lock
 - [ ] Expand export dialog. (vector graphic, z, p, s, watermark).
