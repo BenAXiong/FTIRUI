@@ -992,12 +992,34 @@ export function createHeaderActions(context = {}) {
           ? (requestedFormat === 'jpg' ? 'jpeg' : requestedFormat)
           : 'png';
         const scaleNumeric = Number(payload.scale);
-        const resolvedScale = Number.isFinite(scaleNumeric) && scaleNumeric > 0 ? scaleNumeric : 2;
+        const resolutionRaw = typeof payload.resolution === 'string'
+          ? payload.resolution.toLowerCase()
+          : '';
+        const resolveResolutionScale = (value) => {
+          if (!value) return NaN;
+          if (value === 'native' || value === '1x') return 1;
+          if (value === '2x') return 2;
+          if (value === '4x') return 4;
+          const match = value.match(/(\d+)/);
+          if (match) {
+            const numeric = Number(match[1]);
+            return Number.isFinite(numeric) && numeric > 0 ? numeric : NaN;
+          }
+          return NaN;
+        };
+        const scaleFromResolution = resolveResolutionScale(resolutionRaw);
+        const resolvedScale = Number.isFinite(scaleNumeric) && scaleNumeric > 0
+          ? scaleNumeric
+          : (Number.isFinite(scaleFromResolution) && scaleFromResolution > 0 ? scaleFromResolution : 2);
         const figure = getPanelFigure(panelId);
         const options = {
           format,
           scale: resolvedScale
         };
+        if (payload.background === 'transparent' || payload.background === 'white') {
+          options.background = payload.background;
+        }
+        options.view = payload.view === 'full' ? 'full' : 'current';
         const figureLayout = figure?.layout || {};
         const toPositiveInt = (value) => {
           const numeric = Number(value);

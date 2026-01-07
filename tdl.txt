@@ -5,7 +5,7 @@ Phase 4 – Graph controls & exports
     - [x] 1/ Style Painter
     - [x] 2/ Templates
     - [x] 3/ Pin/lock
-    - [ ] 4/ Hide
+    - [x] 4/ Hide
 - [ ] Expand export dialog. (vector graphic, z, p, s, watermark).
     - [ ] 1/ Vector graphic
     - [ ] 2/ Zoom/dpi

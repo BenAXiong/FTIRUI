@@ -1605,54 +1605,52 @@ export function createPanelDomFacade({
         snapshotBtn.title = 'Snapshot options';
         snapshotBtn.setAttribute('aria-expanded', 'false');
         snapshotBtn.dataset.snapshotFormat = 'png';
-        snapshotBtn.dataset.snapshotScale = '2';
-        snapshotBtn.dataset.snapshotResolution = 'native';
+        snapshotBtn.dataset.snapshotResolution = '2x';
         snapshotBtn.dataset.snapshotBackground = 'white';
+        snapshotBtn.dataset.snapshotView = 'current';
 
         const snapshotPopover = document.createElement('div');
         snapshotPopover.className = 'workspace-panel-popover workspace-panel-popover-snapshot';
         snapshotPopover.innerHTML = `
           <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Format</div>
-            <div class="workspace-panel-popover-items">
-              <select class="form-select form-select-sm" data-snapshot-format>
-                <option value="png">PNG</option>
-                <option value="svg">SVG</option>
-                <option value="jpeg">JPEG</option>
-                <option value="webp">WebP</option>
-              </select>
+            <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-snapshot-format>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-format="png">PNG</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="svg">SVG (vector)</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="jpeg">JPEG</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="webp">WebP</button>
             </div>
           </div>
           <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Size</div>
             <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
               <label class="small text-muted mb-0">Width</label>
-              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-width placeholder="Auto" style="width: 65px" />
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-width style="width: 70px" />
               <label class="small text-muted mb-0">Height</label>
-              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-height placeholder="Auto" style="width: 65px" />
-            </div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
-              <span class="small text-muted">Scale</span>
-              <input type="range" min="1" max="4" step="1" value="2" class="form-range" style="width:160px" data-snapshot-scale />
-              <span class="small text-muted" data-snapshot-scale-readout>2x</span>
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-height style="width: 70px" />
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-snapshot-size-reset>Reset</button>
             </div>
           </div>
           <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Quality</div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
-              <label class="small text-muted mb-0">Resolution</label>
-              <select class="form-select form-select-sm" data-snapshot-resolution style="width: 140px">
-                <option value="native">Native (default)</option>
-                <option value="2x">High (2x)</option>
-                <option value="4x">Ultra (4x)</option>
-              </select>
+            <div class="workspace-panel-popover-label">Resolution</div>
+            <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-snapshot-resolution>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-resolution="native">Native (1x)</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-resolution="2x">High (2x)</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-resolution="4x">Ultra (4x)</button>
             </div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
-              <span class="small text-muted">Background</span>
-              <div class="btn-group btn-group-sm" role="group" data-snapshot-background>
-                <button type="button" class="btn btn-outline-secondary is-active" data-bg="white">White</button>
-                <button type="button" class="btn btn-outline-secondary" data-bg="transparent">Transparent</button>
-              </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Background</div>
+            <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-snapshot-background>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-bg="white">White</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-bg="transparent">Transparent</button>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Export view</div>
+            <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-snapshot-view>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-view="current">Current view</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-view="full">Full range</button>
             </div>
           </div>
           <div class="workspace-panel-popover-section">
@@ -1663,53 +1661,85 @@ export function createPanelDomFacade({
           </div>
         `;
 
-        snapshotPopover.onOpen = () => {
-          const formatSelect = snapshotPopover.querySelector('[data-snapshot-format]');
-          if (formatSelect) {
-            formatSelect.value = snapshotBtn.dataset.snapshotFormat || 'png';
-          }
+        const resolveSnapshotDimension = (value) => {
+          const numeric = Number(value);
+          if (!Number.isFinite(numeric) || numeric <= 0) return null;
+          return Math.round(numeric);
+        };
+
+        const resolveSnapshotDefaults = () => {
+          const targetEl = contentHandles?.plotEl ?? plotHost ?? panelEl;
+          if (!targetEl) return { width: null, height: null };
+          const rect = typeof targetEl.getBoundingClientRect === 'function'
+            ? targetEl.getBoundingClientRect()
+            : null;
+          const width = resolveSnapshotDimension(
+            rect?.width ?? targetEl.offsetWidth ?? targetEl.clientWidth
+          );
+          const height = resolveSnapshotDimension(
+            rect?.height ?? targetEl.offsetHeight ?? targetEl.clientHeight
+          );
+          return { width, height };
+        };
+
+        const syncSnapshotGroup = (groupSelector, dataKey, value) => {
+          const group = snapshotPopover.querySelector(groupSelector);
+          if (!group) return;
+          group.querySelectorAll(`button[${dataKey}]`).forEach((btn) => {
+            const candidate = btn.getAttribute(dataKey);
+            const isActive = candidate === value;
+            btn.classList.toggle('is-active', isActive);
+            btn.setAttribute('aria-pressed', String(isActive));
+          });
+        };
+
+        const applySnapshotSizeDefaults = () => {
           const widthInput = snapshotPopover.querySelector('[data-snapshot-width]');
-          if (widthInput) {
-            widthInput.value = snapshotBtn.dataset.snapshotWidth || '';
-          }
           const heightInput = snapshotPopover.querySelector('[data-snapshot-height]');
+          const prevDefaultWidth = resolveSnapshotDimension(snapshotBtn.dataset.snapshotDefaultWidth);
+          const prevDefaultHeight = resolveSnapshotDimension(snapshotBtn.dataset.snapshotDefaultHeight);
+          const { width, height } = resolveSnapshotDefaults();
+          if (width != null) snapshotBtn.dataset.snapshotDefaultWidth = String(width);
+          if (height != null) snapshotBtn.dataset.snapshotDefaultHeight = String(height);
+          const currentWidth = resolveSnapshotDimension(snapshotBtn.dataset.snapshotWidth);
+          const currentHeight = resolveSnapshotDimension(snapshotBtn.dataset.snapshotHeight);
+          if ((currentWidth == null || (prevDefaultWidth != null && currentWidth === prevDefaultWidth)) && width != null) {
+            snapshotBtn.dataset.snapshotWidth = String(width);
+          }
+          if ((currentHeight == null || (prevDefaultHeight != null && currentHeight === prevDefaultHeight)) && height != null) {
+            snapshotBtn.dataset.snapshotHeight = String(height);
+          }
+          if (widthInput) {
+            widthInput.value = snapshotBtn.dataset.snapshotWidth || (width != null ? String(width) : '');
+          }
           if (heightInput) {
-            heightInput.value = snapshotBtn.dataset.snapshotHeight || '';
-          }
-          const scaleInput = snapshotPopover.querySelector('[data-snapshot-scale]');
-          const scaleReadout = snapshotPopover.querySelector('[data-snapshot-scale-readout]');
-          if (scaleInput && scaleReadout) {
-            const scaleValue = snapshotBtn.dataset.snapshotScale || '2';
-            scaleInput.value = scaleValue;
-            scaleReadout.textContent = `${scaleValue}x`;
-          }
-          const resolutionSelect = snapshotPopover.querySelector('[data-snapshot-resolution]');
-          if (resolutionSelect) {
-            resolutionSelect.value = snapshotBtn.dataset.snapshotResolution || 'native';
-          }
-          const backgroundGroup = snapshotPopover.querySelector('[data-snapshot-background]');
-          if (backgroundGroup) {
-            const activeBg = snapshotBtn.dataset.snapshotBackground || 'white';
-            backgroundGroup.querySelectorAll('button[data-bg]').forEach((btn) => {
-              const isActive = btn.dataset.bg === activeBg;
-              btn.classList.toggle('is-active', isActive);
-              btn.setAttribute('aria-pressed', String(isActive));
-            });
+            heightInput.value = snapshotBtn.dataset.snapshotHeight || (height != null ? String(height) : '');
           }
         };
 
+        snapshotPopover.onOpen = () => {
+          const formatValue = snapshotBtn.dataset.snapshotFormat || 'png';
+          syncSnapshotGroup('[data-snapshot-format]', 'data-format', formatValue);
+          const resolutionValue = snapshotBtn.dataset.snapshotResolution || '2x';
+          syncSnapshotGroup('[data-snapshot-resolution]', 'data-resolution', resolutionValue);
+          const backgroundValue = snapshotBtn.dataset.snapshotBackground || 'white';
+          syncSnapshotGroup('[data-snapshot-background]', 'data-bg', backgroundValue);
+          const viewValue = snapshotBtn.dataset.snapshotView || 'current';
+          syncSnapshotGroup('[data-snapshot-view]', 'data-view', viewValue);
+          applySnapshotSizeDefaults();
+        };
+
         snapshotPopover.addEventListener('change', (e) => {
-          if (e.target.matches('[data-snapshot-format]')) {
-            snapshotBtn.dataset.snapshotFormat = e.target.value;
-            e.stopPropagation();
-          }
           if (e.target.matches('[data-snapshot-width]')) {
             const raw = e.target.value.trim();
-            const numeric = Number(raw);
-            if (Number.isFinite(numeric) && numeric > 0) {
-              const rounded = Math.round(numeric);
+            const rounded = resolveSnapshotDimension(raw);
+            const fallback = resolveSnapshotDimension(snapshotBtn.dataset.snapshotDefaultWidth);
+            if (rounded != null) {
               snapshotBtn.dataset.snapshotWidth = String(rounded);
               e.target.value = String(rounded);
+            } else if (fallback != null) {
+              snapshotBtn.dataset.snapshotWidth = String(fallback);
+              e.target.value = String(fallback);
             } else {
               delete snapshotBtn.dataset.snapshotWidth;
               e.target.value = '';
@@ -1718,58 +1748,85 @@ export function createPanelDomFacade({
           }
           if (e.target.matches('[data-snapshot-height]')) {
             const raw = e.target.value.trim();
-            const numeric = Number(raw);
-            if (Number.isFinite(numeric) && numeric > 0) {
-              const rounded = Math.round(numeric);
+            const rounded = resolveSnapshotDimension(raw);
+            const fallback = resolveSnapshotDimension(snapshotBtn.dataset.snapshotDefaultHeight);
+            if (rounded != null) {
               snapshotBtn.dataset.snapshotHeight = String(rounded);
               e.target.value = String(rounded);
+            } else if (fallback != null) {
+              snapshotBtn.dataset.snapshotHeight = String(fallback);
+              e.target.value = String(fallback);
             } else {
               delete snapshotBtn.dataset.snapshotHeight;
               e.target.value = '';
             }
             e.stopPropagation();
           }
-          if (e.target.matches('[data-snapshot-resolution]')) {
-            snapshotBtn.dataset.snapshotResolution = e.target.value;
-            e.stopPropagation();
-          }
-        });
-
-        snapshotPopover.addEventListener('input', (e) => {
-          if (e.target.matches('[data-snapshot-scale]')) {
-            const scaleReadout = snapshotPopover.querySelector('[data-snapshot-scale-readout]');
-            const value = e.target.value || '1';
-            if (scaleReadout) scaleReadout.textContent = `${value}x`;
-            snapshotBtn.dataset.snapshotScale = value;
-            e.stopPropagation();
-          }
         });
 
         snapshotPopover.addEventListener('click', (e) => {
+          const formatButton = e.target.closest('[data-snapshot-format] button[data-format]');
+          if (formatButton) {
+            const chosen = formatButton.dataset.format || 'png';
+            snapshotBtn.dataset.snapshotFormat = chosen;
+            syncSnapshotGroup('[data-snapshot-format]', 'data-format', chosen);
+            e.stopPropagation();
+            return;
+          }
+
+          const resolutionButton = e.target.closest('[data-snapshot-resolution] button[data-resolution]');
+          if (resolutionButton) {
+            const chosen = resolutionButton.dataset.resolution || '2x';
+            snapshotBtn.dataset.snapshotResolution = chosen;
+            syncSnapshotGroup('[data-snapshot-resolution]', 'data-resolution', chosen);
+            e.stopPropagation();
+            return;
+          }
+
           const backgroundButton = e.target.closest('[data-snapshot-background] button[data-bg]');
           if (backgroundButton) {
             const chosen = backgroundButton.dataset.bg || 'white';
-            const group = snapshotPopover.querySelector('[data-snapshot-background]');
-            if (group) {
-              group.querySelectorAll('button[data-bg]').forEach((btn) => {
-                const isActive = btn === backgroundButton;
-                btn.classList.toggle('is-active', isActive);
-                btn.setAttribute('aria-pressed', String(isActive));
-              });
-            }
             snapshotBtn.dataset.snapshotBackground = chosen;
+            syncSnapshotGroup('[data-snapshot-background]', 'data-bg', chosen);
+            e.stopPropagation();
+            return;
+          }
+
+          const viewButton = e.target.closest('[data-snapshot-view] button[data-view]');
+          if (viewButton) {
+            const chosen = viewButton.dataset.view || 'current';
+            snapshotBtn.dataset.snapshotView = chosen;
+            syncSnapshotGroup('[data-snapshot-view]', 'data-view', chosen);
+            e.stopPropagation();
+            return;
+          }
+
+          if (e.target.matches('[data-snapshot-size-reset]')) {
+            const widthInput = snapshotPopover.querySelector('[data-snapshot-width]');
+            const heightInput = snapshotPopover.querySelector('[data-snapshot-height]');
+            const widthDefault = resolveSnapshotDimension(snapshotBtn.dataset.snapshotDefaultWidth);
+            const heightDefault = resolveSnapshotDimension(snapshotBtn.dataset.snapshotDefaultHeight);
+            if (widthDefault != null) {
+              snapshotBtn.dataset.snapshotWidth = String(widthDefault);
+              if (widthInput) widthInput.value = String(widthDefault);
+            }
+            if (heightDefault != null) {
+              snapshotBtn.dataset.snapshotHeight = String(heightDefault);
+              if (heightInput) heightInput.value = String(heightDefault);
+            }
             e.stopPropagation();
             return;
           }
 
           if (e.target.matches('[data-snapshot-capture]')) {
             const format = snapshotBtn.dataset.snapshotFormat || 'png';
-            const scaleNumeric = Number(snapshotBtn.dataset.snapshotScale);
             const widthNumeric = Number(snapshotBtn.dataset.snapshotWidth);
             const heightNumeric = Number(snapshotBtn.dataset.snapshotHeight);
             const payload = {
               format,
-              scale: Number.isFinite(scaleNumeric) && scaleNumeric > 0 ? scaleNumeric : 2
+              resolution: snapshotBtn.dataset.snapshotResolution || '2x',
+              background: snapshotBtn.dataset.snapshotBackground || 'white',
+              view: snapshotBtn.dataset.snapshotView || 'current'
             };
             if (Number.isFinite(widthNumeric) && widthNumeric > 0) {
               payload.width = Math.round(widthNumeric);

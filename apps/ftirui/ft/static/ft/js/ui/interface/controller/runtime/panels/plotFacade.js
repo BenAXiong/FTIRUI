@@ -67,7 +67,8 @@ export function createPlotFacade({
 
   const exportFigure = (panelId, opts) => {
     const el = getPlotContainerEl(panelId);
-    return Render.exportFigure(panelId, el, opts);
+    const fig = getPanelFigure(panelId);
+    return Render.exportFigure(panelId, el, { ...(opts || {}), figure: fig });
   };
 
   const resize = (panelId) => {

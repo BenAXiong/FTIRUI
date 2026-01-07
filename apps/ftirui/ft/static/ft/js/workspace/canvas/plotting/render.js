@@ -82,17 +82,103 @@ export async function exportFigure(panelId, containerEl, opts = {}) {
   if (!containerEl) throw new Error('exportFigure: missing containerEl');
   const {
     format = 'png',       // 'png' | 'svg' | 'jpeg' | 'webp'
-    width, height, scale = 2, filename = `panel-${panelId}`
+    width, height, scale = 2, background, view = 'current', figure
   } = opts;
-  // eslint-disable-next-line no-undef
-  const url = await Plotly.toImage(containerEl, { format, width, height, scale });
-  // trigger download
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${filename}.${format}`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const exportOpts = { format, width, height, scale };
+  const wantsCustomBackground = background === 'white' || background === 'transparent';
+  const wantsFullRange = view === 'full';
+  const useScratch = wantsCustomBackground || wantsFullRange;
+
+  const cloneFigure = (value) => {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(value);
+    }
+    return JSON.parse(JSON.stringify(value));
+  };
+
+  const applyFullRange = (layout = {}) => {
+    Object.keys(layout).forEach((key) => {
+      if (!/^xaxis\d*$/.test(key) && !/^yaxis\d*$/.test(key)) return;
+      const axis = layout[key];
+      if (!axis || typeof axis !== 'object') return;
+      const isReversed = axis.autorange === 'reversed'
+        || (Array.isArray(axis.range)
+          && axis.range.length === 2
+          && Number(axis.range[0]) > Number(axis.range[1]));
+      axis.autorange = isReversed ? 'reversed' : true;
+      if (Object.prototype.hasOwnProperty.call(axis, 'range')) {
+        delete axis.range;
+      }
+    });
+  };
+
+  const applyBackground = (layout = {}) => {
+    if (background === 'transparent') {
+      layout.paper_bgcolor = 'rgba(0,0,0,0)';
+      layout.plot_bgcolor = 'rgba(0,0,0,0)';
+    } else if (background === 'white') {
+      layout.paper_bgcolor = '#ffffff';
+      layout.plot_bgcolor = '#ffffff';
+    }
+  };
+
+  if (!useScratch) {
+    // eslint-disable-next-line no-undef
+    return Plotly.toImage(containerEl, exportOpts);
+  }
+
+  const sourceFigure = figure || {
+    data: containerEl.data ?? [],
+    layout: containerEl.layout ?? {}
+  };
+  const nextFigure = cloneFigure(sourceFigure || {});
+  nextFigure.data = Array.isArray(nextFigure.data) ? nextFigure.data : [];
+  nextFigure.layout = nextFigure.layout && typeof nextFigure.layout === 'object' ? nextFigure.layout : {};
+  if (wantsFullRange) {
+    applyFullRange(nextFigure.layout);
+  }
+  if (wantsCustomBackground) {
+    applyBackground(nextFigure.layout);
+  }
+
+  const resolvedWidth = Number.isFinite(Number(width)) && Number(width) > 0
+    ? Math.round(Number(width))
+    : Math.round(containerEl.offsetWidth || containerEl.clientWidth || 800);
+  const resolvedHeight = Number.isFinite(Number(height)) && Number(height) > 0
+    ? Math.round(Number(height))
+    : Math.round(containerEl.offsetHeight || containerEl.clientHeight || 600);
+
+  const scratch = document.createElement('div');
+  scratch.style.position = 'fixed';
+  scratch.style.left = '-10000px';
+  scratch.style.top = '0';
+  scratch.style.width = `${resolvedWidth}px`;
+  scratch.style.height = `${resolvedHeight}px`;
+  scratch.style.opacity = '0';
+  scratch.style.pointerEvents = 'none';
+  document.body.appendChild(scratch);
+
+  try {
+    // eslint-disable-next-line no-undef
+    await Plotly.newPlot(scratch, nextFigure.data ?? [], nextFigure.layout ?? {}, {
+      staticPlot: true,
+      displayModeBar: false,
+      responsive: false,
+      editable: false
+    });
+    // eslint-disable-next-line no-undef
+    return Plotly.toImage(scratch, exportOpts);
+  } finally {
+    // eslint-disable-next-line no-undef
+    if (typeof Plotly !== 'undefined' && typeof Plotly.purge === 'function') {
+      try {
+        Plotly.purge(scratch);
+      } catch (e) {
+        // ignore purge errors
+      }
+    }
+    scratch.remove();
+  }
 }
 
 export async function applyRelayout(panelId, containerEl, layoutPatch) {
