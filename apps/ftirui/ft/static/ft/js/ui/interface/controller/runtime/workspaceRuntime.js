@@ -3156,6 +3156,7 @@ const recordOperation = (entry) => {
     if (!record || record.type !== 'plot') return null;
     const result = panelsModel.updatePanelFigure(panelId, figure);
     templatesController?.handlePanelFigureUpdate?.(panelId, options);
+    panelLockController?.handlePanelFigureUpdate?.(panelId);
     return result;
   };
 
@@ -5077,6 +5078,7 @@ const isPanelPinned = (panelId) =>
   });
 
   panelLockController = createPanelLockController({
+    getPanelDom,
     getPanelFigure,
     updatePanelFigure,
     renderPlot,

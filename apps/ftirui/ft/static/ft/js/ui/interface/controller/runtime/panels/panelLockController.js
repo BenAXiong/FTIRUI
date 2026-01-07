@@ -50,6 +50,7 @@ const buildHistoryLabel = (prevState, nextState) => {
 };
 
 export function createPanelLockController({
+  getPanelDom = () => null,
   getPanelFigure = () => ({ data: [], layout: {} }),
   updatePanelFigure = () => {},
   renderPlot = () => {},
@@ -59,6 +60,43 @@ export function createPanelLockController({
   panelSupportsPlot = () => true,
   showToast = () => {}
 } = {}) {
+  const disableButtonForLock = (btn) => {
+    if (!btn) return;
+    if (!btn.disabled) {
+      btn.dataset.lockDisabled = '1';
+    }
+    btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
+    btn.classList.add('is-locked');
+  };
+
+  const restoreButtonFromLock = (btn) => {
+    if (!btn) return;
+    if (btn.dataset.lockDisabled !== '1') return;
+    btn.disabled = false;
+    btn.removeAttribute('aria-disabled');
+    btn.classList.remove('is-locked');
+    delete btn.dataset.lockDisabled;
+  };
+
+  const syncPanelDomState = (panelId, state) => {
+    const dom = typeof getPanelDom === 'function' ? getPanelDom(panelId) : null;
+    const rootEl = dom?.rootEl;
+    if (!rootEl) return;
+    rootEl.classList.toggle('is-edit-locked', state.editLocked);
+    rootEl.classList.toggle('is-panel-pinned', state.pinned);
+    const buttons = rootEl.querySelectorAll('.workspace-panel-action-btn');
+    buttons.forEach((btn) => {
+      const action = btn.dataset?.panelAction || '';
+      if (state.editLocked) {
+        if (action === 'lock') return;
+        disableButtonForLock(btn);
+      } else {
+        restoreButtonFromLock(btn);
+      }
+    });
+  };
+
   const setLockState = (panelId, patch, { render = true } = {}) => {
     if (!panelId) return false;
     if (typeof panelSupportsPlot === 'function' && !panelSupportsPlot(panelId)) {
@@ -79,6 +117,7 @@ export function createPanelLockController({
       }
     });
     updatePanelFigure(panelId, nextFigure, { source: 'panel-lock', skipTemplateDirty: true });
+    syncPanelDomState(panelId, state);
     if (render) {
       renderPlot(panelId);
     }
@@ -97,6 +136,11 @@ export function createPanelLockController({
       return readLockState(getPanelFigure(panelId)).pinned === true;
     },
     handleLockToggle: (panelId, { on } = {}) => setLockState(panelId, { editLocked: !!on }, { render: true }),
-    handlePinToggle: (panelId, { on } = {}) => setLockState(panelId, { pinned: !!on }, { render: false })
+    handlePinToggle: (panelId, { on } = {}) => setLockState(panelId, { pinned: !!on }, { render: false }),
+    handlePanelFigureUpdate: (panelId) => {
+      if (!panelId) return;
+      const state = readLockState(getPanelFigure(panelId));
+      syncPanelDomState(panelId, state);
+    }
   };
 }

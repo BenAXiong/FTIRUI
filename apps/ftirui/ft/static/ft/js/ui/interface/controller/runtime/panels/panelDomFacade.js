@@ -261,6 +261,7 @@ export function createPanelDomFacade({
     let cursorBtn = null;
     let stylePainterBtn = null;
     let stylePainterPopover = null;
+    let panelLockState = { editLocked: false, pinned: false };
     if (isPlotPanel) {
         const popoverClosers = [];
         const registerPopoverCloser = (fn) => {
@@ -314,6 +315,27 @@ export function createPanelDomFacade({
             editLocked: panelMeta?.editLocked === true,
             pinned: panelMeta?.pinned === true
           };
+        };
+
+        const applyHeaderLockState = (state) => {
+          if (!panelEl) return;
+          panelEl.classList.toggle('is-edit-locked', state?.editLocked === true);
+          panelEl.classList.toggle('is-panel-pinned', state?.pinned === true);
+          panelEl.querySelectorAll('.workspace-panel-action-btn').forEach((btn) => {
+            if (state?.editLocked === true && btn.dataset?.panelAction !== 'lock') {
+              if (!btn.disabled) {
+                btn.dataset.lockDisabled = '1';
+              }
+              btn.disabled = true;
+              btn.setAttribute('aria-disabled', 'true');
+              btn.classList.add('is-locked');
+            } else if (btn.dataset.lockDisabled === '1') {
+              btn.disabled = false;
+              btn.removeAttribute('aria-disabled');
+              btn.classList.remove('is-locked');
+              delete btn.dataset.lockDisabled;
+            }
+          });
         };
 
         const controlsWrapper = document.createElement('div');
@@ -1509,11 +1531,11 @@ export function createPanelDomFacade({
         };
         appendPopoverControl(templatesBtn, templatesPopover);
 
-        const lockState = readPanelLockState();
+        panelLockState = readPanelLockState();
         const lockBtn = createToggleButton({
           icon: 'bi-lock',
           title: 'Lock graph',
-          pressed: lockState.editLocked,
+          pressed: panelLockState.editLocked,
           onClick: (isOn) => safePanelLockToggle(panelId, { on: isOn })
         });
         lockBtn.dataset.panelAction = 'lock';
@@ -1522,7 +1544,7 @@ export function createPanelDomFacade({
         const pinBtn = createToggleButton({
           icon: 'bi-pin-angle',
           title: 'Pin position',
-          pressed: lockState.pinned,
+          pressed: panelLockState.pinned,
           onClick: (isOn) => safePanelPinToggle(panelId, { on: isOn })
         });
         pinBtn.dataset.panelAction = 'pin';
@@ -1941,6 +1963,7 @@ export function createPanelDomFacade({
         actions.appendChild(overflowBtn);
         actions.appendChild(settingsBtn);
         actions.appendChild(closeBtn);
+        applyHeaderLockState(panelLockState);
         } else {
           let fullscreenEnabled = false;
           const nonPlotFullscreenBtn = document.createElement('button');
