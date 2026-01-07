@@ -25,7 +25,8 @@ export function createPanelDomFacade({
       onTemplatesDelete = () => {},
       onTemplatesDuplicate = () => {},
       onPanelLockToggle = () => {},
-      onPanelPinToggle = () => {}
+      onPanelPinToggle = () => {},
+      onPanelVisibilityToggle = () => {}
   } = actions;
 
     const {
@@ -69,6 +70,9 @@ export function createPanelDomFacade({
     : () => {};
   const safePanelLockToggle = typeof onPanelLockToggle === 'function' ? onPanelLockToggle : () => {};
   const safePanelPinToggle = typeof onPanelPinToggle === 'function' ? onPanelPinToggle : () => {};
+  const safePanelVisibilityToggle = typeof onPanelVisibilityToggle === 'function'
+    ? onPanelVisibilityToggle
+    : () => {};
     const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
     const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
     const safeListPlotPanels = typeof listPlotPanels === 'function' ? listPlotPanels : (() => []);
@@ -261,6 +265,7 @@ export function createPanelDomFacade({
     let cursorBtn = null;
     let stylePainterBtn = null;
     let stylePainterPopover = null;
+    let graphVisibilityBtn = null;
     let panelLockState = { editLocked: false, pinned: false };
     if (isPlotPanel) {
         const popoverClosers = [];
@@ -1531,6 +1536,16 @@ export function createPanelDomFacade({
         };
         appendPopoverControl(templatesBtn, templatesPopover);
 
+        const graphHidden = panelState?.hidden === true;
+        graphVisibilityBtn = createToggleButton({
+          icon: graphHidden ? 'bi-eye-slash' : 'bi-eye',
+          title: graphHidden ? 'Show graph' : 'Hide graph',
+          pressed: graphHidden,
+          onClick: (isOn) => safePanelVisibilityToggle(panelId, { hidden: isOn })
+        });
+        graphVisibilityBtn.dataset.panelAction = 'graph-visibility';
+        appendActionItem(graphVisibilityBtn);
+
         panelLockState = readPanelLockState();
         const lockBtn = createToggleButton({
           icon: 'bi-lock',
@@ -2261,6 +2276,7 @@ export function createPanelDomFacade({
           cursorButton: cursorBtn,
           stylePainterButton: stylePainterBtn,
           stylePainterPopover,
+          graphVisibilityButton: graphVisibilityBtn,
           runtime,
           contentHandles
         };
