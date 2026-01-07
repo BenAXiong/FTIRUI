@@ -422,7 +422,7 @@ export function createPanelDomFacade({
         const axesPopover = document.createElement('div');
         axesPopover.className = 'workspace-panel-popover';
         axesPopover.innerHTML = `
-          <div class="workspace-panel-popover-section">
+          <div class="workspace-panel-popover-section" data-snapshot-section="size">
             <div class="workspace-panel-popover-label">Thickness</div>
             <div class="workspace-panel-popover-items" data-role="axes-thickness">
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-thickness="thin">Thin</button>
@@ -1621,8 +1621,8 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="web">Web</button>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-preset="custom">Custom</button>
             </div>
-            <div class="workspace-panel-popover-items justify-content-end">
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-snapshot-save-preset>Save as custom preset</button>
+            <div class="workspace-panel-popover-items">
+              <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" data-snapshot-save-preset>Save as custom preset</button>
             </div>
           </div>
           <div class="workspace-panel-popover-section">
@@ -1636,12 +1636,12 @@ export function createPanelDomFacade({
           </div>
           <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Size</div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
+            <div class="workspace-panel-popover-items">
               <label class="small text-muted mb-0">Width</label>
-              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-width style="width: 70px" />
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-width />
               <label class="small text-muted mb-0">Height</label>
-              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-height style="width: 70px" />
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-snapshot-size-reset>Reset</button>
+              <input type="number" min="200" step="50" class="form-control form-control-sm" data-snapshot-height />
+              <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" data-snapshot-size-reset>Reset</button>
             </div>
           </div>
           <div class="workspace-panel-popover-section">
@@ -1667,9 +1667,10 @@ export function createPanelDomFacade({
             </div>
           </div>
           <div class="workspace-panel-popover-section">
-            <div class="d-flex justify-content-end gap-2">
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-snapshot-cancel>Close</button>
-              <button type="button" class="btn btn-primary btn-sm" data-snapshot-capture>Capture</button>
+            <div class="workspace-panel-popover-label">Capture</div>
+            <div class="workspace-panel-popover-items">
+              <button type="button" class="btn btn-primary btn-sm workspace-panel-popover-btn" data-snapshot-capture>Capture</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" data-snapshot-cancel>Close</button>
             </div>
           </div>
         `;

@@ -2619,6 +2619,38 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: .4rem;
 }
+.workspace-panel-popover-snapshot{
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(90px, max-content);
+  grid-template-columns: none;
+  gap: .75rem;
+  width: max-content;
+  max-width: none;
+  overflow-x: visible;
+}
+.workspace-panel-popover-snapshot .workspace-panel-popover-section{
+  margin-bottom: 0;
+}
+.workspace-panel-popover-snapshot .workspace-panel-popover-items{
+  flex-direction: column;
+  align-items: stretch;
+}
+.workspace-panel-popover-snapshot .workspace-panel-popover-btn,
+.workspace-panel-popover-snapshot .form-control{
+  width: 100%;
+}
+.workspace-panel-popover-snapshot .workspace-panel-popover-choice .workspace-panel-popover-btn{
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+}
+.workspace-panel-popover-snapshot [data-snapshot-section="size"]{
+  width: 90px;
+}
+.workspace-panel-popover-snapshot [data-snapshot-section="size"] .form-control{
+  min-width: 0;
+}
 .workspace-style-painter-active #pane-plotC .workspace-canvas,
 .workspace-style-painter-active #pane-plotC .workspace-canvas-wrapper,
 .workspace-style-painter-active #pane-plotC .workspace-panel,
