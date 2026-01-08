@@ -3116,10 +3116,8 @@ const recordOperation = (entry) => {
       headerEl: handles.headerEl ?? existing.headerEl ?? null,
       titleEl: handles.titleEl ?? existing.titleEl ?? null,
       plotEl: handles.plotEl ?? existing.plotEl ?? null,
-      cursorButton: handles.cursorButton ?? existing.cursorButton ?? null,
       stylePainterButton: handles.stylePainterButton ?? existing.stylePainterButton ?? null,
       stylePainterPopover: handles.stylePainterPopover ?? existing.stylePainterPopover ?? null,
-      graphVisibilityButton: handles.graphVisibilityButton ?? existing.graphVisibilityButton ?? null,
       contentHandles: handles.contentHandles ?? existing.contentHandles ?? null,
       runtime
     };
@@ -4489,20 +4487,6 @@ const isPanelPinned = (panelId) =>
         rootEl.classList.toggle('is-hidden-by-group', !sectionVisible);
         rootEl.classList.toggle('is-hidden-by-graph', !graphVisible);
         rootEl.classList.toggle('is-collapsed', record.collapsed === true);
-      }
-      const visibilityBtn = dom?.graphVisibilityButton;
-      if (visibilityBtn) {
-        const isHidden = record.hidden === true;
-        const label = isHidden ? 'Show graph' : 'Hide graph';
-        visibilityBtn.setAttribute('aria-pressed', String(isHidden));
-        visibilityBtn.setAttribute('aria-label', label);
-        visibilityBtn.title = label;
-        visibilityBtn.classList.toggle('is-active', isHidden);
-        const icon = visibilityBtn.querySelector('i');
-        if (icon) {
-          icon.classList.toggle('bi-eye', !isHidden);
-          icon.classList.toggle('bi-eye-slash', isHidden);
-        }
       }
       if (shouldShow) {
         resizePlotForPanel(panelId);
@@ -6543,6 +6527,8 @@ const isPanelPinned = (panelId) =>
         plotEl,
         getPanelFigure,
         updatePanelFigure,
+        pushHistory,
+        updateHistoryButtons,
         persist,
         scheduleCanvasSync,
         baseFigureWithoutOverlays,

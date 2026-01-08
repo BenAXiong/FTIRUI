@@ -39,6 +39,23 @@ const parseRangeUpdates = (relayoutData) => {
   return rangeUpdates;
 };
 
+const applyLayoutUpdates = (relayoutData, nextLayout) => {
+  Object.entries(relayoutData || {}).forEach(([key, value]) => {
+    if (key === 'hovermode') {
+      nextLayout.hovermode = value;
+      return;
+    }
+    const match = key.match(/^(xaxis\d*|yaxis\d*)\.(showspikes|spikemode|spikesnap|spikethickness)$/);
+    if (!match) return;
+    const axisKey = match[1];
+    const prop = match[2];
+    nextLayout[axisKey] = {
+      ...(nextLayout[axisKey] || {}),
+      [prop]: value
+    };
+  });
+};
+
 const applyRangeUpdates = ({ rangeUpdates, updates, nextLayout }) => {
   Object.entries(rangeUpdates).forEach(([axisKey, info]) => {
     if (!Array.isArray(info.values) || info.values.length !== 2) return;
@@ -65,21 +82,29 @@ export function createPlotRelayoutHandler({
   plotEl,
   getPanelFigure,
   updatePanelFigure,
+  pushHistory,
+  updateHistoryButtons,
   persist,
   scheduleCanvasSync,
   baseFigureWithoutOverlays,
   computeTraceRange,
   expandRange,
-  applyRelayout
+  applyRelayout,
+  historyThrottleMs = 500
 } = {}) {
+  let lastHistoryAt = 0;
   return (relayoutData) => {
     const rangeUpdates = parseRangeUpdates(relayoutData);
     const wantsXAuto = relayoutData?.['xaxis.autorange'];
     const wantsYAuto = relayoutData?.['yaxis.autorange'];
     const wantsAnnotations = hasRelayoutPrefix(relayoutData, 'annotations');
     const wantsShapes = hasRelayoutPrefix(relayoutData, 'shapes');
+    const wantsSpikes = Object.keys(relayoutData || {}).some((key) => (
+      key === 'hovermode'
+      || /^(xaxis\d*|yaxis\d*)\.(showspikes|spikemode|spikesnap|spikethickness)$/.test(key)
+    ));
     const hasRangeUpdates = Object.keys(rangeUpdates).length > 0;
-    const needsPersist = wantsAnnotations || wantsShapes || wantsXAuto || wantsYAuto || hasRangeUpdates;
+    const needsPersist = wantsAnnotations || wantsShapes || wantsSpikes || wantsXAuto || wantsYAuto || hasRangeUpdates;
     if (!needsPersist) return;
 
     const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
@@ -111,8 +136,22 @@ export function createPlotRelayoutHandler({
       applyRelayout(updates);
     }
 
-    const shouldPersist = hasRangeUpdates || Object.keys(updates).length || wantsAnnotations || wantsShapes;
+    const shouldPersist = hasRangeUpdates || Object.keys(updates).length || wantsAnnotations || wantsShapes || wantsSpikes;
     if (!shouldPersist) return;
+    const shouldRecordHistory = wantsAnnotations || wantsShapes || wantsSpikes || wantsXAuto || wantsYAuto;
+    if (shouldRecordHistory && typeof pushHistory === 'function') {
+      const now = Date.now();
+      if (!Number.isFinite(lastHistoryAt) || now - lastHistoryAt > historyThrottleMs) {
+        lastHistoryAt = now;
+        const label = (wantsAnnotations || wantsShapes)
+          ? 'Edit plot drawings'
+          : (wantsSpikes ? 'Toggle crosshair' : 'Reset axes');
+        pushHistory({ label, meta: { action: 'plotly-modebar' } });
+        if (typeof updateHistoryButtons === 'function') {
+          updateHistoryButtons();
+        }
+      }
+    }
 
     const nextFigure = {
       ...figure,
@@ -122,6 +161,9 @@ export function createPlotRelayoutHandler({
     };
 
     applyRangeUpdates({ rangeUpdates, updates, nextLayout: nextFigure.layout });
+    if (wantsSpikes) {
+      applyLayoutUpdates(relayoutData, nextFigure.layout);
+    }
 
     if (wantsAnnotations) {
       const annotations = cloneValue(filterOverlayItems(readPlotLayoutList(plotEl, 'annotations')));

@@ -2388,6 +2388,7 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-panel-plot .modebar-btn:is(
   [data-title="Reset axes"],
   [data-title="Reset Axes"],
+  [data-title="Toggle crosshair cursor"],
   [data-title="Toggle plot title"],
   [data-title="Draw text note"],
   [data-title="Draw line"],

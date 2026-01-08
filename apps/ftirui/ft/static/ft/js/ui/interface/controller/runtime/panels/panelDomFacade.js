@@ -266,10 +266,10 @@ export function createPanelDomFacade({
           }
         };
 
-    let cursorBtn = null;
     let stylePainterBtn = null;
     let stylePainterPopover = null;
-    let graphVisibilityBtn = null;
+    let lockBtn = null;
+    let pinBtn = null;
     let panelLockState = { editLocked: false, pinned: false };
     if (isPlotPanel) {
         const popoverClosers = [];
@@ -416,13 +416,6 @@ export function createPanelDomFacade({
           // generic portal wiring for all popovers
           registerPopoverButton(buttonEl, popoverEl);
         };
-
-        cursorBtn = createToggleButton({
-          icon: 'bi-crosshair',
-          title: 'Toggle crosshair cursor',
-          onClick: (isOn) => safeHandleHeaderAction(panelId, 'cursor', { on: isOn })
-        });
-        appendActionItem(cursorBtn);
 
         const axesBtn = document.createElement('button');
         axesBtn.type = 'button';
@@ -1548,67 +1541,24 @@ export function createPanelDomFacade({
         };
         appendPopoverControl(templatesBtn, templatesPopover);
 
-        const graphHidden = panelState?.hidden === true;
-        graphVisibilityBtn = createToggleButton({
-          icon: graphHidden ? 'bi-eye-slash' : 'bi-eye',
-          title: graphHidden ? 'Show graph' : 'Hide graph',
-          pressed: graphHidden,
-          onClick: (isOn) => safePanelVisibilityToggle(panelId, { hidden: isOn })
-        });
-        graphVisibilityBtn.dataset.panelAction = 'graph-visibility';
-        graphVisibilityBtn.classList.add('workspace-panel-action-btn--visibility');
-
         panelLockState = readPanelLockState();
-        const lockBtn = createToggleButton({
+        lockBtn = createToggleButton({
           icon: 'bi-lock',
           title: 'Lock graph',
           pressed: panelLockState.editLocked,
           onClick: (isOn) => safePanelLockToggle(panelId, { on: isOn })
         });
         lockBtn.dataset.panelAction = 'lock';
-        appendActionItem(lockBtn);
+        lockBtn.classList.add('workspace-panel-action-btn--visibility');
 
-        const pinBtn = createToggleButton({
+        pinBtn = createToggleButton({
           icon: 'bi-pin-angle',
           title: 'Pin position',
           pressed: panelLockState.pinned,
           onClick: (isOn) => safePanelPinToggle(panelId, { on: isOn })
         });
         pinBtn.dataset.panelAction = 'pin';
-        appendActionItem(pinBtn);
-
-        const annotationsBtn = document.createElement('button');
-        annotationsBtn.type = 'button';
-        annotationsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-        annotationsBtn.innerHTML = '<i class="bi bi-chat-square-text"></i>';
-        annotationsBtn.title = 'Annotation tips';
-        annotationsBtn.setAttribute('aria-expanded', 'false');
-
-        const annotationsPopover = document.createElement('div');
-        annotationsPopover.className = 'workspace-panel-popover workspace-panel-popover-annotations';
-        annotationsPopover.innerHTML = `
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Annotations</div>
-            <div class="workspace-panel-popover-items flex-column gap-2">
-              <p class="small mb-0">Use Plotly's drawing tools to add callouts:</p>
-              <ul class="small mb-1 ps-3">
-                <li>Hover the chart to reveal the mode bar and choose <strong>Draw text</strong> to drop notes.</li>
-                <li>Double-click an annotation to edit text or drag to reposition.</li>
-                <li>Hold <kbd>Shift</kbd> while dragging to keep annotations aligned.</li>
-              </ul>
-              <button type="button" class="btn btn-outline-secondary btn-sm align-self-start" data-annotation-guide>Plotly annotation guide</button>
-            </div>
-          </div>
-        `;
-        annotationsPopover.addEventListener('click', (event) => {
-          if (event.target.matches('[data-annotation-guide]')) {
-            if (typeof window !== 'undefined' && typeof window.open === 'function') {
-              window.open('https://plotly.com/javascript/text-and-annotations/', '_blank', 'noopener');
-            }
-            event.stopPropagation();
-          }
-        });
-        appendPopoverControl(annotationsBtn, annotationsPopover);
+        pinBtn.classList.add('workspace-panel-action-btn--visibility');
 
         const snapshotBtn = document.createElement('button');
         snapshotBtn.type = 'button';
@@ -2234,7 +2184,12 @@ export function createPanelDomFacade({
         actionsCenter.appendChild(controlsWrapper);
         actionsCenter.appendChild(overflowBtn);
         actionsRight.appendChild(settingsBtn);
-        actionsRight.appendChild(graphVisibilityBtn);
+        if (lockBtn) {
+          actionsRight.appendChild(lockBtn);
+        }
+        if (pinBtn) {
+          actionsRight.appendChild(pinBtn);
+        }
         actionsRight.appendChild(closeBtn);
         actions.appendChild(actionsCenter);
         actions.appendChild(overflowPanel);
@@ -2545,10 +2500,8 @@ export function createPanelDomFacade({
           headerEl: header,
           titleEl: title,
           plotEl: resolvedPlotHost,
-          cursorButton: cursorBtn,
           stylePainterButton: stylePainterBtn,
           stylePainterPopover,
-          graphVisibilityButton: graphVisibilityBtn,
           runtime,
           contentHandles
         };

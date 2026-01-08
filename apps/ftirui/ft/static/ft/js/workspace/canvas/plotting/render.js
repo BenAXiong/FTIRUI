@@ -61,6 +61,11 @@ const MODEBAR_CUSTOM_ICONS = {
     height: 24,
     path: 'M3 15 Q6 5 10 12 T17 12 Q20 10 21 7'
   },
+  crosshair: {
+    width: 24,
+    height: 24,
+    path: 'M12 4 V9 M12 15 V20 M4 12 H9 M15 12 H20 M12 9 A3 3 0 1 0 12 15 A3 3 0 1 0 12 9'
+  },
   clear: {
     width: 24,
     height: 24,
@@ -263,6 +268,31 @@ const toggleDragMode = (gd, mode) => {
   Plotly.relayout(gd, { dragmode: mode });
 };
 
+const toggleCrosshair = (gd) => {
+  if (!gd || typeof Plotly === 'undefined') return;
+  const currentX = gd.layout?.xaxis?.showspikes ?? gd._fullLayout?.xaxis?.showspikes;
+  const currentY = gd.layout?.yaxis?.showspikes ?? gd._fullLayout?.yaxis?.showspikes;
+  const isOn = !!(currentX || currentY);
+  const patch = isOn
+    ? {
+        'xaxis.showspikes': false,
+        'yaxis.showspikes': false,
+        hovermode: 'closest'
+      }
+    : {
+        'xaxis.showspikes': true,
+        'yaxis.showspikes': true,
+        'xaxis.spikemode': 'across',
+        'yaxis.spikemode': 'across',
+        'xaxis.spikesnap': 'cursor',
+        'yaxis.spikesnap': 'cursor',
+        'xaxis.spikethickness': 1,
+        'yaxis.spikethickness': 1,
+        hovermode: 'x'
+      };
+  Plotly.relayout(gd, patch);
+};
+
 const clearUserDrawings = (gd) => {
   if (!gd || typeof Plotly === 'undefined') return;
   const annotations = Array.isArray(gd.layout?.annotations)
@@ -280,6 +310,12 @@ const clearUserDrawings = (gd) => {
 };
 
 const MODEBAR_CUSTOM_BUTTONS = [
+  {
+    name: 'Crosshair cursor',
+    title: 'Toggle crosshair cursor',
+    icon: MODEBAR_CUSTOM_ICONS.crosshair,
+    click: (gd) => toggleCrosshair(gd)
+  },
   {
     name: 'Plot title',
     title: 'Toggle plot title',
