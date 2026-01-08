@@ -119,7 +119,7 @@ export function createPlotRelayoutHandler({
       if (xRange) {
         const currentAuto = figure?.layout?.xaxis?.autorange;
         const isReversed = wantsXAuto === 'reversed' || currentAuto === 'reversed';
-        const range = typeof expandRange === 'function' ? (expandRange(xRange) || xRange) : xRange;
+        const range = xRange;
         updates['xaxis.range'] = isReversed ? [range[1], range[0]] : range;
         updates['xaxis.autorange'] = false;
       }

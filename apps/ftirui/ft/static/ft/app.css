@@ -2465,8 +2465,12 @@ body.workspace-panel-fullscreen .header-actions{
   color: var(--bs-warning);
   border-color: currentColor;
 }
+.workspace-panel-action-btn--lock{
+  color: var(--bs-orange, #f59e0b);
+  border-color: currentColor;
+}
 .workspace-panel-action-btn--settings{
-  color: var(--bs-success);
+  color: var(--bs-primary);
   border-color: currentColor;
 }
 .workspace-panel-action-btn--close i{

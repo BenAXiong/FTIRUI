@@ -1549,7 +1549,7 @@ export function createPanelDomFacade({
           onClick: (isOn) => safePanelLockToggle(panelId, { on: isOn })
         });
         lockBtn.dataset.panelAction = 'lock';
-        lockBtn.classList.add('workspace-panel-action-btn--visibility');
+        lockBtn.classList.add('workspace-panel-action-btn--lock');
 
         pinBtn = createToggleButton({
           icon: 'bi-pin-angle',
@@ -2184,11 +2184,11 @@ export function createPanelDomFacade({
         actionsCenter.appendChild(controlsWrapper);
         actionsCenter.appendChild(overflowBtn);
         actionsRight.appendChild(settingsBtn);
-        if (lockBtn) {
-          actionsRight.appendChild(lockBtn);
-        }
         if (pinBtn) {
           actionsRight.appendChild(pinBtn);
+        }
+        if (lockBtn) {
+          actionsRight.appendChild(lockBtn);
         }
         actionsRight.appendChild(closeBtn);
         actions.appendChild(actionsCenter);

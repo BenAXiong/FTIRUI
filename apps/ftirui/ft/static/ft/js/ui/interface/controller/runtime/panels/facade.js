@@ -218,6 +218,23 @@ export function createPanelsFacade({
     return trace;
   };
 
+  const computeAxisRange = (traces, axisKey = 'x') => {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    let found = false;
+    ensureArray(traces).forEach((trace) => {
+      ensureArray(trace?.[axisKey]).forEach((value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return;
+        found = true;
+        if (numeric < min) min = numeric;
+        if (numeric > max) max = numeric;
+      });
+    });
+    if (!found || !Number.isFinite(min) || !Number.isFinite(max) || min === max) return null;
+    return [min, max];
+  };
+
   const ingestPayloadAsPanel = (payload, {
     width = 720,
     height = 320,
@@ -237,6 +254,17 @@ export function createPanelsFacade({
     const traces = payloadList.map((entry) => createTraceFromPayload(entry));
 
     const primaryPayload = payloadList[0] || {};
+    const layout = defaultLayout(primaryPayload);
+    const xRange = computeAxisRange(traces, 'x');
+    if (xRange) {
+      const axis = layout?.xaxis && typeof layout.xaxis === 'object' ? layout.xaxis : {};
+      const isReversed = axis.autorange === 'reversed';
+      layout.xaxis = {
+        ...axis,
+        range: isReversed ? [xRange[1], xRange[0]] : xRange.slice(),
+        autorange: false
+      };
+    }
 
     return registerPanel({
       type: 'plot',
@@ -246,7 +274,7 @@ export function createPanelsFacade({
       sectionId,
       figure: {
         data: traces,
-        layout: defaultLayout(primaryPayload)
+        layout
       }
     }, { skipHistory, skipPersist });
   };

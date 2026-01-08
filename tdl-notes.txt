@@ -30,7 +30,8 @@ tb1 consider merging 1 & 2 + add import canvas from backup
 br instead of the left/right chevron to pin/unpin the browser, switch to the empty/full pin icon
 can graph "ears" (tabs) to auto display spreadsheet on same panel + detachable (still linked and retachable)
 gr lock graphs to prevent accidental modifications
-bug tb2/s3 set/apply default unredo 
+bug tb2/s3 set/apply default unredo
+br change color palette in chip, access and modify custom too
 _________________________________________________________________________________________________
 Polishing
 
