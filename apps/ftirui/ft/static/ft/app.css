@@ -2390,7 +2390,7 @@ body.workspace-panel-fullscreen .header-actions{
   gap: .35rem;
   min-width: 0;
   justify-content: center;
-  max-width: calc(100% - var(--workspace-panel-actions-right-width, 0px) - 1rem);
+  max-width: calc(100% - var(--workspace-panel-actions-left-reserved, 0px) - var(--workspace-panel-actions-right-reserved, 0px) - 1rem);
   pointer-events: auto;
 }
 .workspace-panel-actions-right{

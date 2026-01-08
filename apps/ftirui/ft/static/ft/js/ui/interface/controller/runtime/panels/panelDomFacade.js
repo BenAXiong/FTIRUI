@@ -2153,10 +2153,26 @@ export function createPanelDomFacade({
           return contentWidth > containerRect.width + 1;
         };
 
-        const updateActionsRightWidth = () => {
-          if (!actions || !actionsRight) return;
-          const width = Math.ceil(actionsRight.getBoundingClientRect().width || 0);
-          actions.style.setProperty('--workspace-panel-actions-right-width', `${width}px`);
+        const updateActionsReservedWidths = () => {
+          if (!actions || !actionsRight || !title) return;
+          const actionsRect = actions.getBoundingClientRect();
+          const titleRect = title.getBoundingClientRect();
+          const rightRect = actionsRight.getBoundingClientRect();
+          const gapValue = (() => {
+            const styles = window.getComputedStyle(actionsRight);
+            return Number.parseFloat(styles.columnGap || styles.gap || '0') || 0;
+          })();
+          const sampleBtn = actionsRight.querySelector('.workspace-panel-action-btn')
+            || actionsCenter.querySelector('.workspace-panel-action-btn');
+          const btnWidth = sampleBtn?.getBoundingClientRect().width || 24;
+          const minRightWidth = (btnWidth * 4) + (gapValue * 3);
+          const rightReserved = Math.max(rightRect.width || 0, minRightWidth);
+          const leftReserved = Number.isFinite(actionsRect.left) && Number.isFinite(titleRect.right)
+            ? Math.max(0, titleRect.right - actionsRect.left + 8)
+            : 0;
+
+          actions.style.setProperty('--workspace-panel-actions-right-reserved', `${Math.ceil(rightReserved)}px`);
+          actions.style.setProperty('--workspace-panel-actions-left-reserved', `${Math.ceil(leftReserved)}px`);
         };
 
         const reconcileOverflowItems = ({ preserveMenuState = false } = {}) => {
@@ -2186,7 +2202,7 @@ export function createPanelDomFacade({
         };
 
         refreshActionOverflow = () => {
-          updateActionsRightWidth();
+          updateActionsReservedWidths();
           if (!controlsWrapper || controlsWrapper.clientWidth <= 0) {
             moveAllItemsInline();
             closeOverflowMenu();
