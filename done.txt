@@ -84,7 +84,14 @@ Phase 4 – Graph controls & exports
     - [x] Support double-click header to toggle full screen (shrink rename area).
     - [x] Rework header dimensions: shrink
     - [x] Rework header icons sequence and center them
-- [x] Second modebar (Title, Notes and Draw)
+- [x] Modebar extension
+    - [x] Add Title, Notes and Draw
+    - [x] Add other shapes and Erase
+    - [x] Fix click-related bugs
+    - [x] Persistence and unredo
+    - [x] Remove subtitle and default to title hidden
+    - [x] Remove annotation button
+    - [x] Remove eye hide and replace with lock & pin
 
 Phase 5 – 
 

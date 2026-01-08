@@ -1,0 +1,145 @@
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
+const cloneValue = (value) => {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+};
+
+const hasRelayoutPrefix = (relayoutData, prefix) => {
+  if (!relayoutData || typeof relayoutData !== 'object') return false;
+  const keys = Object.keys(relayoutData);
+  return keys.some((key) => key === prefix || key.startsWith(`${prefix}[`));
+};
+
+const readPlotLayoutList = (plotEl, key) => {
+  if (!plotEl) return [];
+  const list = plotEl.layout?.[key] ?? plotEl._fullLayout?.[key];
+  return ensureArray(list);
+};
+
+const filterOverlayItems = (items) => (
+  ensureArray(items).filter((item) => item?.meta?.peakOverlay !== true)
+);
+
+const parseRangeUpdates = (relayoutData) => {
+  const rangeUpdates = {};
+  Object.entries(relayoutData || {}).forEach(([key, value]) => {
+    const match = key.match(/^(xaxis\d*|yaxis\d*)\.range(?:\[(0|1)\])?$/);
+    if (!match) return;
+    const axisKey = match[1];
+    if (!rangeUpdates[axisKey]) rangeUpdates[axisKey] = { values: [] };
+    if (match[2]) {
+      const idx = Number(match[2]);
+      rangeUpdates[axisKey].values[idx] = value;
+    } else if (Array.isArray(value) && value.length === 2) {
+      rangeUpdates[axisKey].values = value.slice();
+    }
+  });
+  return rangeUpdates;
+};
+
+const applyRangeUpdates = ({ rangeUpdates, updates, nextLayout }) => {
+  Object.entries(rangeUpdates).forEach(([axisKey, info]) => {
+    if (!Array.isArray(info.values) || info.values.length !== 2) return;
+    nextLayout[axisKey] = {
+      ...(nextLayout[axisKey] || {}),
+      range: info.values.slice(),
+      autorange: false
+    };
+  });
+  Object.entries(updates).forEach(([key, value]) => {
+    const match = key.match(/^(xaxis\d*|yaxis\d*)\.(range|autorange)$/);
+    if (!match) return;
+    const axisKey = match[1];
+    const prop = match[2];
+    nextLayout[axisKey] = {
+      ...(nextLayout[axisKey] || {}),
+      [prop]: Array.isArray(value) ? value.slice() : value
+    };
+  });
+};
+
+export function createPlotRelayoutHandler({
+  panelId,
+  plotEl,
+  getPanelFigure,
+  updatePanelFigure,
+  persist,
+  scheduleCanvasSync,
+  baseFigureWithoutOverlays,
+  computeTraceRange,
+  expandRange,
+  applyRelayout
+} = {}) {
+  return (relayoutData) => {
+    const rangeUpdates = parseRangeUpdates(relayoutData);
+    const wantsXAuto = relayoutData?.['xaxis.autorange'];
+    const wantsYAuto = relayoutData?.['yaxis.autorange'];
+    const wantsAnnotations = hasRelayoutPrefix(relayoutData, 'annotations');
+    const wantsShapes = hasRelayoutPrefix(relayoutData, 'shapes');
+    const hasRangeUpdates = Object.keys(rangeUpdates).length > 0;
+    const needsPersist = wantsAnnotations || wantsShapes || wantsXAuto || wantsYAuto || hasRangeUpdates;
+    if (!needsPersist) return;
+
+    const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
+    if (!figure) return;
+    const base = typeof baseFigureWithoutOverlays === 'function'
+      ? baseFigureWithoutOverlays(figure)
+      : { data: ensureArray(figure?.data), layout: figure?.layout || {} };
+
+    const updates = {};
+    if (wantsXAuto && typeof computeTraceRange === 'function') {
+      const xRange = computeTraceRange(base.data, 'x');
+      if (xRange) {
+        const currentAuto = figure?.layout?.xaxis?.autorange;
+        const isReversed = wantsXAuto === 'reversed' || currentAuto === 'reversed';
+        const range = typeof expandRange === 'function' ? (expandRange(xRange) || xRange) : xRange;
+        updates['xaxis.range'] = isReversed ? [range[1], range[0]] : range;
+        updates['xaxis.autorange'] = false;
+      }
+    }
+    if (wantsYAuto && typeof computeTraceRange === 'function') {
+      const yRange = computeTraceRange(base.data, 'y');
+      if (yRange) {
+        updates['yaxis.range'] = typeof expandRange === 'function' ? (expandRange(yRange) || yRange) : yRange;
+        updates['yaxis.autorange'] = false;
+      }
+    }
+
+    if (Object.keys(updates).length && typeof applyRelayout === 'function') {
+      applyRelayout(updates);
+    }
+
+    const shouldPersist = hasRangeUpdates || Object.keys(updates).length || wantsAnnotations || wantsShapes;
+    if (!shouldPersist) return;
+
+    const nextFigure = {
+      ...figure,
+      layout: {
+        ...(figure.layout || {})
+      }
+    };
+
+    applyRangeUpdates({ rangeUpdates, updates, nextLayout: nextFigure.layout });
+
+    if (wantsAnnotations) {
+      const annotations = cloneValue(filterOverlayItems(readPlotLayoutList(plotEl, 'annotations')));
+      nextFigure.layout.annotations = annotations;
+    }
+    if (wantsShapes) {
+      const shapes = cloneValue(filterOverlayItems(readPlotLayoutList(plotEl, 'shapes')));
+      nextFigure.layout.shapes = shapes;
+    }
+
+    if (typeof updatePanelFigure === 'function') {
+      updatePanelFigure(panelId, nextFigure, { source: 'relayout', skipTemplateDirty: true });
+    }
+    if (typeof persist === 'function') {
+      persist();
+    }
+    if (typeof scheduleCanvasSync === 'function') {
+      scheduleCanvasSync();
+    }
+  };
+}

@@ -2375,10 +2375,32 @@ body.workspace-panel-fullscreen .header-actions{
   left: .45rem;
   right: auto;
   top: .45rem;
+  pointer-events: none;
 }
 .workspace-panel-plot .modebar{
   left: 0;
   right: auto;
+  pointer-events: auto;
+}
+.workspace-panel-plot .modebar-btn{
+  display: none;
+}
+.workspace-panel-plot .modebar-btn:is(
+  [data-title="Reset axes"],
+  [data-title="Reset Axes"],
+  [data-title="Toggle plot title"],
+  [data-title="Draw text note"],
+  [data-title="Draw line"],
+  [data-title="Draw rectangle"],
+  [data-title="Draw freehand path"],
+  [data-title="Draw closed path"],
+  [data-title="Erase shape"]
+){
+  display: inline-flex;
+}
+.workspace-panel-plot .plotly .gtitle,
+.workspace-panel-plot .plotly .gtitle text{
+  pointer-events: all;
 }
 .workspace-panel-actions{
   margin-left: 0;

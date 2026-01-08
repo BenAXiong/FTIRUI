@@ -30,6 +30,7 @@ import { spreadsheetPanelType } from './panels/registry/spreadsheetPanel.js';
 import { imagePanelType } from './panels/registry/imagePanel.js';
 import { createHeaderActions } from './panels/headerActions.js';
 import { createPlotFacade } from './panels/plotFacade.js';
+import { createPlotRelayoutHandler } from './panels/plotRelayoutPersistence.js';
 import { createSnapshotManager } from './state/snapshotManager.js';
 import { createHistoryHelpers } from './state/historyHelpers.js';
 import { createColorCursorManager } from './state/colorCursorManager.js';
@@ -6537,81 +6538,18 @@ const isPanelPinned = (panelId) =>
       const plotEl = panelDom?.plotEl;
       const Plotly = typeof window !== 'undefined' ? window.Plotly : null;
       if (!plotEl || typeof plotEl.on !== 'function' || !Plotly?.relayout) return;
-      const handler = (relayoutData) => {
-        const rangeUpdates = {};
-        Object.entries(relayoutData || {}).forEach(([key, value]) => {
-          const match = key.match(/^(xaxis\\d*|yaxis\\d*)\\.range(?:\\[(0|1)\\])?$/);
-          if (!match) return;
-          const axisKey = match[1];
-          if (!rangeUpdates[axisKey]) rangeUpdates[axisKey] = { values: [] };
-          if (match[2]) {
-            const idx = Number(match[2]);
-            rangeUpdates[axisKey].values[idx] = value;
-          } else if (Array.isArray(value) && value.length === 2) {
-            rangeUpdates[axisKey].values = value.slice();
-          }
-        });
-
-        const wantsXAuto = relayoutData?.['xaxis.autorange'];
-        const wantsYAuto = relayoutData?.['yaxis.autorange'];
-        const hasRangeUpdates = Object.keys(rangeUpdates).length > 0;
-        if (!wantsXAuto && !wantsYAuto && !hasRangeUpdates) return;
-        const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
-        if (!figure) return;
-        const base = baseFigureWithoutOverlays(figure);
-        const updates = {};
-        if (wantsXAuto) {
-          const xRange = computeTraceRange(base.data, 'x');
-          if (xRange) {
-            const currentAuto = figure?.layout?.xaxis?.autorange;
-            const isReversed = wantsXAuto === 'reversed' || currentAuto === 'reversed';
-            const range = expandRange(xRange) || xRange;
-            updates['xaxis.range'] = isReversed ? [range[1], range[0]] : range;
-            updates['xaxis.autorange'] = false;
-          }
-        }
-        if (wantsYAuto) {
-          const yRange = computeTraceRange(base.data, 'y');
-          if (yRange) {
-            updates['yaxis.range'] = expandRange(yRange) || yRange;
-            updates['yaxis.autorange'] = false;
-          }
-        }
-        if (Object.keys(updates).length) {
-          Plotly.relayout(plotEl, updates);
-        }
-
-        const shouldPersist = Object.keys(rangeUpdates).length || Object.keys(updates).length;
-        if (shouldPersist) {
-          const nextFigure = {
-            ...figure,
-            layout: {
-              ...(figure.layout || {})
-            }
-          };
-          Object.entries(rangeUpdates).forEach(([axisKey, info]) => {
-            if (!Array.isArray(info.values) || info.values.length !== 2) return;
-            nextFigure.layout[axisKey] = {
-              ...(nextFigure.layout[axisKey] || {}),
-              range: info.values.slice(),
-              autorange: false
-            };
-          });
-          Object.entries(updates).forEach(([key, value]) => {
-            const match = key.match(/^(xaxis\\d*|yaxis\\d*)\\.(range|autorange)$/);
-            if (!match) return;
-            const axisKey = match[1];
-            const prop = match[2];
-            nextFigure.layout[axisKey] = {
-              ...(nextFigure.layout[axisKey] || {}),
-              [prop]: Array.isArray(value) ? value.slice() : value
-            };
-          });
-          updatePanelFigure(panelId, nextFigure, { source: 'relayout', skipTemplateDirty: true });
-          persist();
-          scheduleCanvasSync();
-        }
-      };
+      const handler = createPlotRelayoutHandler({
+        panelId,
+        plotEl,
+        getPanelFigure,
+        updatePanelFigure,
+        persist,
+        scheduleCanvasSync,
+        baseFigureWithoutOverlays,
+        computeTraceRange,
+        expandRange,
+        applyRelayout: (updates) => Plotly.relayout(plotEl, updates)
+      });
       plotEl.on('plotly_relayout', handler);
       relayoutHandlers.set(panelId, { plotEl, handler });
     };
