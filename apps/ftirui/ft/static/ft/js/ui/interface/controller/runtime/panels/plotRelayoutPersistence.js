@@ -5,6 +5,93 @@ const cloneValue = (value) => {
   }
   return JSON.parse(JSON.stringify(value));
 };
+const AUTO_TICKFORMAT_META_KEY = 'workspaceAxisTickformat';
+
+const axisKeysForLayout = (layout = {}) => (
+  Object.keys(layout).filter((key) => /^(xaxis\d*|yaxis\d*)$/.test(key))
+);
+
+const normalizeNumber = (value, precision = 12) => {
+  if (!Number.isFinite(value)) return null;
+  return Number(value.toFixed(precision));
+};
+
+const countDecimals = (value) => {
+  if (!Number.isFinite(value)) return 0;
+  const normalized = normalizeNumber(Math.abs(value));
+  if (!Number.isFinite(normalized) || Number.isInteger(normalized)) return 0;
+  const text = normalized.toString();
+  if (text.includes('e-')) {
+    const parts = text.split('e-');
+    const exponent = Number(parts[1]);
+    if (!Number.isFinite(exponent)) return 0;
+    const baseDecimals = (parts[0].split('.')[1] || '').length;
+    return exponent + baseDecimals;
+  }
+  const pieces = text.split('.');
+  return pieces[1] ? pieces[1].length : 0;
+};
+
+const resolveAxisTickformat = (axis) => {
+  if (!axis || typeof axis !== 'object') return null;
+  if (axis.type && axis.type !== 'linear') return null;
+  if (axis.tickformatstops) return null;
+  if (!Number.isFinite(axis.dtick)) return null;
+  const decimals = countDecimals(axis.dtick);
+  if (!decimals) return null;
+  return `.${decimals}f`;
+};
+
+const readAxisTickformatMeta = (layout = {}) => {
+  const meta = layout?.meta;
+  const value = meta && typeof meta === 'object' ? meta[AUTO_TICKFORMAT_META_KEY] : null;
+  return value && typeof value === 'object' ? value : {};
+};
+
+const syncAxisTickformatMeta = (layout, nextMeta) => {
+  const meta = layout.meta && typeof layout.meta === 'object' ? { ...layout.meta } : {};
+  if (nextMeta && Object.keys(nextMeta).length) {
+    meta[AUTO_TICKFORMAT_META_KEY] = nextMeta;
+  } else if (Object.prototype.hasOwnProperty.call(meta, AUTO_TICKFORMAT_META_KEY)) {
+    delete meta[AUTO_TICKFORMAT_META_KEY];
+  }
+  layout.meta = meta;
+};
+
+const getAutoTickformatState = ({ fullLayout, layout }) => {
+  if (!fullLayout || !layout) return { patch: {}, meta: {} };
+  const axisKeys = axisKeysForLayout(fullLayout);
+  if (!axisKeys.length) return { patch: {}, meta: {} };
+  const currentMeta = readAxisTickformatMeta(layout);
+  const patch = {};
+  const nextMeta = {};
+  axisKeys.forEach((axisKey) => {
+    const axis = fullLayout[axisKey];
+    const desired = resolveAxisTickformat(axis);
+    const layoutAxis = layout?.[axisKey];
+    const layoutAxisObj = layoutAxis && typeof layoutAxis === 'object' ? layoutAxis : {};
+    const currentFormat = layoutAxisObj.tickformat;
+    const autoFormat = currentMeta?.[axisKey];
+    const hasUserFormat = typeof currentFormat === 'string'
+      && currentFormat.length
+      && currentFormat !== autoFormat
+      && currentFormat !== desired;
+    if (hasUserFormat) {
+      return;
+    }
+    if (desired) {
+      nextMeta[axisKey] = desired;
+      if (currentFormat !== desired) {
+        patch[`${axisKey}.tickformat`] = desired;
+      }
+      return;
+    }
+    if (autoFormat && currentFormat === autoFormat) {
+      patch[`${axisKey}.tickformat`] = null;
+    }
+  });
+  return { patch, meta: nextMeta };
+};
 
 const hasRelayoutPrefix = (relayoutData, prefix) => {
   if (!relayoutData || typeof relayoutData !== 'object') return false;
@@ -56,6 +143,25 @@ const applyLayoutUpdates = (relayoutData, nextLayout) => {
   });
 };
 
+const applyTickformatUpdates = (relayoutData, nextLayout) => {
+  Object.entries(relayoutData || {}).forEach(([key, value]) => {
+    const match = key.match(/^(xaxis\d*|yaxis\d*)\.tickformat$/);
+    if (!match) return;
+    const axisKey = match[1];
+    const axisLayout = nextLayout[axisKey] && typeof nextLayout[axisKey] === 'object'
+      ? { ...nextLayout[axisKey] }
+      : {};
+    if (value == null) {
+      if (Object.prototype.hasOwnProperty.call(axisLayout, 'tickformat')) {
+        delete axisLayout.tickformat;
+      }
+    } else {
+      axisLayout.tickformat = value;
+    }
+    nextLayout[axisKey] = axisLayout;
+  });
+};
+
 const applyRangeUpdates = ({ rangeUpdates, updates, nextLayout }) => {
   Object.entries(rangeUpdates).forEach(([axisKey, info]) => {
     if (!Array.isArray(info.values) || info.values.length !== 2) return;
@@ -99,12 +205,15 @@ export function createPlotRelayoutHandler({
     const wantsYAuto = relayoutData?.['yaxis.autorange'];
     const wantsAnnotations = hasRelayoutPrefix(relayoutData, 'annotations');
     const wantsShapes = hasRelayoutPrefix(relayoutData, 'shapes');
+    const wantsTickformat = Object.keys(relayoutData || {}).some((key) => (
+      /^(xaxis\d*|yaxis\d*)\.tickformat$/.test(key)
+    ));
     const wantsSpikes = Object.keys(relayoutData || {}).some((key) => (
       key === 'hovermode'
       || /^(xaxis\d*|yaxis\d*)\.(showspikes|spikemode|spikesnap|spikethickness)$/.test(key)
     ));
     const hasRangeUpdates = Object.keys(rangeUpdates).length > 0;
-    const needsPersist = wantsAnnotations || wantsShapes || wantsSpikes || wantsXAuto || wantsYAuto || hasRangeUpdates;
+    const needsPersist = wantsAnnotations || wantsShapes || wantsSpikes || wantsTickformat || wantsXAuto || wantsYAuto || hasRangeUpdates;
     if (!needsPersist) return;
 
     const figure = typeof getPanelFigure === 'function' ? getPanelFigure(panelId) : null;
@@ -156,8 +265,15 @@ export function createPlotRelayoutHandler({
     if (Object.keys(updates).length && typeof applyRelayout === 'function') {
       applyRelayout(updates);
     }
+    const autoTickformat = getAutoTickformatState({
+      fullLayout: plotEl?._fullLayout,
+      layout: figure.layout || {}
+    });
+    if (!wantsTickformat && !Object.keys(updates).length && Object.keys(autoTickformat.patch).length && typeof applyRelayout === 'function') {
+      applyRelayout(autoTickformat.patch);
+    }
 
-    const shouldPersist = hasRangeUpdates || Object.keys(updates).length || wantsAnnotations || wantsShapes || wantsSpikes;
+    const shouldPersist = hasRangeUpdates || Object.keys(updates).length || wantsAnnotations || wantsShapes || wantsSpikes || wantsTickformat;
     if (!shouldPersist) return;
     const shouldRecordHistory = wantsAnnotations || wantsShapes || wantsSpikes || wantsXAuto || wantsYAuto;
     if (shouldRecordHistory && typeof pushHistory === 'function') {
@@ -184,6 +300,14 @@ export function createPlotRelayoutHandler({
     applyRangeUpdates({ rangeUpdates, updates, nextLayout: nextFigure.layout });
     if (wantsSpikes) {
       applyLayoutUpdates(relayoutData, nextFigure.layout);
+    }
+    if (wantsTickformat) {
+      applyTickformatUpdates(relayoutData, nextFigure.layout);
+      const nextMeta = getAutoTickformatState({
+        fullLayout: plotEl?._fullLayout,
+        layout: nextFigure.layout
+      }).meta;
+      syncAxisTickformatMeta(nextFigure.layout, nextMeta);
     }
 
     if (wantsAnnotations) {
