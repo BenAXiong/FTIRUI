@@ -3138,6 +3138,11 @@ const recordOperation = (entry) => {
 
   const getPanelSnapshot = (panelId) => (panelId ? panelsModel.getPanel(panelId) : null);
   const getPanelRecord = getPanelSnapshot;
+  const getTopPanelZIndex = () => {
+    const snapshot = panelsModel.snapshot();
+    const value = Number(snapshot?.zIndexCursor);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  };
   const panelSupportsPlot = (panelId) => {
     const record = getPanelRecord(panelId);
     const type = getPanelType(record?.type);
@@ -5082,7 +5087,8 @@ const isPanelPinned = (panelId) =>
     selectors: {
       getPanelDom,
       getPanelFigure,
-      getPanelContent
+      getPanelContent,
+      getTopPanelZIndex
     },
     traces: {
       normalizePanelTraces,

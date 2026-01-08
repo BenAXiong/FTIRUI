@@ -1,53 +1,57 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Phase 4 – Graph controls & exports
-- [-] New graph header utilities.
+- [x] New graph header utilities.
     - [x] 1/ Style Painter
     - [x] 2/ Templates
     - [x] 3/ Pin/lock
     - [x] 4/ Hide
-- [ ] Expand export dialog. (vector graphic, z, p, s, watermark).
+- [x] Expand export dialog. (vector graphic, z, p, s, watermark).
     - [x] 1/ Vector graphic
     - [x] 2/ Zoom/dpi
     - [x] 3/ Presets
     - [x] 4/ Selection (current view) vs all
-- [ ] ? Clarify graph renaming area
-- [ ] ? Support double-click header to toggle full screen.
-- [ ] Graph option v2: right side bar... -- make alternatives togglable?
-- [x] (extra) shift+drag on axes to zoom
+- [x] Support double-click header to toggle full screen (shrink rename area).
+- [ ] Rework header dimensions: shrink
+- [ ] Rework header icons sequence and center them
 
 Phase 5 – Plotly & canvas interaction upgrades
-- [ ] Remove unused Plotly icons and refine manual axis input UX (double-click behavior, zoom snap).
+- [x] Remove unused Plotly icons
+- [ ] Change default/base/reset view to 'autoscale'
+- [ ] Change axis double click to autoscale
+- [ ] Refine manual axis input UX (double-click behavior, zoom snap).
 - [ ] Support zooming from plot borders and other interaction affordances.
+- [ ] ? Plot title.
+- [ ] ? Remove plot subtitle.
+- [ ] (see Plotly manual) rethink axis manual input (double click somewhere? & match current zoom + snap to nearest round number maybe)
+- [ ] ? right click on axes for options (delete, resize, ...)
 
-    Plotly interaction
-    - [ ] plotly remove all icons
-    - [ ] (see Plotly manual) rethink axis manual input (double click somewhere? & match current zoom + snap to nearest round number maybe)
-    - [ ] zoom from plot borders
-
-Phase 7 – Polishing pass
+Phase 6 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
-- [ ] Consider for MVP: alternate version with graph buttons on right side + lables
 
-Phase x – Workflow refinements
+Phase 7 – Workflow refinements
 - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
 - [ ] Explore Papers/Reports workflow integration.
 - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
 - [ ] Consider collapsible right pane for more simulatenous controls
+- [ ] ooooor Graph option v2: right side bar... -- make alternatives togglable?
+- [ ] Right pane: add tab for metadata and other info (incl user notes for self and collab)
+- [ ] tb1&2 - enable shortcuts
+- [ ] tb2 s4 = A/T mode
+- [ ] tb2 s5 = stack vs overlap mode
+- [ ] tbs s10 add stuck to right vs follow graph and hide 
+
+MVP Part 5/5 -- Polishing and publishing
+
+Phase x – Bugs & technical debt
+- [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
 - [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
 
-Phase x – Bugs & technical debt
-- [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
-
-
-MVP Part 5/5 -- Polishing and publishing
-
-.
 _________________________________________________________________________________________________
 **Plan of action**
 

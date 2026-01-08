@@ -1826,8 +1826,20 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 .workspace-panel-title{
   font-weight: 600;
   font-size: .85rem;
-  flex-grow: 1;
+  flex: 0 1 auto;
   color: inherit;
+}
+body.workspace-panel-fullscreen .workspace-toolbar{
+  display: none !important;
+}
+body.workspace-panel-fullscreen .workspace-hud{
+  display: none !important;
+}
+body.workspace-panel-fullscreen .workspace-canvas-title-group,
+body.workspace-panel-fullscreen .workspace-canvas-title,
+body.workspace-panel-fullscreen .workspace-back-btn,
+body.workspace-panel-fullscreen .header-actions{
+  display: none !important;
 }
 .workspace-panel-body{
   position: relative;

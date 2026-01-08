@@ -2008,6 +2008,7 @@ export function createPanelDomFacade({
             safeHandleHeaderAction(panelId, 'toggle-fullscreen', { on: isOn });
           }
         });
+        fullscreenBtn.hidden = true;
         appendActionItem(fullscreenBtn);
 
         const overflowBtn = document.createElement('button');
@@ -2193,6 +2194,7 @@ export function createPanelDomFacade({
           const nonPlotFullscreenBtn = document.createElement('button');
           nonPlotFullscreenBtn.type = 'button';
           nonPlotFullscreenBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+          nonPlotFullscreenBtn.hidden = true;
           const updateNonPlotFullscreenBtn = () => {
             nonPlotFullscreenBtn.innerHTML = fullscreenEnabled
               ? '<i class="bi bi-arrows-angle-contract"></i>'
@@ -2437,6 +2439,15 @@ export function createPanelDomFacade({
         }
         header.appendChild(title);
         header.appendChild(actions);
+        header.addEventListener('dblclick', (evt) => {
+          if (evt.defaultPrevented) return;
+          const target = evt.target;
+          if (target?.closest?.('.workspace-panel-title')) return;
+          if (target?.closest?.('.workspace-panel-actions')) return;
+          if (target?.closest?.('button, a, input, select, textarea, label')) return;
+          const isFullscreen = panelEl.classList.contains('is-fullscreen');
+          safeHandleHeaderAction(panelId, 'toggle-fullscreen', { on: !isFullscreen });
+        });
         refreshActionOverflow();
         if (typeof queueMicrotask === 'function') {
           queueMicrotask(refreshActionOverflow);

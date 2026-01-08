@@ -15,6 +15,14 @@ export function createHeaderActions(context = {}) {
   const getPanelDom = selectors.getPanelDom || (() => null);
   const getPanelFigure = selectors.getPanelFigure || (() => ({ data: [], layout: {} }));
   const getPanelContent = selectors.getPanelContent || (() => null);
+  const getTopPanelZIndex = selectors.getTopPanelZIndex || (() => null);
+  const updateFullscreenBodyClass = () => {
+    if (typeof document === 'undefined') return;
+    const body = document.body;
+    if (!body) return;
+    const hasFullscreen = !!document.querySelector('.workspace-panel.is-fullscreen');
+    body.classList.toggle('workspace-panel-fullscreen', hasFullscreen);
+  };
 
   const normalizePanelTraces = traces.normalizePanelTraces || (() => {});
   const renderPlot = traces.renderPlot || (() => {});
@@ -952,7 +960,9 @@ export function createHeaderActions(context = {}) {
           rootEl.style.bottom = '0';
           rootEl.style.width = '100%';
           rootEl.style.height = '100%';
-          rootEl.style.zIndex = '1200';
+          const topZ = Number(typeof getTopPanelZIndex === 'function' ? getTopPanelZIndex() : NaN);
+          const resolvedZ = Number.isFinite(topZ) ? Math.max(1200, topZ + 1) : 1200;
+          rootEl.style.zIndex = String(resolvedZ);
         } else {
           rootEl.classList.remove('is-fullscreen');
           rootEl.style.transform = rootEl.dataset.prevTransform || '';
@@ -974,6 +984,7 @@ export function createHeaderActions(context = {}) {
           delete rootEl.dataset.prevZindex;
           delete rootEl.dataset.prevPosition;
         }
+        updateFullscreenBodyClass();
         panelDom.runtime?.refreshActionOverflow?.();
         renderPlot(panelId);
         resizePlot(panelId);
