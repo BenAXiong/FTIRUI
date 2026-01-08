@@ -125,9 +125,30 @@ export function createPlotRelayoutHandler({
       }
     }
     if (wantsYAuto && typeof computeTraceRange === 'function') {
+      const shouldToggleYZero = !!(wantsYAuto && !wantsXAuto);
+      let useZeroBaseline = plotEl?.__workspaceYAxisZeroMode === true;
+      if (shouldToggleYZero) {
+        useZeroBaseline = !useZeroBaseline;
+        if (plotEl) {
+          plotEl.__workspaceYAxisZeroMode = useZeroBaseline;
+        }
+      }
       const yRange = computeTraceRange(base.data, 'y');
       if (yRange) {
-        updates['yaxis.range'] = typeof expandRange === 'function' ? (expandRange(yRange) || yRange) : yRange;
+        let nextRange = yRange;
+        if (useZeroBaseline) {
+          const [min, max] = yRange;
+          if (max <= 0) {
+            nextRange = [min, 0];
+          } else if (min >= 0) {
+            nextRange = [0, max];
+          } else {
+            nextRange = yRange;
+          }
+        } else if (typeof expandRange === 'function') {
+          nextRange = expandRange(yRange) || yRange;
+        }
+        updates['yaxis.range'] = nextRange;
         updates['yaxis.autorange'] = false;
       }
     }
