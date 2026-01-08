@@ -1,21 +1,5 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-Phase 4 – Graph controls & exports
-- [x] New graph header utilities.
-    - [x] 1/ Style Painter
-    - [x] 2/ Templates
-    - [x] 3/ Pin/lock
-    - [x] 4/ Hide
-- [x] Expand export dialog. (vector graphic, z, p, s, watermark).
-    - [x] 1/ Vector graphic
-    - [x] 2/ Zoom/dpi
-    - [x] 3/ Presets
-    - [x] 4/ Selection (current view) vs all
-- [-] Header rework
-    - [x] Support double-click header to toggle full screen (shrink rename area).
-    - [x] Rework header dimensions: shrink
-    - [ ] Rework header icons sequence and center them
-
 Phase 5 – Plotly & canvas interaction upgrades
 - [x] Remove unused Plotly icons
 - [ ] Change default/base/reset view to 'autoscale'
@@ -26,6 +10,7 @@ Phase 5 – Plotly & canvas interaction upgrades
 - [ ] ? Remove plot subtitle.
 - [ ] (see Plotly manual) rethink axis manual input (double click somewhere? & match current zoom + snap to nearest round number maybe)
 - [ ] ? right click on axes for options (delete, resize, ...)
+- [ ] plot axes: ensure same amount of numbers
 
 Phase 6 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
@@ -37,8 +22,8 @@ Phase 7 – Workflow refinements
 - [ ] Explore Papers/Reports workflow integration.
 - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
 - [ ] Consider collapsible right pane for more simulatenous controls
-- [ ] ooooor Graph option v2: right side bar... -- make alternatives togglable?
-- [ ] Right pane: add tab for metadata and other info (incl user notes for self and collab)
+        ooooor Graph option v2: right side bar... -- make alternatives togglable?
+        Right pane: add tab for metadata and other info (incl user notes for self and collab)
 - [ ] tb1&2 - enable shortcuts
 - [ ] tb2 s4 = A/T mode
 - [ ] tb2 s5 = stack vs overlap mode

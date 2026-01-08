@@ -70,7 +70,18 @@ Phase 3 – Tech controls (aka tb2): toolbar modernization
 - [x] Buttons for other techs: auto placeholders (XRD1, XRD2,..., MS1,...)
 
 Phase 4 – Graph controls & exports
-- [ ] New graph header utilities.
-    - [ ] 1/ Style Painter
-    - [ ] 2/ Templates
-    - [ ] 3/ Pin/lock
+- [x] New graph header utilities.
+    - [x] 1/ Style Painter
+    - [x] 2/ Templates
+    - [x] 3/ Pin/lock
+    - [x] 4/ Hide
+- [x] Expand export dialog. (vector graphic, z, p, s, watermark).
+    - [x] 1/ Vector graphic
+    - [x] 2/ Zoom/dpi
+    - [x] 3/ Presets
+    - [x] 4/ Selection (current view) vs all
+- [x] Header rework
+    - [x] Support double-click header to toggle full screen (shrink rename area).
+    - [x] Rework header dimensions: shrink
+    - [x] Rework header icons sequence and center them
+

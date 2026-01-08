@@ -2547,12 +2547,12 @@ body.workspace-panel-fullscreen .header-actions{
   border-radius: .9rem;
   box-shadow: 0 24px 48px rgba(15,23,42,.18);
   padding: .6rem .75rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: .45rem;
   overflow: visible;
   width: max-content;
   min-width: 180px;
-  max-width: min(320px, 90vw);
+  max-width: none;
   z-index: 75;
   display: flex;
   opacity: 0;
@@ -2810,8 +2810,11 @@ body.workspace-panel-fullscreen .header-actions{
   left: 0; top: 0;
   right: auto; bottom: auto;        /* <-- cancel the base bottom:... */
   transform: translate(-50%, -100%); /* center X, open ABOVE the anchor */
-  pointer-events: auto;              /* clickable again */
-  opacity: 1; visibility: visible;   /* portal opens it */
+}
+.ui-portal .workspace-panel-popover.is-open{
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Prevent the mobile rule in app.css from forcing right:0 / translateY when portaled */
@@ -5213,7 +5216,7 @@ pre, code, .pre-like {
   bottom: auto;
   transform: translateX(-50%);
   z-index: 20;              /* above Plotly plot */
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 
@@ -5224,8 +5227,11 @@ pre, code, .pre-like {
 .ui-portal .workspace-panel-popover{
   position:absolute; left:0; top:0;
   transform:translate(-50%,-100%); /* center X, open ABOVE the anchor */
-  pointer-events:auto;
-  opacity:1; visibility:visible;   /* ensure visible when portaled */
+}
+.ui-portal .workspace-panel-popover.is-open{
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
 }
 
 
