@@ -230,6 +230,10 @@ export function createPanelDomFacade({
 
         const actions = document.createElement('div');
         actions.className = 'workspace-panel-actions';
+        const actionsCenter = document.createElement('div');
+        actionsCenter.className = 'workspace-panel-actions-center';
+        const actionsRight = document.createElement('div');
+        actionsRight.className = 'workspace-panel-actions-right';
         let refreshActionOverflow = () => {};
         let contentHandles = null;
         let markdownPreviewToggleBtn = null;
@@ -1544,7 +1548,7 @@ export function createPanelDomFacade({
           onClick: (isOn) => safePanelVisibilityToggle(panelId, { hidden: isOn })
         });
         graphVisibilityBtn.dataset.panelAction = 'graph-visibility';
-        appendActionItem(graphVisibilityBtn);
+        graphVisibilityBtn.classList.add('workspace-panel-action-btn--visibility');
 
         panelLockState = readPanelLockState();
         const lockBtn = createToggleButton({
@@ -2100,7 +2104,7 @@ export function createPanelDomFacade({
 
         const settingsBtn = document.createElement('button');
         settingsBtn.type = 'button';
-        settingsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-toggle';
+        settingsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-toggle workspace-panel-action-btn--settings';
         settingsBtn.innerHTML = '<i class="bi bi-gear-wide"></i>';
         settingsBtn.title = 'Hide graph tools';
         settingsBtn.setAttribute('aria-pressed', 'false');
@@ -2183,11 +2187,14 @@ export function createPanelDomFacade({
           resizeObserver.observe(actions);
         }
 
-        actions.appendChild(controlsWrapper);
+        actionsCenter.appendChild(controlsWrapper);
+        actionsCenter.appendChild(overflowBtn);
+        actionsRight.appendChild(settingsBtn);
+        actionsRight.appendChild(graphVisibilityBtn);
+        actionsRight.appendChild(closeBtn);
+        actions.appendChild(actionsCenter);
         actions.appendChild(overflowPanel);
-        actions.appendChild(overflowBtn);
-        actions.appendChild(settingsBtn);
-        actions.appendChild(closeBtn);
+        actions.appendChild(actionsRight);
         applyHeaderLockState(panelLockState);
         } else {
           let fullscreenEnabled = false;
@@ -2405,7 +2412,7 @@ export function createPanelDomFacade({
             infoPopover.onOpen = () => setMarkdownInfoTab(activeMarkdownInfoTab);
 
             infoActionWrapper.appendChild(infoPopover);
-            actions.appendChild(infoActionWrapper);
+            actionsCenter.appendChild(infoActionWrapper);
             registerPopoverButton(infoBtn, infoPopover, {
               strategy: 'right-side',
               align: 'center',
@@ -2422,7 +2429,7 @@ export function createPanelDomFacade({
             });
           }
 
-          actions.appendChild(nonPlotFullscreenBtn);
+          actionsCenter.appendChild(nonPlotFullscreenBtn);
 
           const closeBtn = document.createElement('button');
           closeBtn.type = 'button';
@@ -2432,7 +2439,9 @@ export function createPanelDomFacade({
           closeBtn.addEventListener('click', () => {
             safeRemovePanel(panelState.id);
           });
-          actions.appendChild(closeBtn);
+          actionsRight.appendChild(closeBtn);
+          actions.appendChild(actionsCenter);
+          actions.appendChild(actionsRight);
         }
         if (headerTagBadge) {
           header.appendChild(headerTagBadge);
