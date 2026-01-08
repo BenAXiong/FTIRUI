@@ -1817,7 +1817,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   align-items: center;
   gap: .4rem;
   padding: .35rem .65rem;
-  min-height: 2.25rem;
+  /* min-height: 2.25rem; */
   background: var(--workspace-theme-panel-header-bg, color-mix(in oklab, var(--bs-primary) 12%, transparent));
   border-bottom: 1px solid var(--workspace-theme-panel-header-border, color-mix(in oklab, var(--bs-primary) 20%, transparent));
   border-top-left-radius: .375rem;
@@ -2377,10 +2377,10 @@ body.workspace-panel-fullscreen .header-actions{
   flex-wrap: nowrap;
 }
 .workspace-panel-action-btn{
-  width: 2rem;
-  height: 2rem;
-  min-width: 2rem;
-  min-height: 2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  /* min-width: 2rem;
+  min-height: 2rem; */
   border-radius: .55rem;
   display: inline-flex;
   align-items: center;

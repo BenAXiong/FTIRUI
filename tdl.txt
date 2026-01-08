@@ -11,9 +11,10 @@ Phase 4 – Graph controls & exports
     - [x] 2/ Zoom/dpi
     - [x] 3/ Presets
     - [x] 4/ Selection (current view) vs all
-- [x] Support double-click header to toggle full screen (shrink rename area).
-- [ ] Rework header dimensions: shrink
-- [ ] Rework header icons sequence and center them
+- [-] Header rework
+    - [x] Support double-click header to toggle full screen (shrink rename area).
+    - [x] Rework header dimensions: shrink
+    - [ ] Rework header icons sequence and center them
 
 Phase 5 – Plotly & canvas interaction upgrades
 - [x] Remove unused Plotly icons
