@@ -2394,7 +2394,8 @@ body.workspace-panel-fullscreen .header-actions{
   [data-title="Draw rectangle"],
   [data-title="Draw freehand path"],
   [data-title="Draw closed path"],
-  [data-title="Erase shape"]
+  [data-title="Erase shape"],
+  [data-title="Clear drawings"]
 ){
   display: inline-flex;
 }

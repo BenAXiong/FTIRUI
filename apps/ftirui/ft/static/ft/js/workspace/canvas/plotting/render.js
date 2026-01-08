@@ -60,6 +60,11 @@ const MODEBAR_CUSTOM_ICONS = {
     width: 24,
     height: 24,
     path: 'M3 15 Q6 5 10 12 T17 12 Q20 10 21 7'
+  },
+  clear: {
+    width: 24,
+    height: 24,
+    path: 'M8 4 H16 L17 6 H21 V8 H3 V6 H7 Z M6 8 H18 L17 20 H7 Z'
   }
 };
 
@@ -258,6 +263,22 @@ const toggleDragMode = (gd, mode) => {
   Plotly.relayout(gd, { dragmode: mode });
 };
 
+const clearUserDrawings = (gd) => {
+  if (!gd || typeof Plotly === 'undefined') return;
+  const annotations = Array.isArray(gd.layout?.annotations)
+    ? gd.layout.annotations.slice()
+    : (Array.isArray(gd._fullLayout?.annotations) ? gd._fullLayout.annotations.slice() : []);
+  const shapes = Array.isArray(gd.layout?.shapes)
+    ? gd.layout.shapes.slice()
+    : (Array.isArray(gd._fullLayout?.shapes) ? gd._fullLayout.shapes.slice() : []);
+  const keepAnnotations = annotations.filter((ann) => ann?.meta?.peakOverlay === true);
+  const keepShapes = shapes.filter((shape) => shape?.meta?.peakOverlay === true);
+  Plotly.relayout(gd, {
+    annotations: keepAnnotations,
+    shapes: keepShapes
+  });
+};
+
 const MODEBAR_CUSTOM_BUTTONS = [
   {
     name: 'Plot title',
@@ -300,6 +321,12 @@ const MODEBAR_CUSTOM_BUTTONS = [
     title: 'Erase shape',
     icon: resolveIcon('eraseshape', MODEBAR_LETTER_ICONS.e),
     click: (gd) => toggleDragMode(gd, 'eraseshape')
+  },
+  {
+    name: 'Clear drawings',
+    title: 'Clear drawings',
+    icon: resolveIcon('trash', MODEBAR_CUSTOM_ICONS.clear),
+    click: (gd) => clearUserDrawings(gd)
   }
 ];
 
