@@ -1625,7 +1625,7 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" data-snapshot-save-preset>Save as custom preset</button>
             </div>
           </div>
-          <div class="workspace-panel-popover-section">
+          <div class="workspace-panel-popover-section" data-snapshot-section="format">
             <div class="workspace-panel-popover-label">Format</div>
             <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-snapshot-format>
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-format="png">PNG</button>
@@ -1634,7 +1634,7 @@ export function createPanelDomFacade({
               <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-format="webp">WebP</button>
             </div>
           </div>
-          <div class="workspace-panel-popover-section">
+          <div class="workspace-panel-popover-section" data-snapshot-section="size">
             <div class="workspace-panel-popover-label">Size</div>
             <div class="workspace-panel-popover-items">
               <label class="small text-muted mb-0">Width</label>
@@ -1728,6 +1728,17 @@ export function createPanelDomFacade({
           }
           if (heightInput) {
             heightInput.value = snapshotBtn.dataset.snapshotHeight || (height != null ? String(height) : '');
+          }
+        };
+
+        const syncSnapshotSectionWidths = () => {
+          const formatSection = snapshotPopover.querySelector('[data-snapshot-section="format"]');
+          const sizeSection = snapshotPopover.querySelector('[data-snapshot-section="size"]');
+          if (!formatSection || !sizeSection) return;
+          sizeSection.style.width = '';
+          const width = formatSection.getBoundingClientRect().width;
+          if (width) {
+            snapshotPopover.style.setProperty('--snapshot-format-width', `${Math.round(width)}px`);
           }
         };
 
@@ -1839,6 +1850,11 @@ export function createPanelDomFacade({
           const presetValue = snapshotBtn.dataset.snapshotPreset || 'custom';
           syncSnapshotGroup('[data-snapshot-preset]', 'data-preset', presetValue);
           applySnapshotSizeDefaults();
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(syncSnapshotSectionWidths);
+          } else {
+            syncSnapshotSectionWidths();
+          }
         };
 
         snapshotPopover.addEventListener('change', (e) => {
@@ -1884,6 +1900,7 @@ export function createPanelDomFacade({
             const chosen = presetButton.dataset.preset || 'custom';
             applySnapshotSizeDefaults();
             setSnapshotPreset(chosen);
+            syncSnapshotSectionWidths();
             e.stopPropagation();
             return;
           }
@@ -1900,6 +1917,7 @@ export function createPanelDomFacade({
             snapshotBtn.dataset.snapshotFormat = chosen;
             syncSnapshotGroup('[data-snapshot-format]', 'data-format', chosen);
             markSnapshotCustom();
+            syncSnapshotSectionWidths();
             e.stopPropagation();
             return;
           }

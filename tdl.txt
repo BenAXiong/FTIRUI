@@ -7,12 +7,14 @@ Phase 4 – Graph controls & exports
     - [x] 3/ Pin/lock
     - [x] 4/ Hide
 - [ ] Expand export dialog. (vector graphic, z, p, s, watermark).
-    - [ ] 1/ Vector graphic
-    - [ ] 2/ Zoom/dpi
-    - [ ] 3/ Presets
-    - [ ] 4/ Selection (current view) vs all
+    - [x] 1/ Vector graphic
+    - [x] 2/ Zoom/dpi
+    - [x] 3/ Presets
+    - [x] 4/ Selection (current view) vs all
 - [ ] ? Clarify graph renaming area
 - [ ] ? Support double-click header to toggle full screen.
+- [ ] Graph option v2: right side bar... -- make alternatives togglable?
+- [x] (extra) shift+drag on axes to zoom
 
 Phase 5 – Plotly & canvas interaction upgrades
 - [ ] Remove unused Plotly icons and refine manual axis input UX (double-click behavior, zoom snap).

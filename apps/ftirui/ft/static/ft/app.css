@@ -2646,7 +2646,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   white-space: normal;
 }
 .workspace-panel-popover-snapshot [data-snapshot-section="size"]{
-  width: 90px;
+  width: var(--snapshot-format-width, auto);
 }
 .workspace-panel-popover-snapshot [data-snapshot-section="size"] .form-control{
   min-width: 0;

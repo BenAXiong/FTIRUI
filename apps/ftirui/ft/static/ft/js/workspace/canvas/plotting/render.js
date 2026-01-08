@@ -8,13 +8,63 @@
 const rendered = new WeakSet();  // marks containers that had an initial render
 const resizeQueue = new Set();
 let resizeRaf = null;
+const MODEBAR_NUMBER_ICONS = {
+  one: {
+    width: 24,
+    height: 24,
+    path: 'M11 4 H13 V20 H11 Z'
+  },
+  two: {
+    width: 24,
+    height: 24,
+    path: 'M6 4 H18 V7 H6 Z M15 7 H18 V12 H15 Z M6 12 H18 V15 H6 Z M6 15 H9 V20 H6 Z M6 20 H18 V23 H6 Z'
+  },
+  three: {
+    width: 24,
+    height: 24,
+    path: 'M6 4 H18 V7 H6 Z M6 12 H18 V15 H6 Z M6 20 H18 V23 H6 Z M15 7 H18 V20 H15 Z'
+  }
+};
+
+const alertModebar = (message) => {
+  if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+    window.alert(message);
+  }
+};
+
+const MODEBAR_CUSTOM_BUTTONS = [
+  {
+    name: 'Preset 1',
+    title: 'Preset 1',
+    icon: MODEBAR_NUMBER_ICONS.one,
+    click: () => alertModebar('1')
+  },
+  {
+    name: 'Preset 2',
+    title: 'Preset 2',
+    icon: MODEBAR_NUMBER_ICONS.two,
+    click: () => alertModebar('2')
+  },
+  {
+    name: 'Preset 3',
+    title: 'Preset 3',
+    icon: MODEBAR_NUMBER_ICONS.three,
+    click: () => alertModebar('3')
+  }
+];
+
 const plotConfig = {
   responsive: true,
   displayModeBar: true,
+  displaylogo: false,
   editable: true,
   edits: {
     legendPosition: true
-  }
+  },
+  modeBarButtons: [[
+    'resetScale2d',
+    ...MODEBAR_CUSTOM_BUTTONS
+  ]]
 };
 const lockedPlotConfig = {
   ...plotConfig,
