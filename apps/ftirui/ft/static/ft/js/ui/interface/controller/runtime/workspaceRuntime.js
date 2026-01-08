@@ -43,6 +43,7 @@ import { initCanvasSnapshots } from '../../canvasSnapshots.js';
 import { createSectionManager } from './sections/manager.js';
 import { createHudButtons } from './controls/createHudButtons.js';
 import { createGlobalCommandsController } from './toolbar/globalCommands.js';
+import { createToolbarShortcutsController } from './toolbar/toolbarShortcuts.js';
 import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
@@ -5189,6 +5190,10 @@ const isPanelPinned = (panelId) =>
       }
     }
   });
+  const toolbarShortcutsController = createToolbarShortcutsController({
+    topToolbar,
+    verticalToolbar
+  });
 
   peakMarkingController = createPeakMarkingController({
     toggle: document.getElementById('tb2_peak_marking'),
@@ -7301,9 +7306,10 @@ const isPanelPinned = (panelId) =>
     if (hudButtonsHandles?.container?.parentNode) {
       hudButtonsHandles.container.parentNode.removeChild(hudButtonsHandles.container);
     }
-    hudButtonsHandles = null;
-    globalCommandsController?.dispose?.();
-    techToolbarHandlers?.teardown?.();
+      hudButtonsHandles = null;
+      globalCommandsController?.dispose?.();
+      toolbarShortcutsController?.teardown?.();
+      techToolbarHandlers?.teardown?.();
     techToolbarLabelController?.teardown?.();
     panelLockController?.teardown?.();
     panelLockController = null;

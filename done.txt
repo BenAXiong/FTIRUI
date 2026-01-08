@@ -93,5 +93,12 @@ Phase 4 – Graph controls & exports
     - [x] Remove annotation button
     - [x] Remove eye hide and replace with lock & pin
 
-Phase 5 – 
+Phase 5 – Plotly & canvas interaction upgrades
+- [x] Remove unused Plotly icons
+- [x] Change default autoscale to fit x values
+- [x] Change x-axis double click to autoscale vs tight
+- [x] Change y-axis double click to autoscale+buffer vs 0-max+buff
+- [x] Refine manual axis input UX (double-click behavior, zoom snap).
+- [x] Axes labels: ensure same amount of numbers
+
 

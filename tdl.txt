@@ -1,25 +1,18 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-Phase 5 – Plotly & canvas interaction upgrades
-- [x] Remove unused Plotly icons
-- [x] Change default autoscale to fit x values
-- [x] Change x-axis double click to autoscale vs tight
-- [x] Change y-axis double click to autoscale+buffer vs 0-max+buff
-- [x] Refine manual axis input UX (double-click behavior, zoom snap).
-- [ ] Axes labels: ensure same amount of numbers
-
 Phase 6 – Workflow refinements
-- [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
-- [ ] Explore Papers/Reports workflow integration.
+- [ ] tb expansion
+    - [ ] tb1&2 - enable shortcuts
+    - [ ] tb2 s4 = A/T mode
+    - [ ] tb2 s5 = stack vs overlap mode
+    - [ ] tbs s10 add stuck to right vs follow graph and hide
 - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
 - [ ] Consider collapsible right pane for more simulatenous controls
         ooooor Graph option v2: right side bar... -- make alternatives togglable?
         Right pane: add tab for metadata and other info (incl user notes for self and collab)
-- [ ] tb1&2 - enable shortcuts
-- [ ] tb2 s4 = A/T mode
-- [ ] tb2 s5 = stack vs overlap mode
-- [ ] tbs s10 add stuck to right vs follow graph and hide
-- [ ] Consider: header button just for toggle vis (extr mini popup), and options in side bar
+
+- [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
+- [ ] Explore Papers/Reports workflow integration.
 
 Phase 7 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
