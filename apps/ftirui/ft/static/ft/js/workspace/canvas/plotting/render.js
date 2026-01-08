@@ -8,48 +8,81 @@
 const rendered = new WeakSet();  // marks containers that had an initial render
 const resizeQueue = new Set();
 let resizeRaf = null;
-const MODEBAR_NUMBER_ICONS = {
-  one: {
+const MODEBAR_LETTER_ICONS = {
+  t: {
     width: 24,
     height: 24,
-    path: 'M11 4 H13 V20 H11 Z'
+    path: 'M4 5 H20 V8 H13 V20 H11 V8 H4 Z'
   },
-  two: {
+  n: {
     width: 24,
     height: 24,
-    path: 'M6 4 H18 V7 H6 Z M15 7 H18 V12 H15 Z M6 12 H18 V15 H6 Z M6 15 H9 V20 H6 Z M6 20 H18 V23 H6 Z'
+    path: 'M5 4 H8 V20 H5 Z M16 4 H19 V20 H16 Z M8 4 L16 20 H13 L5 4 Z'
   },
-  three: {
+  l: {
     width: 24,
     height: 24,
-    path: 'M6 4 H18 V7 H6 Z M6 12 H18 V15 H6 Z M6 20 H18 V23 H6 Z M15 7 H18 V20 H15 Z'
+    path: 'M6 4 H10 V16 H18 V20 H6 Z'
+  },
+  r: {
+    width: 24,
+    height: 24,
+    path: 'M5 4 H13 Q19 4 19 10 Q19 15 13 15 H10 V20 H5 Z M10 15 L19 20 H14 L8 15 Z'
   }
 };
 
-const alertModebar = (message) => {
-  if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-    window.alert(message);
+const togglePlotTitle = (gd) => {
+  if (!gd || typeof Plotly === 'undefined') return;
+  const layout = gd.layout || {};
+  const title = layout.title;
+  const rawText = typeof title === 'string'
+    ? title
+    : (title && typeof title === 'object' ? title.text : '');
+  const current = typeof rawText === 'string' ? rawText.trim() : '';
+  if (current) {
+    gd.__workspaceTitleCache = current;
+    Plotly.relayout(gd, { 'title.text': '' });
+  } else {
+    const next = gd.__workspaceTitleCache || '';
+    Plotly.relayout(gd, { 'title.text': next });
   }
+};
+
+const toggleDragMode = (gd, mode) => {
+  if (!gd || typeof Plotly === 'undefined') return;
+  const current = gd.layout?.dragmode || gd._fullLayout?.dragmode || 'zoom';
+  if (current === mode) {
+    Plotly.relayout(gd, { dragmode: gd.__workspaceDragmodeCache || 'zoom' });
+    return;
+  }
+  gd.__workspaceDragmodeCache = current;
+  Plotly.relayout(gd, { dragmode: mode });
 };
 
 const MODEBAR_CUSTOM_BUTTONS = [
   {
-    name: 'Preset 1',
-    title: 'Preset 1',
-    icon: MODEBAR_NUMBER_ICONS.one,
-    click: () => alertModebar('1')
+    name: 'Plot title',
+    title: 'Toggle plot title',
+    icon: MODEBAR_LETTER_ICONS.t,
+    click: (gd) => togglePlotTitle(gd)
   },
   {
-    name: 'Preset 2',
-    title: 'Preset 2',
-    icon: MODEBAR_NUMBER_ICONS.two,
-    click: () => alertModebar('2')
+    name: 'Notes',
+    title: 'Draw text note',
+    icon: MODEBAR_LETTER_ICONS.n,
+    click: (gd) => toggleDragMode(gd, 'drawtext')
   },
   {
-    name: 'Preset 3',
-    title: 'Preset 3',
-    icon: MODEBAR_NUMBER_ICONS.three,
-    click: () => alertModebar('3')
+    name: 'Draw line',
+    title: 'Draw line',
+    icon: MODEBAR_LETTER_ICONS.l,
+    click: (gd) => toggleDragMode(gd, 'drawline')
+  },
+  {
+    name: 'Draw rect',
+    title: 'Draw rectangle',
+    icon: MODEBAR_LETTER_ICONS.r,
+    click: (gd) => toggleDragMode(gd, 'drawrect')
   }
 ];
 
@@ -59,7 +92,8 @@ const plotConfig = {
   displaylogo: false,
   editable: true,
   edits: {
-    legendPosition: true
+    legendPosition: true,
+    titleText: true
   },
   modeBarButtons: [[
     'resetScale2d',

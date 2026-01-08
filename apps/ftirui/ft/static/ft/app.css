@@ -2371,6 +2371,15 @@ body.workspace-panel-fullscreen .header-actions{
   border-radius: 0 0 .375rem .375rem;
   overflow: hidden;
 }
+.workspace-panel-plot .modebar-container{
+  left: .45rem;
+  right: auto;
+  top: .45rem;
+}
+.workspace-panel-plot .modebar{
+  left: 0;
+  right: auto;
+}
 .workspace-panel-actions{
   margin-left: 0;
   position: absolute;

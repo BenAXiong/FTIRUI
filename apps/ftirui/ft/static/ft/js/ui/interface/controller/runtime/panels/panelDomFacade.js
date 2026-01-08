@@ -317,6 +317,7 @@ export function createPanelDomFacade({
           return btn;
         };
 
+
         const readPanelLockState = () => {
           const meta = safeGetPanelFigure(panelId)?.layout?.meta;
           const panelMeta = meta && typeof meta === 'object' ? meta.workspacePanel : null;
@@ -2513,7 +2514,6 @@ export function createPanelDomFacade({
         const plotHost = document.createElement('div');
         plotHost.className = 'workspace-panel-plot';
         body.appendChild(plotHost);
-
         panelEl.appendChild(header);
         panelEl.appendChild(body);
         if (canvas) {

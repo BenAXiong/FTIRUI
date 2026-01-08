@@ -84,4 +84,7 @@ Phase 4 – Graph controls & exports
     - [x] Support double-click header to toggle full screen (shrink rename area).
     - [x] Rework header dimensions: shrink
     - [x] Rework header icons sequence and center them
+- [x] Second modebar (Title, Notes and Draw)
+
+Phase 5 – 
 
