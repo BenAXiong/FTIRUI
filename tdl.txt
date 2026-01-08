@@ -3,10 +3,10 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 Phase 5 – Plotly & canvas interaction upgrades
 - [x] Remove unused Plotly icons
 - [x] Change default autoscale to fit x values
-- [x] Change axis double click to autoscale vs tight
+- [x] Change x-axis double click to autoscale vs tight
+- [x] Change y-axis double click to autoscale+buffer vs 0-max+buff
 - [x] Refine manual axis input UX (double-click behavior, zoom snap).
-- [ ] Right click on axes for options (delete, resize, ...)
-- [ ] plot axes: ensure same amount of numbers
+- [ ] Axes labels: ensure same amount of numbers
 
 Phase 6 – Workflow refinements
 - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.

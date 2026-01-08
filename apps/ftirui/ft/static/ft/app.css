@@ -2829,6 +2829,68 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-panel-popover-axes-visibility .workspace-panel-popover-btn i{
   font-size: .9rem;
 }
+.workspace-panel-popover-axes{
+  width: max-content;
+  max-width: none;
+}
+.workspace-panel-popover-axes-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, max-content));
+  gap: .75rem;
+}
+.workspace-panel-popover-axes-col{
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.workspace-panel-popover-axes-col .workspace-panel-popover-section{
+  margin-bottom: 0;
+}
+.workspace-panel-popover-axes-scale{
+  flex-direction: column;
+  align-items: stretch;
+  gap: .5rem;
+}
+.workspace-panel-popover-axes-scale-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+.workspace-panel-popover-axes-scale-label{
+  font-size: .72rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(255,255,255,.12) 15%);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.workspace-panel-popover-axes-scale-row .workspace-panel-popover-btn{
+  padding: .2rem .45rem;
+  min-width: 0;
+  font-size: .72rem;
+}
+.workspace-panel-popover-axes-presets{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .4rem;
+}
+.workspace-panel-popover-axes-presets .workspace-panel-popover-btn{
+  width: 100%;
+}
+.workspace-panel-popover-axes-thickness{
+  flex-direction: column;
+  align-items: stretch;
+  gap: .5rem;
+}
+.workspace-panel-popover-axes-thickness-pills{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.workspace-panel-popover-axes-thickness-slider{
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
 .workspace-panel-popover-choice .workspace-panel-popover-btn{
   min-width: 2.4rem;
 }

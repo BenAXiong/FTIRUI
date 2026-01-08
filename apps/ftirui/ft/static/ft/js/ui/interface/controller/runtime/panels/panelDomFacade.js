@@ -425,50 +425,63 @@ export function createPanelDomFacade({
         axesBtn.setAttribute('aria-expanded', 'false');
 
         const axesPopover = document.createElement('div');
-        axesPopover.className = 'workspace-panel-popover';
+        axesPopover.className = 'workspace-panel-popover workspace-panel-popover-axes';
         axesPopover.innerHTML = `
-          <div class="workspace-panel-popover-section" data-snapshot-section="size">
-            <div class="workspace-panel-popover-label">Thickness</div>
-            <div class="workspace-panel-popover-items" data-role="axes-thickness">
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-thickness="thin">Thin</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-thickness="medium">Medium</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-thickness="thick">Thick</button>
-              <div class="ms-2 d-flex align-items-center gap-2" data-role="axes-thickness-custom">
-                <input type="range" min="1" max="6" step="1"
-                      class="form-range" style="width:140px" />
-                <span class="small text-muted" data-readout>2px</span>
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-apply>Apply</button>
+          <div class="workspace-panel-popover-axes-grid">
+            <div class="workspace-panel-popover-axes-col">
+              <div class="workspace-panel-popover-section">
+                <div class="workspace-panel-popover-label">Presets</div>
+                <div class="workspace-panel-popover-items workspace-panel-popover-axes-presets" data-role="axes-presets">
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="all">All</button>
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="none">None</button>
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="xy">X + Y</button>
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="upright">Up + Right</button>
+                </div>
+              </div>
+              <div class="workspace-panel-popover-section">
+                <div class="workspace-panel-popover-label">Visible axes</div>
+                <div class="workspace-panel-popover-items workspace-panel-popover-axes-visibility">
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Top axis" data-side="top" aria-pressed="true"><i class="bi bi-arrow-up"></i></button>
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Bottom axis" data-side="bottom" aria-pressed="true"><i class="bi bi-arrow-down"></i></button>
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Left axis" data-side="left" aria-pressed="true"><i class="bi bi-arrow-left"></i></button>
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Right axis" data-side="right" aria-pressed="true"><i class="bi bi-arrow-right"></i></button>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Visible sides</div>
-            <div class="workspace-panel-popover-items workspace-panel-popover-axes-visibility">
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Top axis" data-side="top" aria-pressed="true"><i class="bi bi-arrow-up"></i></button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Bottom axis" data-side="bottom" aria-pressed="true"><i class="bi bi-arrow-down"></i></button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Left axis" data-side="left" aria-pressed="true"><i class="bi bi-arrow-left"></i></button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" title="Right axis" data-side="right" aria-pressed="true"><i class="bi bi-arrow-right"></i></button>
-            </div>
-          </div>
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Presets</div>
-            <div class="workspace-panel-popover-items" data-role="axes-presets">
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="all">All</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="none">None</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="xy">X + Y</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-preset="upright">Up + Right</button>
-            </div>
-          </div>
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Scale (linear vs log)</div>
-            <div class="workspace-panel-popover-items d-flex flex-column gap-2" data-role="axes-scale">
-              <div class="btn-group" role="group" data-axis="x">
-                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="x" data-scale="linear">X Linear</button>
-                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="x" data-scale="log">X Log</button>
+            <div class="workspace-panel-popover-axes-col">
+              <div class="workspace-panel-popover-section">
+                <div class="workspace-panel-popover-label">Scale</div>
+                <div class="workspace-panel-popover-items workspace-panel-popover-axes-scale" data-role="axes-scale">
+                  <div class="workspace-panel-popover-axes-scale-row" data-axis="x">
+                    <span class="workspace-panel-popover-axes-scale-label">x-axis</span>
+                    <div class="btn-group" role="group">
+                      <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="x" data-scale="linear">Linear</button>
+                      <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="x" data-scale="log">Log</button>
+                    </div>
+                  </div>
+                  <div class="workspace-panel-popover-axes-scale-row" data-axis="y">
+                    <span class="workspace-panel-popover-axes-scale-label">y-axis</span>
+                    <div class="btn-group" role="group">
+                      <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="y" data-scale="linear">Linear</button>
+                      <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="y" data-scale="log">Log</button>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="btn-group" role="group" data-axis="y">
-                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="y" data-scale="linear">Y Linear</button>
-                <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-scale-axis="y" data-scale="log">Y Log</button>
+              <div class="workspace-panel-popover-section" data-snapshot-section="size">
+                <div class="workspace-panel-popover-label">Thickness</div>
+                <div class="workspace-panel-popover-items workspace-panel-popover-axes-thickness" data-role="axes-thickness">
+                  <div class="workspace-panel-popover-axes-thickness-pills">
+                    <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-thickness="thin">Thin</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn is-active" data-thickness="medium">Medium</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-thickness="thick">Thick</button>
+                  </div>
+                  <div class="workspace-panel-popover-axes-thickness-slider" data-role="axes-thickness-custom">
+                    <input type="range" min="1" max="6" step="1"
+                          class="form-range" style="width:140px" />
+                    <span class="small text-muted" data-readout>2px</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -598,7 +611,7 @@ export function createPanelDomFacade({
           axesPopover.addEventListener('click', (event) => event.stopPropagation());
 
           axesPopover.addEventListener('click', (e) => {
-            const t = e.target.closest('[data-thickness],[data-side],[data-preset],[data-apply],[data-scale-axis]');
+            const t = e.target.closest('[data-thickness],[data-side],[data-preset],[data-scale-axis]');
             if (!t) return;
 
             // Helper to read/write individual side buttons
@@ -674,24 +687,6 @@ export function createPanelDomFacade({
                 left: isOn('left'),
                 right: isOn('right')
               });
-              e.stopPropagation();
-              return;
-            }
-
-            // 4) Custom slider "Apply"
-            if (t.hasAttribute('data-apply')) {
-              const sliderWrap = axesPopover.querySelector('[data-role="axes-thickness-custom"]');
-              const slider = sliderWrap?.querySelector('input[type="range"]');
-              const readout = sliderWrap?.querySelector('[data-readout]');
-              const px = Math.max(1, Math.round(Number(slider?.value || 2)));
-              if (readout) readout.textContent = `${px}px`;
-
-              // deselect pills; this is a custom value
-              axesPopover
-                .querySelectorAll('[data-role="axes-thickness"] .workspace-panel-popover-btn[data-thickness]')
-                .forEach((b) => b.classList.remove('is-active'));
-
-              safeHandleHeaderAction(panelId, 'axes-thickness-custom', { value: px });
               e.stopPropagation();
               return;
             }
