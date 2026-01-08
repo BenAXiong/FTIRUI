@@ -1816,6 +1816,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   display: flex;
   align-items: center;
   gap: .4rem;
+  position: relative;
   padding: .35rem .65rem;
   /* min-height: 2.25rem; */
   background: var(--workspace-theme-panel-header-bg, color-mix(in oklab, var(--bs-primary) 12%, transparent));
@@ -1828,6 +1829,11 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   font-size: .85rem;
   flex: 0 1 auto;
   color: inherit;
+  min-width: 0;
+  max-width: clamp(10rem, 42%, 22rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 body.workspace-panel-fullscreen .workspace-toolbar{
   display: none !important;
@@ -2367,28 +2373,39 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-panel-actions{
   margin-left: 0;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  position: absolute;
+  inset: .35rem .65rem;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: .35rem;
-  position: relative;
   min-width: 0;
   max-width: 100%;
   flex: 1 1 auto;
+  pointer-events: none;
 }
 .workspace-panel-actions-center{
-  grid-column: 2;
   display: flex;
   align-items: center;
   gap: .35rem;
   min-width: 0;
+  justify-content: center;
+  max-width: calc(100% - var(--workspace-panel-actions-right-width, 0px) - 1rem);
+  pointer-events: auto;
 }
 .workspace-panel-actions-right{
-  grid-column: 3;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: .35rem;
-  justify-self: end;
+  min-width: 0;
+  pointer-events: auto;
+}
+.workspace-panel-actions-overflow-panel{
+  pointer-events: auto;
 }
 .workspace-panel-action-btn{
   width: 1.5rem;
@@ -2492,7 +2509,7 @@ body.workspace-panel-fullscreen .header-actions{
   gap: .35rem;
   flex: 1 1 auto;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   overflow: hidden;
   position: relative;
 }

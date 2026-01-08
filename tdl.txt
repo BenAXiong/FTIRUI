@@ -42,12 +42,14 @@ Phase 7 – Workflow refinements
 - [ ] tb1&2 - enable shortcuts
 - [ ] tb2 s4 = A/T mode
 - [ ] tb2 s5 = stack vs overlap mode
-- [ ] tbs s10 add stuck to right vs follow graph and hide 
+- [ ] tbs s10 add stuck to right vs follow graph and hide
+- [ ] Consider: header button just for toggle vis (extr mini popup), and options in side bar
 
 MVP Part 5/5 -- Polishing and publishing
 
 Phase x – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
+- [ ] Header buttons overlap with side elements
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.

@@ -373,8 +373,15 @@ export function createPanelDomFacade({
           controlsWrapper.appendChild(node);
           return node;
         };
-        const getOrderedInlineItems = () => actionItems
-          .filter((item) => item && item.parentElement === controlsWrapper)
+        const isVisibleActionItem = (item) => {
+          if (!item || item.hidden) return false;
+          if (item.offsetParent !== null) return true;
+          return item.getClientRects().length > 0;
+        };
+        const getOrderedInlineItems = ({ includeHidden = false } = {}) => actionItems
+          .filter((item) => item
+            && item.parentElement === controlsWrapper
+            && (includeHidden || isVisibleActionItem(item)))
           .sort((a, b) => toOrder(a) - toOrder(b));
         const moveItemToInline = (node) => {
           if (!node || node.parentElement === controlsWrapper) return;
@@ -2127,17 +2134,29 @@ export function createPanelDomFacade({
           safeUpdateToolbarMetrics();
         });
 
-        const detectInlineWrap = () => {
+        const isInlineOverflowing = () => {
+          if (!controlsWrapper) return false;
           const inlineItems = getOrderedInlineItems();
           if (inlineItems.length <= 1) return false;
-          const referenceRect = inlineItems[0]?.getBoundingClientRect();
-          if (!referenceRect || !Number.isFinite(referenceRect.top)) return false;
-          const baseTop = referenceRect.top;
-          return inlineItems.some((item) => {
+          const containerRect = controlsWrapper.getBoundingClientRect();
+          if (!containerRect || !Number.isFinite(containerRect.width)) return false;
+          let minLeft = Infinity;
+          let maxRight = -Infinity;
+          inlineItems.forEach((item) => {
             const rect = item.getBoundingClientRect();
-            if (!rect || !Number.isFinite(rect.top)) return false;
-            return Math.abs(rect.top - baseTop) > 1.5;
+            if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.right)) return;
+            if (rect.left < minLeft) minLeft = rect.left;
+            if (rect.right > maxRight) maxRight = rect.right;
           });
+          if (!Number.isFinite(minLeft) || !Number.isFinite(maxRight)) return false;
+          const contentWidth = maxRight - minLeft;
+          return contentWidth > containerRect.width + 1;
+        };
+
+        const updateActionsRightWidth = () => {
+          if (!actions || !actionsRight) return;
+          const width = Math.ceil(actionsRight.getBoundingClientRect().width || 0);
+          actions.style.setProperty('--workspace-panel-actions-right-width', `${width}px`);
         };
 
         const reconcileOverflowItems = ({ preserveMenuState = false } = {}) => {
@@ -2149,14 +2168,14 @@ export function createPanelDomFacade({
           if (!controlsWrapper || controlsWrapper.offsetParent === null) {
             return overflowPanel && overflowPanel.childElementCount > 0;
           }
-          let wrapped = detectInlineWrap();
+          let wrapped = isInlineOverflowing();
           let guard = 0;
           while (wrapped && guard < actionItems.length) {
             const inlineItems = getOrderedInlineItems();
             if (!inlineItems.length) break;
             const candidate = inlineItems[inlineItems.length - 1];
             moveItemToOverflow(candidate);
-            wrapped = detectInlineWrap();
+            wrapped = isInlineOverflowing();
             guard += 1;
           }
           const hasOverflow = overflowPanel && overflowPanel.childElementCount > 0;
@@ -2167,6 +2186,14 @@ export function createPanelDomFacade({
         };
 
         refreshActionOverflow = () => {
+          updateActionsRightWidth();
+          if (!controlsWrapper || controlsWrapper.clientWidth <= 0) {
+            moveAllItemsInline();
+            closeOverflowMenu();
+            overflowBtn.hidden = true;
+            actions.classList.remove('has-overflow');
+            return;
+          }
           const collapsed = controlsWrapper.classList.contains('is-collapsed');
           if (collapsed) {
             moveAllItemsInline();
