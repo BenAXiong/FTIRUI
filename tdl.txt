@@ -2,7 +2,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Phase 6 – Workflow refinements
 - [ ] tb expansion
-    - [ ] tb1&2 - enable shortcuts
+    - [x] tb1&2 - enable shortcuts
     - [ ] tb2 s4 = A/T mode
     - [ ] tb2 s5 = stack vs overlap mode
     - [ ] tbs s10 add stuck to right vs follow graph and hide
@@ -18,6 +18,7 @@ Phase 7 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
+- [ ] Left HUD: display project/folder in tooltip only, add min info (creator, date, ...)
 
 MVP Part 5/5 -- Polishing and publishing
 
@@ -28,6 +29,8 @@ Phase x – Bugs & technical debt
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
 - [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
+- [ ] Mock-up 'in-paper' preview for wows
+- [ ] Add share icon top-right
 
 _________________________________________________________________________________________________
 **Plan of action -- Template for tasks**

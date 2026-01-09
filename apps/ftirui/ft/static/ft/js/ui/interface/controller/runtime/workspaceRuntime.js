@@ -23,6 +23,7 @@ import { createPanelDomFacade } from './panels/panelDomFacade.js';
 import { createStylePainterController } from './panels/stylePainterController.js';
 import { createTemplatesController } from './panels/templatesController.js';
 import { createPanelLockController } from './panels/panelLockController.js';
+import { createUnitsToggleController } from './panels/unitsToggleController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
 import { plotPanelType } from './panels/registry/plotPanel.js';
 import { markdownPanelType } from './panels/registry/markdownPanel.js';
@@ -3324,6 +3325,7 @@ let panelDomFacade = null;
 let stylePainterController = null;
 let templatesController = null;
 let panelLockController = null;
+let unitsToggleController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -5100,6 +5102,22 @@ const isPanelPinned = (panelId) =>
     persist,
     panelSupportsPlot,
     showToast
+  });
+
+  unitsToggleController = createUnitsToggleController({
+    getActivePanelId,
+    getPanelFigure,
+    updatePanelFigure,
+    renderPlot,
+    pushHistory,
+    updateHistoryButtons,
+    persist,
+    panelSupportsPlot,
+    isPanelEditLocked,
+    showToast
+  });
+  techToolbarLabelController?.registerHandler?.('units-toggle', () => {
+    unitsToggleController?.handleToggle?.();
   });
 
   templatesController = createTemplatesController({
@@ -7310,11 +7328,13 @@ const isPanelPinned = (panelId) =>
       globalCommandsController?.dispose?.();
       toolbarShortcutsController?.teardown?.();
       techToolbarHandlers?.teardown?.();
-    techToolbarLabelController?.teardown?.();
-    panelLockController?.teardown?.();
-    panelLockController = null;
-    stylePainterController?.teardown?.();
-    stylePainterController = null;
+      techToolbarLabelController?.teardown?.();
+      panelLockController?.teardown?.();
+      panelLockController = null;
+      unitsToggleController?.teardown?.();
+      unitsToggleController = null;
+      stylePainterController?.teardown?.();
+      stylePainterController = null;
     templatesController?.teardown?.();
     templatesController = null;
     peakMarkingController?.teardown?.();

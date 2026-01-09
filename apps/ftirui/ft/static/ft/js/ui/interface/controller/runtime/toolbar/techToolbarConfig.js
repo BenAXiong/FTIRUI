@@ -4,12 +4,12 @@ export const TECH_SLOT_ORDER = [3, 4, 5, 6, 7, 8, 9];
 
 export const DEFAULT_TECH_FEATURES = {
   3: { label: 'Toggle peak marking', action: 'peak-marking', display: 'icon', iconClass: 'bi-bullseye' },
-  4: { label: 'Peak integration', action: 'peak-integration', display: 'icon', iconClass: 'bi-clipboard-data' },
+  4: { label: 'Absorbance / Transmittance', action: 'units-toggle', display: 'icon', iconClass: 'bi-arrow-left-right' },
   5: { label: 'ATR correction', action: 'atr-correction', display: 'icon', iconClass: 'bi-funnel' },
   6: { label: 'Apply smoothing', action: 'smoothing', display: 'icon', iconClass: 'bi-water' },
   7: { label: 'Derivatization', action: 'derivatization', display: 'icon', iconClass: 'bi-bezier' },
   8: { label: 'Spectral library', action: 'spectral-library', display: 'icon', iconClass: 'bi-collection' },
-  9: { label: 'Placeholder action', action: 'placeholder-help', display: 'icon', iconClass: 'bi-question-circle' }
+  9: { label: 'Peak integration', action: 'peak-integration', display: 'icon', iconClass: 'bi-clipboard-data' }
 };
 
 export const TECH_FEATURE_OVERRIDES = {};

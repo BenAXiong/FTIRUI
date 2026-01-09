@@ -117,6 +117,25 @@ export function createPanelsFacade({
     registerPanel = () => null
   } = registry;
 
+  const RAW_Y_KEY = 'workspaceRawY';
+  const RAW_UNITS_KEY = 'workspaceRawUnits';
+  const RAW_SCALE_KEY = 'workspaceRawScale';
+
+  const normalizeUnitsLabel = (label) => {
+    if (!label) return null;
+    const text = String(label).trim().toLowerCase();
+    if (!text) return null;
+    if (text.includes('abs')) return 'absorbance';
+    if (text.includes('trans') || text.includes('%t') || text.includes('t%')) return 'transmittance';
+    return null;
+  };
+
+  const detectTransmittanceScale = (label) => {
+    if (!label) return null;
+    const text = String(label);
+    return text.includes('%') ? 'percent' : null;
+  };
+
   const syncTraceAppearance = (trace) => {
     if (!trace) return trace;
     trace.line = trace.line || {};
@@ -207,6 +226,21 @@ export function createPanelsFacade({
       visible: payload?.visible !== false,
       meta: (() => {
         const meta = { ...(payload?.meta || {}) };
+        if (!Array.isArray(meta[RAW_Y_KEY])) {
+          meta[RAW_Y_KEY] = yValues.slice();
+        }
+        if (!meta[RAW_UNITS_KEY]) {
+          const rawUnits = normalizeUnitsLabel(meta.DISPLAY_UNITS || meta.Y_UNITS);
+          if (rawUnits) {
+            meta[RAW_UNITS_KEY] = rawUnits;
+          }
+          if (rawUnits === 'transmittance' && !meta[RAW_SCALE_KEY]) {
+            const scale = detectTransmittanceScale(meta.DISPLAY_UNITS || meta.Y_UNITS);
+            if (scale) {
+              meta[RAW_SCALE_KEY] = scale;
+            }
+          }
+        }
         if (!providedColor && Number.isInteger(paletteSelection.index) && !Number.isInteger(meta.autoColorIndex)) {
           meta.autoColorIndex = paletteSelection.index;
         }
