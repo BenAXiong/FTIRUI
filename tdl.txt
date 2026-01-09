@@ -1,9 +1,9 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Phase 6 – Workflow refinements
-- [ ] tb expansion
+- [-] tb expansion
     - [x] tb1&2 - enable shortcuts
-    - [ ] tb2 s4 = A/T mode
+    - [-] tb2 s4 = A/T mode
     - [ ] tb2 s5 = stack vs overlap mode
     - [ ] tbs s10 add stuck to right vs follow graph and hide
 - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options

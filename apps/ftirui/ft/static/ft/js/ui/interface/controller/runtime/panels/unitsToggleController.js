@@ -5,6 +5,8 @@ const RAW_Y_KEY = 'workspaceRawY';
 const RAW_UNITS_KEY = 'workspaceRawUnits';
 const RAW_SCALE_KEY = 'workspaceRawScale';
 const TRANS_SCALE_KEY = 'workspaceTransmittanceScale';
+const AUTO_LABEL_KEY = 'workspaceUnitsAutoAxisLabel';
+const AUTO_LABEL_VALUE_KEY = 'workspaceUnitsAxisLabel';
 
 const cloneArray = (values) => (Array.isArray(values) ? values.slice() : []);
 
@@ -16,6 +18,10 @@ const normalizeUnitsLabel = (label) => {
   if (text.includes('trans') || text.includes('%t') || text.includes('t%')) return 'transmittance';
   return null;
 };
+
+const formatUnitsLabel = (unitsKey) => (
+  unitsKey === 'absorbance' ? 'Absorbance' : 'Transmittance'
+);
 
 const readAxisTitleText = (axis) => {
   if (!axis || typeof axis !== 'object') return '';
@@ -29,6 +35,26 @@ const resolveUnitsFromTrace = (trace = {}, fallbackLabel = '') => {
   const meta = trace.meta && typeof trace.meta === 'object' ? trace.meta : {};
   const label = meta.DISPLAY_UNITS || meta.Y_UNITS || fallbackLabel;
   return normalizeUnitsLabel(label);
+};
+
+const resolveUnitsSource = (layout = {}, traces = []) => {
+  for (const trace of traces) {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    if (normalizeUnitsLabel(meta[RAW_UNITS_KEY])) return 'metadata';
+    if (normalizeUnitsLabel(meta.DISPLAY_UNITS || meta.Y_UNITS)) return 'metadata';
+  }
+  return 'guess';
+};
+
+const resolveRawUnits = (traces = [], layoutLabel = '') => {
+  for (const trace of traces) {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const rawUnits = normalizeUnitsLabel(meta[RAW_UNITS_KEY]);
+    if (rawUnits) return rawUnits;
+    const fallback = resolveUnitsFromTrace(trace, layoutLabel);
+    if (fallback) return fallback;
+  }
+  return null;
 };
 
 const detectTransmittanceScale = (values = [], label = '') => {
@@ -68,6 +94,28 @@ const resolveCurrentDisplayUnits = (layout = {}, traces = []) => {
   return 'transmittance';
 };
 
+const resolveTransmittanceScale = ({ layout = {}, traces = [], layoutLabel = '' } = {}) => {
+  const meta = layout.meta && typeof layout.meta === 'object' ? layout.meta : {};
+  const explicit = meta[TRANS_SCALE_KEY];
+  if (explicit === 'percent' || explicit === 'fraction') return explicit;
+  for (const trace of traces) {
+    const metaTrace = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const rawScale = metaTrace[RAW_SCALE_KEY];
+    if (rawScale === 'percent' || rawScale === 'fraction') return rawScale;
+  }
+  const values = [];
+  traces.forEach((trace) => {
+    if (!trace) return;
+    values.push(...(Array.isArray(trace.y) ? trace.y : []));
+  });
+  return detectTransmittanceScale(values, layoutLabel);
+};
+
+const resolveAutoLabelSetting = (layout = {}) => {
+  const meta = layout.meta && typeof layout.meta === 'object' ? layout.meta : {};
+  return typeof meta[AUTO_LABEL_KEY] === 'boolean' ? meta[AUTO_LABEL_KEY] : true;
+};
+
 const resolveAxisLabel = ({ displayUnits, scale }) => {
   if (displayUnits === 'absorbance') {
     return getDisplayConfig('absorbance').axis || 'Absorbance (A)';
@@ -76,6 +124,59 @@ const resolveAxisLabel = ({ displayUnits, scale }) => {
     return 'Transmittance (%)';
   }
   return getDisplayConfig('fraction').axis || 'Transmittance';
+};
+
+const shouldAutoUpdateAxisLabel = ({
+  layout = {},
+  currentDisplay,
+  currentScale
+} = {}) => {
+  const autoEnabled = resolveAutoLabelSetting(layout);
+  if (!autoEnabled) return false;
+  const meta = layout.meta && typeof layout.meta === 'object' ? layout.meta : {};
+  const lastAuto = typeof meta[AUTO_LABEL_VALUE_KEY] === 'string' ? meta[AUTO_LABEL_VALUE_KEY] : '';
+  const currentTitle = readAxisTitleText(layout.yaxis);
+  if (!currentTitle) return true;
+  const expected = resolveAxisLabel({ displayUnits: currentDisplay, scale: currentScale });
+  if (currentTitle === expected) return true;
+  if (lastAuto && currentTitle === lastAuto) return true;
+  return false;
+};
+
+const applyAxisLabel = (layout = {}, label, { updateMeta = true } = {}) => {
+  const nextLayout = { ...layout };
+  const nextMeta = nextLayout.meta && typeof nextLayout.meta === 'object' ? { ...nextLayout.meta } : {};
+  Object.keys(nextLayout).forEach((axisKey) => {
+    if (!/^yaxis\\d*$/.test(axisKey)) return;
+    const axis = nextLayout[axisKey];
+    const axisObj = axis && typeof axis === 'object' ? axis : {};
+    const title = axisObj.title && typeof axisObj.title === 'object'
+      ? { ...axisObj.title, text: label }
+      : { text: label };
+    nextLayout[axisKey] = { ...axisObj, title };
+  });
+  if (updateMeta) {
+    nextMeta[AUTO_LABEL_VALUE_KEY] = label;
+  }
+  if (Object.keys(nextMeta).length) {
+    nextLayout.meta = nextMeta;
+  }
+  return nextLayout;
+};
+
+const applyYAxisAutoscale = (layout = {}) => {
+  const nextLayout = { ...layout };
+  Object.keys(nextLayout).forEach((axisKey) => {
+    if (!/^yaxis\\d*$/.test(axisKey)) return;
+    const axis = nextLayout[axisKey];
+    const axisObj = axis && typeof axis === 'object' ? { ...axis } : {};
+    axisObj.autorange = true;
+    if (Object.prototype.hasOwnProperty.call(axisObj, 'range')) {
+      delete axisObj.range;
+    }
+    nextLayout[axisKey] = axisObj;
+  });
+  return nextLayout;
 };
 
 const ensureTraceRawMeta = (trace = {}, layoutLabel = '') => {
@@ -125,6 +226,7 @@ const convertToTransmittance = ({ rawY, scale }) => {
 };
 
 export function createUnitsToggleController({
+  dom = {},
   getActivePanelId = () => null,
   getPanelFigure = () => ({ data: [], layout: {} }),
   updatePanelFigure = () => {},
@@ -136,42 +238,158 @@ export function createUnitsToggleController({
   isPanelEditLocked = () => false,
   showToast = () => {}
 } = {}) {
-  const toggleUnits = (panelId) => {
-    const resolvedPanelId = panelId || getActivePanelId?.();
-    if (!resolvedPanelId) {
-      showToast('Select a graph to toggle units.', 'info');
-      return false;
-    }
+  const documentRoot = dom.documentRoot
+    || (typeof document !== 'undefined' ? document : null);
+  const toggleButton = dom.toggleButton
+    || dom.button
+    || documentRoot?.getElementById('tb2_peak_integration')
+    || null;
+  const menu = dom.menu
+    || documentRoot?.querySelector?.('[data-units-menu]')
+    || null;
+  const currentLabelEl = menu?.querySelector?.('[data-units-current]') || null;
+  const scaleButtons = menu
+    ? Array.from(menu.querySelectorAll('[data-units-scale]'))
+    : [];
+  const autoLabelToggle = menu?.querySelector?.('[data-units-auto-label]') || null;
+  const listeners = [];
+
+  const addListener = (node, event, handler, options) => {
+    if (!node || typeof node.addEventListener !== 'function') return;
+    node.addEventListener(event, handler, options);
+    listeners.push({ node, event, handler, options });
+  };
+
+  const resolvePanelId = (panelId) => panelId || getActivePanelId?.();
+
+  const getPanelState = (panelId) => {
+    const resolvedPanelId = resolvePanelId(panelId);
+    if (!resolvedPanelId) return null;
     if (typeof panelSupportsPlot === 'function' && !panelSupportsPlot(resolvedPanelId)) {
-      showToast('Units can only be toggled for plot panels.', 'info');
-      return false;
-    }
-    if (typeof isPanelEditLocked === 'function' && isPanelEditLocked(resolvedPanelId)) {
-      showToast('Unlock the graph to toggle units.', 'warning');
-      return false;
+      return null;
     }
     const figure = getPanelFigure(resolvedPanelId);
-    if (!figure) return false;
+    if (!figure) return null;
     const traces = Array.isArray(figure.data) ? figure.data : [];
     const layout = figure.layout && typeof figure.layout === 'object' ? figure.layout : {};
     const layoutLabel = readAxisTitleText(layout.yaxis);
     const currentDisplay = resolveCurrentDisplayUnits(layout, traces);
-    const nextDisplay = currentDisplay === 'absorbance' ? 'transmittance' : 'absorbance';
-    const layoutMeta = layout.meta && typeof layout.meta === 'object' ? { ...layout.meta } : {};
+    const rawUnits = resolveRawUnits(traces, layoutLabel) || currentDisplay;
+    const transmittanceScale = resolveTransmittanceScale({ layout, traces, layoutLabel })
+      || 'fraction';
+    const unitsSource = resolveUnitsSource(layout, traces);
+    const autoLabelEnabled = resolveAutoLabelSetting(layout);
+    const toggled = rawUnits !== currentDisplay;
+    return {
+      panelId: resolvedPanelId,
+      figure,
+      traces,
+      layout,
+      layoutLabel,
+      currentDisplay,
+      rawUnits,
+      transmittanceScale,
+      unitsSource,
+      autoLabelEnabled,
+      toggled
+    };
+  };
+
+  const syncButtonState = (state) => {
+    if (!toggleButton) return;
+    const icon = toggleButton.querySelector('[data-units-icon]')
+      || toggleButton.querySelector('.workspace-toolbar-icon');
+    const displayKey = state?.currentDisplay || 'transmittance';
+    const letter = displayKey === 'absorbance' ? 'A' : 'T';
+    if (icon) {
+      icon.textContent = letter;
+      icon.classList.remove('bi');
+      icon.classList.forEach((cls) => {
+        if (cls.startsWith('bi-')) icon.classList.remove(cls);
+      });
+    }
+    const isActive = !!state?.toggled;
+    toggleButton.classList.toggle('is-active', isActive);
+    toggleButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  };
+
+  const syncMenuState = (state) => {
+    if (!menu) return;
+    const hasPanel = !!state;
+    if (currentLabelEl) {
+      if (!hasPanel) {
+        currentLabelEl.textContent = 'No active graph';
+      } else {
+        const labelKey = state.rawUnits || state.currentDisplay;
+        const label = formatUnitsLabel(labelKey);
+        const suffix = state.unitsSource === 'metadata' ? 'metadata' : 'guess';
+        currentLabelEl.textContent = `${label} (${suffix})`;
+      }
+    }
+    scaleButtons.forEach((button) => {
+      if (!button) return;
+      const scale = button.getAttribute('data-units-scale');
+      const isActive = hasPanel && scale === state.transmittanceScale;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      button.disabled = !hasPanel;
+    });
+    if (autoLabelToggle) {
+      autoLabelToggle.disabled = !hasPanel;
+      autoLabelToggle.checked = hasPanel ? !!state.autoLabelEnabled : false;
+    }
+  };
+
+  const syncUi = (panelId) => {
+    const state = getPanelState(panelId);
+    syncButtonState(state);
+    syncMenuState(state);
+  };
+
+  const updateLayoutMeta = (layout = {}, patch = {}) => {
+    const nextLayout = { ...layout };
+    const nextMeta = nextLayout.meta && typeof nextLayout.meta === 'object' ? { ...nextLayout.meta } : {};
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value === undefined) return;
+      nextMeta[key] = value;
+    });
+    nextLayout.meta = nextMeta;
+    return nextLayout;
+  };
+
+  const pushHistoryIfNeeded = (label) => {
+    if (!label) return;
+    pushHistory({ label });
+    updateHistoryButtons();
+  };
+
+  const applyFigureUpdate = (panelId, nextFigure, { label, source } = {}) => {
+    updatePanelFigure(panelId, nextFigure, { source: source || 'units-toggle' });
+    if (label) {
+      pushHistoryIfNeeded(label);
+    }
+    renderPlot(panelId);
+    persist();
+    updateHistoryButtons();
+  };
+
+  const applyDisplayUpdate = (state, nextDisplay, { autoscale = true } = {}) => {
+    const layoutMeta = state.layout.meta && typeof state.layout.meta === 'object'
+      ? { ...state.layout.meta }
+      : {};
     let transmittanceScale = layoutMeta[TRANS_SCALE_KEY];
     if (transmittanceScale !== 'percent' && transmittanceScale !== 'fraction') {
-      transmittanceScale = null;
+      transmittanceScale = state.transmittanceScale || 'fraction';
     }
-
-    const nextTraces = traces.map((trace) => {
-      const rawState = ensureTraceRawMeta(trace, layoutLabel);
-      const rawUnits = rawState.rawUnits || currentDisplay;
+    const nextTraces = state.traces.map((trace) => {
+      const rawState = ensureTraceRawMeta(trace, state.layoutLabel);
+      const rawUnits = rawState.rawUnits || state.currentDisplay;
       let rawScale = rawState.rawScale;
       if (!rawState.rawUnits && rawUnits === 'transmittance') {
-        rawScale = detectTransmittanceScale(rawState.rawY, layoutLabel);
+        rawScale = detectTransmittanceScale(rawState.rawY, state.layoutLabel);
       }
       if (!transmittanceScale && rawUnits === 'transmittance') {
-        transmittanceScale = rawScale || detectTransmittanceScale(rawState.rawY, layoutLabel);
+        transmittanceScale = rawScale || detectTransmittanceScale(rawState.rawY, state.layoutLabel);
       }
       let nextY = cloneArray(rawState.rawY);
       if (nextDisplay === 'absorbance') {
@@ -206,37 +424,146 @@ export function createUnitsToggleController({
       };
     });
 
-    if (!transmittanceScale) {
-      transmittanceScale = 'fraction';
-    }
     layoutMeta[DISPLAY_UNITS_KEY] = nextDisplay;
-    layoutMeta[TRANS_SCALE_KEY] = transmittanceScale;
-    const nextLayout = { ...layout, meta: layoutMeta };
-    const axisLabel = resolveAxisLabel({ displayUnits: nextDisplay, scale: transmittanceScale });
-    Object.keys(nextLayout).forEach((axisKey) => {
-      if (!/^yaxis\\d*$/.test(axisKey)) return;
-      const axis = nextLayout[axisKey];
-      const axisObj = axis && typeof axis === 'object' ? axis : {};
-      const title = axisObj.title && typeof axisObj.title === 'object'
-        ? { ...axisObj.title, text: axisLabel }
-        : { text: axisLabel };
-      nextLayout[axisKey] = { ...axisObj, title };
+    layoutMeta[TRANS_SCALE_KEY] = transmittanceScale || 'fraction';
+    const nextLayoutBase = { ...state.layout, meta: layoutMeta };
+    let nextLayout = nextLayoutBase;
+    const shouldUpdateLabel = shouldAutoUpdateAxisLabel({
+      layout: state.layout,
+      currentDisplay: state.currentDisplay,
+      currentScale: state.transmittanceScale
     });
-
-    pushHistory({ label: `Switch to ${nextDisplay === 'absorbance' ? 'Absorbance' : 'Transmittance'}` });
-    const nextFigure = {
-      ...figure,
+    if (shouldUpdateLabel) {
+      const axisLabel = resolveAxisLabel({ displayUnits: nextDisplay, scale: layoutMeta[TRANS_SCALE_KEY] });
+      nextLayout = applyAxisLabel(nextLayout, axisLabel);
+    }
+    if (autoscale) {
+      nextLayout = applyYAxisAutoscale(nextLayout);
+    }
+    return {
       data: nextTraces,
-      layout: nextLayout
+      layout: nextLayout,
+      transmittanceScale: layoutMeta[TRANS_SCALE_KEY]
     };
-    updatePanelFigure(resolvedPanelId, nextFigure, { source: 'units-toggle' });
-    renderPlot(resolvedPanelId);
-    persist();
-    updateHistoryButtons();
+  };
+
+  const toggleUnits = (panelId) => {
+    const state = getPanelState(panelId);
+    if (!state) {
+      showToast('Select a graph to toggle units.', 'info');
+      return false;
+    }
+    if (typeof panelSupportsPlot === 'function' && !panelSupportsPlot(state.panelId)) {
+      showToast('Units can only be toggled for plot panels.', 'info');
+      return false;
+    }
+    if (typeof isPanelEditLocked === 'function' && isPanelEditLocked(state.panelId)) {
+      showToast('Unlock the graph to toggle units.', 'warning');
+      return false;
+    }
+    const nextDisplay = state.currentDisplay === 'absorbance' ? 'transmittance' : 'absorbance';
+    const { data, layout } = applyDisplayUpdate(state, nextDisplay, { autoscale: true });
+    const nextFigure = {
+      ...state.figure,
+      data,
+      layout
+    };
+    applyFigureUpdate(state.panelId, nextFigure, {
+      label: `Switch to ${nextDisplay === 'absorbance' ? 'Absorbance' : 'Transmittance'}`
+    });
+    syncUi(state.panelId);
     return true;
   };
 
+  const setTransmittanceScale = (panelId, nextScale) => {
+    const state = getPanelState(panelId);
+    if (!state) return false;
+    if (nextScale !== 'percent' && nextScale !== 'fraction') return false;
+    const nextLayout = updateLayoutMeta(state.layout, { [TRANS_SCALE_KEY]: nextScale });
+    if (state.currentDisplay !== 'transmittance') {
+      const nextFigure = { ...state.figure, layout: nextLayout };
+      updatePanelFigure(state.panelId, nextFigure, { source: 'units-toggle' });
+      persist();
+      syncUi(state.panelId);
+      return true;
+    }
+    const updatedState = { ...state, layout: nextLayout, transmittanceScale: nextScale };
+    const { data, layout } = applyDisplayUpdate(updatedState, 'transmittance', { autoscale: true });
+    const nextFigure = {
+      ...state.figure,
+      data,
+      layout
+    };
+    applyFigureUpdate(state.panelId, nextFigure, {
+      label: `Set Transmittance to ${nextScale === 'percent' ? 'Percent' : 'Fraction'}`
+    });
+    syncUi(state.panelId);
+    return true;
+  };
+
+  const setAutoLabel = (panelId, enabled) => {
+    const state = getPanelState(panelId);
+    if (!state) return false;
+    const nextLayout = updateLayoutMeta(state.layout, { [AUTO_LABEL_KEY]: !!enabled });
+    let layout = nextLayout;
+    if (enabled) {
+      const axisLabel = resolveAxisLabel({
+        displayUnits: state.currentDisplay,
+        scale: state.transmittanceScale
+      });
+      if (shouldAutoUpdateAxisLabel({
+        layout: state.layout,
+        currentDisplay: state.currentDisplay,
+        currentScale: state.transmittanceScale
+      })) {
+        layout = applyAxisLabel(layout, axisLabel);
+      }
+    }
+    const nextFigure = { ...state.figure, layout };
+    updatePanelFigure(state.panelId, nextFigure, { source: 'units-toggle' });
+    persist();
+    syncUi(state.panelId);
+    return true;
+  };
+
+  addListener(toggleButton, 'click', (event) => {
+    if (event?.defaultPrevented) return;
+    toggleUnits();
+  });
+  addListener(toggleButton, 'show.bs.dropdown', () => syncUi());
+  scaleButtons.forEach((button) => {
+    addListener(button, 'click', (event) => {
+      event.preventDefault();
+      const scale = button.getAttribute('data-units-scale');
+      setTransmittanceScale(null, scale);
+    });
+  });
+  addListener(autoLabelToggle, 'change', () => {
+    setAutoLabel(null, !!autoLabelToggle.checked);
+  });
+  if (documentRoot) {
+    addListener(documentRoot, 'workspace:tech-change', () => {
+      requestAnimationFrame(() => syncUi());
+    });
+  }
+
+  syncUi();
+
   return {
-    handleToggle: (panelId) => toggleUnits(panelId)
+    handleToggle: (panelId) => toggleUnits(panelId),
+    handleActivePanelChange: (panelId) => syncUi(panelId),
+    handlePanelFigureUpdate: (panelId) => {
+      const active = resolvePanelId();
+      if (!panelId || panelId === active) {
+        syncUi(panelId);
+      }
+    },
+    teardown: () => {
+      listeners.forEach(({ node, event, handler, options }) => {
+        if (!node || typeof node.removeEventListener !== 'function') return;
+        node.removeEventListener(event, handler, options);
+      });
+      listeners.length = 0;
+    }
   };
 }

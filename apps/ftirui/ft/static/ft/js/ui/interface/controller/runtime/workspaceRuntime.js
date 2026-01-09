@@ -3164,6 +3164,7 @@ const recordOperation = (entry) => {
     const result = panelsModel.updatePanelFigure(panelId, figure);
     templatesController?.handlePanelFigureUpdate?.(panelId, options);
     panelLockController?.handlePanelFigureUpdate?.(panelId);
+    unitsToggleController?.handlePanelFigureUpdate?.(panelId, options);
     return result;
   };
 
@@ -3905,6 +3906,7 @@ const isPanelPinned = (panelId) =>
     chipPanelsBridge.onPanelSelected(activePanelId);
     applyActivePanelState(options);
     peakMarkingController?.handleActivePanelChange?.(activePanelId);
+    unitsToggleController?.handleActivePanelChange?.(activePanelId);
   };
 
 
@@ -5105,6 +5107,10 @@ const isPanelPinned = (panelId) =>
   });
 
   unitsToggleController = createUnitsToggleController({
+    dom: {
+      toggleButton: document.getElementById('tb2_peak_integration'),
+      menu: document.querySelector('[data-units-menu]')
+    },
     getActivePanelId,
     getPanelFigure,
     updatePanelFigure,
