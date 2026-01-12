@@ -48,6 +48,7 @@ import { createGlobalCommandsController } from './toolbar/globalCommands.js';
 import { createToolbarShortcutsController } from './toolbar/toolbarShortcuts.js';
 import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js';
 import { createTechToolbarHoverController } from './toolbar/techToolbarHoverController.js';
+import { createTechToolbarPinController } from './toolbar/techToolbarPinController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
@@ -2246,7 +2247,11 @@ const fetchRemoteImageAsDataUrl = async (url) => {
   const updateToolbarMetrics = () => {
     if (!canvasWrapper) return;
     const toolbarHeight = topToolbar ? Math.round(topToolbar.getBoundingClientRect().height) : 0;
-    const toolbarWidth = verticalToolbar ? Math.round(verticalToolbar.getBoundingClientRect().width) : 0;
+    const toolbarWidth = verticalToolbar
+      && !verticalToolbar.hidden
+      && verticalToolbar.dataset.toolbarFloating !== 'true'
+      ? Math.round(verticalToolbar.getBoundingClientRect().width)
+      : 0;
     canvasWrapper.style.setProperty('--workspace-toolbar-height', `${toolbarHeight}px`);
     canvasWrapper.style.setProperty('--workspace-toolbar-vertical-width', `${toolbarWidth}px`);
   };
@@ -3332,6 +3337,7 @@ let panelLockController = null;
 let unitsToggleController = null;
 let multiTraceController = null;
 let techToolbarHoverController = null;
+let techToolbarPinController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -3913,6 +3919,7 @@ const isPanelPinned = (panelId) =>
     peakMarkingController?.handleActivePanelChange?.(activePanelId);
     unitsToggleController?.handleActivePanelChange?.(activePanelId);
     multiTraceController?.handleActivePanelChange?.(activePanelId);
+    techToolbarPinController?.handleActivePanelChange?.(activePanelId);
     updateCanvasState();
   };
 
@@ -4082,8 +4089,12 @@ const isPanelPinned = (panelId) =>
       }
       if (verticalToolbar) {
         const showToolbar = !!(activePanelId && panelSupportsPlot(activePanelId));
-        verticalToolbar.hidden = !showToolbar;
-        verticalToolbar.setAttribute('aria-hidden', String(!showToolbar));
+        if (techToolbarPinController?.setBaseVisibility) {
+          techToolbarPinController.setBaseVisibility(showToolbar);
+        } else {
+          verticalToolbar.hidden = !showToolbar;
+          verticalToolbar.setAttribute('aria-hidden', String(!showToolbar));
+        }
       }
       updateToolbarMetrics();
     };
@@ -5186,6 +5197,16 @@ const isPanelPinned = (panelId) =>
           suppressClickToggle: true
         }
       ]
+    });
+    techToolbarPinController = createTechToolbarPinController({
+      dom: {
+        toolbar: verticalToolbar,
+        toggle: document.querySelector('[data-tech-pin-toggle]')
+      },
+      getActivePanelId,
+      getPanelDom,
+      panelSupportsPlot,
+      updateToolbarMetrics
     });
 
   templatesController = createTemplatesController({
@@ -7403,6 +7424,8 @@ const isPanelPinned = (panelId) =>
       techToolbarLabelController?.teardown?.();
       techToolbarHoverController?.teardown?.();
       techToolbarHoverController = null;
+      techToolbarPinController?.teardown?.();
+      techToolbarPinController = null;
       panelLockController?.teardown?.();
       panelLockController = null;
       unitsToggleController?.teardown?.();
