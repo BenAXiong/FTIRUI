@@ -1828,7 +1828,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
 body.workspace-hide-inactive-headers .workspace-panel.workspace-panel--plot:not(.is-active) .workspace-panel-header{
   background: transparent;
   border-color: transparent;
-  pointer-events: none;
+  pointer-events: auto;
 }
 body.workspace-hide-inactive-headers .workspace-panel.workspace-panel--plot:not(.is-active){
   background: transparent;
@@ -1836,6 +1836,7 @@ body.workspace-hide-inactive-headers .workspace-panel.workspace-panel--plot:not(
 }
 body.workspace-hide-inactive-headers .workspace-panel.workspace-panel--plot:not(.is-active) .workspace-panel-header > *{
   visibility: hidden;
+  pointer-events: none;
 }
 .workspace-panel-title{
   font-weight: 600;
