@@ -3549,11 +3549,100 @@ body.workspace-panel-fullscreen .header-actions{
   gap: .5rem;
   font-size: .85rem;
 }
-.workspace-units-menu-switch .form-check-input{
-  width: 2.4rem;
-  height: 1.25rem;
-  cursor: pointer;
-}
+  .workspace-units-menu-switch .form-check-input{
+    width: 2.4rem;
+    height: 1.25rem;
+    cursor: pointer;
+  }
+  .workspace-toolbar-dropdown .dropdown-menu.workspace-multitrace-menu{
+    width: min(360px, 92vw);
+    max-width: min(360px, 92vw);
+    padding: .9rem 1rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+    box-shadow: 0 22px 40px rgba(15,23,42,.2);
+    margin-left: -8px;
+  }
+  .workspace-multitrace-menu-header{
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+  }
+  .workspace-multitrace-menu-header h3{
+    margin: 0;
+    font-size: 1.05rem;
+  }
+  .workspace-multitrace-menu-divider{
+    height: 1px;
+    margin: .65rem 0;
+    background: color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  }
+  .workspace-multitrace-menu-section{
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .workspace-multitrace-menu-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+  }
+  .workspace-multitrace-menu-label{
+    font-size: .85rem;
+    font-weight: 600;
+  }
+  .workspace-multitrace-menu-toggle-group{
+    display: flex;
+    gap: .35rem;
+    align-items: center;
+  }
+  .workspace-multitrace-toggle{
+    font-size: .8rem;
+    padding: .35rem .7rem;
+    min-width: 4.25rem;
+  }
+  .workspace-multitrace-toggle.is-active{
+    border-color: var(--bs-primary);
+    color: var(--bs-primary);
+    background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+    box-shadow: 0 6px 12px rgba(15,23,42,.15);
+  }
+  .workspace-multitrace-offset-controls{
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    width: 100%;
+  }
+  .workspace-multitrace-offset-input{
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .workspace-multitrace-offset-input input{
+    width: 5.5rem;
+    text-align: right;
+  }
+  .workspace-multitrace-offset-unit{
+    font-size: .8rem;
+    color: var(--bs-secondary-color);
+    min-width: 2.2rem;
+  }
+  .workspace-multitrace-offset-range{
+    width: 100%;
+  }
+  .workspace-multitrace-menu-switch{
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .85rem;
+  }
+  .workspace-multitrace-menu-switch .form-check-input{
+    width: 2.4rem;
+    height: 1.25rem;
+    cursor: pointer;
+  }
 .workspace-toolbar-unit-icon{
   font-weight: 700;
   letter-spacing: .02em;

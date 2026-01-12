@@ -688,14 +688,98 @@
         </div>
       </div>
     </div>
+    </div>
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-multitrace">
+    <button id="tb2_multi_trace"
+            class="btn btn-outline-secondary workspace-toolbar-btn"
+            type="button"
+            title="Multi-trace options"
+            aria-label="Multi-trace options">
+      <i class="bi bi-layers workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Multi-trace options</span>
+    </button>
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-multitrace-menu"
+         aria-labelledby="tb2_multi_trace"
+         data-multitrace-menu>
+      <div class="workspace-multitrace-menu-header">
+        <h3>Multi-trace options</h3>
+      </div>
+      <div class="workspace-multitrace-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-multitrace-menu-section">
+        <div class="workspace-multitrace-menu-row">
+          <span class="workspace-multitrace-menu-label">Default display</span>
+          <div class="workspace-multitrace-menu-toggle-group" role="group" aria-label="Default display">
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-multitrace-toggle"
+                    data-multitrace-display="stacked"
+                    aria-pressed="false">
+              Stacked
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-multitrace-toggle"
+                    data-multitrace-display="overlapped"
+                    aria-pressed="false">
+              Overlapped
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="workspace-multitrace-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-multitrace-menu-section">
+        <div class="workspace-multitrace-menu-row">
+          <span class="workspace-multitrace-menu-label">Offset</span>
+          <div class="workspace-multitrace-menu-toggle-group" role="group" aria-label="Offset mode">
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-multitrace-toggle"
+                    data-multitrace-offset-mode="units"
+                    aria-pressed="false">
+              Units
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-multitrace-toggle"
+                    data-multitrace-offset-mode="percent"
+                    aria-pressed="false">
+              %
+            </button>
+          </div>
+        </div>
+        <div class="workspace-multitrace-offset-controls">
+          <div class="workspace-multitrace-offset-input">
+            <input type="number"
+                   class="form-control form-control-sm"
+                   data-multitrace-offset-input
+                   value="0"
+                   min="0"
+                   step="1">
+            <span class="workspace-multitrace-offset-unit" data-multitrace-offset-unit>%</span>
+          </div>
+          <input type="range"
+                 class="form-range workspace-multitrace-offset-range"
+                 data-multitrace-offset-range
+                 min="0"
+                 max="100"
+                 step="1"
+                 value="0">
+        </div>
+      </div>
+      <div class="workspace-multitrace-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-multitrace-menu-section">
+        <div class="form-check form-switch workspace-multitrace-menu-switch">
+          <input class="form-check-input"
+                 type="checkbox"
+                 role="switch"
+                 id="tb2_multitrace_legend"
+                 data-multitrace-legend-toggle>
+          <label class="form-check-label" for="tb2_multitrace_legend">
+            Individual legend
+          </label>
+        </div>
+      </div>
+    </div>
   </div>
   <button id="tb2_atr_correction" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="ATR correction" aria-label="ATR correction">
     <i class="bi bi-funnel workspace-toolbar-icon" aria-hidden="true"></i>
     <span class="visually-hidden">ATR correction</span>
-  </button>
-  <button id="tb2_smoothing" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Apply smoothing" aria-label="Apply smoothing">
-    <i class="bi bi-water workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Apply smoothing</span>
   </button>
   <button id="tb2_derivatization" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Derivatization" aria-label="Derivatization">
     <i class="bi bi-bezier workspace-toolbar-icon" aria-hidden="true"></i>

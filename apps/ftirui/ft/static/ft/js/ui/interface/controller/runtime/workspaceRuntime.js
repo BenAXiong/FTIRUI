@@ -24,6 +24,7 @@ import { createStylePainterController } from './panels/stylePainterController.js
 import { createTemplatesController } from './panels/templatesController.js';
 import { createPanelLockController } from './panels/panelLockController.js';
 import { createUnitsToggleController } from './panels/unitsToggleController.js';
+import { createMultiTraceController } from './panels/multiTraceController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
 import { plotPanelType } from './panels/registry/plotPanel.js';
 import { markdownPanelType } from './panels/registry/markdownPanel.js';
@@ -3159,15 +3160,16 @@ const recordOperation = (entry) => {
     return panelsModel.getPanelFigure(panelId) || { data: [], layout: {} };
   };
 
-  const updatePanelFigure = (panelId, figure, options = {}) => {
-    const record = getPanelRecord(panelId);
-    if (!record || record.type !== 'plot') return null;
-    const result = panelsModel.updatePanelFigure(panelId, figure);
-    templatesController?.handlePanelFigureUpdate?.(panelId, options);
-    panelLockController?.handlePanelFigureUpdate?.(panelId);
-    unitsToggleController?.handlePanelFigureUpdate?.(panelId, options);
-    return result;
-  };
+    const updatePanelFigure = (panelId, figure, options = {}) => {
+      const record = getPanelRecord(panelId);
+      if (!record || record.type !== 'plot') return null;
+      const result = panelsModel.updatePanelFigure(panelId, figure);
+      templatesController?.handlePanelFigureUpdate?.(panelId, options);
+      panelLockController?.handlePanelFigureUpdate?.(panelId);
+      unitsToggleController?.handlePanelFigureUpdate?.(panelId, options);
+      multiTraceController?.handlePanelFigureUpdate?.(panelId, options);
+      return result;
+    };
 
   const getPanelContent = (panelId) => panelsModel.getPanelContent(panelId) || null;
 
@@ -3328,6 +3330,7 @@ let stylePainterController = null;
 let templatesController = null;
 let panelLockController = null;
 let unitsToggleController = null;
+let multiTraceController = null;
 let techToolbarHoverController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
@@ -3654,19 +3657,19 @@ const isPanelPinned = (panelId) =>
     };
   })();
 
-  const techToolbarLabelController = createTechToolbarLabelController({
-    techToggle: techSelectorController?.toggle || null,
-    techOptions: techSelectorController?.options || [],
-    buttons: [
-      { node: document.getElementById('tb2_peak_marking'), slot: 3 },
-      { node: document.getElementById('tb2_peak_integration'), slot: 4 },
-      { node: document.getElementById('tb2_atr_correction'), slot: 5 },
-      { node: document.getElementById('tb2_smoothing'), slot: 6 },
-      { node: document.getElementById('tb2_derivatization'), slot: 7 },
-      { node: document.getElementById('tb2_spectral_library'), slot: 8 },
-      { node: document.getElementById('tb2_placeholder_help'), slot: 9 }
-    ]
-  });
+    const techToolbarLabelController = createTechToolbarLabelController({
+      techToggle: techSelectorController?.toggle || null,
+      techOptions: techSelectorController?.options || [],
+      buttons: [
+        { node: document.getElementById('tb2_peak_marking'), slot: 3 },
+        { node: document.getElementById('tb2_peak_integration'), slot: 4 },
+        { node: document.getElementById('tb2_multi_trace'), slot: 5 },
+        { node: document.getElementById('tb2_atr_correction'), slot: 6 },
+        { node: document.getElementById('tb2_derivatization'), slot: 7 },
+        { node: document.getElementById('tb2_spectral_library'), slot: 8 },
+        { node: document.getElementById('tb2_placeholder_help'), slot: 9 }
+      ]
+    });
   const techToolbarHandlers = registerTechPlaceholderHandlers({
     controller: techToolbarLabelController,
     techOptions: techSelectorController?.options || [],
@@ -3905,12 +3908,13 @@ const isPanelPinned = (panelId) =>
       if (activePanelId) {
         updatePanelDomFocus(activePanelId, true);
       }
-      chipPanelsBridge.onPanelSelected(activePanelId);
-      applyActivePanelState(options);
-      peakMarkingController?.handleActivePanelChange?.(activePanelId);
-      unitsToggleController?.handleActivePanelChange?.(activePanelId);
-      updateCanvasState();
-    };
+    chipPanelsBridge.onPanelSelected(activePanelId);
+    applyActivePanelState(options);
+    peakMarkingController?.handleActivePanelChange?.(activePanelId);
+    unitsToggleController?.handleActivePanelChange?.(activePanelId);
+    multiTraceController?.handleActivePanelChange?.(activePanelId);
+    updateCanvasState();
+  };
 
 
   const findTraceByRowId = (rowId) => {
@@ -5124,40 +5128,65 @@ const isPanelPinned = (panelId) =>
     showToast
   });
 
-  unitsToggleController = createUnitsToggleController({
-    dom: {
-      toggleButton: document.getElementById('tb2_peak_integration'),
-      menu: document.querySelector('[data-units-menu]')
-    },
-    getActivePanelId,
-    getPanelDom,
-    getPanelFigure,
-    updatePanelFigure,
-    renderPlot,
-    pushHistory,
-    updateHistoryButtons,
-    persist,
-    panelSupportsPlot,
-    isPanelEditLocked,
-    showToast
-  });
-  techToolbarLabelController?.registerHandler?.('units-toggle', ({ event } = {}) => {
-    event?.preventDefault?.();
-    unitsToggleController?.handleToggle?.();
-  });
-  techToolbarHoverController = createTechToolbarHoverController({
-    items: [
-      {
-        toggle: document.getElementById('tb2_peak_marking'),
-        menu: document.querySelector('[data-peak-menu]')
+    unitsToggleController = createUnitsToggleController({
+      dom: {
+        toggleButton: document.getElementById('tb2_peak_integration'),
+        menu: document.querySelector('[data-units-menu]')
       },
-      {
-        toggle: document.getElementById('tb2_peak_integration'),
-        menu: document.querySelector('[data-units-menu]'),
-        suppressClickToggle: true
-      }
-    ]
-  });
+      getActivePanelId,
+      getPanelDom,
+      getPanelFigure,
+      updatePanelFigure,
+      renderPlot,
+      pushHistory,
+      updateHistoryButtons,
+      persist,
+      panelSupportsPlot,
+      isPanelEditLocked,
+      showToast
+    });
+    multiTraceController = createMultiTraceController({
+      dom: {
+        toggleButton: document.getElementById('tb2_multi_trace'),
+        menu: document.querySelector('[data-multitrace-menu]')
+      },
+      getActivePanelId,
+      getPanelFigure,
+      updatePanelFigure,
+      renderPlot,
+      pushHistory,
+      updateHistoryButtons,
+      persist,
+      panelSupportsPlot,
+      isPanelEditLocked,
+      showToast
+    });
+    techToolbarLabelController?.registerHandler?.('units-toggle', ({ event } = {}) => {
+      event?.preventDefault?.();
+      unitsToggleController?.handleToggle?.();
+    });
+    techToolbarLabelController?.registerHandler?.('multi-trace', ({ event } = {}) => {
+      event?.preventDefault?.();
+      multiTraceController?.handleToggle?.();
+    });
+    techToolbarHoverController = createTechToolbarHoverController({
+      items: [
+        {
+          toggle: document.getElementById('tb2_peak_marking'),
+          menu: document.querySelector('[data-peak-menu]')
+        },
+        {
+          toggle: document.getElementById('tb2_peak_integration'),
+          menu: document.querySelector('[data-units-menu]'),
+          suppressClickToggle: true
+        },
+        {
+          toggle: document.getElementById('tb2_multi_trace'),
+          menu: document.querySelector('[data-multitrace-menu]'),
+          suppressClickToggle: true
+        }
+      ]
+    });
 
   templatesController = createTemplatesController({
     getPanelDom,
@@ -7378,6 +7407,8 @@ const isPanelPinned = (panelId) =>
       panelLockController = null;
       unitsToggleController?.teardown?.();
       unitsToggleController = null;
+      multiTraceController?.teardown?.();
+      multiTraceController = null;
       stylePainterController?.teardown?.();
       stylePainterController = null;
     templatesController?.teardown?.();
