@@ -3897,19 +3897,20 @@ const isPanelPinned = (panelId) =>
     });
   };
 
-  setActivePanel = (panelId, options = {}) => {
-    if (activePanelId && activePanelId !== panelId) {
-      updatePanelDomFocus(activePanelId, false);
-    }
-    activePanelId = panelId || null;
-    if (activePanelId) {
-      updatePanelDomFocus(activePanelId, true);
-    }
-    chipPanelsBridge.onPanelSelected(activePanelId);
-    applyActivePanelState(options);
-    peakMarkingController?.handleActivePanelChange?.(activePanelId);
-    unitsToggleController?.handleActivePanelChange?.(activePanelId);
-  };
+    setActivePanel = (panelId, options = {}) => {
+      if (activePanelId && activePanelId !== panelId) {
+        updatePanelDomFocus(activePanelId, false);
+      }
+      activePanelId = panelId || null;
+      if (activePanelId) {
+        updatePanelDomFocus(activePanelId, true);
+      }
+      chipPanelsBridge.onPanelSelected(activePanelId);
+      applyActivePanelState(options);
+      peakMarkingController?.handleActivePanelChange?.(activePanelId);
+      unitsToggleController?.handleActivePanelChange?.(activePanelId);
+      updateCanvasState();
+    };
 
 
   const findTraceByRowId = (rowId) => {
@@ -4069,13 +4070,19 @@ const isPanelPinned = (panelId) =>
     panelDom.empty.style.display = panelDomRegistry.size ? 'none' : '';
   };
 
-  updateCanvasState = () => {
-    canvas.classList.toggle('has-panels', panelDomRegistry.size > 0);
-    updatePanelEmpty();
-    if (emptyOverlay) {
-      emptyOverlay.style.display = panelDomRegistry.size ? 'none' : '';
-    }
-  };
+    updateCanvasState = () => {
+      canvas.classList.toggle('has-panels', panelDomRegistry.size > 0);
+      updatePanelEmpty();
+      if (emptyOverlay) {
+        emptyOverlay.style.display = panelDomRegistry.size ? 'none' : '';
+      }
+      if (verticalToolbar) {
+        const showToolbar = !!(activePanelId && panelSupportsPlot(activePanelId));
+        verticalToolbar.hidden = !showToolbar;
+        verticalToolbar.setAttribute('aria-hidden', String(!showToolbar));
+      }
+      updateToolbarMetrics();
+    };
 
   const coerceNumber = (value, fallback = 0) => {
     const numeric = Number(value);

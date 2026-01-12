@@ -8,6 +8,7 @@ Phase 6 – Workflow refinements
     - [ ] tb2 displayed only when graph active (hide on empty area click)
     - [ ] tb2 s10 add stuck to right vs follow graph and hide
     - [ ] tb2 s10 add graph header visibility - auto-collapse when not in focus
+    - [ ] graph: add p^tion to hide modebar button
     Other scientist‑friendly options (if you want me to add later)
         Baseline correction presets (rubber‑band, polynomial), with “apply to all traces”.
         Normalize to max/area, and “stack with offset”.
