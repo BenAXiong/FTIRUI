@@ -3,16 +3,17 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 - [-] Stage 2
     - [x] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
     - [x] Clean-up tb1_0
-    - [-] Rethink tb1_1&2
-    - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
-    - [ ] Consider collapsible right pane for more simulatenous controls
-            ooooor Graph option v2: right side bar... -- make alternatives togglable?
-            Right pane: add tab for metadata and other info (incl user notes for self and collab)
+    - [x] Rethink tb1_1&2
+    - [ ] Left pane: add alternate controls.
     - [ ] Optimize features for "Workflow_1_MVP"
 
 - [ ] Stage 3?
     - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
     - [ ] Explore Papers/Reports workflow integration.
+
+- [ ] Consider collapsible right pane for more simulatenous controls
+    ooooor Graph option v2: right side bar... -- make alternatives togglable?
+    Right pane: add tab for metadata and other info (incl user notes for self and collab)
 
 Phase 7 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).

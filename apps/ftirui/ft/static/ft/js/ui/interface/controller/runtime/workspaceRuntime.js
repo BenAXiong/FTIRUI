@@ -17,6 +17,7 @@ import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.j
 
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
 import { createBrowserFacade } from './browser/facade.js';
+import { createBrowserTabsController } from './browser/tabController.js';
 import { createPersistenceFacade } from './persistence/facade.js';
 import { createPanelsFacade } from './panels/facade.js';
 import { createPanelDomFacade } from './panels/panelDomFacade.js';
@@ -407,6 +408,7 @@ let pendingRenameSectionId = null;
 let activePanelId = null;
 let peakMarkingController = null;
 let browserFacade = null;
+let browserTabsController = null;
 let persistence = null;
 let history = null;
 let persist = () => {};
@@ -1589,6 +1591,8 @@ export function initWorkspaceRuntime(context = {}) {
   activePanelId = null;
   browserFacade?.teardown?.();
   browserFacade = null;
+  browserTabsController?.teardown?.();
+  browserTabsController = null;
   operationsLog.length = 0;
   operationsRenderQueued = false;
   operationSequence = 0;
@@ -3460,6 +3464,9 @@ const isPanelPinned = (panelId) =>
     undo: historyUndoButtons,
     redo: historyRedoButtons
   };
+
+  browserTabsController?.teardown?.();
+  browserTabsController = createBrowserTabsController({ root: panelDom.root });
 
   ensureOperationsPanel();
   renderOperationsLog();
@@ -7472,6 +7479,8 @@ const isPanelPinned = (panelId) =>
     }
     browserFacade?.teardown?.();
     browserFacade = null;
+    browserTabsController?.teardown?.();
+    browserTabsController = null;
     ioFacade?.detach?.();
     preferencesFacade?.teardown?.();
     persistence?.teardown?.();

@@ -4721,6 +4721,40 @@ pre, code, .pre-like {
   min-width: 120px;
   max-width: 200px;
 }
+.workspace-browser-tabs{
+  flex: 0 0 auto;
+}
+.workspace-browser-tab{
+  font-size: .65rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .2rem .45rem;
+}
+.workspace-browser-tab.is-active,
+.workspace-browser-tab[aria-selected="true"]{
+  background: var(--bs-primary);
+  color: #fff;
+  border-color: color-mix(in oklab, var(--bs-primary) 75%, transparent);
+}
+.workspace-browser-tab-panel{
+  display: none;
+}
+.workspace-browser-tab-panel.is-active{
+  display: block;
+}
+.workspace-browser-project-placeholder{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .4rem;
+  padding: 1.25rem .5rem;
+  color: var(--bs-secondary-color);
+  font-size: .85rem;
+}
+.workspace-browser-project-placeholder i{
+  font-size: 1.4rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 70%, transparent);
+}
 .plot-b-panel.collapsed .panel-toolbar .panel-search-input{
   flex-basis: 130px;
   max-width: 150px;
