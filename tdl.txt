@@ -8,9 +8,12 @@ Phase 6 – Workflow refinements
     - [x] tb2 displayed only when graph active (hide on empty area click)
     - [x] tb2 s10 add stuck to right vs follow graph and hide
     - [x] tb2 s10 add graph header visibility - auto-collapse when not in focus
-    - [-] tb2 s10 o3 add hide modebar button
-    - [ ] tb2 s6 Baseline correction presets (rubber‑band, polynomial), with “apply to all traces”.
-    - [ ] tb2 s7 CO₂/H₂O band suppression toggles + auto region crop (e.g., 4000–400 cm⁻¹), plus reversible “full range”.
+    - [x] tb2 s10 o3 add hide modebar button
+    - [-] tb2 s6 Baseline correction presets (rubber‑band, polynomial), with “apply to all traces”.
+    - [ ] tb2 s7 
+        ATR correction
+        CO₂/H₂O band suppression toggles
+        auto region crop (e.g., 4000–400 cm⁻¹), plus reversible “full range”.
     - [ ] tb2 s8 Compare modes: reference subtraction and spectrum overlay.
 
 - [ ] Stage 2

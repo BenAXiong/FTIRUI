@@ -3660,6 +3660,77 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
     height: 1.25rem;
     cursor: pointer;
   }
+.workspace-toolbar-dropdown .dropdown-menu.workspace-tech-menu{
+  width: min(360px, 92vw);
+  max-width: min(360px, 92vw);
+  padding: .9rem 1rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  box-shadow: 0 22px 40px rgba(15,23,42,.2);
+  margin-left: -8px;
+}
+.workspace-tech-menu-header{
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.workspace-tech-menu-header h3{
+  margin: 0;
+  font-size: 1.05rem;
+}
+.workspace-tech-menu-divider{
+  height: 1px;
+  margin: .65rem 0;
+  background: color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+}
+.workspace-tech-menu-section{
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.workspace-tech-menu-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.workspace-tech-menu-label{
+  font-size: .85rem;
+  font-weight: 600;
+}
+.workspace-tech-menu-toggle-group{
+  display: flex;
+  gap: .35rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.workspace-tech-menu-toggle{
+  font-size: .8rem;
+  padding: .35rem .7rem;
+  min-width: 6.5rem;
+}
+.workspace-tech-menu-switch{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .85rem;
+}
+.workspace-tech-menu-switch .form-check-input{
+  width: 2.4rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+.workspace-tech-menu-option{
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.workspace-tech-menu-hint{
+  margin: 0;
+  font-size: .75rem;
+  color: var(--bs-secondary-color);
+}
 .workspace-toolbar-unit-icon{
   font-weight: 700;
   letter-spacing: .02em;

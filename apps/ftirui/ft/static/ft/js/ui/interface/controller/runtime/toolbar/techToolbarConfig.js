@@ -6,10 +6,10 @@ export const DEFAULT_TECH_FEATURES = {
   3: { label: 'Toggle peak marking', action: 'peak-marking', display: 'icon', iconClass: 'bi-bullseye' },
   4: { label: 'Absorbance / Transmittance', action: 'units-toggle', display: 'icon', iconClass: 'bi-arrow-left-right' },
   5: { label: 'Multi-trace options', action: 'multi-trace', display: 'icon', iconClass: 'bi-layers' },
-  6: { label: 'ATR correction', action: 'atr-correction', display: 'icon', iconClass: 'bi-funnel' },
-  7: { label: 'Derivatization', action: 'derivatization', display: 'icon', iconClass: 'bi-bezier' },
-  8: { label: 'Spectral library', action: 'spectral-library', display: 'icon', iconClass: 'bi-collection' },
-  9: { label: 'Peak integration', action: 'peak-integration', display: 'icon', iconClass: 'bi-clipboard-data' }
+  6: { label: 'Baseline correction', action: 'baseline-correction', display: 'icon', iconClass: 'bi-funnel' },
+  7: { label: 'Spectral cleanup', action: 'spectral-cleanup', display: 'icon', iconClass: 'bi-bezier' },
+  8: { label: 'Compare modes', action: 'compare-modes', display: 'icon', iconClass: 'bi-collection' },
+  9: { label: 'Spectral libraries', action: 'spectral-libraries', display: 'icon', iconClass: 'bi-clipboard-data' }
 };
 
 export const TECH_FEATURE_OVERRIDES = {};

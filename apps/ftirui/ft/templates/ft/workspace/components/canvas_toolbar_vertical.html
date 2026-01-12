@@ -777,76 +777,177 @@
       </div>
     </div>
   </div>
-  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-baseline">
     <button id="tb2_atr_correction"
             class="btn btn-outline-secondary workspace-toolbar-btn"
             type="button"
-            title="ATR correction"
-            aria-label="ATR correction"
+            title="Baseline correction"
+            aria-label="Baseline correction"
             data-bs-toggle="dropdown"
             data-bs-auto-close="outside"
             aria-expanded="false">
       <i class="bi bi-funnel workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">ATR correction</span>
+      <span class="visually-hidden">Baseline correction</span>
     </button>
-    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-tech-menu"
          aria-labelledby="tb2_atr_correction"
-         data-atr-menu>
-      <div class="px-3 py-2 text-muted small">No options yet.</div>
+         data-baseline-menu>
+      <div class="workspace-tech-menu-header">
+        <h3>Baseline correction</h3>
+      </div>
+      <div class="workspace-tech-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-tech-menu-section">
+        <div class="workspace-tech-menu-row">
+          <span class="workspace-tech-menu-label">Method</span>
+          <div class="workspace-tech-menu-toggle-group" role="group" aria-label="Baseline method">
+            <input class="btn-check" type="radio" name="baseline_method" id="tb2_baseline_rubber" checked>
+            <label class="btn btn-outline-secondary workspace-tech-menu-toggle" for="tb2_baseline_rubber">Rubber band</label>
+            <input class="btn-check" type="radio" name="baseline_method" id="tb2_baseline_poly">
+            <label class="btn btn-outline-secondary workspace-tech-menu-toggle" for="tb2_baseline_poly">Polynomial</label>
+          </div>
+        </div>
+        <div class="workspace-tech-menu-row">
+          <label class="workspace-tech-menu-label" for="tb2_baseline_degree">Polynomial degree</label>
+          <input id="tb2_baseline_degree"
+                 type="number"
+                 class="form-control form-control-sm"
+                 min="1"
+                 max="9"
+                 step="1"
+                 value="3">
+        </div>
+      </div>
+      <div class="workspace-tech-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-tech-menu-section">
+        <div class="form-check form-switch workspace-tech-menu-switch">
+          <input class="form-check-input"
+                 type="checkbox"
+                 role="switch"
+                 id="tb2_baseline_apply_all"
+                 checked>
+          <label class="form-check-label" for="tb2_baseline_apply_all">
+            Apply to all traces
+          </label>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-cleanup">
     <button id="tb2_derivatization"
             class="btn btn-outline-secondary workspace-toolbar-btn"
             type="button"
-            title="Derivatization"
-            aria-label="Derivatization"
+            title="Spectral cleanup"
+            aria-label="Spectral cleanup"
             data-bs-toggle="dropdown"
             data-bs-auto-close="outside"
             aria-expanded="false">
       <i class="bi bi-bezier workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Derivatization</span>
+      <span class="visually-hidden">Spectral cleanup</span>
     </button>
-    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-tech-menu"
          aria-labelledby="tb2_derivatization"
-         data-derivatization-menu>
-      <div class="px-3 py-2 text-muted small">No options yet.</div>
+         data-cleanup-menu>
+      <div class="workspace-tech-menu-header">
+        <h3>Spectral cleanup</h3>
+      </div>
+      <div class="workspace-tech-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-tech-menu-section">
+        <div class="form-check form-switch workspace-tech-menu-switch">
+          <input class="form-check-input"
+                 type="checkbox"
+                 role="switch"
+                 id="tb2_cleanup_atr">
+          <label class="form-check-label" for="tb2_cleanup_atr">
+            ATR correction
+          </label>
+        </div>
+        <div class="form-check form-switch workspace-tech-menu-switch">
+          <input class="form-check-input"
+                 type="checkbox"
+                 role="switch"
+                 id="tb2_cleanup_co2">
+          <label class="form-check-label" for="tb2_cleanup_co2">
+            CO2 band suppression
+          </label>
+        </div>
+        <div class="form-check form-switch workspace-tech-menu-switch">
+          <input class="form-check-input"
+                 type="checkbox"
+                 role="switch"
+                 id="tb2_cleanup_h2o">
+          <label class="form-check-label" for="tb2_cleanup_h2o">
+            H2O band suppression
+          </label>
+        </div>
+      </div>
+      <div class="workspace-tech-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-tech-menu-section">
+        <div class="workspace-tech-menu-row">
+          <span class="workspace-tech-menu-label">Range</span>
+          <div class="workspace-tech-menu-toggle-group" role="group" aria-label="Range crop">
+            <input class="btn-check" type="radio" name="cleanup_range" id="tb2_cleanup_auto">
+            <label class="btn btn-outline-secondary workspace-tech-menu-toggle" for="tb2_cleanup_auto">Auto crop (4000-400 cm^-1)</label>
+            <input class="btn-check" type="radio" name="cleanup_range" id="tb2_cleanup_full" checked>
+            <label class="btn btn-outline-secondary workspace-tech-menu-toggle" for="tb2_cleanup_full">Full range</label>
+          </div>
+        </div>
+        <p class="workspace-tech-menu-hint">Full range reverses any auto crop.</p>
+      </div>
     </div>
   </div>
-  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-compare">
     <button id="tb2_spectral_library"
             class="btn btn-outline-secondary workspace-toolbar-btn"
             type="button"
-            title="Spectral library"
-            aria-label="Spectral library"
+            title="Compare modes"
+            aria-label="Compare modes"
             data-bs-toggle="dropdown"
             data-bs-auto-close="outside"
             aria-expanded="false">
       <i class="bi bi-collection workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Spectral library</span>
+      <span class="visually-hidden">Compare modes</span>
     </button>
-    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-tech-menu"
          aria-labelledby="tb2_spectral_library"
-         data-library-menu>
-      <div class="px-3 py-2 text-muted small">No options yet.</div>
+         data-compare-menu>
+      <div class="workspace-tech-menu-header">
+        <h3>Compare modes</h3>
+      </div>
+      <div class="workspace-tech-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-tech-menu-section">
+        <div class="workspace-tech-menu-option">
+          <input class="btn-check" type="radio" name="compare_mode" id="tb2_compare_overlay" checked>
+          <label class="btn btn-outline-secondary workspace-tech-menu-toggle w-100" for="tb2_compare_overlay">Spectrum overlay</label>
+          <p class="workspace-tech-menu-hint">Overlay multiple traces to compare shapes and intensities.</p>
+        </div>
+        <div class="workspace-tech-menu-option">
+          <input class="btn-check" type="radio" name="compare_mode" id="tb2_compare_reference">
+          <label class="btn btn-outline-secondary workspace-tech-menu-toggle w-100" for="tb2_compare_reference">Reference subtraction</label>
+          <p class="workspace-tech-menu-hint">Subtract a chosen reference trace from the active selection.</p>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-library">
     <button id="tb2_placeholder_help"
             class="btn btn-outline-secondary workspace-toolbar-btn"
             type="button"
-            title="Peak integration"
-            aria-label="Peak integration"
+            title="Spectral libraries"
+            aria-label="Spectral libraries"
             data-bs-toggle="dropdown"
             data-bs-auto-close="outside"
             aria-expanded="false">
       <i class="bi bi-clipboard-data workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Peak integration</span>
+      <span class="visually-hidden">Spectral libraries</span>
     </button>
-    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-tech-menu"
          aria-labelledby="tb2_placeholder_help"
-         data-integration-menu>
-      <div class="px-3 py-2 text-muted small">No options yet.</div>
+         data-library-menu>
+      <div class="workspace-tech-menu-header">
+        <h3>Spectral libraries</h3>
+      </div>
+      <div class="workspace-tech-menu-divider" role="separator" aria-hidden="true"></div>
+      <p class="workspace-tech-menu-hint">Will be implemented in future versions.</p>
     </div>
   </div>
   <div class="workspace-toolbar-delimiter workspace-toolbar-delimiter-horizontal" role="separator" aria-hidden="true"></div>

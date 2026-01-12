@@ -5217,19 +5217,19 @@ const isPanelPinned = (panelId) =>
         },
         {
           toggle: document.getElementById('tb2_atr_correction'),
-          menu: document.querySelector('[data-atr-menu]')
+          menu: document.querySelector('[data-baseline-menu]')
         },
         {
           toggle: document.getElementById('tb2_derivatization'),
-          menu: document.querySelector('[data-derivatization-menu]')
+          menu: document.querySelector('[data-cleanup-menu]')
         },
         {
           toggle: document.getElementById('tb2_spectral_library'),
-          menu: document.querySelector('[data-library-menu]')
+          menu: document.querySelector('[data-compare-menu]')
         },
         {
           toggle: document.getElementById('tb2_placeholder_help'),
-          menu: document.querySelector('[data-integration-menu]')
+          menu: document.querySelector('[data-library-menu]')
         }
       ]
     });
