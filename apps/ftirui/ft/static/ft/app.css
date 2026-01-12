@@ -2414,6 +2414,9 @@ body.workspace-panel-fullscreen .header-actions{
 ){
   display: inline-flex;
 }
+body.workspace-hide-modebar .workspace-panel-plot .modebar{
+  display: none !important;
+}
 .workspace-panel-plot .plotly .gtitle,
 .workspace-panel-plot .plotly .gtitle text{
   pointer-events: all;

@@ -777,22 +777,78 @@
       </div>
     </div>
   </div>
-  <button id="tb2_atr_correction" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="ATR correction" aria-label="ATR correction">
-    <i class="bi bi-funnel workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">ATR correction</span>
-  </button>
-  <button id="tb2_derivatization" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Derivatization" aria-label="Derivatization">
-    <i class="bi bi-bezier workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Derivatization</span>
-  </button>
-  <button id="tb2_spectral_library" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Spectral library" aria-label="Spectral library">
-    <i class="bi bi-collection workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Spectral library</span>
-  </button>
-  <button id="tb2_placeholder_help" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Peak integration" aria-label="Peak integration">
-    <i class="bi bi-clipboard-data workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Peak integration</span>
-  </button>
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+    <button id="tb2_atr_correction"
+            class="btn btn-outline-secondary workspace-toolbar-btn"
+            type="button"
+            title="ATR correction"
+            aria-label="ATR correction"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            aria-expanded="false">
+      <i class="bi bi-funnel workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">ATR correction</span>
+    </button>
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+         aria-labelledby="tb2_atr_correction"
+         data-atr-menu>
+      <div class="px-3 py-2 text-muted small">No options yet.</div>
+    </div>
+  </div>
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+    <button id="tb2_derivatization"
+            class="btn btn-outline-secondary workspace-toolbar-btn"
+            type="button"
+            title="Derivatization"
+            aria-label="Derivatization"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            aria-expanded="false">
+      <i class="bi bi-bezier workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Derivatization</span>
+    </button>
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+         aria-labelledby="tb2_derivatization"
+         data-derivatization-menu>
+      <div class="px-3 py-2 text-muted small">No options yet.</div>
+    </div>
+  </div>
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+    <button id="tb2_spectral_library"
+            class="btn btn-outline-secondary workspace-toolbar-btn"
+            type="button"
+            title="Spectral library"
+            aria-label="Spectral library"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            aria-expanded="false">
+      <i class="bi bi-collection workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Spectral library</span>
+    </button>
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+         aria-labelledby="tb2_spectral_library"
+         data-library-menu>
+      <div class="px-3 py-2 text-muted small">No options yet.</div>
+    </div>
+  </div>
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-placeholder">
+    <button id="tb2_placeholder_help"
+            class="btn btn-outline-secondary workspace-toolbar-btn"
+            type="button"
+            title="Peak integration"
+            aria-label="Peak integration"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            aria-expanded="false">
+      <i class="bi bi-clipboard-data workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Peak integration</span>
+    </button>
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-toolbar-placeholder-menu"
+         aria-labelledby="tb2_placeholder_help"
+         data-integration-menu>
+      <div class="px-3 py-2 text-muted small">No options yet.</div>
+    </div>
+  </div>
   <div class="workspace-toolbar-delimiter workspace-toolbar-delimiter-horizontal" role="separator" aria-hidden="true"></div>
   <div class="dropstart workspace-toolbar-dropdown">
     <button id="tb2_more_options" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-zero" type="button" title="More tech controls" aria-label="More tech controls" data-bs-toggle="dropdown" aria-expanded="false">
@@ -831,7 +887,19 @@
         </div>
       </li>
       <li>
-        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 3</button>
+        <div class="dropdown-item workspace-tech-toggle-row" role="menuitem">
+          <span class="workspace-tech-toggle-label">
+            <i class="bi bi-eye-slash" aria-hidden="true"></i>
+            <span>Hide modebar buttons</span>
+          </span>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input"
+                   type="checkbox"
+                   role="switch"
+                   aria-label="Toggle modebar buttons"
+                   data-hide-modebar-toggle>
+          </div>
+        </div>
       </li>
       <li>
         <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 4</button>

@@ -50,6 +50,7 @@ import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js
 import { createTechToolbarHoverController } from './toolbar/techToolbarHoverController.js';
 import { createTechToolbarPinController } from './toolbar/techToolbarPinController.js';
 import { createTechToolbarHeaderVisibilityController } from './toolbar/techToolbarHeaderVisibilityController.js';
+import { createTechToolbarModebarVisibilityController } from './toolbar/techToolbarModebarVisibilityController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
@@ -3344,6 +3345,7 @@ let multiTraceController = null;
 let techToolbarHoverController = null;
 let techToolbarPinController = null;
 let techToolbarHeaderVisibilityController = null;
+let techToolbarModebarVisibilityController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -5212,6 +5214,22 @@ const isPanelPinned = (panelId) =>
           toggle: document.getElementById('tb2_multi_trace'),
           menu: document.querySelector('[data-multitrace-menu]'),
           suppressClickToggle: true
+        },
+        {
+          toggle: document.getElementById('tb2_atr_correction'),
+          menu: document.querySelector('[data-atr-menu]')
+        },
+        {
+          toggle: document.getElementById('tb2_derivatization'),
+          menu: document.querySelector('[data-derivatization-menu]')
+        },
+        {
+          toggle: document.getElementById('tb2_spectral_library'),
+          menu: document.querySelector('[data-library-menu]')
+        },
+        {
+          toggle: document.getElementById('tb2_placeholder_help'),
+          menu: document.querySelector('[data-integration-menu]')
         }
       ]
     });
@@ -5229,6 +5247,12 @@ const isPanelPinned = (panelId) =>
     techToolbarHeaderVisibilityController = createTechToolbarHeaderVisibilityController({
       dom: {
         toggle: document.querySelector('[data-hide-inactive-headers-toggle]')
+      },
+      preferences: preferencesFacade
+    });
+    techToolbarModebarVisibilityController = createTechToolbarModebarVisibilityController({
+      dom: {
+        toggle: document.querySelector('[data-hide-modebar-toggle]')
       },
       preferences: preferencesFacade
     });
@@ -7452,6 +7476,8 @@ const isPanelPinned = (panelId) =>
       techToolbarPinController = null;
       techToolbarHeaderVisibilityController?.teardown?.();
       techToolbarHeaderVisibilityController = null;
+      techToolbarModebarVisibilityController?.teardown?.();
+      techToolbarModebarVisibilityController = null;
       panelLockController?.teardown?.();
       panelLockController = null;
       unitsToggleController?.teardown?.();

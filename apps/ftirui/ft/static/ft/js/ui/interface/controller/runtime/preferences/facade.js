@@ -12,6 +12,7 @@ export function createUiPreferencesFacade({
   peakDefaultsKey = 'ftir.workspace.peakDefaults.v1',
   techToolbarPinKey = 'ftir.workspace.tb2.pin.v1',
   techToolbarHideHeadersKey = 'ftir.workspace.tb2.hideHeaders.v1',
+  techToolbarHideModebarKey = 'ftir.workspace.tb2.hideModebar.v1',
   sessionStorage: session = typeof globalThis !== 'undefined' ? globalThis.sessionStorage : undefined,
   localStorage: local = typeof globalThis !== 'undefined' ? globalThis.localStorage : undefined
 } = {}) {
@@ -148,6 +149,26 @@ export function createUiPreferencesFacade({
     }
   };
 
+  const readTechToolbarHideModebar = (fallback = false) => {
+    if (!localStore) return fallback;
+    try {
+      const stored = localStore.getItem(techToolbarHideModebarKey);
+      if (stored === null) return fallback;
+      return stored === '1';
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeTechToolbarHideModebar = (enabled) => {
+    if (!localStore) return;
+    try {
+      localStore.setItem(techToolbarHideModebarKey, enabled ? '1' : '0');
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
   const teardown = () => {};
 
   return {
@@ -164,6 +185,8 @@ export function createUiPreferencesFacade({
     writeTechToolbarPin,
     readTechToolbarHideHeaders,
     writeTechToolbarHideHeaders,
+    readTechToolbarHideModebar,
+    writeTechToolbarHideModebar,
     teardown
   };
 }
