@@ -196,6 +196,9 @@ export function createPanelDomFacade({
         if (panelType?.panelClass) {
           panelEl.classList.add(panelType.panelClass);
         }
+        if (isPlotPanel) {
+          panelEl.classList.add('workspace-panel--plot');
+        }
         panelEl.dataset.panelId = panelId;
         panelEl.dataset.graphIndex = String(panelState.index);
         const initialTitle = (typeof panelState.title === 'string' && panelState.title.trim())

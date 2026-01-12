@@ -1,5 +1,5 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
-
+s10 option 3 : "
 Phase 6 – Workflow refinements
 - [-] tb expansion
     - [x] tb1&2 - enable shortcuts
@@ -7,26 +7,27 @@ Phase 6 – Workflow refinements
     - [x] tb2 s5 = stack vs overlap mode (log tdl consider other placement like right sidebar)
     - [x] tb2 displayed only when graph active (hide on empty area click)
     - [x] tb2 s10 add stuck to right vs follow graph and hide
-    - [ ] tb2 s10 add graph header visibility - auto-collapse when not in focus
-    - [ ] graph: add otion to hide modebar button
-    Other scientist‑friendly options (if you want me to add later)
-        Baseline correction presets (rubber‑band, polynomial), with “apply to all traces”.
-        Normalize to max/area, and “stack with offset”.
-        CO₂/H₂O band suppression toggles.
-        Auto region crop (e.g., 4000–400 cm⁻¹), plus reversible “full range”.
-        Reference subtraction and spectrum overlay compare modes.
+    - [-] tb2 s10 add graph header visibility - auto-collapse when not in focus
+    - [ ] tb2 s10 o3 add hide modebar button
+    - [ ] tb2 s6 Baseline correction presets (rubber‑band, polynomial), with “apply to all traces”.
+CO₂/H₂O band suppression toggles.
+Auto region crop (e.g., 4000–400 cm⁻¹), plus reversible “full range”.
+Compare modes: reference subtraction and spectrum overlay.
 
-- [ ] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
-- [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
-- [ ] Consider collapsible right pane for more simulatenous controls
-        ooooor Graph option v2: right side bar... -- make alternatives togglable?
-        Right pane: add tab for metadata and other info (incl user notes for self and collab)
-- [ ] Optimize features for "Workflow_1_MVP"
-- [ ] Rethink tb1_1&2
-- [ ] Clean-up tb1_0
+- [] Stage 2
 
-- [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
-- [ ] Explore Papers/Reports workflow integration.
+    - [ ] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
+    - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
+    - [ ] Consider collapsible right pane for more simulatenous controls
+            ooooor Graph option v2: right side bar... -- make alternatives togglable?
+            Right pane: add tab for metadata and other info (incl user notes for self and collab)
+    - [ ] Optimize features for "Workflow_1_MVP"
+    - [ ] Rethink tb1_1&2
+    - [ ] Clean-up tb1_0
+
+- [ ] Stage 3?
+    - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
+    - [ ] Explore Papers/Reports workflow integration.
 
 Phase 7 – Polishing pass
 - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
@@ -35,6 +36,7 @@ Phase 7 – Polishing pass
 - [ ] Left HUD: display project/folder in tooltip only, add min info (creator, date, ...)
 - [ ] Axes names and other texts: latex or helper with common units and best suggestions
 - [ ] Stylish anonymous landing
+- [ ] FT-IR markers: add links lines...
 - [ ] Conevrsion from .opju
 
 MVP Part 5/5 -- Polishing and publishing

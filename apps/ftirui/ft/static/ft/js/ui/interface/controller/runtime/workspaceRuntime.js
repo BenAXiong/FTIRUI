@@ -49,6 +49,7 @@ import { createToolbarShortcutsController } from './toolbar/toolbarShortcuts.js'
 import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js';
 import { createTechToolbarHoverController } from './toolbar/techToolbarHoverController.js';
 import { createTechToolbarPinController } from './toolbar/techToolbarPinController.js';
+import { createTechToolbarHeaderVisibilityController } from './toolbar/techToolbarHeaderVisibilityController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
@@ -852,10 +853,14 @@ const applyThemeToDocument = (theme = getActiveTheme()) => {
   if (typeof document === 'undefined') return;
   const canvasColor = theme?.canvasBackground?.color || '#0b1120';
   const panelColor = theme?.panelChrome?.color || '#111827';
+  const plotBg = theme?.plotSurface?.color || '#ffffff';
+  const paperBg = theme?.plotSurface?.paperColor || plotBg;
   const textColor = getReadableTextColor(panelColor);
   setCssVar('--workspace-theme-canvas-bg', canvasColor);
   setCssVar('--workspace-theme-panel-bg', panelColor);
   setCssVar('--workspace-theme-panel-text', textColor);
+  setCssVar('--workspace-theme-plot-bg', plotBg);
+  setCssVar('--workspace-theme-paper-bg', paperBg);
   setCssVar('--workspace-theme-panel-border', toRgbaString(mixHex(panelColor, '#ffffff', 0.25), 0.55));
   setCssVar('--workspace-theme-panel-border-active', toRgbaString(mixHex(panelColor, '#ffffff', 0.35), 0.8));
   setCssVar('--workspace-theme-panel-header-bg', toRgbaString(mixHex(panelColor, '#ffffff', 0.2), 0.25));
@@ -3338,6 +3343,7 @@ let unitsToggleController = null;
 let multiTraceController = null;
 let techToolbarHoverController = null;
 let techToolbarPinController = null;
+let techToolbarHeaderVisibilityController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -4092,8 +4098,19 @@ const isPanelPinned = (panelId) =>
         if (techToolbarPinController?.setBaseVisibility) {
           techToolbarPinController.setBaseVisibility(showToolbar);
         } else {
+          if (!showToolbar && typeof document !== 'undefined') {
+            const active = document.activeElement;
+            if (active && verticalToolbar.contains(active) && typeof active.blur === 'function') {
+              active.blur();
+            }
+          }
           verticalToolbar.hidden = !showToolbar;
           verticalToolbar.setAttribute('aria-hidden', String(!showToolbar));
+          if (!showToolbar) {
+            verticalToolbar.setAttribute('inert', '');
+          } else {
+            verticalToolbar.removeAttribute('inert');
+          }
         }
       }
       updateToolbarMetrics();
@@ -5206,7 +5223,14 @@ const isPanelPinned = (panelId) =>
       getActivePanelId,
       getPanelDom,
       panelSupportsPlot,
-      updateToolbarMetrics
+      updateToolbarMetrics,
+      preferences: preferencesFacade
+    });
+    techToolbarHeaderVisibilityController = createTechToolbarHeaderVisibilityController({
+      dom: {
+        toggle: document.querySelector('[data-hide-inactive-headers-toggle]')
+      },
+      preferences: preferencesFacade
     });
 
   templatesController = createTemplatesController({
@@ -7426,6 +7450,8 @@ const isPanelPinned = (panelId) =>
       techToolbarHoverController = null;
       techToolbarPinController?.teardown?.();
       techToolbarPinController = null;
+      techToolbarHeaderVisibilityController?.teardown?.();
+      techToolbarHeaderVisibilityController = null;
       panelLockController?.teardown?.();
       panelLockController = null;
       unitsToggleController?.teardown?.();

@@ -6,7 +6,8 @@ export function createTechToolbarPinController({
   getActivePanelId = () => null,
   getPanelDom = () => null,
   panelSupportsPlot = () => true,
-  updateToolbarMetrics = () => {}
+  updateToolbarMetrics = () => {},
+  preferences = null
 } = {}) {
   const documentRoot = dom.documentRoot
     || (typeof document !== 'undefined' ? document : null);
@@ -55,8 +56,19 @@ export function createTechToolbarPinController({
   };
 
   const setToolbarVisibility = (visible) => {
+    if (!visible && typeof document !== 'undefined') {
+      const active = document.activeElement;
+      if (active && toolbar.contains(active) && typeof active.blur === 'function') {
+        active.blur();
+      }
+    }
     toolbar.hidden = !visible;
     toolbar.setAttribute('aria-hidden', String(!visible));
+    if (!visible) {
+      toolbar.setAttribute('inert', '');
+    } else {
+      toolbar.removeAttribute('inert');
+    }
   };
 
   const resetToolbarStyles = () => {
@@ -157,10 +169,13 @@ export function createTechToolbarPinController({
     updateToolbarMetrics();
   };
 
-  const setFloating = (next) => {
+  const setFloating = (next, { persist = true } = {}) => {
     floating = !!next;
     toggle.checked = floating;
     toggle.setAttribute('aria-checked', String(floating));
+    if (persist) {
+      preferences?.writeTechToolbarPin?.(floating);
+    }
     updateFloating();
   };
 
@@ -194,7 +209,8 @@ export function createTechToolbarPinController({
     });
   }
 
-  setFloating(toggle.checked);
+  const initialPinned = preferences?.readTechToolbarPin?.(toggle.checked);
+  setFloating(typeof initialPinned === 'boolean' ? initialPinned : toggle.checked, { persist: false });
 
   return {
     setBaseVisibility,

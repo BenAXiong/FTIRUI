@@ -801,8 +801,8 @@
     </button>
     <ul class="dropdown-menu workspace-toolbar-dropdown-menu" aria-labelledby="tb2_more_options">
       <li>
-        <div class="dropdown-item workspace-tech-pin-toggle" role="menuitem">
-          <span class="workspace-tech-pin-label">
+        <div class="dropdown-item workspace-tech-toggle-row" role="menuitem">
+          <span class="workspace-tech-toggle-label">
             <i class="bi bi-pin-angle" aria-hidden="true"></i>
             <span>Upin Tech Toolbar</span>
           </span>
@@ -816,7 +816,19 @@
         </div>
       </li>
       <li>
-        <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 2</button>
+        <div class="dropdown-item workspace-tech-toggle-row" role="menuitem">
+          <span class="workspace-tech-toggle-label">
+            <i class="bi bi-layout-text-sidebar-reverse" aria-hidden="true"></i>
+            <span>Hide graph headers when not active</span>
+          </span>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input"
+                   type="checkbox"
+                   role="switch"
+                   aria-label="Toggle inactive graph headers"
+                   data-hide-inactive-headers-toggle>
+          </div>
+        </div>
       </li>
       <li>
         <button class="dropdown-item" type="button" aria-disabled="true" disabled>Placeholder option 3</button>
