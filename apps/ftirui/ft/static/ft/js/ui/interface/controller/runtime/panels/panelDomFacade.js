@@ -533,7 +533,7 @@ export function createPanelDomFacade({
           const X = readMergedAxisState('xaxis', { includeMinor: true });
           const Y = readMergedAxisState('yaxis', { includeMinor: true });
           const majorOn = (X.ticks ?? 'outside') !== '' || (Y.ticks ?? 'outside') !== '';
-          const minorOn = X.minor?.show === true || Y.minor?.show === true;
+          const minorOn = (X.minor?.ticks ?? '') !== '' || (Y.minor?.ticks ?? '') !== '' || X.minor?.show === true || Y.minor?.show === true;
           return { majorOn, minorOn };
         };
 
@@ -1269,7 +1269,7 @@ export function createPanelDomFacade({
             dtWrap.querySelector('input[data-axis="y"]').value = Number.isFinite(dy) ? String(dy) : '';
           }
 
-          const mplace = X.minor?.ticks || 'outside';
+          const mplace = X.minor?.ticks ?? 'outside';
           ticksPopover.querySelectorAll('[data-role="ticks-minor"] [data-minor-placement]')
             .forEach(b => {
               const val = b.dataset.minorPlacement;   // ╬ô┬ú├á correct
@@ -1549,7 +1549,8 @@ export function createPanelDomFacade({
         stylePainterPopover.__applySelection = applyStylePainterSelection;
 
         appendPopoverControl(stylePainterBtn, stylePainterPopover, { openOnHover: true, suppressClickToggle: true });
-        stylePainterBtn.addEventListener('click', () => {
+        stylePainterBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
           safeStylePainterButtonClick(panelId, stylePainterBtn);
         });
 

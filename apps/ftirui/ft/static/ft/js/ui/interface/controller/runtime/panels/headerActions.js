@@ -760,8 +760,13 @@ export function createHeaderActions(context = {}) {
             const ctx = mergeAxisContext(dom, figure, axis);
             const subdivisions = resolveSubdivisionCount(ctx);
             Object.assign(patch, buildMinorTickPatch(axis, ctx, subdivisions, { ensureVisible: true }));
+            const currentPlacement = ctx.combined?.minor?.ticks;
+            patch[`${axis}.minor.ticks`] = (currentPlacement && currentPlacement !== '')
+              ? currentPlacement
+              : 'outside';
           } else {
             patch[`${axis}.minor.show`] = false;
+            patch[`${axis}.minor.ticks`] = '';
           }
         });
         if (Object.keys(patch).length) {
