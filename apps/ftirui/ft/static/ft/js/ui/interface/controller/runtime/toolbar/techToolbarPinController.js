@@ -1,4 +1,5 @@
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const HOVER_GRACE_MS = 280;
 
 export function createTechToolbarPinController({
   dom = {},
@@ -22,6 +23,7 @@ export function createTechToolbarPinController({
   let hoverTarget = null;
   let hoveringTarget = false;
   let hoveringToolbar = false;
+  let hideTimer = null;
   const listeners = [];
 
   const addListener = (node, event, handler, options) => {
@@ -69,6 +71,18 @@ export function createTechToolbarPinController({
   };
 
   const shouldShowFloating = () => baseVisible && floating && (hoveringTarget || hoveringToolbar);
+  const clearHideTimer = () => {
+    if (!hideTimer) return;
+    window.clearTimeout(hideTimer);
+    hideTimer = null;
+  };
+  const scheduleHideCheck = () => {
+    clearHideTimer();
+    hideTimer = window.setTimeout(() => {
+      hideTimer = null;
+      updateFloating();
+    }, HOVER_GRACE_MS);
+  };
 
   const detachHoverTarget = () => {
     if (hoverTarget) {
@@ -84,17 +98,21 @@ export function createTechToolbarPinController({
     detachHoverTarget();
     hoverTarget = target;
     addListener(hoverTarget, 'mouseenter', () => {
+      clearHideTimer();
       hoveringTarget = true;
       updateFloating();
     });
     addListener(hoverTarget, 'mouseleave', () => {
       hoveringTarget = false;
-      updateFloating();
+      scheduleHideCheck();
     });
   };
 
   const updateFloating = () => {
     toolbar.dataset.toolbarFloating = floating ? 'true' : 'false';
+    if (!floating || !baseVisible) {
+      clearHideTimer();
+    }
     if (!baseVisible) {
       setToolbarVisibility(false);
       resetToolbarStyles();
@@ -146,12 +164,13 @@ export function createTechToolbarPinController({
     setFloating(toggle.checked);
   });
   addListener(toolbar, 'mouseenter', () => {
+    clearHideTimer();
     hoveringToolbar = true;
     updateFloating();
   });
   addListener(toolbar, 'mouseleave', () => {
     hoveringToolbar = false;
-    updateFloating();
+    scheduleHideCheck();
   });
   if (typeof window !== 'undefined') {
     addListener(window, 'resize', () => {
@@ -168,6 +187,7 @@ export function createTechToolbarPinController({
     handleActivePanelChange,
     isFloating: () => floating,
     teardown() {
+      clearHideTimer();
       listeners.forEach(({ node, event, handler, options }) => {
         if (!node || typeof node.removeEventListener !== 'function') return;
         node.removeEventListener(event, handler, options);
