@@ -57,6 +57,29 @@ const resolveRawUnits = (traces = [], layoutLabel = '') => {
   return null;
 };
 
+const resolveRawScale = (traces = [], layoutLabel = '', rawUnits = null) => {
+  if (rawUnits !== 'transmittance') return null;
+  for (const trace of traces) {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const rawScale = meta[RAW_SCALE_KEY];
+    if (rawScale === 'percent' || rawScale === 'fraction') return rawScale;
+  }
+  for (const trace of traces) {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const rawY = meta[RAW_Y_KEY];
+    if (Array.isArray(rawY) && rawY.length) {
+      return detectTransmittanceScale(rawY, layoutLabel);
+    }
+  }
+  return null;
+};
+
+const formatUnitsToken = ({ displayUnits, scale } = {}) => {
+  if (displayUnits === 'absorbance') return 'A';
+  if (displayUnits === 'transmittance' && scale === 'percent') return 'T%';
+  return 'T';
+};
+
 const detectTransmittanceScale = (values = [], label = '') => {
   const labelText = String(label || '');
   if (labelText.includes('%')) return 'percent';
@@ -249,6 +272,7 @@ export function createUnitsToggleController({
     || documentRoot?.querySelector?.('[data-units-menu]')
     || null;
   const currentLabelEl = menu?.querySelector?.('[data-units-current]') || null;
+  const originalLabelEl = menu?.querySelector?.('[data-units-original]') || null;
   const scaleButtons = menu
     ? Array.from(menu.querySelectorAll('[data-units-scale]'))
     : [];
@@ -319,6 +343,7 @@ export function createUnitsToggleController({
     const unitsSource = resolveUnitsSource(layout, traces);
     const autoLabelEnabled = resolveAutoLabelSetting(layout);
     const toggled = rawUnits !== currentDisplay;
+    const rawScale = resolveRawScale(traces, layoutLabel, rawUnits) || 'fraction';
     return {
       panelId: resolvedPanelId,
       figure,
@@ -328,6 +353,7 @@ export function createUnitsToggleController({
       currentDisplay,
       rawUnits,
       transmittanceScale,
+      rawScale,
       unitsSource,
       autoLabelEnabled,
       toggled
@@ -356,14 +382,26 @@ export function createUnitsToggleController({
   const syncMenuState = (state) => {
     if (!menu) return;
     const hasPanel = !!state;
-    if (currentLabelEl) {
+    if (originalLabelEl) {
       if (!hasPanel) {
-        currentLabelEl.textContent = 'No active graph';
+        originalLabelEl.textContent = 'No active graph';
       } else {
         const labelKey = state.rawUnits || state.currentDisplay;
-        const label = formatUnitsLabel(labelKey);
         const suffix = state.unitsSource === 'metadata' ? 'metadata' : 'guess';
-        currentLabelEl.textContent = `${label} (${suffix})`;
+        originalLabelEl.textContent = `${formatUnitsToken({
+          displayUnits: labelKey,
+          scale: state.rawScale
+        })} (${suffix})`;
+      }
+    }
+    if (currentLabelEl) {
+      if (!hasPanel) {
+        currentLabelEl.textContent = 'A/T';
+      } else {
+        currentLabelEl.textContent = formatUnitsToken({
+          displayUnits: state.currentDisplay,
+          scale: state.transmittanceScale
+        });
       }
     }
     scaleButtons.forEach((button) => {

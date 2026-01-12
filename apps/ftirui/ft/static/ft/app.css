@@ -4297,12 +4297,6 @@ body.workspace-panel-fullscreen .header-actions{
   height: 2.5rem;
   padding: .6rem;
 }
-.workspace-toolbar-btn-units.is-active{
-  border-color: var(--bs-primary);
-  color: var(--bs-primary);
-  background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
-  box-shadow: 0 8px 16px rgba(15,23,42,.18);
-}
 .workspace-toolbar-vertical::after{
   content: "";
   position: absolute;

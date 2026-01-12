@@ -638,9 +638,7 @@
             type="button"
             title="Absorbance / Transmittance"
             aria-label="Absorbance / Transmittance"
-            aria-pressed="false"
-            data-bs-toggle="dropdown"
-            data-bs-auto-close="outside">
+            aria-pressed="false">
       <span class="workspace-toolbar-icon workspace-toolbar-unit-icon" aria-hidden="true" data-units-icon>T</span>
       <span class="visually-hidden">Absorbance / Transmittance</span>
     </button>
@@ -650,7 +648,10 @@
       <div class="workspace-units-menu-header">
         <h3>Units</h3>
         <div class="workspace-units-menu-current">
-          Current units: <span data-units-current>Transmittance (guess)</span>
+          Original data type: <span data-units-original>Transmittance (guess)</span>
+        </div>
+        <div class="workspace-units-menu-current">
+          Current unit: <span data-units-current>T</span>
         </div>
       </div>
       <div class="workspace-units-menu-divider" role="separator" aria-hidden="true"></div>
