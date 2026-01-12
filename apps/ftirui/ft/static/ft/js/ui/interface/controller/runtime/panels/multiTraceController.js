@@ -143,6 +143,29 @@ const stripLegendAnnotations = (annotations = []) => (
   annotations.filter((item) => item?.meta?.[LEGEND_META_KEY] !== true)
 );
 
+const applyYAxisAutoscale = (layout = {}) => {
+  const nextLayout = { ...layout };
+  let updated = false;
+  Object.keys(nextLayout).forEach((axisKey) => {
+    if (!/^yaxis\d*$/.test(axisKey)) return;
+    const axis = nextLayout[axisKey];
+    const axisObj = axis && typeof axis === 'object' ? { ...axis } : {};
+    axisObj.autorange = true;
+    if (Object.prototype.hasOwnProperty.call(axisObj, 'range')) {
+      delete axisObj.range;
+    }
+    nextLayout[axisKey] = axisObj;
+    updated = true;
+  });
+  if (!updated) {
+    nextLayout.yaxis = { ...(nextLayout.yaxis || {}), autorange: true };
+    if (Object.prototype.hasOwnProperty.call(nextLayout.yaxis, 'range')) {
+      delete nextLayout.yaxis.range;
+    }
+  }
+  return nextLayout;
+};
+
 const buildLegendAnnotations = (traces = []) => {
   const annotations = [];
   traces.forEach((trace, idx) => {
@@ -426,7 +449,7 @@ export function createMultiTraceController({
     updateHistoryButtons();
   };
 
-  const applyConfig = (panelId, patch, { label } = {}) => {
+  const applyConfig = (panelId, patch, { label, autoscale = false } = {}) => {
     const state = getPanelState(panelId);
     if (!state) {
       showToast('Select a graph to adjust multi-trace options.', 'info');
@@ -441,7 +464,11 @@ export function createMultiTraceController({
       nextConfig.individualLegend = false;
     }
     const { data, layout } = applyMultiTraceDisplay(state, nextConfig);
-    const nextFigure = { ...state.figure, data, layout };
+    const nextFigure = {
+      ...state.figure,
+      data,
+      layout: autoscale ? applyYAxisAutoscale(layout) : layout
+    };
     applyFigureUpdate(state.panelId, nextFigure, { label });
     syncUi(state.panelId);
     return true;
@@ -455,7 +482,8 @@ export function createMultiTraceController({
     }
     const nextDisplay = state.config.display === 'stacked' ? 'overlapped' : 'stacked';
     return applyConfig(state.panelId, { display: nextDisplay }, {
-      label: nextDisplay === 'stacked' ? 'Stack traces' : 'Overlap traces'
+      label: nextDisplay === 'stacked' ? 'Stack traces' : 'Overlap traces',
+      autoscale: true
     });
   };
 
@@ -463,7 +491,7 @@ export function createMultiTraceController({
     addListener(button, 'click', (event) => {
       event.preventDefault();
       const mode = button.getAttribute('data-multitrace-display');
-      applyConfig(null, { display: mode }, { label: `Display ${mode}` });
+      applyConfig(null, { display: mode }, { label: `Display ${mode}`, autoscale: true });
     });
   });
 
@@ -476,13 +504,13 @@ export function createMultiTraceController({
   });
 
   addListener(offsetInput, 'input', () => {
-    applyConfig(null, { offsetValue: toNumber(offsetInput.value, 0) });
+    applyConfig(null, { offsetValue: toNumber(offsetInput.value, 0) }, { autoscale: true });
     if (offsetRange) {
       offsetRange.value = offsetInput.value;
     }
   });
   addListener(offsetRange, 'input', () => {
-    applyConfig(null, { offsetValue: toNumber(offsetRange.value, 0) });
+    applyConfig(null, { offsetValue: toNumber(offsetRange.value, 0) }, { autoscale: true });
     if (offsetInput) {
       offsetInput.value = offsetRange.value;
     }
