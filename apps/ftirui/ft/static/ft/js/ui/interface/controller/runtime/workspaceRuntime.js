@@ -1620,6 +1620,8 @@ export function initWorkspaceRuntime(context = {}) {
   const alignTileBtn = document.getElementById('c_canvas_align_tile');
   alignIncludeAllToggle = document.getElementById('c_canvas_align_include_all');
   const resetBtn = roots.resetButton ?? document.getElementById('c_canvas_reset_layout');
+  const shareBtn = document.getElementById('c_canvas_share_btn');
+  const shareLinkBtn = document.getElementById('c_canvas_share_link');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
   const importFolderBtn = roots.importFolderButton ?? document.getElementById('c_canvas_import_folder');
   const packageBundleBtn = document.getElementById('c_canvas_package_bundle');
@@ -5449,6 +5451,46 @@ const isPanelPinned = (panelId) =>
   });
   scriptBtn?.addEventListener('click', () => {
     showToast('Custom scripts with Python and JS will be available in future versions.', 'info');
+  });
+  const writeTextToClipboard = async (text) => {
+    if (!text) return false;
+    if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    if (typeof document === 'undefined') return false;
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const success = document.execCommand?.('copy');
+    textarea.remove();
+    return !!success;
+  };
+  const handleShareCopy = async () => {
+    const url = typeof window !== 'undefined' ? window.location?.href : '';
+    if (!url) return;
+    try {
+      const success = await writeTextToClipboard(url);
+      if (success) {
+        showToast('Canvas link copied to clipboard.', 'success');
+      } else {
+        showToast('Unable to copy canvas link.', 'warning');
+      }
+    } catch (err) {
+      console.warn('Failed to copy canvas link', err);
+      showToast('Unable to copy canvas link.', 'warning');
+    }
+  };
+  shareBtn?.addEventListener('click', (event) => {
+    handleShareCopy();
+  });
+  shareLinkBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    handleShareCopy();
   });
 
   const ioFacade = createIoFacade({

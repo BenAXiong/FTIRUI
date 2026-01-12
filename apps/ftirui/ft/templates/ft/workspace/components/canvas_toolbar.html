@@ -11,14 +11,36 @@
   </div>
   <div class="workspace-toolbar-delimiter" role="separator" aria-hidden="true"></div>
   <div class="btn-group btn-group-sm" role="group" aria-label="Workspace import">
-    <button id="c_canvas_browse_btn" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Import data" aria-label="Import data">
-      <i class="bi bi-upload workspace-toolbar-icon" aria-hidden="true"></i>
-      <span class="visually-hidden">Import data</span>
-    </button>
     <button id="c_canvas_import_folder" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Import folder" aria-label="Import folder">
-      <i class="bi bi-folder-symlink workspace-toolbar-icon" aria-hidden="true"></i>
+      <i class="bi bi-folder-symlink workspace-toolbar-icon workspace-toolbar-icon-flip" aria-hidden="true"></i>
       <span class="visually-hidden">Import folder</span>
     </button>
+    <div class="btn-group btn-group-sm workspace-toolbar-btn-group workspace-toolbar-btn-group--rounded">
+      <button id="c_canvas_package_toggle" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Package and export workspace" aria-label="Package and export workspace" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-archive workspace-toolbar-icon" aria-hidden="true"></i>
+        <span class="visually-hidden">Package and export workspace</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end workspace-toolbar-dropdown-menu" aria-labelledby="c_canvas_package_toggle">
+        <li>
+          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_bundle">
+            <i class="bi bi-lightning-charge"></i>
+            <span>One-click bundle (.zip)</span>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_backup">
+            <i class="bi bi-hdd-stack"></i>
+            <span>Back-up project (.ben)</span>
+          </button>
+        </li>
+        <li>
+          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_items">
+            <i class="bi bi-files"></i>
+            <span>Export all items individually (.zip)</span>
+          </button>
+        </li>
+      </ul>
+    </div>
   </div>
   <div class="btn-group btn-group-sm" role="group" aria-label="Workspace documents">
     <button id="c_canvas_add_markdown" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Insert Markdown note" aria-label="Insert Markdown note">
@@ -152,32 +174,26 @@
         </li>
       </ul>
     </div>
-    <div class="btn-group workspace-toolbar-btn-group workspace-toolbar-btn-group--rounded">
-      <button id="c_canvas_package_toggle" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Package and export workspace" aria-label="Package and export workspace" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="bi bi-archive workspace-toolbar-icon" aria-hidden="true"></i>
-        <span class="visually-hidden">Package and export workspace</span>
-      </button>
-      <ul class="dropdown-menu dropdown-menu-end workspace-toolbar-dropdown-menu" aria-labelledby="c_canvas_package_toggle">
-        <li>
-          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_bundle">
-            <i class="bi bi-lightning-charge"></i>
-            <span>One-click bundle (.zip)</span>
-          </button>
-        </li>
-        <li>
-          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_backup">
-            <i class="bi bi-hdd-stack"></i>
-            <span>Back-up project (.ben)</span>
-          </button>
-        </li>
-        <li>
-          <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_package_items">
-            <i class="bi bi-files"></i>
-            <span>Export all items individually (.zip)</span>
-          </button>
-        </li>
-      </ul>
-    </div>
+  </div>
+  <div class="btn-group btn-group-sm workspace-toolbar-btn-group workspace-toolbar-btn-group--rounded" role="group" aria-label="Share workspace">
+    <button id="c_canvas_share_btn" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-dropdown" type="button" title="Share workspace" aria-label="Share workspace" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-share workspace-toolbar-icon" aria-hidden="true"></i>
+      <span class="visually-hidden">Share workspace</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end workspace-toolbar-dropdown-menu" aria-labelledby="c_canvas_share_btn">
+      <li>
+        <button class="dropdown-item d-flex align-items-center gap-2" type="button" id="c_canvas_share_link">
+          <i class="bi bi-link-45deg"></i>
+          <span>Share canvas</span>
+        </button>
+      </li>
+      <li>
+        <button class="dropdown-item d-flex align-items-center gap-2" type="button" disabled aria-disabled="true">
+          <i class="bi bi-lock-fill text-secondary"></i>
+          <span class="text-muted">Invite members</span>
+        </button>
+      </li>
+    </ul>
   </div>
   <div class="dropdown workspace-toolbar-dropdown">
     <button id="c_canvas_more_btn" class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-zero" type="button" title="More workspace tools" aria-label="More workspace tools" data-bs-toggle="dropdown" aria-expanded="false">

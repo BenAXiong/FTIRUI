@@ -1,9 +1,9 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-- [ ] Stage 2
-    - [ ] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
-    - [ ] Clean-up tb1_0
-    - [ ] Rethink tb1_1&2
+- [-] Stage 2
+    - [x] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
+    - [x] Clean-up tb1_0
+    - [-] Rethink tb1_1&2
     - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
     - [ ] Consider collapsible right pane for more simulatenous controls
             ooooor Graph option v2: right side bar... -- make alternatives togglable?
@@ -22,7 +22,7 @@ Phase 7 – Polishing pass
 - [ ] Axes names and other texts: latex or helper with common units and best suggestions
 - [ ] Stylish anonymous landing
 - [ ] FT-IR markers: add links lines...
-- [ ] Conevrsion from .opju
+- [ ] Conversion from .opju
 
 MVP Part 5/5 -- Polishing and publishing
 
@@ -39,7 +39,7 @@ Phase x – Future explorations
 - [ ] Mock-up 'in-paper' preview for wows
 - [ ] Add share icon top-right
 - [ ] Design multigraph figures: in pres/post mode? (templates for 2, 3, 4 graphs layouts)
-
+- [ ] Ctrl+click to style several graphs simultaneously
 _________________________________________________________________________________________________
 **Plan of action -- Template for tasks**
 

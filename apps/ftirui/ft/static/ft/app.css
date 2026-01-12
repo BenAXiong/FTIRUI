@@ -3019,6 +3019,10 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   border-top-right-radius: var(--bs-border-radius) !important;
   border-bottom-right-radius: var(--bs-border-radius) !important;
 }
+#c_canvas_align_graphs_toggle{
+  border-top-right-radius: var(--bs-border-radius) !important;
+  border-bottom-right-radius: var(--bs-border-radius) !important;
+}
 #c_canvas_package_toggle{
   border-top-right-radius: var(--bs-border-radius) !important;
   border-bottom-right-radius: var(--bs-border-radius) !important;
@@ -3216,6 +3220,10 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 .workspace-toolbar-icon{
   font-size: 1.1rem;
   line-height: 1;
+}
+.workspace-toolbar-icon-flip{
+  display: inline-block;
+  transform: scaleX(-1);
 }
 .workspace-toolbar-tech-badge{
   display: inline-flex;
