@@ -4,12 +4,18 @@ Phase 6 – Workflow refinements
 - [-] tb expansion
     - [x] tb1&2 - enable shortcuts
     - [-] tb2 s4 = A/T mode
-    - [ ] tb2 s5 = stack vs overlap mode
-    - [ ] tbs s10 add stuck to right vs follow graph and hide
+    - [ ] tb2 s5 = stack vs overlap mode (log tdl consider other placement like right sidebar)
+    - [ ] tb2 displayed only when graph active (hide on empty area click)
+    - [ ] tb2 s10 add stuck to right vs follow graph and hide
+    - [ ] tb2 s10 add graph header visibility - auto-collapse when not in focus
+- [ ] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
 - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
 - [ ] Consider collapsible right pane for more simulatenous controls
         ooooor Graph option v2: right side bar... -- make alternatives togglable?
         Right pane: add tab for metadata and other info (incl user notes for self and collab)
+- [ ] Optimize features for "Workflow_1_MVP"
+- [ ] Rethink tb1_1&2
+- [ ] Clean-up tb1_0
 
 - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
 - [ ] Explore Papers/Reports workflow integration.
@@ -25,12 +31,16 @@ MVP Part 5/5 -- Polishing and publishing
 Phase x – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 - [ ] Header buttons overlap with side elements
+- [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
+- [ ] ? Add tech ECD
+Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
 - [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
 - [ ] Mock-up 'in-paper' preview for wows
 - [ ] Add share icon top-right
+- [ ] Design multigraph figures: in pres/post mode? (templates for 2, 3, 4 graphs layouts)
 
 _________________________________________________________________________________________________
 **Plan of action -- Template for tasks**

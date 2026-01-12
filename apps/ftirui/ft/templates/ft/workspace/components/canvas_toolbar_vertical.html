@@ -632,10 +632,62 @@
       </div>
     </div>
   </div>
-  <button id="tb2_peak_integration" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="Absorbance / Transmittance" aria-label="Absorbance / Transmittance">
-    <i class="bi bi-arrow-left-right workspace-toolbar-icon" aria-hidden="true"></i>
-    <span class="visually-hidden">Absorbance / Transmittance</span>
-  </button>
+  <div class="dropstart workspace-toolbar-dropdown workspace-toolbar-units">
+    <button id="tb2_peak_integration"
+            class="btn btn-outline-secondary workspace-toolbar-btn workspace-toolbar-btn-units"
+            type="button"
+            title="Absorbance / Transmittance"
+            aria-label="Absorbance / Transmittance"
+            aria-pressed="false"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside">
+      <span class="workspace-toolbar-icon workspace-toolbar-unit-icon" aria-hidden="true" data-units-icon>T</span>
+      <span class="visually-hidden">Absorbance / Transmittance</span>
+    </button>
+    <div class="dropdown-menu workspace-toolbar-dropdown-menu workspace-units-menu"
+         aria-labelledby="tb2_peak_integration"
+         data-units-menu>
+      <div class="workspace-units-menu-header">
+        <h3>Units</h3>
+        <div class="workspace-units-menu-current">
+          Current units: <span data-units-current>Transmittance (guess)</span>
+        </div>
+      </div>
+      <div class="workspace-units-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-units-menu-section">
+        <div class="workspace-units-menu-row">
+          <span class="workspace-units-menu-label">Transmittance unit</span>
+          <div class="workspace-units-menu-toggle-group" role="group" aria-label="Transmittance units">
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-units-toggle"
+                    data-units-scale="fraction"
+                    aria-pressed="false">
+              Fraction
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary workspace-units-toggle"
+                    data-units-scale="percent"
+                    aria-pressed="false">
+              %
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="workspace-units-menu-divider" role="separator" aria-hidden="true"></div>
+      <div class="workspace-units-menu-section">
+        <div class="form-check form-switch workspace-units-menu-switch">
+          <input class="form-check-input"
+                 type="checkbox"
+                 role="switch"
+                 id="tb2_units_auto_label"
+                 data-units-auto-label>
+          <label class="form-check-label" for="tb2_units_auto_label">
+            Auto update y-axis label on toggle
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
   <button id="tb2_atr_correction" class="btn btn-outline-secondary workspace-toolbar-btn" type="button" title="ATR correction" aria-label="ATR correction">
     <i class="bi bi-funnel workspace-toolbar-icon" aria-hidden="true"></i>
     <span class="visually-hidden">ATR correction</span>

@@ -3484,6 +3484,80 @@ body.workspace-panel-fullscreen .header-actions{
   box-shadow: 0 28px 48px rgba(15,23,42,.22);
   margin-left: -8px;
 }
+.workspace-toolbar-dropdown .dropdown-menu.workspace-units-menu{
+  width: min(320px, 92vw);
+  max-width: min(320px, 92vw);
+  padding: .9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  box-shadow: 0 22px 40px rgba(15,23,42,.2);
+  margin-left: -8px;
+}
+.workspace-units-menu-header{
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.workspace-units-menu-header h3{
+  margin: 0;
+  font-size: 1.05rem;
+}
+.workspace-units-menu-current{
+  font-size: .85rem;
+  color: var(--bs-secondary-color);
+}
+.workspace-units-menu-divider{
+  height: 1px;
+  margin: .65rem 0;
+  background: color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+}
+.workspace-units-menu-section{
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.workspace-units-menu-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.workspace-units-menu-label{
+  font-size: .85rem;
+  font-weight: 600;
+}
+.workspace-units-menu-toggle-group{
+  display: flex;
+  gap: .35rem;
+  align-items: center;
+}
+.workspace-units-toggle{
+  font-size: .8rem;
+  padding: .35rem .75rem;
+  min-width: 4.5rem;
+}
+.workspace-units-toggle.is-active{
+  border-color: var(--bs-primary);
+  color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+  box-shadow: 0 6px 12px rgba(15,23,42,.15);
+}
+.workspace-units-menu-switch{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .85rem;
+}
+.workspace-units-menu-switch .form-check-input{
+  width: 2.4rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+.workspace-toolbar-unit-icon{
+  font-weight: 700;
+  letter-spacing: .02em;
+}
 .workspace-peak-menu-header{
   display: flex;
   flex-wrap: wrap;
@@ -4222,6 +4296,12 @@ body.workspace-panel-fullscreen .header-actions{
   width: 2.5rem;
   height: 2.5rem;
   padding: .6rem;
+}
+.workspace-toolbar-btn-units.is-active{
+  border-color: var(--bs-primary);
+  color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+  box-shadow: 0 8px 16px rgba(15,23,42,.18);
 }
 .workspace-toolbar-vertical::after{
   content: "";
