@@ -70,3 +70,14 @@ logic into focused facades or helper modules.
 - **Keep functions short**; split when a function grows beyond ~50-80 lines.
 - **Centralize state mutations** in models/facades; orchestration should not mutate models directly.
 - **Add tests** for new facades or non-trivial behaviors (or note why not).
+
+## Plotly Guardrails
+
+To avoid desyncs between Plotly state and persisted workspace state:
+
+- Prefer figure updates + render (`PanelsModel` update + `renderPlot`) over direct `Plotly.relayout/react` calls.
+- If a direct Plotly call is required (e.g., modebar/draw tools), route it through the relayout handler or
+  mark the plot with `__workspaceSkipRelayoutUntil` to prevent persistence from overwriting it.
+- Keep temporary UI state out of Plotly layout; store it in controllers and only persist durable intent in `layout.meta`.
+- When modifying traces, preserve `meta` fields that other features depend on (e.g., `workspace*` keys).
+- Render is authoritative; if a feature needs to reapply interaction state after a render, do it explicitly.
