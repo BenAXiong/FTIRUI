@@ -41,6 +41,19 @@ export function createTechToolbarPinController({
       });
   };
 
+  const closeMenu = () => {
+    if (typeof window === 'undefined') return;
+    const menu = toggle.closest('.dropdown-menu');
+    if (!menu) return;
+    const labelledBy = menu.getAttribute('aria-labelledby');
+    if (!labelledBy) return;
+    const trigger = documentRoot?.getElementById?.(labelledBy);
+    if (!trigger || !window.bootstrap?.Dropdown) return;
+    const dropdown = window.bootstrap.Dropdown.getInstance(trigger)
+      || new window.bootstrap.Dropdown(trigger);
+    dropdown.hide();
+  };
+
   const setToolbarVisibility = (visible) => {
     toolbar.hidden = !visible;
     toolbar.setAttribute('aria-hidden', String(!visible));
@@ -162,6 +175,7 @@ export function createTechToolbarPinController({
 
   addListener(toggle, 'change', () => {
     setFloating(toggle.checked);
+    closeMenu();
   });
   addListener(toolbar, 'mouseenter', () => {
     clearHideTimer();
