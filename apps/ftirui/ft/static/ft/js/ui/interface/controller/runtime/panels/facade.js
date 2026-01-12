@@ -1,4 +1,5 @@
 import { createPanelContext } from '../context/panelContext.js';
+import { normalizeTraceMeta } from '../../../../utils/traceMeta.js';
 
 export function createPanelsFacade({
   models = {},
@@ -120,6 +121,8 @@ export function createPanelsFacade({
   const RAW_Y_KEY = 'workspaceRawY';
   const RAW_UNITS_KEY = 'workspaceRawUnits';
   const RAW_SCALE_KEY = 'workspaceRawScale';
+  const ORIGINAL_UNITS_KEY = 'workspaceOriginalUnits';
+  const ORIGINAL_SCALE_KEY = 'workspaceOriginalScale';
 
   const normalizeUnitsLabel = (label) => {
     if (!label) return null;
@@ -132,8 +135,9 @@ export function createPanelsFacade({
 
   const detectTransmittanceScale = (label) => {
     if (!label) return null;
-    const text = String(label);
-    return text.includes('%') ? 'percent' : null;
+    const text = String(label).toUpperCase();
+    if (text.includes('%') || text.includes('PERCENT') || text.includes('T%')) return 'percent';
+    return null;
   };
 
   const syncTraceAppearance = (trace) => {
@@ -226,19 +230,73 @@ export function createPanelsFacade({
       visible: payload?.visible !== false,
       meta: (() => {
         const meta = { ...(payload?.meta || {}) };
+        const normalizedMeta = normalizeTraceMeta(payload?.meta || {});
+        const readMeta = (key) => (
+          meta[key] !== undefined && meta[key] !== null
+            ? meta[key]
+            : normalizedMeta[key]
+        );
+        const seedMeta = (key) => {
+          const value = readMeta(key);
+          if ((value !== undefined && value !== null) && meta[key] === undefined) {
+            meta[key] = value;
+          }
+          return value;
+        };
+
+        seedMeta('DISPLAY_UNITS');
+        seedMeta('INPUT_MODE');
+        seedMeta('YUNITS');
+        seedMeta('YUNITS_ORIGINAL');
+        seedMeta('CONVERSION');
+        seedMeta('CONVERSION_REASON');
+
+        const yUnits = readMeta('Y_UNITS') || readMeta('YUNITS');
+        if (!meta.Y_UNITS && yUnits) {
+          meta.Y_UNITS = yUnits;
+        }
+
         if (!Array.isArray(meta[RAW_Y_KEY])) {
           meta[RAW_Y_KEY] = yValues.slice();
         }
         if (!meta[RAW_UNITS_KEY]) {
-          const rawUnits = normalizeUnitsLabel(meta.DISPLAY_UNITS || meta.Y_UNITS);
+          const rawUnits = normalizeUnitsLabel(readMeta('DISPLAY_UNITS') || yUnits);
           if (rawUnits) {
             meta[RAW_UNITS_KEY] = rawUnits;
           }
           if (rawUnits === 'transmittance' && !meta[RAW_SCALE_KEY]) {
-            const scale = detectTransmittanceScale(meta.DISPLAY_UNITS || meta.Y_UNITS);
+            const scale = detectTransmittanceScale(
+              readMeta('DISPLAY_UNITS')
+              || yUnits
+              || readMeta('CONVERSION')
+              || readMeta('CONVERSION_REASON')
+            );
             if (scale) {
               meta[RAW_SCALE_KEY] = scale;
             }
+          }
+        }
+        if (!meta[ORIGINAL_UNITS_KEY]) {
+          const originalUnits = normalizeUnitsLabel(
+            readMeta('INPUT_MODE')
+            || readMeta('YUNITS_ORIGINAL')
+            || yUnits
+            || readMeta('DISPLAY_UNITS')
+          );
+          if (originalUnits) {
+            meta[ORIGINAL_UNITS_KEY] = originalUnits;
+          }
+        }
+        if (!meta[ORIGINAL_SCALE_KEY] && meta[ORIGINAL_UNITS_KEY] === 'transmittance') {
+          const originalScale = detectTransmittanceScale(
+            readMeta('YUNITS_ORIGINAL')
+            || yUnits
+            || readMeta('DISPLAY_UNITS')
+            || readMeta('CONVERSION')
+            || readMeta('CONVERSION_REASON')
+          );
+          if (originalScale) {
+            meta[ORIGINAL_SCALE_KEY] = originalScale;
           }
         }
         if (!providedColor && Number.isInteger(paletteSelection.index) && !Number.isInteger(meta.autoColorIndex)) {

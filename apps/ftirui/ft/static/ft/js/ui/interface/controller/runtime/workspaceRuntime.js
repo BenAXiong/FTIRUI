@@ -4178,11 +4178,20 @@ const isPanelPinned = (panelId) =>
     dom.contentHandles.refreshContent(latestContent);
   };
 
+  const formatAxisLabel = (label) => {
+    if (!label) return label;
+    const text = String(label);
+    if (text.includes('cm^{-1}')) return text;
+    return text
+      .replace(/cm\s*\^\s*-?\s*1/gi, 'cm^{-1}')
+      .replace(/cm\s*-\s*1/gi, 'cm^{-1}');
+  };
+
   const defaultLayout = (payload = {}) => {
     const yLabel = payload.meta?.DISPLAY_UNITS
       || payload.meta?.Y_UNITS
       || 'Intensity';
-    const xLabel = payload.meta?.X_UNITS || 'Wavenumber';
+    const xLabel = formatAxisLabel(payload.meta?.X_UNITS || 'Wavenumber');
     const xValues = ensureArray(payload?.x || payload?.wavenumber);
     const resolveAutorange = () => {
       if (payload?.meta?.X_INVERTED === true) return 'reversed';

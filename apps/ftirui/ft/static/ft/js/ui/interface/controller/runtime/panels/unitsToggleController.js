@@ -4,6 +4,8 @@ const DISPLAY_UNITS_KEY = 'workspaceDisplayUnits';
 const RAW_Y_KEY = 'workspaceRawY';
 const RAW_UNITS_KEY = 'workspaceRawUnits';
 const RAW_SCALE_KEY = 'workspaceRawScale';
+const ORIGINAL_UNITS_KEY = 'workspaceOriginalUnits';
+const ORIGINAL_SCALE_KEY = 'workspaceOriginalScale';
 const TRANS_SCALE_KEY = 'workspaceTransmittanceScale';
 const AUTO_LABEL_KEY = 'workspaceUnitsAutoAxisLabel';
 const AUTO_LABEL_VALUE_KEY = 'workspaceUnitsAxisLabel';
@@ -23,6 +25,21 @@ const formatUnitsLabel = (unitsKey) => (
   unitsKey === 'absorbance' ? 'Absorbance' : 'Transmittance'
 );
 
+const normalizeAxisLabel = (label) => String(label || '')
+  .trim()
+  .toLowerCase()
+  .replace(/\s+/g, ' ');
+
+const isAutoAxisLabel = (label) => {
+  const normalized = normalizeAxisLabel(label);
+  if (!normalized) return true;
+  return normalized === 'intensity'
+    || normalized === 'absorbance'
+    || normalized === 'absorbance (a)'
+    || normalized === 'transmittance'
+    || normalized === 'transmittance (%)';
+};
+
 const readAxisTitleText = (axis) => {
   if (!axis || typeof axis !== 'object') return '';
   const title = axis.title;
@@ -34,6 +51,17 @@ const readAxisTitleText = (axis) => {
 const resolveUnitsFromTrace = (trace = {}, fallbackLabel = '') => {
   const meta = trace.meta && typeof trace.meta === 'object' ? trace.meta : {};
   const label = meta.DISPLAY_UNITS || meta.Y_UNITS || fallbackLabel;
+  return normalizeUnitsLabel(label);
+};
+
+const resolveOriginalUnitsFromTrace = (trace = {}, fallbackLabel = '') => {
+  const meta = trace.meta && typeof trace.meta === 'object' ? trace.meta : {};
+  const label = meta[ORIGINAL_UNITS_KEY]
+    || meta.INPUT_MODE
+    || meta.YUNITS_ORIGINAL
+    || meta.Y_UNITS
+    || meta.DISPLAY_UNITS
+    || fallbackLabel;
   return normalizeUnitsLabel(label);
 };
 
@@ -53,6 +81,44 @@ const resolveRawUnits = (traces = [], layoutLabel = '') => {
     if (rawUnits) return rawUnits;
     const fallback = resolveUnitsFromTrace(trace, layoutLabel);
     if (fallback) return fallback;
+  }
+  return null;
+};
+
+const resolveOriginalUnits = (traces = [], layoutLabel = '') => {
+  for (const trace of traces) {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const original = normalizeUnitsLabel(meta[ORIGINAL_UNITS_KEY]);
+    if (original) return original;
+    const fromInput = normalizeUnitsLabel(meta.INPUT_MODE);
+    if (fromInput) return fromInput;
+    const fallback = resolveOriginalUnitsFromTrace(trace, layoutLabel);
+    if (fallback) return fallback;
+  }
+  return null;
+};
+
+const resolveOriginalScale = (traces = [], originalUnits = null) => {
+  if (originalUnits !== 'transmittance') return null;
+  for (const trace of traces) {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const explicit = meta[ORIGINAL_SCALE_KEY];
+    if (explicit === 'percent' || explicit === 'fraction') return explicit;
+  }
+  const probe = (value) => {
+    if (!value) return null;
+    const text = String(value).toUpperCase();
+    if (text.includes('%') || text.includes('PERCENT')) return 'percent';
+    if (text.includes('FRACTION')) return 'fraction';
+    return null;
+  };
+  for (const trace of traces) {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const scale = probe(meta.YUNITS_ORIGINAL)
+      || probe(meta.Y_UNITS)
+      || probe(meta.CONVERSION)
+      || probe(meta.CONVERSION_REASON);
+    if (scale) return scale;
   }
   return null;
 };
@@ -160,6 +226,7 @@ const shouldAutoUpdateAxisLabel = ({
   const lastAuto = typeof meta[AUTO_LABEL_VALUE_KEY] === 'string' ? meta[AUTO_LABEL_VALUE_KEY] : '';
   const currentTitle = readAxisTitleText(layout.yaxis);
   if (!currentTitle) return true;
+  if (isAutoAxisLabel(currentTitle)) return true;
   const expected = resolveAxisLabel({ displayUnits: currentDisplay, scale: currentScale });
   if (currentTitle === expected) return true;
   if (lastAuto && currentTitle === lastAuto) return true;
@@ -169,6 +236,7 @@ const shouldAutoUpdateAxisLabel = ({
 const applyAxisLabel = (layout = {}, label, { updateMeta = true } = {}) => {
   const nextLayout = { ...layout };
   const nextMeta = nextLayout.meta && typeof nextLayout.meta === 'object' ? { ...nextLayout.meta } : {};
+  let updated = false;
   Object.keys(nextLayout).forEach((axisKey) => {
     if (!/^yaxis\\d*$/.test(axisKey)) return;
     const axis = nextLayout[axisKey];
@@ -177,7 +245,11 @@ const applyAxisLabel = (layout = {}, label, { updateMeta = true } = {}) => {
       ? { ...axisObj.title, text: label }
       : { text: label };
     nextLayout[axisKey] = { ...axisObj, title };
+    updated = true;
   });
+  if (!updated) {
+    nextLayout.yaxis = { ...(nextLayout.yaxis || {}), title: { text: label } };
+  }
   if (updateMeta) {
     nextMeta[AUTO_LABEL_VALUE_KEY] = label;
   }
@@ -344,6 +416,8 @@ export function createUnitsToggleController({
     const autoLabelEnabled = resolveAutoLabelSetting(layout);
     const toggled = rawUnits !== currentDisplay;
     const rawScale = resolveRawScale(traces, layoutLabel, rawUnits) || 'fraction';
+    const originalUnits = resolveOriginalUnits(traces, layoutLabel) || rawUnits || currentDisplay;
+    const originalScale = resolveOriginalScale(traces, originalUnits) || rawScale;
     return {
       panelId: resolvedPanelId,
       figure,
@@ -354,6 +428,8 @@ export function createUnitsToggleController({
       rawUnits,
       transmittanceScale,
       rawScale,
+      originalUnits,
+      originalScale,
       unitsSource,
       autoLabelEnabled,
       toggled
@@ -386,11 +462,11 @@ export function createUnitsToggleController({
       if (!hasPanel) {
         originalLabelEl.textContent = 'No active graph';
       } else {
-        const labelKey = state.rawUnits || state.currentDisplay;
+        const labelKey = state.originalUnits || state.rawUnits || state.currentDisplay;
         const suffix = state.unitsSource === 'metadata' ? 'metadata' : 'guess';
         originalLabelEl.textContent = `${formatUnitsToken({
           displayUnits: labelKey,
-          scale: state.rawScale
+          scale: state.originalScale || state.rawScale
         })} (${suffix})`;
       }
     }
