@@ -228,6 +228,7 @@ const convertToTransmittance = ({ rawY, scale }) => {
 export function createUnitsToggleController({
   dom = {},
   getActivePanelId = () => null,
+  getPanelDom = () => null,
   getPanelFigure = () => ({ data: [], layout: {} }),
   updatePanelFigure = () => {},
   renderPlot = () => {},
@@ -261,6 +262,44 @@ export function createUnitsToggleController({
   };
 
   const resolvePanelId = (panelId) => panelId || getActivePanelId?.();
+
+  const markSkipRelayout = (panelId) => {
+    if (!panelId) return;
+    const panelDom = typeof getPanelDom === 'function' ? getPanelDom(panelId) : null;
+    const plotEl = panelDom?.plotEl || null;
+    if (!plotEl) return;
+    plotEl.__workspaceSkipRelayoutUntil = Date.now() + 500;
+  };
+
+  const applyYAxisAutoscaleRelayout = (panelId) => {
+    if (!panelId) return;
+    const panelDom = typeof getPanelDom === 'function' ? getPanelDom(panelId) : null;
+    const plotEl = panelDom?.plotEl || null;
+    const Plotly = typeof window !== 'undefined' ? window.Plotly : null;
+    if (!plotEl || !Plotly?.relayout) return;
+    const layout = getPanelFigure(panelId)?.layout || {};
+    const axisKeys = Object.keys(layout).filter((key) => /^yaxis\d*$/.test(key));
+    const updates = {};
+    if (!axisKeys.length) {
+      updates['yaxis.autorange'] = true;
+    } else {
+      axisKeys.forEach((axisKey) => {
+        updates[`${axisKey}.autorange`] = true;
+      });
+    }
+    if (!Object.keys(updates).length) return;
+    plotEl.__workspaceSkipRelayoutUntil = Date.now() + 500;
+    Plotly.relayout(plotEl, updates);
+  };
+
+  const scheduleYAxisAutoscale = (panelId) => {
+    if (!panelId) return;
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => applyYAxisAutoscaleRelayout(panelId));
+    } else {
+      setTimeout(() => applyYAxisAutoscaleRelayout(panelId), 0);
+    }
+  };
 
   const getPanelState = (panelId) => {
     const resolvedPanelId = resolvePanelId(panelId);
@@ -299,8 +338,9 @@ export function createUnitsToggleController({
     if (!toggleButton) return;
     const icon = toggleButton.querySelector('[data-units-icon]')
       || toggleButton.querySelector('.workspace-toolbar-icon');
+    const isIdle = !state;
     const displayKey = state?.currentDisplay || 'transmittance';
-    const letter = displayKey === 'absorbance' ? 'A' : 'T';
+    const letter = isIdle ? 'A/T' : (displayKey === 'absorbance' ? 'A' : 'T');
     if (icon) {
       icon.textContent = letter;
       icon.classList.remove('bi');
@@ -363,12 +403,16 @@ export function createUnitsToggleController({
     updateHistoryButtons();
   };
 
-  const applyFigureUpdate = (panelId, nextFigure, { label, source } = {}) => {
+  const applyFigureUpdate = (panelId, nextFigure, { label, source, autoscale } = {}) => {
     updatePanelFigure(panelId, nextFigure, { source: source || 'units-toggle' });
     if (label) {
       pushHistoryIfNeeded(label);
     }
+    markSkipRelayout(panelId);
     renderPlot(panelId);
+    if (autoscale) {
+      scheduleYAxisAutoscale(panelId);
+    }
     persist();
     updateHistoryButtons();
   };
@@ -469,7 +513,8 @@ export function createUnitsToggleController({
       layout
     };
     applyFigureUpdate(state.panelId, nextFigure, {
-      label: `Switch to ${nextDisplay === 'absorbance' ? 'Absorbance' : 'Transmittance'}`
+      label: `Switch to ${nextDisplay === 'absorbance' ? 'Absorbance' : 'Transmittance'}`,
+      autoscale: true
     });
     syncUi(state.panelId);
     return true;
@@ -495,7 +540,8 @@ export function createUnitsToggleController({
       layout
     };
     applyFigureUpdate(state.panelId, nextFigure, {
-      label: `Set Transmittance to ${nextScale === 'percent' ? 'Percent' : 'Fraction'}`
+      label: `Set Transmittance to ${nextScale === 'percent' ? 'Percent' : 'Fraction'}`,
+      autoscale: true
     });
     syncUi(state.panelId);
     return true;

@@ -200,6 +200,11 @@ export function createPlotRelayoutHandler({
 } = {}) {
   let lastHistoryAt = 0;
   return (relayoutData) => {
+    const skipUntil = Number(plotEl?.__workspaceSkipRelayoutUntil);
+    if (Number.isFinite(skipUntil) && skipUntil > Date.now()) {
+      plotEl.__workspaceSkipRelayoutUntil = 0;
+      return;
+    }
     const rangeUpdates = parseRangeUpdates(relayoutData);
     const wantsXAuto = relayoutData?.['xaxis.autorange'];
     const wantsYAuto = relayoutData?.['yaxis.autorange'];

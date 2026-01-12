@@ -46,6 +46,7 @@ import { createHudButtons } from './controls/createHudButtons.js';
 import { createGlobalCommandsController } from './toolbar/globalCommands.js';
 import { createToolbarShortcutsController } from './toolbar/toolbarShortcuts.js';
 import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js';
+import { createTechToolbarHoverController } from './toolbar/techToolbarHoverController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
@@ -3327,6 +3328,7 @@ let stylePainterController = null;
 let templatesController = null;
 let panelLockController = null;
 let unitsToggleController = null;
+let techToolbarHoverController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -5112,6 +5114,7 @@ const isPanelPinned = (panelId) =>
       menu: document.querySelector('[data-units-menu]')
     },
     getActivePanelId,
+    getPanelDom,
     getPanelFigure,
     updatePanelFigure,
     renderPlot,
@@ -5122,8 +5125,22 @@ const isPanelPinned = (panelId) =>
     isPanelEditLocked,
     showToast
   });
-  techToolbarLabelController?.registerHandler?.('units-toggle', () => {
+  techToolbarLabelController?.registerHandler?.('units-toggle', ({ event } = {}) => {
+    event?.preventDefault?.();
     unitsToggleController?.handleToggle?.();
+  });
+  techToolbarHoverController = createTechToolbarHoverController({
+    items: [
+      {
+        toggle: document.getElementById('tb2_peak_marking'),
+        menu: document.querySelector('[data-peak-menu]')
+      },
+      {
+        toggle: document.getElementById('tb2_peak_integration'),
+        menu: document.querySelector('[data-units-menu]'),
+        suppressClickToggle: true
+      }
+    ]
   });
 
   templatesController = createTemplatesController({
@@ -7186,8 +7203,12 @@ const isPanelPinned = (panelId) =>
     // Close peak menu when clicking empty canvas space; keep it open when clicking panels/graphs.
     addListener(canvasRoot, 'click', (event) => {
       const target = event?.target;
-      const insidePanel = typeof target?.closest === 'function' && target.closest('.workspace-panel');
-      if (insidePanel) return;
+      const closest = typeof target?.closest === 'function' ? target.closest.bind(target) : () => null;
+      const insidePanel = closest('.workspace-panel');
+      const insideToolbar = closest('.workspace-toolbar') || closest('.workspace-toolbar-vertical');
+      const insideDropdown = closest('.dropdown-menu');
+      if (insidePanel || insideToolbar || insideDropdown) return;
+      setActivePanel(null);
       hidePeakMenu();
     });
 
@@ -7335,6 +7356,8 @@ const isPanelPinned = (panelId) =>
       toolbarShortcutsController?.teardown?.();
       techToolbarHandlers?.teardown?.();
       techToolbarLabelController?.teardown?.();
+      techToolbarHoverController?.teardown?.();
+      techToolbarHoverController = null;
       panelLockController?.teardown?.();
       panelLockController = null;
       unitsToggleController?.teardown?.();

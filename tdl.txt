@@ -8,6 +8,13 @@ Phase 6 – Workflow refinements
     - [ ] tb2 displayed only when graph active (hide on empty area click)
     - [ ] tb2 s10 add stuck to right vs follow graph and hide
     - [ ] tb2 s10 add graph header visibility - auto-collapse when not in focus
+    Other scientist‑friendly options (if you want me to add later)
+        Baseline correction presets (rubber‑band, polynomial), with “apply to all traces”.
+        Normalize to max/area, and “stack with offset”.
+        CO₂/H₂O band suppression toggles.
+        Auto region crop (e.g., 4000–400 cm⁻¹), plus reversible “full range”.
+        Reference subtraction and spectrum overlay compare modes.
+
 - [ ] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
 - [ ] Left pane: add alternate controls. 2 extra tabs to duplicate tb2 and graph headers options
 - [ ] Consider collapsible right pane for more simulatenous controls
