@@ -5230,6 +5230,10 @@ const isPanelPinned = (panelId) =>
         {
           toggle: document.getElementById('tb2_placeholder_help'),
           menu: document.querySelector('[data-library-menu]')
+        },
+        {
+          toggle: document.getElementById('tb2_more_options'),
+          menu: document.getElementById('tb2_more_options')?.parentElement?.querySelector('.dropdown-menu')
         }
       ]
     });

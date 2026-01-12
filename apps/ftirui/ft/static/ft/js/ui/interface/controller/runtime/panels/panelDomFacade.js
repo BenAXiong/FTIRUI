@@ -156,25 +156,60 @@ export function createPanelDomFacade({
 
   const registerPopoverButton = (btn, pop, options = {}) => {
     if (!btn || !pop) return;
+    const {
+      openOnHover = false,
+      suppressClickToggle = false,
+      hoverOpenDelay = 80,
+      hoverCloseDelay = 120,
+      ...placementOptions
+    } = options;
     btn.setAttribute('aria-expanded', 'false');
+    const isOpen = () => btn.getAttribute('aria-expanded') === 'true';
     const open = () => {
+      if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
       if (typeof pop.onOpen === 'function') pop.onOpen();
-      openPortaledPopover(btn, pop, options);
+      openPortaledPopover(btn, pop, placementOptions);
     };
     const close = () => closePortaledPopover(btn, pop);
     const onBtnClick = (event) => {
       event.stopPropagation();
-      const isOpen = btn.getAttribute('aria-expanded') === 'true';
-      if (isOpen) {
+      const openState = isOpen();
+      if (openState) {
         close();
       } else {
         open();
       }
     };
-    btn.addEventListener('click', onBtnClick);
+    if (!suppressClickToggle) {
+      btn.addEventListener('click', onBtnClick);
+    }
+
+    let hoverOpenTimer = null;
+    let hoverCloseTimer = null;
+    const scheduleOpen = () => {
+      if (!openOnHover) return;
+      clearTimeout(hoverCloseTimer);
+      if (isOpen()) return;
+      hoverOpenTimer = setTimeout(open, hoverOpenDelay);
+    };
+    const scheduleClose = () => {
+      if (!openOnHover) return;
+      clearTimeout(hoverOpenTimer);
+      hoverCloseTimer = setTimeout(() => {
+        const hovering = btn.matches(':hover') || pop.matches(':hover');
+        if (!hovering) close();
+      }, hoverCloseDelay);
+    };
+
+    if (openOnHover) {
+      btn.addEventListener('mouseenter', scheduleOpen);
+      btn.addEventListener('mouseleave', scheduleClose);
+      pop.addEventListener('mouseenter', scheduleOpen);
+      pop.addEventListener('mouseleave', scheduleClose);
+    }
+
     const onDocClick = (event) => {
-      const isOpen = btn.getAttribute('aria-expanded') === 'true';
-      if (!isOpen) return;
+      if (!isOpen()) return;
       if (!pop.contains(event.target) && !btn.contains(event.target)) {
         close();
       }
@@ -409,7 +444,7 @@ export function createPanelDomFacade({
           node.setAttribute('data-panel-action-overflow', '1');
         };
 
-        const appendPopoverControl = (buttonEl, popoverEl) => {
+        const appendPopoverControl = (buttonEl, popoverEl, options = {}) => {
           const wrapper = document.createElement('div');
           wrapper.className = 'workspace-panel-action-wrapper';
           wrapper.appendChild(buttonEl);
@@ -417,7 +452,89 @@ export function createPanelDomFacade({
           appendActionItem(wrapper);
 
           // generic portal wiring for all popovers
-          registerPopoverButton(buttonEl, popoverEl);
+          registerPopoverButton(buttonEl, popoverEl, options);
+        };
+
+        const readMergedAxisState = (axisKey, { includeMinor = false, includeTitle = false } = {}) => {
+          const figure = safeGetPanelFigure(panelId);
+          const layout = figure.layout || {};
+          const runtimeLayout = plotHost?.layout || {};
+          const fullRuntimeLayout = plotHost?._fullLayout || {};
+          const runtimeAxis = {
+            ...(fullRuntimeLayout?.[axisKey] || {}),
+            ...(runtimeLayout?.[axisKey] || {})
+          };
+          const modelAxis = layout[axisKey] || {};
+          const axis = {
+            ...runtimeAxis,
+            ...modelAxis
+          };
+          if (includeMinor) {
+            axis.minor = {
+              ...(runtimeAxis.minor || {}),
+              ...(modelAxis.minor || {})
+            };
+          }
+          if (includeTitle) {
+            axis.title = {
+              ...(runtimeAxis.title || {}),
+              ...(modelAxis.title || {})
+            };
+          }
+          return axis;
+        };
+
+        const readAxisSides = () => {
+          const X = readMergedAxisState('xaxis', { includeMinor: true });
+          const Y = readMergedAxisState('yaxis', { includeMinor: true });
+          const xOn = { top: false, bottom: false };
+          const yOn = { left: false, right: false };
+          if (X.visible === false) {
+            // none
+          } else if (X.mirror) {
+            xOn.top = true;
+            xOn.bottom = true;
+          } else {
+            xOn[(X.side || 'bottom')] = true;
+          }
+          if (Y.visible === false) {
+            // none
+          } else if (Y.mirror) {
+            yOn.left = true;
+            yOn.right = true;
+          } else {
+            yOn[(Y.side || 'left')] = true;
+          }
+          return {
+            top: xOn.top,
+            bottom: xOn.bottom,
+            left: yOn.left,
+            right: yOn.right
+          };
+        };
+
+        const readAxisLabelState = () => {
+          const X = readMergedAxisState('xaxis', { includeTitle: true });
+          const Y = readMergedAxisState('yaxis', { includeTitle: true });
+          const labelsOn = (X.showticklabels !== false) && (Y.showticklabels !== false);
+          return { labelsOn, X, Y };
+        };
+
+        const readGridState = () => {
+          const X = readMergedAxisState('xaxis', { includeMinor: true });
+          const Y = readMergedAxisState('yaxis', { includeMinor: true });
+          return {
+            majorOn: Boolean(X.showgrid || Y.showgrid),
+            minorOn: Boolean(X.minor?.showgrid || Y.minor?.showgrid)
+          };
+        };
+
+        const readTickState = () => {
+          const X = readMergedAxisState('xaxis', { includeMinor: true });
+          const Y = readMergedAxisState('yaxis', { includeMinor: true });
+          const majorOn = (X.ticks ?? 'outside') !== '' || (Y.ticks ?? 'outside') !== '';
+          const minorOn = X.minor?.show === true || Y.minor?.show === true;
+          return { majorOn, minorOn };
         };
 
         const axesBtn = document.createElement('button');
@@ -491,46 +608,11 @@ export function createPanelDomFacade({
         `;
 
         axesPopover.onOpen = () => {
-          const figure = safeGetPanelFigure(panelId);
-          const layout = figure.layout || {};
-          const runtimeLayout = plotHost?.layout || {};
-          const fullRuntimeLayout = plotHost?._fullLayout || {};
-          const mergeAxis = (axisKey) => {
-            const runtimeAxis = {
-              ...(fullRuntimeLayout?.[axisKey] || {}),
-              ...(runtimeLayout?.[axisKey] || {})
-            };
-            const modelAxis = layout[axisKey] || {};
-            const minor = {
-              ...(runtimeAxis.minor || {}),
-              ...(modelAxis.minor || {})
-            };
-            return {
-              ...runtimeAxis,
-              ...modelAxis,
-              minor
-            };
-          };
-          const X = mergeAxis('xaxis');
-          const Y = mergeAxis('yaxis');
+          const X = readMergedAxisState('xaxis', { includeMinor: true });
+          const Y = readMergedAxisState('yaxis', { includeMinor: true });
 
           // Resolve which sides are ON from Plotly state
-          const xOn = { top:false, bottom:false };
-          const yOn = { left:false, right:false };
-          if (X.visible === false) {
-            // none
-          } else if (X.mirror) {
-            xOn.top = xOn.bottom = true;
-          } else {
-            xOn[(X.side || 'bottom')] = true; // 'top'|'bottom'
-          }
-          if (Y.visible === false) {
-            // none
-          } else if (Y.mirror) {
-            yOn.left = yOn.right = true;
-          } else {
-            yOn[(Y.side || 'left')] = true; // 'left'|'right'
-          }
+          const { top, bottom, left, right } = readAxisSides();
 
           const cont = axesPopover.querySelector('.workspace-panel-popover-axes-visibility');
           const set = (side, on) => {
@@ -540,10 +622,10 @@ export function createPanelDomFacade({
             b.classList.toggle('is-active', on);
           };
           ['top','bottom','left','right'].forEach(s => set(s, false));
-          set('top', xOn.top);
-          set('bottom', xOn.bottom);
-          set('left', yOn.left);
-          set('right', yOn.right);
+          set('top', top);
+          set('bottom', bottom);
+          set('left', left);
+          set('right', right);
 
           // Thickness pills ╬ô├ç├╢ infer from linewidth
           const w = Number(X.linewidth ?? Y.linewidth ?? 1);
@@ -712,7 +794,16 @@ export function createPanelDomFacade({
           });
 
         axesPopover.__close = closeAxesPopover;
-        appendPopoverControl(axesBtn, axesPopover);
+        axesBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const { top, bottom, left, right } = readAxisSides();
+          const allOn = top && bottom && left && right;
+          const next = allOn
+            ? { top: false, bottom: true, left: true, right: false }
+            : { top: true, bottom: true, left: true, right: true };
+          safeHandleHeaderAction(panelId, 'axes-side', next);
+        });
+        appendPopoverControl(axesBtn, axesPopover, { openOnHover: true, suppressClickToggle: true });
 
         const axisLabelsBtn = document.createElement('button');
         axisLabelsBtn.type = 'button';
@@ -767,32 +858,10 @@ export function createPanelDomFacade({
         `;
 
         axisLabelsPopover.onOpen = () => {
-          const figure = safeGetPanelFigure(panelId);
-          const layout = figure.layout || {};
-          const runtimeLayout = plotHost?.layout || {};
-          const fullRuntimeLayout = plotHost?._fullLayout || {};
-          const mergeAxis = (axisKey) => {
-            const runtimeAxis = {
-              ...(fullRuntimeLayout?.[axisKey] || {}),
-              ...(runtimeLayout?.[axisKey] || {})
-            };
-            const modelAxis = layout[axisKey] || {};
-            const title = {
-              ...(runtimeAxis.title || {}),
-              ...(modelAxis.title || {})
-            };
-            return {
-              ...runtimeAxis,
-              ...modelAxis,
-              title
-            };
-          };
-          const X = mergeAxis('xaxis');
-          const Y = mergeAxis('yaxis');
+          const { labelsOn, X, Y } = readAxisLabelState();
 
           const visibility = axisLabelsPopover.querySelector('[data-role="axis-labels-toggle"]');
           if (visibility) {
-            const labelsOn = (X.showticklabels !== false) && (Y.showticklabels !== false);
             visibility.querySelectorAll('[data-labels]').forEach((btn) => {
               const isShow = btn.dataset.labels === 'show';
               btn.classList.toggle('is-active', isShow === labelsOn);
@@ -911,7 +980,12 @@ export function createPanelDomFacade({
           }
         });
 
-        appendPopoverControl(axisLabelsBtn, axisLabelsPopover);
+        axisLabelsBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const { labelsOn } = readAxisLabelState();
+          safeHandleHeaderAction(panelId, 'axis-title-style', { toggleLabels: !labelsOn });
+        });
+        appendPopoverControl(axisLabelsBtn, axisLabelsPopover, { openOnHover: true, suppressClickToggle: true });
 
           // === Major Grid (header toggle) ==============================================
           const currentLayout = safeGetPanelFigure(panelId).layout || {};
@@ -1063,7 +1137,16 @@ export function createPanelDomFacade({
           });
 
           // Add to header and auto-portal like other popovers
-          appendPopoverControl(gridBtn, gridPopover);
+          gridBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const { majorOn, minorOn } = readGridState();
+            const nextOn = !(majorOn || minorOn);
+            safeHandleHeaderAction(panelId, 'grid-major', { on: nextOn });
+            safeHandleHeaderAction(panelId, 'grid-minor', { on: nextOn });
+            gridBtn.setAttribute('aria-pressed', String(nextOn));
+            gridBtn.classList.toggle('is-active', nextOn);
+          });
+          appendPopoverControl(gridBtn, gridPopover, { openOnHover: true, suppressClickToggle: true });
           const ticksBtn = document.createElement('button');
           ticksBtn.type = 'button';
           ticksBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
@@ -1316,7 +1399,14 @@ export function createPanelDomFacade({
           safeHandleHeaderAction(panelId, 'ticks-minor-subdiv', { subdiv: val });
         });
 
-        appendPopoverControl(ticksBtn, ticksPopover);
+        ticksBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const { majorOn, minorOn } = readTickState();
+          const nextOn = !(majorOn || minorOn);
+          safeHandleHeaderAction(panelId, 'ticks-placement', { placement: nextOn ? 'outside' : '' });
+          safeHandleHeaderAction(panelId, 'ticks-minor', { on: nextOn });
+        });
+        appendPopoverControl(ticksBtn, ticksPopover, { openOnHover: true, suppressClickToggle: true });
 
         const figureForLegend = safeGetPanelFigure(panelId);
         const figureLayoutForLegend = figureForLegend?.layout || {};
@@ -1329,7 +1419,14 @@ export function createPanelDomFacade({
           pressed: legendInitiallyVisible,
           onClick: (isOn) => safeHandleHeaderAction(panelId, 'legend', { on: isOn })
         });
-        appendActionItem(legendBtn);
+        const legendPopover = document.createElement('div');
+        legendPopover.className = 'workspace-panel-popover';
+        legendPopover.innerHTML = `
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Legend Options</div>
+          </div>
+        `;
+        appendPopoverControl(legendBtn, legendPopover, { openOnHover: true, suppressClickToggle: true });
 
         stylePainterBtn = document.createElement('button');
         stylePainterBtn.type = 'button';
@@ -1451,7 +1548,7 @@ export function createPanelDomFacade({
         stylePainterPopover.__getSelection = readStylePainterSelection;
         stylePainterPopover.__applySelection = applyStylePainterSelection;
 
-        appendPopoverControl(stylePainterBtn, stylePainterPopover);
+        appendPopoverControl(stylePainterBtn, stylePainterPopover, { openOnHover: true, suppressClickToggle: true });
         stylePainterBtn.addEventListener('click', () => {
           safeStylePainterButtonClick(panelId, stylePainterBtn);
         });
@@ -1537,7 +1634,7 @@ export function createPanelDomFacade({
         templatesPopover.onOpen = () => {
           safeTemplatesPopoverOpen(panelId, templatesPopover);
         };
-        appendPopoverControl(templatesBtn, templatesPopover);
+        appendPopoverControl(templatesBtn, templatesPopover, { openOnHover: true, suppressClickToggle: true });
 
         panelLockState = readPanelLockState();
         lockBtn = createToggleButton({
@@ -1780,6 +1877,27 @@ export function createPanelDomFacade({
           }
         };
 
+        const captureSnapshot = () => {
+          applySnapshotSizeDefaults();
+          const format = snapshotBtn.dataset.snapshotFormat || 'png';
+          const widthNumeric = Number(snapshotBtn.dataset.snapshotWidth);
+          const heightNumeric = Number(snapshotBtn.dataset.snapshotHeight);
+          const payload = {
+            format,
+            resolution: snapshotBtn.dataset.snapshotResolution || '2x',
+            background: snapshotBtn.dataset.snapshotBackground || 'white',
+            view: snapshotBtn.dataset.snapshotView || 'current'
+          };
+          if (Number.isFinite(widthNumeric) && widthNumeric > 0) {
+            payload.width = Math.round(widthNumeric);
+          }
+          if (Number.isFinite(heightNumeric) && heightNumeric > 0) {
+            payload.height = Math.round(heightNumeric);
+          }
+          safeHandleHeaderAction(panelId, 'export', payload);
+          snapshotPopover.__close?.();
+        };
+
         const saveCustomPreset = () => {
           snapshotBtn.dataset.snapshotCustomFormat = snapshotBtn.dataset.snapshotFormat || 'png';
           snapshotBtn.dataset.snapshotCustomResolution = snapshotBtn.dataset.snapshotResolution || '2x';
@@ -1931,23 +2049,7 @@ export function createPanelDomFacade({
           }
 
           if (e.target.matches('[data-snapshot-capture]')) {
-            const format = snapshotBtn.dataset.snapshotFormat || 'png';
-            const widthNumeric = Number(snapshotBtn.dataset.snapshotWidth);
-            const heightNumeric = Number(snapshotBtn.dataset.snapshotHeight);
-            const payload = {
-              format,
-              resolution: snapshotBtn.dataset.snapshotResolution || '2x',
-              background: snapshotBtn.dataset.snapshotBackground || 'white',
-              view: snapshotBtn.dataset.snapshotView || 'current'
-            };
-            if (Number.isFinite(widthNumeric) && widthNumeric > 0) {
-              payload.width = Math.round(widthNumeric);
-            }
-            if (Number.isFinite(heightNumeric) && heightNumeric > 0) {
-              payload.height = Math.round(heightNumeric);
-            }
-            safeHandleHeaderAction(panelId, 'export', payload);
-            snapshotPopover.__close?.();
+            captureSnapshot();
             e.stopPropagation();
             return;
           }
@@ -1957,7 +2059,11 @@ export function createPanelDomFacade({
           }
         });
 
-        appendPopoverControl(snapshotBtn, snapshotPopover);
+        snapshotBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          captureSnapshot();
+        });
+        appendPopoverControl(snapshotBtn, snapshotPopover, { openOnHover: true, suppressClickToggle: true });
 
         const fullscreenBtn = createToggleButton({
           icon: 'bi-arrows-fullscreen',
