@@ -234,13 +234,22 @@ const applyLegendMode = (layout, traces, config) => {
   return nextLayout;
 };
 
-const buildStackedTraces = (traces, config) => {
-  const bases = traces.map((trace, idx) => {
+const buildStackedTraces = (traces, config, { preserveBase = false } = {}) => {
+  const bases = traces.map((trace) => {
     const resolved = resolveTraceBase(trace, 0, false);
     return resolved.base;
   });
   let offsetStep = computeOffsetStep(config, bases);
   const withOffsets = traces.map((trace, idx) => {
+    const meta = trace?.meta && typeof trace.meta === 'object' ? trace.meta : {};
+    const hasBase = Array.isArray(meta[BASE_Y_KEY]) && meta[BASE_Y_KEY].length;
+    if (preserveBase && hasBase) {
+      return {
+        trace,
+        base: meta[BASE_Y_KEY],
+        needsStore: false
+      };
+    }
     const expected = offsetStep * idx;
     const resolved = resolveTraceBase(trace, expected, true);
     return {
@@ -256,7 +265,7 @@ const buildStackedTraces = (traces, config) => {
   return { bases: withOffsets, offsetStep };
 };
 
-const applyMultiTraceDisplay = (state, config) => {
+const applyMultiTraceDisplay = (state, config, { preserveBase = false } = {}) => {
   const { display } = config;
   if (display !== 'stacked') {
     const nextTraces = state.traces.map((trace) => {
@@ -278,7 +287,7 @@ const applyMultiTraceDisplay = (state, config) => {
     return { data: nextTraces, layout: nextLayout };
   }
 
-  const { bases, offsetStep } = buildStackedTraces(state.traces, config);
+  const { bases, offsetStep } = buildStackedTraces(state.traces, config, { preserveBase });
   const nextTraces = bases.map((entry, idx) => {
     const trace = entry.trace || {};
     const meta = trace.meta && typeof trace.meta === 'object' ? { ...trace.meta } : {};
@@ -390,6 +399,7 @@ export function createMultiTraceController({
     const state = getPanelState(panelId);
     const hasPanel = !!state;
     const config = state?.config || DEFAULT_CONFIG;
+    const offsetEnabled = hasPanel && config.display === 'stacked';
     displayButtons.forEach((button) => {
       if (!button) return;
       const mode = button.getAttribute('data-multitrace-display');
@@ -404,14 +414,14 @@ export function createMultiTraceController({
       const active = hasPanel && mode === config.offsetMode;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
-      button.disabled = !hasPanel;
+      button.disabled = !offsetEnabled;
     });
     if (offsetInput) {
-      offsetInput.disabled = !hasPanel;
+      offsetInput.disabled = !offsetEnabled;
       offsetInput.value = String(config.offsetValue ?? 0);
     }
     if (offsetRange) {
-      offsetRange.disabled = !hasPanel;
+      offsetRange.disabled = !offsetEnabled;
       offsetRange.value = String(config.offsetValue ?? 0);
     }
     if (offsetUnit) {
@@ -463,7 +473,12 @@ export function createMultiTraceController({
     if (nextConfig.display !== 'stacked') {
       nextConfig.individualLegend = false;
     }
-    const { data, layout } = applyMultiTraceDisplay(state, nextConfig);
+    const hasOffsetPatch = Object.prototype.hasOwnProperty.call(patch, 'offsetValue')
+      || Object.prototype.hasOwnProperty.call(patch, 'offsetMode');
+    const preserveBase = hasOffsetPatch
+      && state.config.display === 'stacked'
+      && nextConfig.display === 'stacked';
+    const { data, layout } = applyMultiTraceDisplay(state, nextConfig, { preserveBase });
     const nextFigure = {
       ...state.figure,
       data,
@@ -537,7 +552,7 @@ export function createMultiTraceController({
         syncUi(panelId);
         return;
       }
-      const { data, layout } = applyMultiTraceDisplay(state, state.config);
+      const { data, layout } = applyMultiTraceDisplay(state, state.config, { preserveBase: false });
       const nextFigure = { ...state.figure, data, layout };
       updatePanelFigure(state.panelId, nextFigure, { source: 'multi-trace' });
       renderPlot(state.panelId);

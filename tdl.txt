@@ -4,7 +4,7 @@ Phase 6 – Workflow refinements
 - [-] tb expansion
     - [x] tb1&2 - enable shortcuts
     - [x] tb2 s4 = A/T mode
-    - [ ] tb2 s5 = stack vs overlap mode (log tdl consider other placement like right sidebar)
+    - [x] tb2 s5 = stack vs overlap mode (log tdl consider other placement like right sidebar)
     - [x] tb2 displayed only when graph active (hide on empty area click)
     - [ ] tb2 s10 add stuck to right vs follow graph and hide
     - [ ] tb2 s10 add graph header visibility - auto-collapse when not in focus
@@ -35,6 +35,7 @@ Phase 7 – Polishing pass
 - [ ] Left HUD: display project/folder in tooltip only, add min info (creator, date, ...)
 - [ ] Axes names and other texts: latex or helper with common units and best suggestions
 - [ ] Stylish anonymous landing
+- [ ] Conevrsion from .opju
 
 MVP Part 5/5 -- Polishing and publishing
 
