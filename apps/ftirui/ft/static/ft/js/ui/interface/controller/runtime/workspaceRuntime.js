@@ -3475,28 +3475,6 @@ const isPanelPinned = (panelId) =>
     }
 
     if (!menu.dataset.workspaceActions) {
-      const preserved = Array.from(menu.children);
-      menu.innerHTML = `
-        <li><button id="c_workspace_save" class="dropdown-item" type="button"><i class="bi bi-download me-2"></i>Save workspace snapshot</button></li>
-        <li><button id="c_workspace_load" class="dropdown-item" type="button"><i class="bi bi-upload me-2"></i>Load saved workspace</button></li>
-        <li><button id="c_workspace_clear" class="dropdown-item text-danger" type="button"><i class="bi bi-trash3 me-2"></i>Clear saved snapshot</button></li>
-        <li><hr class="dropdown-divider"></li>
-      `;
-      const hasActionButton = (node) => {
-        if (!node) return false;
-        if (node.tagName?.toLowerCase() === 'button') {
-          return true;
-        }
-        return typeof node.querySelector === 'function' && !!node.querySelector('button');
-      };
-      preserved
-        .filter((node) => hasActionButton(node))
-        .forEach((node) => menu.appendChild(node));
-      const manageSnapshotsBtn = menu.querySelector('#c_canvas_snapshot_manage');
-      const clearSnapshotItem = menu.querySelector('#c_workspace_clear')?.closest('li') ?? menu.querySelector('#c_workspace_clear');
-      if (manageSnapshotsBtn && clearSnapshotItem && manageSnapshotsBtn !== clearSnapshotItem) {
-        menu.insertBefore(manageSnapshotsBtn, clearSnapshotItem);
-      }
       menu.dataset.workspaceActions = '1';
     }
 

@@ -1012,6 +1012,10 @@ export function createIoFacade({
 
   const onResetClick = () => {
     if (!hasPanels()) return;
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm('Sure you want to delete the whole canvas content?');
+      if (!ok) return;
+    }
     pushHistory();
     clearPanels();
     resetColorCursor();

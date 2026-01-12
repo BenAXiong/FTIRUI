@@ -4236,9 +4236,9 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   position: absolute;
   top: 0;
   left: calc(100% + .5rem);
-  min-width: 640px;
-  width: min(700px, 95vw);
-  max-width: min(700px, 95vw);
+  min-width: 480px;
+  width: min(525px, 95vw);
+  max-width: min(525px, 95vw);
   border-radius: 1.1rem;
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 75%, transparent);
   box-shadow: 0 28px 48px rgba(15,23,42,.22);
