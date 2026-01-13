@@ -10,7 +10,7 @@ This directory houses the runtime controller that powers the modern workspace ca
 ## Subdirectories
 
 - `context/`
-  - `runtimeState.js`, `panelContext.js` – factories that compose the shared runtime state and per-panel helpers passed into facades.
+  - `runtimeState.js`, `panelContext.js` - factories that compose the shared runtime state and per-panel helpers passed into facades.
 - `panels/`
   - `facade.js`, `panelDomFacade.js`, `panelInteractions.js`, `headerActions.js`, `plotFacade.js` – CRUD + DOM + interaction surface for canvas panels.
 - `browser/`
@@ -29,6 +29,19 @@ This directory houses the runtime controller that powers the modern workspace ca
   - `testUtils.js` – helpers/mocks for runtime unit tests.
 - `__tests__/`
   - Node-based tests that exercise the facades and state helpers in isolation.
+
+## Canvas Tagging (Tech Tags)
+
+Per-panel tags are stored in Plotly layout metadata so they persist via snapshots without touching the panels model.
+
+- Storage: `figure.layout.meta.workspacePanel.tagKey` (string label, e.g., `FT-IR`, `Unknown`) and optional `tagSource` (`auto` or `manual`).
+- Scope: changes apply only to the active panel; the TB2 tech selector mirrors the active panel tag.
+- Detection: the runtime infers FT-IR tags from trace/layout metadata (JCAMP headers, X/Y units, input mode) when a panel lacks a manual tag.
+- HUD list: `state/canvasTagsController.js` aggregates unique tags across plot panels and renders the HUD summary.
+
+Future backend sync (not implemented yet):
+- On canvas save, compute the unique tag list from snapshot panels and store it on the Canvas model (or equivalent).
+- Update dashboard endpoints/templates to surface the stored tag list instead of the static `active_canvas.tags` placeholder.
 
 ### How to Extend
 
