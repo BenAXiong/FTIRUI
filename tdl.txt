@@ -9,17 +9,20 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Static read‑only tree: fetch once on tab open, render folders/canvases, click to open canvas; no live updates, no edits.
         - [x] Click canvas → open in workspace.
         - [x] Focus/selection sync: highlight current canvas in tree; still read‑only.
-        - [-] Manual refresh: add a refresh button; still read‑only.
+        - [x] Manual refresh: add a refresh button; still read‑only.
+        - [-] CRUD icon (not wired), collaspse project/folder on click, collaspse/expand all, search UX
+
+log out
 
 - [ ] Stage 3?
     - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
-    - [ ] Explore Papers/Reports workflow integration.
 
 - [ ] (P7?) Optimize features for "Workflow_1_MVP"
 
 - [ ] Consider collapsible right pane for more simulatenous controls
     ooooor Graph option v2: right side bar... -- make alternatives togglable?
     Right pane: add tab for metadata and other info (incl user notes for self and collab)
+- [ ] Explore Papers/Reports workflow integration.
 
 (git push)
 

@@ -1,4 +1,7 @@
 <aside id="c_panel" class="plot-b-panel workspace-browser" aria-label="Group browser">
+  <button id="c_panel_toggle" class="btn btn-sm btn-outline-secondary panel-toggle panel-toggle-float" type="button" aria-expanded="false" aria-pressed="false" title="Pin browser" aria-label="Pin browser">
+    <i class="bi bi-chevron-double-right"></i>
+  </button>
   <div class="panel-header panel-header--tabs" role="presentation">
     <div class="btn-group btn-group-sm workspace-browser-tabs" role="tablist" aria-label="Browser views">
       <button type="button" class="btn btn-outline-secondary workspace-browser-tab is-active" data-browser-tab="canvas" aria-selected="true" aria-controls="c_browser_tab_canvas">
@@ -83,11 +86,11 @@
     <button id="c_new_section" class="btn btn-sm btn-outline-secondary workspace-browser-canvas-only" type="button" title="New group">
       <i class="bi bi-plus-lg"></i>
     </button>
+    <button id="c_project_tree_toggle" class="btn btn-sm btn-outline-secondary workspace-browser-project-only" type="button" title="Collapse all" aria-label="Collapse all" hidden>
+      <i class="bi bi-chevron-bar-up"></i>
+    </button>
     <button id="c_project_refresh" class="btn btn-sm btn-outline-secondary workspace-browser-project-only" type="button" title="Refresh projects" aria-label="Refresh projects" hidden>
       <i class="bi bi-arrow-clockwise"></i>
-    </button>
-    <button id="c_panel_toggle" class="btn btn-sm btn-outline-secondary panel-toggle ms-1" type="button" aria-expanded="false" aria-pressed="false" title="Pin browser" aria-label="Pin browser">
-      <i class="bi bi-chevron-double-right"></i>
     </button>
   </div>
   <div id="c_panel_dropzone" class="panel-body" tabindex="0">

@@ -13,6 +13,7 @@ export function createUiPreferencesFacade({
   techToolbarPinKey = 'ftir.workspace.tb2.pin.v1',
   techToolbarHideHeadersKey = 'ftir.workspace.tb2.hideHeaders.v1',
   techToolbarHideModebarKey = 'ftir.workspace.tb2.hideModebar.v1',
+  projectTreeCollapseKey = 'ftir.workspace.projectTreeCollapsed.v1',
   sessionStorage: session = typeof globalThis !== 'undefined' ? globalThis.sessionStorage : undefined,
   localStorage: local = typeof globalThis !== 'undefined' ? globalThis.localStorage : undefined
 } = {}) {
@@ -169,6 +170,33 @@ export function createUiPreferencesFacade({
     }
   };
 
+  const readProjectTreeCollapse = (fallback = { sections: [], folders: [] }) => {
+    if (!localStore) return fallback;
+    try {
+      const raw = localStore.getItem(projectTreeCollapseKey);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      const sections = Array.isArray(parsed?.sections) ? parsed.sections : [];
+      const folders = Array.isArray(parsed?.folders) ? parsed.folders : [];
+      return { sections, folders };
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeProjectTreeCollapse = (state) => {
+    if (!localStore) return;
+    try {
+      const payload = {
+        sections: Array.isArray(state?.sections) ? state.sections : [],
+        folders: Array.isArray(state?.folders) ? state.folders : []
+      };
+      localStore.setItem(projectTreeCollapseKey, JSON.stringify(payload));
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
   const teardown = () => {};
 
   return {
@@ -187,6 +215,8 @@ export function createUiPreferencesFacade({
     writeTechToolbarHideHeaders,
     readTechToolbarHideModebar,
     writeTechToolbarHideModebar,
+    readProjectTreeCollapse,
+    writeProjectTreeCollapse,
     teardown
   };
 }

@@ -4726,6 +4726,19 @@ pre, code, .pre-like {
 .panel-header--tabs{
   justify-content: flex-start;
 }
+.workspace-browser .panel-header--tabs{
+  padding: 0;
+  gap: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+.workspace-browser .workspace-browser-tabs{
+  border-radius: .5rem .5rem 0 0;
+  overflow: hidden;
+}
+.workspace-browser .workspace-browser-tab{
+  border-radius: 0;
+}
 
 .panel-toolbar .panel-search-input{
   flex: 0 1 160px;
@@ -4737,18 +4750,21 @@ pre, code, .pre-like {
   width: 100%;
 }
 .workspace-browser-tab{
-  font-size: .65rem;
+  font-size: .7rem;
+  font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
   padding: .2rem .45rem;
   flex: 1 1 0;
   justify-content: center;
+  border: 0;
+  box-shadow: none;
 }
 .workspace-browser-tab.is-active,
 .workspace-browser-tab[aria-selected="true"]{
   background: var(--bs-primary);
   color: #fff;
-  border-color: color-mix(in oklab, var(--bs-primary) 75%, transparent);
+  border-color: transparent;
 }
 .workspace-browser-tab-panel{
   display: none;
@@ -4793,9 +4809,54 @@ pre, code, .pre-like {
   margin-bottom: .35rem;
   color: var(--bs-secondary-color);
 }
+.workspace-project-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .4rem;
+}
+.workspace-project-row-main{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.workspace-project-section-title,
+.workspace-project-folder-title{
+  cursor: pointer;
+}
+.workspace-tree-actions{
+  display: inline-flex;
+  gap: .25rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.workspace-project-row:hover .workspace-tree-actions,
+.workspace-project-canvas-row:hover .workspace-tree-actions{
+  opacity: 1;
+  pointer-events: auto;
+}
+.workspace-tree-action{
+  border: 0;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  padding: .1rem;
+  border-radius: .3rem;
+  line-height: 1;
+}
+.workspace-tree-action:hover{
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+}
 .workspace-project-folder{
   border-radius: .5rem;
   padding: .25rem .3rem;
+}
+.workspace-project-folder.is-active{
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--bs-primary) 35%, transparent);
+  background: transparent;
 }
 .workspace-project-folder + .workspace-project-folder{
   margin-top: .35rem;
@@ -4814,6 +4875,11 @@ pre, code, .pre-like {
   gap: .25rem;
   margin: .35rem 0 0 .9rem;
 }
+.workspace-project-canvas-row{
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
 .workspace-project-canvas{
   border: 1px solid transparent;
   border-radius: .45rem;
@@ -4825,6 +4891,7 @@ pre, code, .pre-like {
   align-items: center;
   gap: .35rem;
   font-size: .82rem;
+  flex: 1 1 auto;
 }
 .workspace-project-canvas:hover{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 45%, transparent);
@@ -4832,6 +4899,13 @@ pre, code, .pre-like {
 .workspace-project-canvas.is-active{
   border-color: color-mix(in oklab, var(--bs-primary) 60%, transparent);
   box-shadow: 0 0 0 .12rem color-mix(in oklab, var(--bs-primary) 20%, transparent);
+}
+.workspace-project-section.is-collapsed > .workspace-project-folder,
+.workspace-project-section.is-collapsed > .workspace-project-empty{
+  display: none;
+}
+.workspace-project-folder.is-collapsed .workspace-project-canvas-list{
+  display: none;
 }
 .plot-b-panel.collapsed .panel-toolbar .panel-search-input{
   flex-basis: 130px;
@@ -4908,9 +4982,9 @@ pre, code, .pre-like {
 
 /* floating toggle button next to panel */
 .panel-toggle-float{
-  position: absolute;
-  top: 8px;
-  left: 8px; /* safe fallback; JS will position precisely */
+  position: fixed;
+  top: calc(var(--workspace-browser-top, 12vh) - 1.1rem);
+  left: calc(var(--workspace-browser-left, 1.5rem) + .4rem);
   z-index: 1000;
   transition: left .15s ease, top .15s ease;
 }

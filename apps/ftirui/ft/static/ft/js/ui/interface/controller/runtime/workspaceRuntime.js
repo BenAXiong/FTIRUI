@@ -3463,18 +3463,27 @@ const isPanelPinned = (panelId) =>
     filterButton: document.getElementById('c_browser_filter_btn'),
     filterMenu: document.getElementById('c_browser_filter_menu'),
     filterToggles: Array.from(document.querySelectorAll('.browser-filter-toggle')),
+    projectCollapseAll: document.getElementById('c_project_tree_toggle'),
     projectRefresh: document.getElementById('c_project_refresh'),
     undo: historyUndoButtons,
     redo: historyRedoButtons
   };
+
+  preferencesFacade = createUiPreferencesFacade({
+    collapseKey: PANEL_COLLAPSE_KEY,
+    pinKey: PANEL_PIN_KEY
+  });
 
   projectTreeController?.teardown?.();
   projectTreeController = createProjectTreeController({
     root: panelDom.root,
     getActiveCanvasId: () => getActiveCanvasIdFromContext(),
     getWorkspaceRoute: () => readBodyDatasetValue('workspaceRoute') || window.location?.pathname,
-    notify: showToast
+    notify: showToast,
+    readCollapsedState: () => preferencesFacade?.readProjectTreeCollapse?.(),
+    writeCollapsedState: (state) => preferencesFacade?.writeProjectTreeCollapse?.(state)
   });
+  projectTreeController?.bindCollapseAllButton?.(panelDom.projectCollapseAll);
   browserTabsController?.teardown?.();
   browserTabsController = createBrowserTabsController({
     root: panelDom.root,
@@ -3483,6 +3492,11 @@ const isPanelPinned = (panelId) =>
         const showRefresh = tabId === 'project';
         panelDom.projectRefresh.hidden = !showRefresh;
         panelDom.projectRefresh.setAttribute('aria-hidden', String(!showRefresh));
+      }
+      if (panelDom.projectCollapseAll) {
+        const showToggle = tabId === 'project';
+        panelDom.projectCollapseAll.hidden = !showToggle;
+        panelDom.projectCollapseAll.setAttribute('aria-hidden', String(!showToggle));
       }
       const newSectionBtn = panelDom.newSection;
       if (newSectionBtn) {
@@ -3501,11 +3515,6 @@ const isPanelPinned = (panelId) =>
 
   ensureOperationsPanel();
   renderOperationsLog();
-
-  preferencesFacade = createUiPreferencesFacade({
-    collapseKey: PANEL_COLLAPSE_KEY,
-    pinKey: PANEL_PIN_KEY
-  });
 
   const workspaceMenu = (() => {
     const toggle = document.getElementById('c_canvas_more_btn');
