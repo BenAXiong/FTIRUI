@@ -129,3 +129,11 @@ Phase 6 – Workflow refinements
         - [x] Manual refresh: add a refresh button; still read‑only.
         - [x] CRUD icon (not wired), collaspse project/folder on click, collaspse/expand all, search UX
 
+- [x] Stage 3
+    - [x] Minimal tag mechanics.
+        - [x] Define tag storage + scope
+        - [x] Detection (from data, only FT-IR)+ mapping & syncing (tb2 s1 & graphs)
+        - [x] UI + persistence & Sync rules
+        - [x] Documentation
+    - [x] Rethink dashboard top band scope.
+

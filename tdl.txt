@@ -1,16 +1,6 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-- [-] Stage 3?
-    - [-] Minimal tag mechanics.
-        - [x] Define tag storage + scope
-        - [x] Detection (from data, only FT-IR)+ mapping & syncing (tb2 s1 & graphs)
-        - [x] UI + persistence & Sync rules
-        - [-] Documentation
-    - [ ] Rethink dashboard top band scope.
-
-(git push)
-
-Phase 7 – Polishing pass
+Phase 7 – Pre-polishing pass
 - [ ] UI
     - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
     - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
@@ -26,7 +16,7 @@ Phase 7 – Polishing pass
 
 - [ ] Stylish landing for anonymous users
 
-MVP Part 5/5 -- Polishing and publishing
+MVP Part 5/5 -- Polishing for publishing
 
 Phase 1 – Optimize features & UI/UX for "Workflow_1_MVP"
 - [ ] see notion
