@@ -3463,6 +3463,7 @@ const isPanelPinned = (panelId) =>
     filterButton: document.getElementById('c_browser_filter_btn'),
     filterMenu: document.getElementById('c_browser_filter_menu'),
     filterToggles: Array.from(document.querySelectorAll('.browser-filter-toggle')),
+    projectRefresh: document.getElementById('c_project_refresh'),
     undo: historyUndoButtons,
     redo: historyRedoButtons
   };
@@ -3478,10 +3479,24 @@ const isPanelPinned = (panelId) =>
   browserTabsController = createBrowserTabsController({
     root: panelDom.root,
     onTabChange: (tabId) => {
+      if (panelDom.projectRefresh) {
+        const showRefresh = tabId === 'project';
+        panelDom.projectRefresh.hidden = !showRefresh;
+        panelDom.projectRefresh.setAttribute('aria-hidden', String(!showRefresh));
+      }
+      const newSectionBtn = panelDom.newSection;
+      if (newSectionBtn) {
+        const showNewSection = tabId === 'canvas';
+        newSectionBtn.hidden = !showNewSection;
+        newSectionBtn.setAttribute('aria-hidden', String(!showNewSection));
+      }
       if (tabId === 'project') {
         projectTreeController?.ensureLoaded?.();
       }
     }
+  });
+  panelDom.projectRefresh?.addEventListener('click', () => {
+    projectTreeController?.refresh?.();
   });
 
   ensureOperationsPanel();

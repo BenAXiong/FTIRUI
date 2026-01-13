@@ -56,16 +56,24 @@ export function createProjectTreeController({
       return;
     }
 
+    const matchesActive = (canvasId) => activeId != null && String(canvasId) === String(activeId);
     sections.forEach((section) => {
       const sectionEl = document.createElement('div');
       sectionEl.className = 'workspace-project-section';
+      const projects = Array.isArray(section.projects) ? section.projects : [];
+      const hasActiveCanvas = projects.some((project) =>
+        (Array.isArray(project.canvases) ? project.canvases : [])
+          .some((canvas) => matchesActive(canvas?.id))
+      );
+      if (hasActiveCanvas) {
+        sectionEl.classList.add('is-active');
+      }
       sectionEl.innerHTML = `
         <div class="workspace-project-section-title">
           <i class="bi bi-collection"></i>
           <span>${escapeHtml(section.name || 'Project')}</span>
         </div>
       `;
-      const projects = Array.isArray(section.projects) ? section.projects : [];
       if (!projects.length) {
         const empty = document.createElement('div');
         empty.className = 'text-muted small';
@@ -150,6 +158,11 @@ export function createProjectTreeController({
 
   return {
     ensureLoaded: load,
+    refresh: async () => {
+      if (isLoading) return;
+      hasLoaded = false;
+      await load();
+    },
     render: renderTree,
     teardown() {
       treeEl.removeEventListener('click', handleTreeClick);

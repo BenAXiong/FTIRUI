@@ -4733,13 +4733,16 @@ pre, code, .pre-like {
   max-width: 200px;
 }
 .workspace-browser-tabs{
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  width: 100%;
 }
 .workspace-browser-tab{
   font-size: .65rem;
   letter-spacing: .08em;
   text-transform: uppercase;
   padding: .2rem .45rem;
+  flex: 1 1 0;
+  justify-content: center;
 }
 .workspace-browser-tab.is-active,
 .workspace-browser-tab[aria-selected="true"]{
@@ -4776,6 +4779,10 @@ pre, code, .pre-like {
   border-radius: .6rem;
   background: var(--bs-tertiary-bg);
   padding: .4rem .45rem .5rem;
+}
+.workspace-project-section.is-active{
+  border-color: color-mix(in oklab, var(--bs-primary) 55%, transparent);
+  box-shadow: 0 0 0 .12rem color-mix(in oklab, var(--bs-primary) 18%, transparent);
 }
 .workspace-project-section-title{
   display: flex;
