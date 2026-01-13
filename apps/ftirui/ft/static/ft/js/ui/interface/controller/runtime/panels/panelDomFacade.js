@@ -1,4 +1,3 @@
-import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
 import { getPanelType } from './registry/index.js';
 
 export function createPanelDomFacade({
@@ -77,9 +76,6 @@ export function createPanelDomFacade({
     const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
     const safeListPlotPanels = typeof listPlotPanels === 'function' ? listPlotPanels : (() => []);
   const safeSetPanelContent = typeof setPanelContent === 'function' ? setPanelContent : () => {};
-  const canvasPrimaryTag = (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasPrimaryTag) || '';
-  const canvasPrimaryTagColor = canvasPrimaryTag ? getWorkspaceTagColor(canvasPrimaryTag) : null;
-
   const getUIPortal = () => {
     if (typeof document === 'undefined') return null;
     let portal = document.querySelector('.ui-portal');
@@ -243,15 +239,11 @@ export function createPanelDomFacade({
 
         const header = document.createElement('div');
         header.className = 'workspace-panel-header';
-        const headerTagBadge = isPlotPanel && canvasPrimaryTag && canvasPrimaryTagColor
+        const headerTagBadge = isPlotPanel
           ? (() => {
             const badge = document.createElement('span');
             badge.className = 'dashboard-tag graph-canvas-tag';
-            badge.textContent = canvasPrimaryTag;
-            badge.title = `Canvas tag: ${canvasPrimaryTag}`;
-            badge.dataset.canvasTag = canvasPrimaryTag;
-            badge.style.background = canvasPrimaryTagColor;
-            badge.style.color = '#fff';
+            badge.hidden = true;
             return badge;
           })()
           : null;
@@ -2605,6 +2597,7 @@ export function createPanelDomFacade({
           headerEl: header,
           titleEl: title,
           plotEl: resolvedPlotHost,
+          tagBadgeEl: headerTagBadge,
           stylePainterButton: stylePainterBtn,
           stylePainterPopover,
           runtime,

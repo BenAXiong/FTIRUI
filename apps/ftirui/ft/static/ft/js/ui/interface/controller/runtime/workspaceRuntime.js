@@ -55,6 +55,7 @@ import { createTechToolbarHoverController } from './toolbar/techToolbarHoverCont
 import { createTechToolbarPinController } from './toolbar/techToolbarPinController.js';
 import { createTechToolbarHeaderVisibilityController } from './toolbar/techToolbarHeaderVisibilityController.js';
 import { createTechToolbarModebarVisibilityController } from './toolbar/techToolbarModebarVisibilityController.js';
+import { createTechSelectorController } from './toolbar/techSelectorController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
@@ -3357,6 +3358,7 @@ let templatesController = null;
 let panelLockController = null;
 let unitsToggleController = null;
 let multiTraceController = null;
+let techSelectorController = null;
 let techToolbarHoverController = null;
 let techToolbarPinController = null;
 let techToolbarHeaderVisibilityController = null;
@@ -3575,75 +3577,19 @@ const isPanelPinned = (panelId) =>
     }
   };
 
-  const techSelectorController = (() => {
-    const toggle = document.getElementById('tb2_tech_selector');
-    const menu = document.querySelector('[data-tech-selector-menu]');
-    if (!toggle || !menu) {
-      return null;
-    }
-    const iconTarget = toggle.querySelector('[data-tech-icon-target]');
-    const labelTarget = toggle.querySelector('[data-tech-label-target]');
-    const options = Array.from(menu.querySelectorAll('[data-tech-option]'));
-    if (!iconTarget || !labelTarget || !options.length) {
-      return null;
-    }
-
-    const getDropdownInstance = () => {
-      const bootstrapApi = window.bootstrap?.Dropdown;
-      if (!bootstrapApi?.getOrCreateInstance) {
-        return null;
-      }
-      return bootstrapApi.getOrCreateInstance(toggle);
-    };
-
-    const setActiveOption = (option) => {
-      if (!option) return;
-      const label = option.getAttribute('data-tech-label') || 'Technology';
-      const symbol = option.getAttribute('data-tech-symbol') || '';
-      const key = option.getAttribute('data-tech-option') || '';
-      iconTarget.textContent = symbol;
-      labelTarget.textContent = `${label} controls`;
-      toggle.setAttribute('title', `${label} controls`);
-      toggle.setAttribute('aria-label', `${label} controls`);
-      if (key) {
-        toggle.dataset.techKey = key;
-      } else {
-        delete toggle.dataset.techKey;
-      }
-      options.forEach((opt) => opt.classList.toggle('is-active', opt === option));
-      toggle.dispatchEvent(new CustomEvent('workspace:tech-change', {
-        bubbles: true,
-        detail: { key, label }
-      }));
-    };
-
-    const handleOptionClick = (event) => {
-      event.preventDefault();
-      const option = event.currentTarget;
-      if (!option) {
-        return;
-      }
-      setActiveOption(option);
-      try {
-        getDropdownInstance()?.hide();
-      } catch {
-        /* ignore bootstrap hide errors */
-      }
-    };
-
-    options.forEach((option) => option.addEventListener('click', handleOptionClick));
-
-    const initialActive = options.find((opt) => opt.classList.contains('is-active')) || options[0];
-    if (initialActive) {
-      setActiveOption(initialActive);
-    }
-
-    return {
-      toggle,
-      options,
-      setActiveOption
-    };
-  })();
+  techSelectorController = createTechSelectorController({
+    toggle: document.getElementById('tb2_tech_selector'),
+    menu: document.querySelector('[data-tech-selector-menu]'),
+    getActivePanelId,
+    panelSupportsPlot,
+    getPanelTagKey: (panelId, fallback) =>
+      panelTagController?.getPanelTagKey?.(panelId, fallback) ?? fallback,
+    setPanelTag: (panelId, payload, options) =>
+      panelTagController?.setPanelTag?.(panelId, payload, options),
+    ensurePanelTag: (panelId, options) =>
+      panelTagController?.ensurePanelTag?.(panelId, options),
+    showToast
+  });
 
   const graphTypeController = (() => {
     const toggle = document.getElementById('tb2_graph_type');
@@ -3983,6 +3929,7 @@ const isPanelPinned = (panelId) =>
     peakMarkingController?.handleActivePanelChange?.(activePanelId);
     unitsToggleController?.handleActivePanelChange?.(activePanelId);
     multiTraceController?.handleActivePanelChange?.(activePanelId);
+    techSelectorController?.syncToPanel?.(activePanelId);
     techToolbarPinController?.handleActivePanelChange?.(activePanelId);
     updateCanvasState();
   };
@@ -5048,6 +4995,7 @@ const isPanelPinned = (panelId) =>
 
     updatePanelTitleDom(panelId, resolvePanelTitle(baseState));
     panelTagController?.ensurePanelTag?.(panelId, { persistChange: false });
+    panelTagController?.inferPanelTag?.(panelId, { persistChange: false });
 
     applyPanelGeometry(panelId, initialVisual, { persistNormalized: true });
     applyPanelZIndex(panelId);
@@ -5217,10 +5165,16 @@ const isPanelPinned = (panelId) =>
 
   panelTagController = createPanelTagController({
     getPanelFigure,
+    getPanelDom,
     updatePanelFigure,
     renderPlot,
     persist,
-    panelSupportsPlot
+    panelSupportsPlot,
+    onTagChange: (panelId) => {
+      if (panelId && panelId === getActivePanelId?.()) {
+        techSelectorController?.syncToPanel?.(panelId);
+      }
+    }
   });
 
     unitsToggleController = createUnitsToggleController({

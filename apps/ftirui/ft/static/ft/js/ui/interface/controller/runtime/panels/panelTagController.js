@@ -1,7 +1,12 @@
+import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
+import { DEFAULT_TAG_LABEL, inferTagLabelFromFigure, normalizeTagLabelToken } from './panelTagMapping.js';
+
 const PANEL_META_KEY = 'workspacePanel';
 const TAG_KEY = 'tagKey';
 const TAG_SOURCE_KEY = 'tagSource';
-const DEFAULT_TAG_KEY = 'unknown';
+const DEFAULT_TAG_KEY = DEFAULT_TAG_LABEL;
+const TAG_SOURCE_AUTO = 'auto';
+const TAG_SOURCE_MANUAL = 'manual';
 
 const normalizeTagValue = (value) => {
   if (value === null || value === undefined) return null;
@@ -69,11 +74,31 @@ const mergeTagState = (figure, patch = {}) => {
 
 export function createPanelTagController({
   getPanelFigure = () => ({ data: [], layout: {} }),
+  getPanelDom = () => null,
   updatePanelFigure = () => {},
   renderPlot = () => {},
   persist = () => {},
-  panelSupportsPlot = () => true
+  panelSupportsPlot = () => true,
+  onTagChange = () => {}
 } = {}) {
+  const syncPanelBadge = (panelId, stateOverride = null) => {
+    if (!panelId) return;
+    const dom = typeof getPanelDom === 'function' ? getPanelDom(panelId) : null;
+    const badge = dom?.tagBadgeEl
+      || dom?.headerEl?.querySelector?.('.graph-canvas-tag')
+      || null;
+    if (!badge) return;
+    const figure = getPanelFigure(panelId);
+    const state = stateOverride || readTagState(figure);
+    const tagKey = normalizeTagValue(state?.tagKey) || DEFAULT_TAG_KEY;
+    badge.textContent = tagKey;
+    badge.title = `Graph tag: ${tagKey}`;
+    badge.dataset.canvasTag = tagKey;
+    badge.style.background = getWorkspaceTagColor(tagKey);
+    badge.style.color = '#fff';
+    badge.hidden = false;
+  };
+
   const getTagKey = (panelId, fallback = DEFAULT_TAG_KEY) => {
     if (!panelId) return fallback;
     const figure = getPanelFigure(panelId);
@@ -89,7 +114,7 @@ export function createPanelTagController({
     }
     const figure = getPanelFigure(panelId);
     if (!figure) return false;
-    const { figure: nextFigure, changed } = mergeTagState(figure, patch);
+    const { figure: nextFigure, state, changed } = mergeTagState(figure, patch);
     if (!changed) return false;
     updatePanelFigure(panelId, nextFigure, { source: 'panel-tag', skipTemplateDirty: true });
     if (render) {
@@ -97,6 +122,10 @@ export function createPanelTagController({
     }
     if (persistChange) {
       persist();
+    }
+    syncPanelBadge(panelId, state);
+    if (typeof onTagChange === 'function') {
+      onTagChange(panelId, state);
     }
     return true;
   };
@@ -110,8 +139,38 @@ export function createPanelTagController({
     const figure = getPanelFigure(panelId);
     if (!figure) return false;
     const current = readTagState(figure);
-    if (current.tagKey) return false;
+    if (current.tagKey) {
+      syncPanelBadge(panelId, current);
+      return false;
+    }
     return applyTagPatch(panelId, { tagKey, tagSource }, { render: false, persistChange });
+  };
+
+  const inferPanelTag = (panelId, { persistChange = true } = {}) => {
+    if (!panelId) return false;
+    if (typeof panelSupportsPlot === 'function' && !panelSupportsPlot(panelId)) {
+      return false;
+    }
+    const figure = getPanelFigure(panelId);
+    if (!figure) return false;
+    const current = readTagState(figure);
+    if (current.tagSource === TAG_SOURCE_MANUAL) {
+      syncPanelBadge(panelId, current);
+      return false;
+    }
+    const inferred = inferTagLabelFromFigure(figure);
+    if (!inferred) {
+      syncPanelBadge(panelId, current);
+      return false;
+    }
+    if (normalizeTagLabelToken(current.tagKey) === normalizeTagLabelToken(inferred)) {
+      syncPanelBadge(panelId, current);
+      return false;
+    }
+    return applyTagPatch(panelId, {
+      tagKey: inferred,
+      tagSource: TAG_SOURCE_AUTO
+    }, { persistChange });
   };
 
   return {
@@ -119,7 +178,14 @@ export function createPanelTagController({
     setPanelTag: (panelId, { tagKey, tagSource } = {}, options = {}) =>
       applyTagPatch(panelId, { tagKey, tagSource }, options),
     ensurePanelTag,
-    handlePanelFigureUpdate: () => {}
+    inferPanelTag,
+    handlePanelFigureUpdate: (panelId, options = {}) => {
+      if (!panelId) return;
+      syncPanelBadge(panelId);
+      if (options?.source === 'panel-tag') return;
+      inferPanelTag(panelId, { persistChange: true });
+    },
+    TAG_SOURCE_MANUAL
   };
 }
 
