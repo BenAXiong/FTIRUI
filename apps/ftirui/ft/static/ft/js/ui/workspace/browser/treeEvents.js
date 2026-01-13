@@ -162,6 +162,7 @@ export function attach(rootEl, options = {}) {
     if (graphHeader && !isButtonClick(event)) {
       const panelId = resolvePanelId(graphHeader);
       if (panelId) {
+        handleStatefulResult(callGuarded(context.togglePanelCollapsed, panelId));
         callGuarded(context.onSelectPanel, panelId);
       }
       return;
@@ -171,6 +172,7 @@ export function attach(rootEl, options = {}) {
     if (sectionHeader && !isButtonClick(event)) {
       const sectionId = resolveSectionId(sectionHeader);
       if (sectionId) {
+        handleStatefulResult(callGuarded(context.toggleSectionCollapsed, sectionId));
         callGuarded(context.onSelectSection, sectionId);
       }
     }

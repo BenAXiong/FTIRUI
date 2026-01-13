@@ -5261,38 +5261,50 @@ pre, code, .pre-like {
 .folder-tree{
   display: flex;
   flex-direction: column;
-  gap: .35rem;
+  gap: .18rem;
+  padding-left: .25rem;
 }
 
 .folder-node{
-  border: 1px solid var(--bs-border-color);
+  border: 0;
   border-radius: .45rem;
-  background: var(--bs-tertiary-bg);
+  background: transparent;
 }
 
 .folder-node[data-active="true"]{
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 .12rem color-mix(in oklab, var(--bs-primary) 20%, transparent);
+  box-shadow: none;
+  background: transparent;
 }
 
 .folder-header{
   display: flex;
   align-items: center;
   gap: .35rem;
-  padding: .35rem .5rem;
+  padding: .2rem .5rem;
   cursor: pointer;
   user-select: none;
+  width: 100%;
+  border-radius: .4rem;
+  transition: background-color .15s ease;
+}
+.folder-header:hover,
+.folder-header:focus-within{
+  background: color-mix(in oklab, var(--bs-primary) 6%, transparent);
+}
+.folder-node[data-active="true"] > .folder-header,
+.graph-node.is-active > .folder-header{
+  background: color-mix(in oklab, var(--bs-primary) 10%, transparent);
 }
 
 .folder-header .toggle{
   border: 0;
   background: transparent;
-  width: 1.2rem;
-  height: 1.2rem;
+  width: .95rem;
+  height: .95rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: .85rem;
+  font-size: .7rem;
 }
 
 .folder-header .folder-name{
@@ -5319,21 +5331,40 @@ pre, code, .pre-like {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 .4rem;
-  margin-right: .35rem;
-  font-size: .7rem;
+  width: .55rem;
+  height: .55rem;
+  padding: 0;
+  margin-left: .45rem;
+  border-radius: 999px;
+  font-size: 0;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: .04em;
   white-space: nowrap;
+  transition: all .15s ease;
 }
 .graph-canvas-tag:last-child{
   margin-right: .15rem;
+}
+.graph-header:hover .graph-canvas-tag,
+.graph-header:focus-within .graph-canvas-tag{
+  width: auto;
+  height: auto;
+  padding: .1rem .4rem;
+  font-size: .65rem;
+  border-radius: 999px;
 }
 
 .folder-header .folder-actions{
   display: flex;
   gap: .25rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.folder-header:hover .folder-actions,
+.folder-header:focus-within .folder-actions{
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .folder-header .folder-actions .btn-icon{
@@ -5369,38 +5400,58 @@ pre, code, .pre-like {
   transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
 }
 #pane-plotC .graph-node.is-active{
-  border-color: color-mix(in oklab, var(--bs-primary) 40%, var(--bs-border-color));
-  box-shadow: 0 0 0 .14rem color-mix(in oklab, var(--bs-primary) 18%, transparent);
-  background: color-mix(in oklab, var(--bs-primary) 8%, var(--bs-tertiary-bg));
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
 }
 #pane-plotC .graph-node.is-active:hover{
-  border-color: color-mix(in oklab, var(--bs-primary) 55%, var(--bs-border-color));
-  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--bs-primary) 26%, transparent);
+  border-color: transparent;
+  box-shadow: none;
 }
 #pane-plotC .section-node.has-active-graph{
-  border-color: color-mix(in oklab, var(--bs-primary) 25%, var(--bs-border-color));
-  background: color-mix(in oklab, var(--bs-primary) 4%, var(--bs-tertiary-bg));
+  border-color: transparent;
+  background: transparent;
 }
 #pane-plotC .section-node.has-active-graph > .section-header .folder-name{
   color: var(--bs-body-color);
 }
 
 .folder-children{
-  padding: .35rem .5rem .45rem .5rem;
+  position: relative;
+  padding: .2rem 0 .3rem .35rem;
   display: flex;
   flex-direction: column;
-  gap: .35rem;
+  gap: .18rem;
+  overflow: hidden;
+  max-height: 2000px;
+  opacity: 1;
+  transition: max-height .2s ease, opacity .2s ease, transform .2s ease;
+  transform: translateY(0);
 }
 
-.folder-children.collapsed{
-  display: none;
+.folder-children::before{
+  content: '';
+  position: absolute;
+  top: .1rem;
+  bottom: .1rem;
+  left: .1rem;
+  width: 1px;
+  background: color-mix(in oklab, var(--bs-border-color) 35%, transparent);
+  opacity: .35;
+}
+
+.folder-children.is-collapsed{
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
 }
 
 .folder-trace{
   display: flex;
   align-items: center;
   gap: .4rem;
-  padding: .35rem .45rem;
+  padding: .2rem .45rem;
   border-radius: .4rem;
   border: 1px solid transparent;
   background: var(--bs-body-bg);

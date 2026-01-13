@@ -420,6 +420,7 @@ export function renderBrowserTree(ctx, state) {
       icon.setAttribute('aria-hidden', 'true');
       header.appendChild(icon);
     }
+    header.appendChild(name);
     if (isPlotPanel) {
       const tagKey = resolvePanelTagKey(resolvedPanelId);
       const tagColor = getWorkspaceTagColor(tagKey);
@@ -433,7 +434,6 @@ export function renderBrowserTree(ctx, state) {
         header.appendChild(tagBadge);
       }
     }
-    header.appendChild(name);
 
     const actions = document.createElement('div');
     actions.className = 'folder-actions graph-actions';
@@ -475,7 +475,7 @@ export function renderBrowserTree(ctx, state) {
     if (isPlotPanel) {
       const children = document.createElement('div');
       children.className = 'folder-children';
-      children.style.display = collapsed ? 'none' : '';
+      children.classList.toggle('is-collapsed', collapsed);
       const tracesWrap = document.createElement('div');
       tracesWrap.className = 'folder-traces';
       tracesWrap.dataset.traceHost = node.dataset.traceHost;
@@ -606,7 +606,7 @@ export function renderBrowserTree(ctx, state) {
     const container = document.createElement('div');
     container.className = 'folder-children';
     container.dataset.sectionId = sectionId;
-    container.style.display = section.collapsed ? 'none' : '';
+    container.classList.toggle('is-collapsed', section.collapsed);
 
     childNodes.forEach((childNode) => container.appendChild(childNode));
     graphNodes.forEach((graphNode) => container.appendChild(graphNode));
