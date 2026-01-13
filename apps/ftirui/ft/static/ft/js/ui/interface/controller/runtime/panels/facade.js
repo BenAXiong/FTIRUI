@@ -14,6 +14,7 @@ export function createPanelsFacade({
   services = {},
   actions = {},
   env = {},
+  hooks = {},
   registry = {}
 } = {}) {
   const {
@@ -117,6 +118,9 @@ export function createPanelsFacade({
   const {
     registerPanel = () => null
   } = registry;
+  const {
+    onPanelDataChange = () => {}
+  } = hooks;
 
   const RAW_Y_KEY = 'workspaceRawY';
   const RAW_UNITS_KEY = 'workspaceRawUnits';
@@ -392,6 +396,7 @@ export function createPanelsFacade({
     });
 
     normalizePanelTraces(panelId);
+    onPanelDataChange(panelId, { source: 'trace-add' });
     renderPlot(panelId);
     renderBrowser();
     persist();
@@ -428,6 +433,7 @@ export function createPanelsFacade({
     }
 
     normalizePanelTraces(panelId);
+    onPanelDataChange(panelId, { source: 'trace-import' });
     renderPlot(panelId);
     renderBrowser();
     persist();

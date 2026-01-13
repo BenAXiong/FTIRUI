@@ -1367,6 +1367,44 @@ body.dashboard-overlay-open {
   flex-wrap:nowrap;
   gap:.25rem;
 }
+.workspace-tags-summary{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+}
+.workspace-tag-summary{
+  cursor:default;
+}
+.workspace-tags-dropdown{
+  position:absolute;
+  top:calc(100% + .35rem);
+  left:0;
+  background:var(--bs-body-bg);
+  border:1px solid var(--bs-border-color);
+  border-radius:.65rem;
+  padding:.35rem .45rem;
+  box-shadow:0 12px 24px rgba(15,23,42,.18);
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(-4px);
+  transition:opacity .15s ease, transform .15s ease;
+  z-index:30;
+  min-width:max-content;
+}
+.workspace-tags-summary:hover .workspace-tags-dropdown,
+.workspace-tags-summary:focus-within .workspace-tags-dropdown{
+  opacity:1;
+  pointer-events:auto;
+  transform:translateY(0);
+}
+.workspace-tags-dropdown-list{
+  margin:0;
+  padding:0;
+  list-style:none;
+  display:flex;
+  flex-wrap:wrap;
+  gap:.25rem;
+}
 .workspace-tags-list--compact{
   flex-wrap:wrap;
   max-width:260px;

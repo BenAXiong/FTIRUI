@@ -41,6 +41,7 @@ import { createSnapshotManager } from './state/snapshotManager.js';
 import { createHistoryHelpers } from './state/historyHelpers.js';
 import { createColorCursorManager } from './state/colorCursorManager.js';
 import { createPanelPreferencesManager } from './state/panelPreferencesManager.js';
+import { createCanvasTagsController } from './state/canvasTagsController.js';
 import { createPanelInteractions } from './panels/panelInteractions.js';
 import { createIoFacade } from './io/facade.js';
 import { createRuntimeState } from './context/runtimeState.js';
@@ -3359,6 +3360,7 @@ let panelLockController = null;
 let unitsToggleController = null;
 let multiTraceController = null;
 let techSelectorController = null;
+let canvasTagsController = null;
 let techToolbarHoverController = null;
 let techToolbarPinController = null;
 let techToolbarHeaderVisibilityController = null;
@@ -3590,6 +3592,18 @@ const isPanelPinned = (panelId) =>
       panelTagController?.ensurePanelTag?.(panelId, options),
     showToast
   });
+
+  canvasTagsController = createCanvasTagsController({
+    getPanelsOrdered,
+    getPanelTagKey: (panelId, fallback) =>
+      panelTagController?.getPanelTagKey?.(panelId, fallback) ?? fallback,
+    panelSupportsPlot,
+    dom: {
+      list: document.querySelector('.workspace-tags-list'),
+      actions: document.querySelector('.workspace-hud-card__actions')
+    }
+  });
+  canvasTagsController?.refresh?.();
 
   const graphTypeController = (() => {
     const toggle = document.getElementById('tb2_graph_type');
@@ -4118,6 +4132,7 @@ const isPanelPinned = (panelId) =>
           }
         }
       }
+      canvasTagsController?.refresh?.();
       updateToolbarMetrics();
     };
 
@@ -5075,6 +5090,10 @@ const isPanelPinned = (panelId) =>
       fallbackColor: () => getFallbackTraceColor()
     },
     services: { uploadTraceFile },
+    hooks: {
+      onPanelDataChange: (panelId) =>
+        panelTagController?.inferPanelTag?.(panelId, { persistChange: false })
+    },
     registry: { registerPanel }
   });
 
@@ -5174,6 +5193,7 @@ const isPanelPinned = (panelId) =>
       if (panelId && panelId === getActivePanelId?.()) {
         techSelectorController?.syncToPanel?.(panelId);
       }
+      canvasTagsController?.refresh?.();
     }
   });
 

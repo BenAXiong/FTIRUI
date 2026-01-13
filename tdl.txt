@@ -3,9 +3,9 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 - [-] Stage 3?
     - [-] Minimal tag mechanics.
         - [x] Define tag storage + scope
-        - [-] Detection (from data, only FT-IR)+ mapping & syncing (tb2 s1 & graphs)
-        - [ ] Sync rules
+        - [x] Detection (from data, only FT-IR)+ mapping & syncing (tb2 s1 & graphs)
         - [ ] UI + persistence
+        - [ ] Sync rules
         - [ ] Backend sync (optional, but needed for dashboard)
         - [ ] Documentation
     - [ ] Rethink dashboard top band scope.
