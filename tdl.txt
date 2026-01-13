@@ -7,9 +7,9 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
     - [-] Browser (canvas left pane): add project tree tab
         - [x] New tab UI
         - [-] Static read‑only tree: fetch once on tab open, render folders/canvases, click to open canvas; no live updates, no edits.
+        - [-] Click canvas → open in workspace.
+        - [-] Focus/selection sync: highlight current canvas in tree; still read‑only.
         - [ ] Manual refresh: add a refresh button; still read‑only.
-        - [ ] Click canvas → open in workspace.
-        - [ ] Focus/selection sync: highlight current canvas in tree; still read‑only.
 
 - [ ] Stage 3?
     - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
