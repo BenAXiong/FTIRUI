@@ -17,6 +17,7 @@ import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.j
 
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
 import { createBrowserFacade } from './browser/facade.js';
+import { createBrowserTagFilterController } from './browser/tagFilterController.js';
 import { createBrowserTabsController } from './browser/tabController.js';
 import { createBrowserSearchToggleController } from './browser/searchToggleController.js';
 import { createProjectTreeController } from './browser/projectTreeController.js';
@@ -3365,6 +3366,7 @@ let techToolbarHoverController = null;
 let techToolbarPinController = null;
 let techToolbarHeaderVisibilityController = null;
 let techToolbarModebarVisibilityController = null;
+let tagFilterController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
 let updateCanvasState = () => {};
@@ -5732,7 +5734,8 @@ const isPanelPinned = (panelId) =>
       }
     });
     if (panelDom.filterButton) {
-      const active = hasActivePanelTypeFilters();
+      const active = hasActivePanelTypeFilters()
+        || (tagFilterController?.hasActiveFilters?.() ?? false);
       panelDom.filterButton.classList.toggle('is-active', active);
       panelDom.filterButton.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
@@ -5753,6 +5756,16 @@ const isPanelPinned = (panelId) =>
       syncBrowserFilterControls();
       renderBrowser();
     });
+  });
+  tagFilterController = createBrowserTagFilterController({
+    filterMenu: panelDom.filterMenu,
+    techMenu: document.querySelector('[data-tech-selector-menu]'),
+    getPanelTagKey: (panelId, fallback) =>
+      panelTagController?.getPanelTagKey?.(panelId, fallback),
+    onChange: () => {
+      syncBrowserFilterControls();
+      renderBrowser();
+    }
   });
   syncBrowserFilterControls();
 
@@ -5779,7 +5792,9 @@ const isPanelPinned = (panelId) =>
         return config?.capabilities?.plot !== false;
       },
       isPanelTypeEnabled: (typeId) => isPanelTypeEnabledSelector(typeId),
-      getPanelTypeFilters: () => getPanelTypeFiltersSnapshot()
+      isPanelTagEnabled: (panelId) => tagFilterController?.isPanelTagEnabled?.(panelId) ?? true,
+      getPanelTypeFilters: () => getPanelTypeFiltersSnapshot(),
+      getPanelTagFilters: () => tagFilterController?.getTagFiltersSnapshot?.() ?? null
     },
     actions: {
       renderPlot,

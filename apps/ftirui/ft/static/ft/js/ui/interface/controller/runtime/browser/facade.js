@@ -28,11 +28,15 @@ export function createBrowserFacade({
       getPanelsOrdered: state.getPanelsOrdered,
       coerceNumber: state.coerceNumber,
       isPlotPanel: selectors.isPlotPanel,
-      isPanelTypeEnabled: selectors.isPanelTypeEnabled
+      isPanelTypeEnabled: selectors.isPanelTypeEnabled,
+      isPanelTagEnabled: selectors.isPanelTagEnabled
     });
 
     const panelTypeFilters = selectors.getPanelTypeFilters?.() ?? null;
-    const hasActivePanelFilters = !!(panelTypeFilters && Object.values(panelTypeFilters).some((enabled) => enabled === false));
+    const tagFilters = selectors.getPanelTagFilters?.() ?? null;
+    const hasTypeFilters = !!(panelTypeFilters && Object.values(panelTypeFilters).some((enabled) => enabled === false));
+    const hasTagFilters = !!(tagFilters && Object.values(tagFilters).some((enabled) => enabled === false));
+    const hasActivePanelFilters = hasTypeFilters || hasTagFilters;
 
     const renderContext = {
       panelDom: dom.panelDom,

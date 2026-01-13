@@ -5156,6 +5156,33 @@ pre, code, .pre-like {
   border-color: color-mix(in oklab, var(--bs-primary) 55%, var(--bs-border-color));
   background: color-mix(in oklab, var(--bs-primary) 10%, transparent);
 }
+.workspace-browser-tag-filter > .dropdown-item{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.workspace-browser-tag-menu{
+  min-width: 18rem;
+  padding: .65rem .75rem;
+}
+.workspace-browser-tag-section-toggle{
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+.workspace-browser-tag-section-toggle.is-muted{
+  opacity: .45;
+}
+.workspace-browser-tag-section-toggle.is-active{
+  color: var(--bs-primary);
+}
+.workspace-browser-tag-grid{
+  grid-template-columns: repeat(5, 2.5rem);
+  gap: .35rem;
+}
 
 .panel-toggle{
   width: 1.75rem;
