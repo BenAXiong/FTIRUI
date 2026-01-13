@@ -117,6 +117,14 @@
             </div>
             <button class="dropdown-item" type="button">Grid</button>
             <button class="dropdown-item" type="button">Help</button>
+            <div class="dropdown-item-text">
+              <button id="themeToggle"
+                      class="btn btn-sm btn-outline-secondary workspace-hud-theme-btn"
+                      type="button"
+                      aria-label="Toggle dark mode">
+                <span class="theme-icon">??</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -160,16 +168,6 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm"
                 aria-labelledby="user_menu_toggle">
-              <li class="dropdown-header">
-                <div class="fw-semibold" data-dropdown-name>Guest</div>
-                <div class="text-muted small" data-dropdown-email>Not signed in</div>
-              </li>
-              <li>
-                <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'ft:home' %}">
-                  <i class="bi bi-kanban"></i>
-                  <span>Go to dashboard</span>
-                </a>
-              </li>
               <li>
                 <a class="dropdown-item d-flex align-items-center gap-2"
                    href="{% url 'ft:profile' %}"
@@ -178,15 +176,6 @@
                   <span>Profile</span>
                 </a>
               </li>
-              <li>
-                <button class="dropdown-item d-flex align-items-center gap-2"
-                        type="button"
-                        disabled>
-                  <i class="bi bi-gear"></i>
-                  <span>Settings (soon)</span>
-                </button>
-              </li>
-              <li><hr class="dropdown-divider"></li>
               <li>
                 <a class="dropdown-item d-flex align-items-center gap-2 d-none"
                    id="user_sign_out"
@@ -199,12 +188,6 @@
           </div>
         </div>
       </div>
-      <button id="themeToggle"
-              class="btn btn-sm btn-outline-secondary workspace-hud-theme-btn"
-              type="button"
-              aria-label="Toggle dark mode">
-        <span class="theme-icon">☀️</span>
-      </button>
     </div>
   </div>
 </div>

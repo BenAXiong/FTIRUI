@@ -1,13 +1,13 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Phase 7 – Pre-polishing pass
-- [ ] UI
-    - [-] Left HUD 
+- [-] UI
+    - [x] Left HUD 
         - [x] display project/folder in tooltip only, add min info (creator, date, ...)
-        - [-] rework options
-    - [ ] Right HUD 
-        - [ ] 
-        - [ ] 
+        - [x] rework options
+    - [-] Right HUD 
+        - [-] Tighten and move theme icon to left HUD (options dropdown)
+        - [ ] Remove user name, add chat chat & share icons and rework UI
     - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
     - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
 
@@ -18,7 +18,7 @@ Phase 7 – Pre-polishing pass
     - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
     - [ ] ? Add tech ECD
 
-- [ ] Stylish landing for anonymous users
+- [ ] Stylish landing for guests
 
 MVP Part 5/5 -- Polishing for publishing
 

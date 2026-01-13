@@ -32,6 +32,26 @@ document.getElementById('themeToggle')?.addEventListener('click', () => {
     if (icon) icon.textContent = cur === 'dark' ? '🌙' : '☀️';
 })();
 
+function relocateThemeToggle() {
+  const buttons = Array.from(document.querySelectorAll('#themeToggle'));
+  if (!buttons.length) return;
+  const target = document.querySelector('.workspace-hud-menu__list .dropdown-item-text');
+  if (!target) return;
+  const primary = buttons[0];
+  primary.classList.add('workspace-hud-theme-btn');
+  if (!target.contains(primary)) {
+    target.appendChild(primary);
+  }
+  buttons.slice(1).forEach((btn) => btn.remove());
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', relocateThemeToggle);
+} else {
+  relocateThemeToggle();
+}
+
+
 function initWorkspaceDevShortcut() {
   const body = document.body;
   if (!body || body.dataset.workspaceShortcut !== 'true') return;

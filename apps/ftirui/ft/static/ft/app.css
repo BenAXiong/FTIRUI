@@ -1512,6 +1512,10 @@ body.dashboard-overlay-open {
   gap:.75rem;
   align-items:center;
 }
+#user_menu_toggle{
+  padding:.25rem .45rem;
+  min-width:0;
+}
 .workspace-hud-theme-btn{
   min-width:0;
   border:none;

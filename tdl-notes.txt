@@ -34,6 +34,7 @@ bug tb2/s3 set/apply default unredo
 br change color palette in chip, access and modify custom too
 tb2s6-9 features to implement as needed
 tags backend sync (needed for dashboard)
+edit mode for toolbars
 _________________________________________________________________________________________________
 Polishing
 
