@@ -1,6 +1,5 @@
 <aside id="c_panel" class="plot-b-panel workspace-browser" aria-label="Group browser">
-  <div class="panel-toolbar">
-    <input id="c_panel_search_input" class="form-control form-control-sm panel-search-input me-2" type="text" placeholder="Find canvases" aria-label="Find canvases">
+  <div class="panel-header panel-header--tabs" role="presentation">
     <div class="btn-group btn-group-sm workspace-browser-tabs" role="tablist" aria-label="Browser views">
       <button type="button" class="btn btn-outline-secondary workspace-browser-tab is-active" data-browser-tab="canvas" aria-selected="true" aria-controls="c_browser_tab_canvas">
         Canvas
@@ -9,6 +8,9 @@
         Project
       </button>
     </div>
+  </div>
+  <div class="panel-toolbar">
+    <input id="c_panel_search_input" class="form-control form-control-sm panel-search-input me-2" type="text" placeholder="Find canvases" aria-label="Find canvases">
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="Browser tools">
       <div class="btn-group btn-group-sm workspace-browser-filter-group">
         <button id="c_browser_filter_btn" class="btn btn-outline-secondary workspace-browser-filter-btn" type="button" title="Filter panels" aria-label="Filter panels" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-pressed="false">
@@ -91,11 +93,11 @@
       <div id="c_folder_tree" class="folder-tree"></div>
     </div>
     <div id="c_browser_tab_project" class="workspace-browser-tab-panel" data-browser-tab-panel="project" aria-hidden="true">
-      <div class="workspace-browser-project-placeholder">
+      <div class="workspace-browser-project-placeholder" data-project-placeholder>
         <i class="bi bi-diagram-3"></i>
         <div>Project explorer will appear here.</div>
       </div>
-      <div id="c_project_tree" class="folder-tree workspace-project-tree" hidden></div>
+      <div id="c_project_tree" class="folder-tree workspace-project-tree" data-project-tree hidden></div>
     </div>
   </div>
 </aside>

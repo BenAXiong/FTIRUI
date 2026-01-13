@@ -18,6 +18,7 @@ import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.j
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
 import { createBrowserFacade } from './browser/facade.js';
 import { createBrowserTabsController } from './browser/tabController.js';
+import { createProjectTreeController } from './browser/projectTreeController.js';
 import { createPersistenceFacade } from './persistence/facade.js';
 import { createPanelsFacade } from './panels/facade.js';
 import { createPanelDomFacade } from './panels/panelDomFacade.js';
@@ -409,6 +410,7 @@ let activePanelId = null;
 let peakMarkingController = null;
 let browserFacade = null;
 let browserTabsController = null;
+let projectTreeController = null;
 let persistence = null;
 let history = null;
 let persist = () => {};
@@ -3465,8 +3467,22 @@ const isPanelPinned = (panelId) =>
     redo: historyRedoButtons
   };
 
+  projectTreeController?.teardown?.();
+  projectTreeController = createProjectTreeController({
+    root: panelDom.root,
+    getActiveCanvasId: () => getActiveCanvasIdFromContext(),
+    getWorkspaceRoute: () => readBodyDatasetValue('workspaceRoute') || window.location?.pathname,
+    notify: showToast
+  });
   browserTabsController?.teardown?.();
-  browserTabsController = createBrowserTabsController({ root: panelDom.root });
+  browserTabsController = createBrowserTabsController({
+    root: panelDom.root,
+    onTabChange: (tabId) => {
+      if (tabId === 'project') {
+        projectTreeController?.ensureLoaded?.();
+      }
+    }
+  });
 
   ensureOperationsPanel();
   renderOperationsLog();
@@ -7481,6 +7497,8 @@ const isPanelPinned = (panelId) =>
     browserFacade = null;
     browserTabsController?.teardown?.();
     browserTabsController = null;
+    projectTreeController?.teardown?.();
+    projectTreeController = null;
     ioFacade?.detach?.();
     preferencesFacade?.teardown?.();
     persistence?.teardown?.();

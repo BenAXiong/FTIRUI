@@ -4715,6 +4715,17 @@ pre, code, .pre-like {
   padding: .5rem .75rem;
   border-bottom: 1px solid var(--bs-border-color);
 }
+.panel-header{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .75rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, transparent);
+}
+.panel-header--tabs{
+  justify-content: flex-start;
+}
 
 .panel-toolbar .panel-search-input{
   flex: 0 1 160px;
@@ -4754,6 +4765,66 @@ pre, code, .pre-like {
 .workspace-browser-project-placeholder i{
   font-size: 1.4rem;
   color: color-mix(in srgb, var(--bs-secondary-color) 70%, transparent);
+}
+.workspace-project-tree{
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.workspace-project-section{
+  border: 1px solid var(--bs-border-color);
+  border-radius: .6rem;
+  background: var(--bs-tertiary-bg);
+  padding: .4rem .45rem .5rem;
+}
+.workspace-project-section-title{
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-weight: 600;
+  font-size: .85rem;
+  margin-bottom: .35rem;
+  color: var(--bs-secondary-color);
+}
+.workspace-project-folder{
+  border-radius: .5rem;
+  padding: .25rem .3rem;
+}
+.workspace-project-folder + .workspace-project-folder{
+  margin-top: .35rem;
+}
+.workspace-project-folder-title{
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-weight: 600;
+  font-size: .85rem;
+  color: var(--bs-body-color);
+}
+.workspace-project-canvas-list{
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  margin: .35rem 0 0 .9rem;
+}
+.workspace-project-canvas{
+  border: 1px solid transparent;
+  border-radius: .45rem;
+  padding: .2rem .4rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .82rem;
+}
+.workspace-project-canvas:hover{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 45%, transparent);
+}
+.workspace-project-canvas.is-active{
+  border-color: color-mix(in oklab, var(--bs-primary) 60%, transparent);
+  box-shadow: 0 0 0 .12rem color-mix(in oklab, var(--bs-primary) 20%, transparent);
 }
 .plot-b-panel.collapsed .panel-toolbar .panel-search-input{
   flex-basis: 130px;
