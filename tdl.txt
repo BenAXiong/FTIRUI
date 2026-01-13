@@ -18,8 +18,6 @@ log out
     - [ ] Minimal tag mechanics.
     - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
 
-- [ ] (P7?) Optimize features for "Workflow_1_MVP"
-
 (git push)
 
 Phase 7 – Polishing pass
@@ -33,17 +31,23 @@ Phase 7 – Polishing pass
     - [ ] Axes names and other texts: latex or helper with common units and best suggestions
     - [ ] FT-IR markers: add links lines...
     - [ ] Conversion from .opju
+    - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
+    - [ ] ? Add tech ECD
 
 - [ ] Stylish landing for anonymous users
 
 MVP Part 5/5 -- Polishing and publishing
 
+Phase 1 – Optimize features & UI/UX for "Workflow_1_MVP"
+- [ ] see notion
+
+***Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
+**build
+
 Phase x – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 - [ ] Header buttons overlap with side elements
-- [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
-- [ ] ? Add tech ECD
-Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
+- [ ] see full list
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.

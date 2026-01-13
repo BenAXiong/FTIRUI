@@ -4691,6 +4691,7 @@ pre, code, .pre-like {
 }
 
 .plot-b-panel.collapsed .panel-header{ display: none; }
+.workspace-browser.collapsed .panel-header--tabs{ display: none; }
 
 .plot-b-panel.collapsed .panel-body{ display: none; }
 
@@ -4773,8 +4774,12 @@ pre, code, .pre-like {
   gap: 0;
 }
 .workspace-browser.is-searching .panel-toolbar .panel-search-input{
-  flex: 1 1 auto;
+  flex: 1 1 100%;
   max-width: none;
+  width: 100%;
+}
+.workspace-browser.is-searching .workspace-browser-search{
+  flex: 1 1 100%;
   width: 100%;
 }
 .workspace-browser-tabs{
@@ -5349,6 +5354,8 @@ pre, code, .pre-like {
 .workspace-browser.is-searching .panel-search-input{
   min-width: 0;
   max-width: none;
+  width: 100%;
+  flex: 1 1 100%;
 }
 
 /* highlight matches in folder tree */

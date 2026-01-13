@@ -90,6 +90,7 @@ export function createChipPanels(root = document.body) {
 
   const pickerToggleMap = new WeakSet();
   const anchorRefs = { main: null, info: null };
+  let hoveringPanel = false;
   const wireColorPickerToggle = (inputEl) => {
     if (!inputEl || pickerToggleMap.has(inputEl)) return;
     const reset = () => {
@@ -380,10 +381,20 @@ export function createChipPanels(root = document.body) {
       }
       panels.rowId = row.dataset.id;
     });
+
+    panels.wrap.addEventListener('pointerenter', () => {
+      hoveringPanel = true;
+    });
+    panels.wrap.addEventListener('pointerleave', () => {
+      hoveringPanel = false;
+    });
   }
 
   return {
     mount,
+    isHovering() {
+      return hoveringPanel;
+    },
     showFor(rowId, anchorEl) {
       ensureDom();
       panels.rowId = rowId;

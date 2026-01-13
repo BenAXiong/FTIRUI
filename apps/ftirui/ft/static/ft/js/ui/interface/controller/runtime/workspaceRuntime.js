@@ -3807,6 +3807,14 @@ const isPanelPinned = (panelId) =>
       document.documentElement.style.setProperty('--workspace-browser-left', `${left}px`);
       document.documentElement.style.setProperty('--workspace-browser-top', `${browserTop}px`);
     }
+    if (panelDom.toggle) {
+      const toggleHeight = panelDom.toggle.offsetHeight || 28;
+      const toggleGap = 6;
+      const toggleTop = Math.max(8, Math.round(browserTop - toggleHeight - toggleGap));
+      const toggleLeft = Math.max(8, Math.round(left + 6));
+      panelDom.toggle.style.top = `${toggleTop}px`;
+      panelDom.toggle.style.left = `${toggleLeft}px`;
+    }
 
     if (browserHotspot) {
       const pinned = panelPreferences?.isPanelPinned?.() ?? false;
@@ -3852,6 +3860,7 @@ const isPanelPinned = (panelId) =>
 
   const handlePanelHoverLeave = () => {
     if (!panelDom.root) return;
+    if (chipPanelsInstance?.isHovering?.()) return;
     const pinned = panelPreferences?.isPanelPinned?.() ?? false;
     const collapsed = panelPreferences?.isPanelCollapsed?.() ?? panelDom.root.classList.contains('collapsed');
     if (!pinned) {
