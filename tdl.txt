@@ -10,8 +10,8 @@ Phase 7 – Pre-polishing pass
         - [x] Remove user name, add chat chat & share icons and rework UI
     - [-] Workspace browser polish
         - [x] tag filtering (first sync with canvas...)
-        - [-] simplify tree: fewer outlines, switch chevron to onClick collapse, icons onHover
-        - [ ] palettes
+        - [x] simplify tree: fewer outlines, onClick collapse, icons onHover, hidden icons...
+        - [-] palettes
         - [ ] swatches
     - [ ] Dashboard polish
         - [ ] explorer layout
