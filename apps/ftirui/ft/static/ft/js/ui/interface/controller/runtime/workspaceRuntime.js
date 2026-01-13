@@ -18,6 +18,7 @@ import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.j
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
 import { createBrowserFacade } from './browser/facade.js';
 import { createBrowserTabsController } from './browser/tabController.js';
+import { createBrowserSearchToggleController } from './browser/searchToggleController.js';
 import { createProjectTreeController } from './browser/projectTreeController.js';
 import { createPersistenceFacade } from './persistence/facade.js';
 import { createPanelsFacade } from './panels/facade.js';
@@ -410,6 +411,7 @@ let activePanelId = null;
 let peakMarkingController = null;
 let browserFacade = null;
 let browserTabsController = null;
+let browserSearchController = null;
 let projectTreeController = null;
 let persistence = null;
 let history = null;
@@ -1595,6 +1597,8 @@ export function initWorkspaceRuntime(context = {}) {
   browserFacade = null;
   browserTabsController?.teardown?.();
   browserTabsController = null;
+  browserSearchController?.teardown?.();
+  browserSearchController = null;
   operationsLog.length = 0;
   operationsRenderQueued = false;
   operationSequence = 0;
@@ -3458,6 +3462,8 @@ const isPanelPinned = (panelId) =>
     dropzone: document.getElementById('c_panel_dropzone'),
     empty: document.querySelector('#c_panel_dropzone .panel-empty'),
     newSection: document.getElementById('c_new_section'),
+    searchToggle: document.getElementById('c_panel_search_toggle'),
+    searchWrapper: document.querySelector('#c_panel .workspace-browser-search'),
     searchInput: document.getElementById('c_panel_search_input'),
     tree: document.getElementById('c_folder_tree'),
     filterButton: document.getElementById('c_browser_filter_btn'),
@@ -3484,6 +3490,13 @@ const isPanelPinned = (panelId) =>
     writeCollapsedState: (state) => preferencesFacade?.writeProjectTreeCollapse?.(state)
   });
   projectTreeController?.bindCollapseAllButton?.(panelDom.projectCollapseAll);
+  browserSearchController?.teardown?.();
+  browserSearchController = createBrowserSearchToggleController({
+    root: panelDom.root,
+    toggle: panelDom.searchToggle,
+    container: panelDom.searchWrapper,
+    input: panelDom.searchInput
+  });
   browserTabsController?.teardown?.();
   browserTabsController = createBrowserTabsController({
     root: panelDom.root,
@@ -7521,6 +7534,8 @@ const isPanelPinned = (panelId) =>
     browserFacade = null;
     browserTabsController?.teardown?.();
     browserTabsController = null;
+    browserSearchController?.teardown?.();
+    browserSearchController = null;
     projectTreeController?.teardown?.();
     projectTreeController = null;
     ioFacade?.detach?.();

@@ -4745,6 +4745,27 @@ pre, code, .pre-like {
   min-width: 120px;
   max-width: 200px;
 }
+.workspace-browser-search{
+  display: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+.workspace-browser-search:not([hidden]){
+  display: flex;
+}
+.workspace-browser-search .panel-search-input{
+  flex: 1 1 auto;
+  max-width: none;
+  width: 100%;
+}
+.workspace-browser.is-searching .panel-toolbar > *{
+  display: none;
+}
+.workspace-browser.is-searching .panel-toolbar .workspace-browser-search{
+  display: flex;
+  width: 100%;
+}
 .workspace-browser-tabs{
   flex: 1 1 auto;
   width: 100%;
@@ -4983,7 +5004,7 @@ pre, code, .pre-like {
 /* floating toggle button next to panel */
 .panel-toggle-float{
   position: fixed;
-  top: calc(var(--workspace-browser-top, 12vh) - 1.1rem);
+  top: max(.4rem, calc(var(--workspace-browser-top, 12vh) - 2.2rem));
   left: calc(var(--workspace-browser-left, 1.5rem) + .4rem);
   z-index: 1000;
   transition: left .15s ease, top .15s ease;

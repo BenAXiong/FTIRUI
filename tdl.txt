@@ -15,14 +15,10 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 log out
 
 - [ ] Stage 3?
+    - [ ] Minimal tag mechanics.
     - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
 
 - [ ] (P7?) Optimize features for "Workflow_1_MVP"
-
-- [ ] Consider collapsible right pane for more simulatenous controls
-    ooooor Graph option v2: right side bar... -- make alternatives togglable?
-    Right pane: add tab for metadata and other info (incl user notes for self and collab)
-- [ ] Explore Papers/Reports workflow integration.
 
 (git push)
 
@@ -52,6 +48,10 @@ Phase x – Future explorations
 - [ ] Add share icon top-right
 - [ ] Design multigraph figures: in pres/post mode? (templates for 2, 3, 4 graphs layouts)
 - [ ] Ctrl+click to style several graphs simultaneously
+- [ ] Consider collapsible right pane for more simulatenous controls
+    ooooor Graph option v2: right side bar... -- make alternatives togglable?
+    Right pane: add tab for metadata and other info (incl user notes for self and collab)
+- [ ] Explore Papers/Reports workflow integration.
 _________________________________________________________________________________________________
 **Plan of action -- Template for tasks**
 
