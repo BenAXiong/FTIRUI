@@ -4690,6 +4690,8 @@ pre, code, .pre-like {
   background: transparent;
 }
 
+.plot-b-panel.collapsed .panel-header{ display: none; }
+
 .plot-b-panel.collapsed .panel-body{ display: none; }
 
 /* Hover-peek: temporarily expand panel when collapsed */
@@ -4706,6 +4708,7 @@ pre, code, .pre-like {
 
 .plot-b-panel.collapsed.peeking .panel-toolbar,
 .plot-b-panel.collapsed.peeking .panel-body{ display: block; }
+.plot-b-panel.collapsed.peeking .panel-header{ display: flex; }
 
 .panel-toolbar{
   display: flex;
@@ -4764,6 +4767,14 @@ pre, code, .pre-like {
 }
 .workspace-browser.is-searching .panel-toolbar .workspace-browser-search{
   display: flex;
+  width: 100%;
+}
+.workspace-browser.is-searching .panel-toolbar{
+  gap: 0;
+}
+.workspace-browser.is-searching .panel-toolbar .panel-search-input{
+  flex: 1 1 auto;
+  max-width: none;
   width: 100%;
 }
 .workspace-browser-tabs{
@@ -5004,7 +5015,7 @@ pre, code, .pre-like {
 /* floating toggle button next to panel */
 .panel-toggle-float{
   position: fixed;
-  top: max(.4rem, calc(var(--workspace-browser-top, 12vh) - 2.2rem));
+  top: max(.4rem, calc(var(--workspace-browser-top, 12vh) - 2.8rem));
   left: calc(var(--workspace-browser-left, 1.5rem) + .4rem);
   z-index: 1000;
   transition: left .15s ease, top .15s ease;
@@ -5335,6 +5346,10 @@ pre, code, .pre-like {
 
 /* search UI in panel header */
 .panel-toolbar .panel-search-input{ min-width: 120px; max-width: 200px; }
+.workspace-browser.is-searching .panel-search-input{
+  min-width: 0;
+  max-width: none;
+}
 
 /* highlight matches in folder tree */
 .folder-trace.trace-match{

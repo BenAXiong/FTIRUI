@@ -23,14 +23,18 @@ log out
 (git push)
 
 Phase 7 – Polishing pass
-- [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
-- [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
-- [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
-- [ ] Left HUD: display project/folder in tooltip only, add min info (creator, date, ...)
-- [ ] Axes names and other texts: latex or helper with common units and best suggestions
-- [ ] Stylish anonymous landing
-- [ ] FT-IR markers: add links lines...
-- [ ] Conversion from .opju
+- [ ] UI
+    - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
+    - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
+    - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
+    - [ ] Left HUD: display project/folder in tooltip only, add min info (creator, date, ...)
+
+- [ ] Graphs
+    - [ ] Axes names and other texts: latex or helper with common units and best suggestions
+    - [ ] FT-IR markers: add links lines...
+    - [ ] Conversion from .opju
+
+- [ ] Stylish landing for anonymous users
 
 MVP Part 5/5 -- Polishing and publishing
 

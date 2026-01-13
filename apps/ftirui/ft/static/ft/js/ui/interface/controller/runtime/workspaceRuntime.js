@@ -3803,6 +3803,10 @@ const isPanelPinned = (panelId) =>
         panelDom.root.style.removeProperty('--workspace-browser-max-height');
       }
     }
+    if (typeof document !== 'undefined' && document.documentElement) {
+      document.documentElement.style.setProperty('--workspace-browser-left', `${left}px`);
+      document.documentElement.style.setProperty('--workspace-browser-top', `${browserTop}px`);
+    }
 
     if (browserHotspot) {
       const pinned = panelPreferences?.isPanelPinned?.() ?? false;
