@@ -26,6 +26,7 @@ import { createPanelDomFacade } from './panels/panelDomFacade.js';
 import { createStylePainterController } from './panels/stylePainterController.js';
 import { createTemplatesController } from './panels/templatesController.js';
 import { createPanelLockController } from './panels/panelLockController.js';
+import { createPanelTagController } from './panels/panelTagController.js';
 import { createUnitsToggleController } from './panels/unitsToggleController.js';
 import { createMultiTraceController } from './panels/multiTraceController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
@@ -409,6 +410,7 @@ let currentDropTarget = null;
 let pendingRenameSectionId = null;
 let activePanelId = null;
 let peakMarkingController = null;
+let panelTagController = null;
 let browserFacade = null;
 let browserTabsController = null;
 let browserSearchController = null;
@@ -3189,6 +3191,7 @@ const recordOperation = (entry) => {
       const result = panelsModel.updatePanelFigure(panelId, figure);
       templatesController?.handlePanelFigureUpdate?.(panelId, options);
       panelLockController?.handlePanelFigureUpdate?.(panelId);
+      panelTagController?.handlePanelFigureUpdate?.(panelId, options);
       unitsToggleController?.handlePanelFigureUpdate?.(panelId, options);
       multiTraceController?.handlePanelFigureUpdate?.(panelId, options);
       return result;
@@ -5044,6 +5047,7 @@ const isPanelPinned = (panelId) =>
     });
 
     updatePanelTitleDom(panelId, resolvePanelTitle(baseState));
+    panelTagController?.ensurePanelTag?.(panelId, { persistChange: false });
 
     applyPanelGeometry(panelId, initialVisual, { persistNormalized: true });
     applyPanelZIndex(panelId);
@@ -5209,6 +5213,14 @@ const isPanelPinned = (panelId) =>
     persist,
     panelSupportsPlot,
     showToast
+  });
+
+  panelTagController = createPanelTagController({
+    getPanelFigure,
+    updatePanelFigure,
+    renderPlot,
+    persist,
+    panelSupportsPlot
   });
 
     unitsToggleController = createUnitsToggleController({

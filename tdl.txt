@@ -1,22 +1,13 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-- [-] Stage 2
-    - [x] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
-    - [x] Clean-up tb1_0
-    - [x] Rethink tb1_1&2
-    - [-] Browser (canvas left pane): add project tree tab
-        - [x] New tab UI
-        - [x] Static read‑only tree: fetch once on tab open, render folders/canvases, click to open canvas; no live updates, no edits.
-        - [x] Click canvas → open in workspace.
-        - [x] Focus/selection sync: highlight current canvas in tree; still read‑only.
-        - [x] Manual refresh: add a refresh button; still read‑only.
-        - [-] CRUD icon (not wired), collaspse project/folder on click, collaspse/expand all, search UX
-
-log out
-
-- [ ] Stage 3?
-    - [ ] Minimal tag mechanics.
-    - [ ] Rethink plot type defaults, switching flow, and dashboard top band scope.
+- [-] Stage 3?
+    - [-] Minimal tag mechanics.
+        - [-] Define tag storage + scope
+        - [ ] Detection + mapping
+        - [ ] Sync rules
+        - [ ] UI + persistence
+        - [ ] Backend sync (optional, but needed for dashboard)
+    - [ ] Rethink dashboard top band scope.
 
 (git push)
 

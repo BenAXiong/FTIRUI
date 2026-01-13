@@ -117,3 +117,15 @@ Phase 6 – Workflow refinements
         auto region crop (e.g., 4000–400 cm⁻¹), plus reversible “full range”.
     - [-] tb2 s8 Compare modes: reference subtraction and spectrum overlay.
 
+- [x] Stage 2
+    - [x] Graph button: display popups on hover and tune click behavior (eg toggle all grids or just major)
+    - [x] Clean-up tb1_0
+    - [x] Rethink tb1_1&2
+    - [x] Browser (canvas left pane): add project tree tab
+        - [x] New tab UI
+        - [x] Static read‑only tree: fetch once on tab open, render folders/canvases, click to open canvas; no live updates, no edits.
+        - [x] Click canvas → open in workspace.
+        - [x] Focus/selection sync: highlight current canvas in tree; still read‑only.
+        - [x] Manual refresh: add a refresh button; still read‑only.
+        - [x] CRUD icon (not wired), collaspse project/folder on click, collaspse/expand all, search UX
+
