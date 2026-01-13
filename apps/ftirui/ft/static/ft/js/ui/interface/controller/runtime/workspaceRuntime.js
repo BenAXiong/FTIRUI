@@ -5194,6 +5194,7 @@ const isPanelPinned = (panelId) =>
         techSelectorController?.syncToPanel?.(panelId);
       }
       canvasTagsController?.refresh?.();
+      renderBrowser?.();
     }
   });
 

@@ -8,7 +8,11 @@ Phase 7 – Pre-polishing pass
     - [x] Right HUD 
         - [x] Tighten and move theme icon to left HUD (options dropdown)
         - [x] Remove user name, add chat chat & share icons and rework UI
-    - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
+    - [-] Workspace browser polish
+        - [ ] tag filtering (first sync with canvas...)
+        - [ ] simplify tree: fewer outlines, switch chevron to onClick collapse, icons onHover
+        - [ ] palettes
+        - [ ] swatches
     - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
 
 - [ ] Graphs

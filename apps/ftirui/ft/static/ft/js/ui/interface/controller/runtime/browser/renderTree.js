@@ -2,6 +2,7 @@ import { render as renderTreeView } from '../../../../workspace/browser/treeView
 import { escapeHtml } from '../../../../utils/dom.js';
 import { toHexColor } from '../../../../utils/styling.js';
 import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
+import { DEFAULT_TAG_LABEL } from '../panels/panelTagMapping.js';
 import { getNonPlotPanelInfo } from './panelMeta.js';
 
 /**
@@ -125,8 +126,14 @@ export function renderBrowserTree(ctx, state) {
   }
 
   const panelsBySection = new Map();
-  const canvasPrimaryTag = (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasPrimaryTag) || '';
-  const canvasPrimaryTagColor = canvasPrimaryTag ? getWorkspaceTagColor(canvasPrimaryTag) : null;
+  const resolvePanelTagKey = (panelId) => {
+    if (!panelId || typeof getPanelFigure !== 'function') return DEFAULT_TAG_LABEL;
+    const figure = getPanelFigure(panelId);
+    const panelMeta = figure?.layout?.meta?.workspacePanel;
+    const tagKey = panelMeta?.tagKey ?? panelMeta?.tag;
+    const normalized = typeof tagKey === 'string' ? tagKey.trim() : '';
+    return normalized || DEFAULT_TAG_LABEL;
+  };
   sections.forEach((section, id) => {
     panelsBySection.set(id, []);
   });
@@ -413,14 +420,18 @@ export function renderBrowserTree(ctx, state) {
       icon.setAttribute('aria-hidden', 'true');
       header.appendChild(icon);
     }
-    if (canvasPrimaryTag && canvasPrimaryTagColor && panelItem.meta?.isPlotPanel) {
-      const tagBadge = document.createElement('span');
-      tagBadge.className = 'dashboard-tag graph-canvas-tag';
-      tagBadge.textContent = canvasPrimaryTag;
-      tagBadge.title = `Canvas tag: ${canvasPrimaryTag}`;
-      tagBadge.style.background = canvasPrimaryTagColor;
-      tagBadge.style.color = '#fff';
-      header.appendChild(tagBadge);
+    if (isPlotPanel) {
+      const tagKey = resolvePanelTagKey(resolvedPanelId);
+      const tagColor = getWorkspaceTagColor(tagKey);
+      if (tagKey && tagColor) {
+        const tagBadge = document.createElement('span');
+        tagBadge.className = 'dashboard-tag graph-canvas-tag';
+        tagBadge.textContent = tagKey;
+        tagBadge.title = `Graph tag: ${tagKey}`;
+        tagBadge.style.background = tagColor;
+        tagBadge.style.color = '#fff';
+        header.appendChild(tagBadge);
+      }
     }
     header.appendChild(name);
 
