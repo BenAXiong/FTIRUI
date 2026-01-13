@@ -1339,7 +1339,7 @@ body.dashboard-overlay-open {
   justify-content:space-between;
   gap:1rem;
   pointer-events:none;
-  z-index:20;
+  z-index:600;
 }
 .workspace-hud__slot{
   display:flex;
@@ -1583,6 +1583,47 @@ body.dashboard-overlay-open {
   position:relative;
   display:inline-flex;
   align-items:center;
+}
+.workspace-canvas-tooltip{
+  position:absolute;
+  left:0;
+  top:calc(100% + .4rem);
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+  min-width:200px;
+  max-width:260px;
+  padding:.6rem .75rem;
+  border-radius:.55rem;
+  border:1px solid color-mix(in srgb, var(--bs-border-color, #dee2e6) 70%, transparent);
+  background:color-mix(in srgb, var(--bs-body-bg) 92%, #000 8%);
+  color:var(--bs-body-color);
+  font-size:.75rem;
+  line-height:1.2;
+  box-shadow:0 12px 30px rgba(15,23,42,.18);
+  opacity:0;
+  transform:translateY(-.3rem);
+  pointer-events:none;
+  z-index:10;
+}
+.workspace-canvas-title-group:hover .workspace-canvas-tooltip,
+.workspace-canvas-title-group:focus-within .workspace-canvas-tooltip{
+  opacity:1;
+  transform:translateY(0);
+}
+.workspace-canvas-tooltip-row{
+  display:flex;
+  justify-content:space-between;
+  gap:.75rem;
+}
+.workspace-canvas-tooltip-label{
+  color:var(--bs-secondary-color, #6c757d);
+  font-weight:500;
+  letter-spacing:.02em;
+}
+.workspace-canvas-tooltip-value{
+  text-align:right;
+  color:inherit;
 }
 .workspace-canvas-path{
   position:absolute;

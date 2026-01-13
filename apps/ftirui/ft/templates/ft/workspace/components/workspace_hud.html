@@ -9,13 +9,6 @@
       </div>
       <div class="workspace-hud-card__title">
         <div class="workspace-canvas-title-group">
-          <span class="workspace-canvas-path">
-            {% if active_canvas %}
-              {{ active_canvas.project.section.name|default_if_none:"Project"|default:"Project" }}/{{ active_canvas.project.title|default_if_none:"Folder"|default:"Folder" }}
-            {% else %}
-              Project/Folder
-            {% endif %}
-          </span>
           <span class="workspace-canvas-title badge rounded-pill"
                 data-workspace-canvas-title
                 data-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
@@ -29,6 +22,58 @@
               Untitled canvas
             {% endif %}
           </span>
+          <div class="workspace-canvas-tooltip" role="tooltip">
+            <div class="workspace-canvas-tooltip-row">
+              <span class="workspace-canvas-tooltip-label">Project</span>
+              <span class="workspace-canvas-tooltip-value">
+                {% if active_canvas %}
+                  {{ active_canvas.project.section.name|default_if_none:"Project"|default:"Project" }}
+                {% else %}
+                  Project
+                {% endif %}
+              </span>
+            </div>
+            <div class="workspace-canvas-tooltip-row">
+              <span class="workspace-canvas-tooltip-label">Folder</span>
+              <span class="workspace-canvas-tooltip-value">
+                {% if active_canvas %}
+                  {{ active_canvas.project.title|default_if_none:"Folder"|default:"Folder" }}
+                {% else %}
+                  Folder
+                {% endif %}
+              </span>
+            </div>
+            <div class="workspace-canvas-tooltip-row">
+              <span class="workspace-canvas-tooltip-label">Owner</span>
+              <span class="workspace-canvas-tooltip-value">
+                {% if active_canvas %}
+                  {{ active_canvas.owner|default:"Guest" }}
+                {% else %}
+                  Guest
+                {% endif %}
+              </span>
+            </div>
+            <div class="workspace-canvas-tooltip-row">
+              <span class="workspace-canvas-tooltip-label">Created</span>
+              <span class="workspace-canvas-tooltip-value">
+                {% if active_canvas %}
+                  {{ active_canvas.created_at|date:"M j, Y" }}
+                {% else %}
+                  --
+                {% endif %}
+              </span>
+            </div>
+            <div class="workspace-canvas-tooltip-row">
+              <span class="workspace-canvas-tooltip-label">Updated</span>
+              <span class="workspace-canvas-tooltip-value">
+                {% if active_canvas %}
+                  {{ active_canvas.updated_at|date:"M j, Y" }}
+                {% else %}
+                  --
+                {% endif %}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="workspace-hud-card__actions">
