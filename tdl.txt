@@ -27,6 +27,9 @@ Phase 7 – Pre-polishing pass
     - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
     - [ ] ? Add tech ECD
 
+- [ ] Toolbars
+    - [ ] Sync tb2 s2 to graph type
+
 - [ ] Stylish landing for guests
 
 MVP Part 5/5 -- Polishing for publishing

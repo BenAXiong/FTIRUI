@@ -5,8 +5,37 @@ export function createChipPanels(root = document.body) {
     info: null,
     pinned: false,
     rowId: null,
-    timers: {}
+    timers: {},
+    paletteKey: 'vibrant'
   };
+
+  const palettes = {
+    vibrant: {
+      label: 'Vibrant',
+      colors: [
+        '#FA3C3C', '#F08228', '#E6AF2D', '#E6DC32', '#A0E632', '#00DC00',
+        '#00D28C', '#00C8C8', '#00A0FF', '#1E3CFF', '#6E00DC', '#A000C8'
+      ]
+    },
+    muted: {
+      label: 'Muted',
+      colors: [
+        '#C96060', '#C58B60', '#BFA868', '#B3B36C', '#7EAC6C', '#5BB08E',
+        '#4C9C9C', '#5A8FB6', '#6B78B6', '#7A69B0', '#8B5FA0', '#A05F8E'
+      ]
+    },
+    mono: {
+      label: 'Monochrome',
+      colors: [
+        '#222222', '#333333', '#444444', '#555555', '#666666', '#777777',
+        '#888888', '#999999', '#AAAAAA', '#BBBBBB', '#CCCCCC', '#DDDDDD'
+      ]
+    }
+  };
+
+  const buildSwatches = (paletteColors = []) => paletteColors
+    .map((c) => `<button class="chip-swatch" data-act="c-swatch" data-val="${c}" aria-label="Set color ${c}" style="--c:${c}"></button>`)
+    .join('');
 
   function ensureDom() {
     if (panels.wrap) return;
@@ -192,10 +221,15 @@ export function createChipPanels(root = document.body) {
   }
 
   function populate(trace, opts) {
-    const palette = [
-      '#FA3C3C', '#F08228', '#E6AF2D', '#E6DC32', '#A0E632', '#00DC00',
-      '#00D28C', '#00C8C8', '#00A0FF', '#1E3CFF', '#6E00DC', '#A000C8'
-    ];
+    const paletteKey = palettes[panels.paletteKey] ? panels.paletteKey : 'vibrant';
+    panels.paletteKey = paletteKey;
+    const paletteOptions = Object.entries(palettes)
+      .map(([key, entry]) => `
+        <button class="chip-palette-option${key === paletteKey ? ' is-active' : ''}" type="button" data-act="palette-select" data-val="${key}">
+          ${entry.label}
+        </button>
+      `)
+      .join('');
 
     const dashOpts = ['solid', 'dot', 'dash', 'longdash'];
     const dashBtn = (value) => {
@@ -219,9 +253,18 @@ export function createChipPanels(root = document.body) {
       <div class="row-line color-row">
         <input type="color" class="chip-color-inline" value="${trace.color || '#888888'}" data-act="c-native-inline" data-coloris="chip" />
         <input class="chip-input" data-act="c-hex" value="${trace.color || '#888888'}" />
+        <div class="chip-palette" data-open="false">
+          <button class="chip-palette-toggle" type="button" data-act="palette-toggle" aria-expanded="false">
+            Switch palette
+            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+          </button>
+          <div class="chip-palette-menu">
+            ${paletteOptions}
+          </div>
+        </div>
       </div>
       <div class="swatch-grid">
-        ${palette.map((c) => `<button class="chip-swatch" data-act="c-swatch" data-val="${c}" aria-label="Set color ${c}" style="--c:${c}"></button>`).join('')}
+        ${buildSwatches(palettes[paletteKey].colors)}
       </div>
       <div class="row-line">
         <span class="lbl">Thickness</span>
@@ -248,7 +291,7 @@ export function createChipPanels(root = document.body) {
       : (trace.meta ? String(trace.meta) : '<i>No metadata</i>');
     panels.info.innerHTML = `
       <div class="chip-title">Info</div>
-      <div style="max-height:160px; overflow:auto">${meta}</div>
+      <div>${meta}</div>
       <div style="margin-top:8px; display:flex; gap:6px; justify-content:flex-end">
         <button class="btn btn-sm btn-outline-secondary" data-act="i-raw">Raw data</button>
       </div>
@@ -278,20 +321,50 @@ export function createChipPanels(root = document.body) {
         opts.renderPlot();
       });
 
+      const setPaletteMenuOpen = (open) => {
+        const paletteWrap = panels.main?.querySelector('.chip-palette');
+        const toggle = paletteWrap?.querySelector('.chip-palette-toggle');
+        if (!paletteWrap || !toggle) return;
+        paletteWrap.dataset.open = open ? 'true' : 'false';
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+
       panels.wrap.addEventListener('click', (e) => {
         const act = e.target?.dataset?.act;
+        const paletteWrap = e.target.closest?.('.chip-palette');
+        if (!paletteWrap) {
+          setPaletteMenuOpen(false);
+        }
         if (!panels.rowId) return;
         const rowId = panels.rowId;
         const rowEl = opts.tree.querySelector(`.folder-trace[data-id="${rowId}"]`);
         const t = opts.getTraceById(rowId);
         if (!rowEl || !t) return;
 
-        if (act === 'c-swatch') {
+        if (act === 'palette-toggle') {
+          const isOpen = paletteWrap?.dataset.open === 'true';
+          setPaletteMenuOpen(!isOpen);
+        } else if (act === 'palette-select') {
+          const nextKey = e.target?.dataset?.val;
+          if (nextKey && palettes[nextKey]) {
+            panels.paletteKey = nextKey;
+            const swatchGrid = panels.main?.querySelector('.swatch-grid');
+            if (swatchGrid) {
+              swatchGrid.innerHTML = buildSwatches(palettes[nextKey].colors);
+            }
+            panels.main?.querySelectorAll('.chip-palette-option').forEach((btn) => {
+              btn.classList.toggle('is-active', btn.dataset.val === nextKey);
+            });
+          }
+          setPaletteMenuOpen(false);
+        } else if (act === 'c-swatch') {
           t.color = e.target.dataset.val;
           opts.repaintChip(rowEl);
           opts.renderPlot();
         } else if (act === 's-dash-btn') {
           t.dash = e.target.closest('[data-val]')?.dataset.val || 'solid';
+          t.line = t.line || {};
+          t.line.dash = t.dash;
           panels.main.querySelectorAll('.dash-btn').forEach((btn) => {
             btn.classList.toggle('is-active', btn.dataset.val === t.dash);
           });
@@ -352,6 +425,7 @@ export function createChipPanels(root = document.body) {
     opts.tree.addEventListener('pointerout', (e) => {
       const row = e.target.closest?.('.folder-trace');
       if (!row) return;
+      if (e.relatedTarget && row.contains(e.relatedTarget)) return;
       const intoPanel = e.relatedTarget && e.relatedTarget.closest?.('#chipPanels, .chip-panel');
       if (intoPanel) return;
       hideIfNotPinned();
@@ -363,6 +437,12 @@ export function createChipPanels(root = document.body) {
       if (!chip && !infoBtn) return;
       const row = (chip || infoBtn).closest('.folder-trace');
       if (!row) return;
+      if (infoBtn && panels.pinned && panels.rowId === row.dataset.id && panels.info?.style.display === 'block') {
+        show(false);
+        pin(false);
+        panels.rowId = null;
+        return;
+      }
       const trace = opts.getTraceById(row.dataset.id);
       populate(trace, opts);
       if (chip) {

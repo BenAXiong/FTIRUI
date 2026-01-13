@@ -195,10 +195,9 @@ export function renderBrowserTree(ctx, state) {
     const safeName = escapeHtml(rowInfo.name || `Trace ${rowInfo.idx + 1}`);
     row.innerHTML = `
       <span class="drag-handle bi bi-grip-vertical" title="Drag trace"></span>
-      <button class="trace-visibility" type="button" aria-pressed="${trace.visible !== false ? 'true' : 'false'}" title="${trace.visible !== false ? 'Hide trace' : 'Show trace'}">
-        <i class="bi ${trace.visible !== false ? 'bi-eye' : 'bi-eye-slash'}"></i>
-      </button>
       <input class="form-control form-control-sm rename" type="text" value="${safeName}" title="Double-click to rename" readonly>
+      <button class="trace-info-icon" type="button" title="Trace info"><i class="bi bi-info-circle"></i></button>
+      <button class="trace-remove" type="button" title="Remove trace"><i class="bi bi-x-circle"></i></button>
       <button class="line-chip" type="button" aria-label="Edit line style"></button>
       <button class="color-dot" type="button" style="--c:${toHexColor(trace.line?.color || '#1f77b4')}" title="Pick colour" hidden></button>
       <input class="color form-control form-control-color form-control-sm" type="color" value="${toHexColor(trace.line?.color || '#1f77b4')}" title="Colour picker" hidden>
@@ -211,8 +210,6 @@ export function renderBrowserTree(ctx, state) {
         <option value="longdashdot" ${trace.line?.dash === 'longdashdot' ? 'selected' : ''}>Long dash + dot</option>
       </select>
       <input class="opacity form-range" type="range" min="0.1" max="1" step="0.05" value="${trace.opacity ?? 1}" title="Opacity" hidden>
-      <button class="trace-info-icon" type="button" title="Trace info"><i class="bi bi-info-circle"></i></button>
-      <button class="trace-remove" type="button" title="Remove trace"><i class="bi bi-x-circle"></i></button>
     `;
 
     row.draggable = false;
@@ -232,38 +229,6 @@ export function renderBrowserTree(ctx, state) {
     }
 
     updateTraceChip(row, trace);
-
-    const visToggle = row.querySelector('.trace-visibility');
-    const setVisibilityButtonState = (visible) => {
-      if (!visToggle) return;
-      visToggle.dataset.visible = visible ? 'true' : 'false';
-      visToggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
-      visToggle.title = visible ? 'Hide trace' : 'Show trace';
-      visToggle.innerHTML = `<i class="bi ${visible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
-      visToggle.classList.toggle('is-off', !visible);
-    };
-    setVisibilityButtonState(trace.visible !== false);
-    visToggle?.addEventListener('click', () => {
-      pushHistory();
-      const figure = getPanelFigure(panelId);
-      const tracesData = ensureArray(figure.data);
-      const current = tracesData[rowInfo.idx];
-      if (!current) {
-        history.rewind();
-        return;
-      }
-      const nextVisible = visToggle.dataset.visible !== 'true';
-      tracesData[rowInfo.idx] = {
-        ...current,
-        visible: nextVisible
-      };
-      figure.data = tracesData;
-      normalizePanelTraces(panelId, figure);
-      renderPlot(panelId);
-      persist();
-      rerender();
-      updateHistoryButtons();
-    });
 
     const renameInput = row.querySelector('.rename');
     renameInput?.addEventListener('dblclick', (evt) => {
@@ -405,7 +370,10 @@ export function renderBrowserTree(ctx, state) {
 
     const name = document.createElement('span');
     name.className = 'folder-name graph-name';
-    name.textContent = graphLabel;
+    const nameText = document.createElement('span');
+    nameText.className = 'graph-name-text';
+    nameText.textContent = graphLabel;
+    name.appendChild(nameText);
     name.dataset.panelId = resolvedPanelId;
     if (!graphVisible) {
       name.classList.add('is-muted');
@@ -420,7 +388,6 @@ export function renderBrowserTree(ctx, state) {
       icon.setAttribute('aria-hidden', 'true');
       header.appendChild(icon);
     }
-    header.appendChild(name);
     if (isPlotPanel) {
       const tagKey = resolvePanelTagKey(resolvedPanelId);
       const tagColor = getWorkspaceTagColor(tagKey);
@@ -434,6 +401,7 @@ export function renderBrowserTree(ctx, state) {
         header.appendChild(tagBadge);
       }
     }
+    header.appendChild(name);
 
     const actions = document.createElement('div');
     actions.className = 'folder-actions graph-actions';

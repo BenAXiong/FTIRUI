@@ -35,6 +35,8 @@ br change color palette in chip, access and modify custom too
 tb2s6-9 features to implement as needed
 tags backend sync (needed for dashboard)
 edit mode for toolbars
+! tb1 consider main or 0 button for advanced data analysis (fitting, etc) since can be applied to many techs
+    otherwise tie them to graph types on tb2
 _________________________________________________________________________________________________
 Polishing
 
