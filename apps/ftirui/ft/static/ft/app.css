@@ -1808,7 +1808,7 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   pointer-events:auto;
   transform: translateX(0);
   opacity:1;
-  overflow:hidden;
+  overflow:visible;
 }
 #pane-plotC .workspace-browser.is-floating,
 #pane-plotC .workspace-browser.collapsed{
