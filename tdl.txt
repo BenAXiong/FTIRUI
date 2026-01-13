@@ -3,8 +3,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 Phase 7 – Pre-polishing pass
 - [ ] UI
     - [-] Left HUD 
-        - [-] display project/folder in tooltip only, add min info (creator, date, ...)
-        - [ ] rework options
+        - [x] display project/folder in tooltip only, add min info (creator, date, ...)
+        - [-] rework options
     - [ ] Right HUD 
         - [ ] 
         - [ ] 
