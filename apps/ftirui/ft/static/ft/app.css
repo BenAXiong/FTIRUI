@@ -1776,9 +1776,11 @@ body[data-bs-theme='dark'] .workspace-canvas-title{
   height:100%;
   min-height:0;
   min-width:0;
-  --c-browser-width: min(320px, 26vw);
-  --c-browser-handle: 24px;
   overflow:hidden;
+}
+#pane-plotC{
+  --c-browser-width: 320px;
+  --c-browser-handle: 24px;
 }
 #pane-plotC .workspace-canvas-wrapper.browser-pinned,
 #pane-plotC .workspace-canvas-wrapper.browser-pinned.browser-collapsed,
@@ -5214,6 +5216,8 @@ pre, code, .pre-like {
 
 .workspace-browser .panel-body{
   padding-right: .25rem;
+  overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 .panel-body.dragover{

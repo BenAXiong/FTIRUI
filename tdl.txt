@@ -22,6 +22,7 @@ Phase 7 – Pre-polishing pass
 
 - [ ] Graphs
     - [ ] Axes names and other texts: latex or helper with common units and best suggestions
+    - [ ] More subtle hb highlights
     - [ ] FT-IR markers: add links lines...
     - [ ] Conversion from .opju
     - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
