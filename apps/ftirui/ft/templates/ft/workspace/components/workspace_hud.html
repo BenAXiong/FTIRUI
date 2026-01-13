@@ -116,6 +116,7 @@
               </div>
             </div>
             <button class="dropdown-item" type="button">Grid</button>
+            <button class="dropdown-item" type="button">Shortcuts</button>
             <button class="dropdown-item" type="button">Help</button>
             <div class="dropdown-item-text">
               <button id="themeToggle"
@@ -143,26 +144,28 @@
       </div>
     </div>
     <div class="workspace-hud-card workspace-hud-card--secondary">
+      <button class="btn btn-sm header-action-icon" type="button" aria-label="Chat">
+        <i class="bi bi-chat-dots"></i>
+      </button>
+      <button class="btn btn-sm header-action-icon" type="button" aria-label="Share">
+        <i class="bi bi-share"></i>
+      </button>
       <div id="user_status"
            class="user-status user-status--hud card border-0"
            role="status"
            aria-live="polite">
         <div class="user-body d-flex align-items-center gap-3">
-          <div class="user-avatar hud" data-user-avatar>
-            <i class="bi bi-person-circle"></i>
-          </div>
-          <div class="user-info text-start">
-            <div class="user-primary">Guest</div>
-            <div class="user-secondary text-muted">Not signed in</div>
-          </div>
           <a id="user_sign_in" class="btn btn-primary btn-sm" href="/accounts/login/">Sign in</a>
           <div class="dropdown user-dropdown d-none" data-user-dropdown>
-            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2"
+            <button class="btn btn-sm d-flex align-items-center gap-2 workspace-user-pill"
                     id="user_menu_toggle"
                     type="button"
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
                     data-user-menu-toggle>
+              <div class="user-avatar hud" data-user-avatar>
+                <i class="bi bi-person-circle"></i>
+              </div>
               <i class="bi bi-chevron-down small text-muted" aria-hidden="true"></i>
               <span class="visually-hidden">Open user menu</span>
             </button>

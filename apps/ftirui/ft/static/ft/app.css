@@ -71,6 +71,31 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .user-status .user-secondary{ font-size:.75rem; line-height:1.2; }
 .user-status .user-actions .btn{ white-space:nowrap; }
 
+.header-action-icon{
+  border:none;
+  padding:.2rem .45rem;
+  color:var(--bs-body-color);
+  background:transparent;
+  box-shadow:none;
+}
+.header-action-icon:hover{
+  color:var(--bs-primary);
+}
+.workspace-user-pill{
+  border:none;
+  padding:2rem 2rem;
+  background:color-mix(in srgb, var(--bs-body-bg) 85%, #fff 15%);
+  border-radius:999px;
+  box-shadow:none;
+}
+.workspace-user-pill .user-avatar{
+  width:32px;
+  height:32px;
+}
+.workspace-user-pill i.bi-chevron-down{
+  font-size:.7rem;
+}
+
 /* --------------------------------------------------------------------------
    Dashboard
    -------------------------------------------------------------------------- */
@@ -1491,6 +1516,7 @@ body.dashboard-overlay-open {
   gap:1rem;
   min-height:48px;
   align-items:center;
+  padding-right:.35rem;
 }
 .workspace-hud-meta{
   display:flex;
@@ -1507,9 +1533,10 @@ body.dashboard-overlay-open {
   background:transparent;
   box-shadow:none;
   padding:0;
+  min-width:0;
 }
 .user-status--hud .user-body{
-  gap:.75rem;
+  gap:.35rem;
   align-items:center;
 }
 #user_menu_toggle{

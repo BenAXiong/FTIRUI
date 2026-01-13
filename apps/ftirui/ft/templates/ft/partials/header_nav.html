@@ -52,6 +52,9 @@
         <i class="bi bi-three-dots-vertical"></i>
       </button>
       <div class="dropdown-menu workspace-hud-menu__list" aria-labelledby="header_tools_toggle" data-bs-popper="none">
+        <button class="dropdown-item" type="button">Grid</button>
+        <button class="dropdown-item" type="button">Shortcuts</button>
+        <div class="dropdown-divider"></div>
         <div class="dropdown-item-text">
           <button id="themeToggle"
                   class="btn btn-sm btn-outline-secondary workspace-hud-theme-btn"
@@ -65,15 +68,17 @@
   </div>
 
   <div class="d-flex align-items-center gap-2 ms-auto header-actions">
+    <button class="btn btn-sm header-action-icon" type="button" aria-label="Chat">
+      <i class="bi bi-chat-dots"></i>
+    </button>
+    <button class="btn btn-sm header-action-icon" type="button" aria-label="Share">
+      <i class="bi bi-share"></i>
+    </button>
     <div id="user_status" class="user-status card border-0" role="status" aria-live="polite">
       <div class="user-body d-flex align-items-center gap-3">
-        <div class="user-info text-end text-md-start">
-          <div class="user-primary">Guest</div>
-          <div class="user-secondary text-muted">Not signed in</div>
-        </div>
         <a id="user_sign_in" class="btn btn-primary btn-sm" href="/accounts/login/">Sign in</a>
         <div class="dropdown user-dropdown d-none" data-user-dropdown>
-          <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2" id="user_menu_toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-user-menu-toggle>
+          <button class="btn btn-sm d-flex align-items-center gap-2 workspace-user-pill" id="user_menu_toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-user-menu-toggle>
             <div class="user-avatar placeholder" data-user-avatar>
               <i class="bi bi-person-circle"></i>
             </div>

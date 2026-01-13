@@ -5,9 +5,9 @@ Phase 7 – Pre-polishing pass
     - [x] Left HUD 
         - [x] display project/folder in tooltip only, add min info (creator, date, ...)
         - [x] rework options
-    - [-] Right HUD 
-        - [-] Tighten and move theme icon to left HUD (options dropdown)
-        - [ ] Remove user name, add chat chat & share icons and rework UI
+    - [x] Right HUD 
+        - [x] Tighten and move theme icon to left HUD (options dropdown)
+        - [x] Remove user name, add chat chat & share icons and rework UI
     - [ ] Workspace browser polish (draggable pill, palettes, swatches, tag filtering).
     - [ ] Dashboard polish (explorer layout, pins, canvas thumbnails, list interactions, project metadata).
 
