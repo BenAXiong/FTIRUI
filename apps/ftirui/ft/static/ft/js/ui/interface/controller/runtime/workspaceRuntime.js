@@ -6,7 +6,7 @@
  */
 import { fetchDemoFiles } from '../../../../services/demos.js';
 import { uploadTraceFile } from '../../../../services/uploads.js';
-import { fetchCanvasState, saveCanvasState } from '../../../../services/dashboard.js';
+import { fetchCanvasState, saveCanvasState, saveCanvasThumbnail } from '../../../../services/dashboard.js';
 import { createChipPanels } from '../../chipPanels.js';
 import { createPanelsModel } from '../../../../workspace/canvas/state/panelsModel.js';
 import { applyLineChip } from '../../../utils/styling_linechip.js';
@@ -60,6 +60,7 @@ import { createTechToolbarModebarVisibilityController } from './toolbar/techTool
 import { createTechSelectorController } from './toolbar/techSelectorController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
+import { createCanvasThumbnailController } from './thumbnails/canvasThumbnailController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
 import { findPeaks, buildPeakOverlays, buildPeakTableRows, DEFAULT_PEAK_OPTIONS } from '../../../../workspace/canvas/analysis/peakDetection.js';
 
@@ -414,6 +415,7 @@ let pendingRenameSectionId = null;
 let activePanelId = null;
 let peakMarkingController = null;
 let panelTagController = null;
+let canvasThumbnailController = null;
 let browserFacade = null;
 let browserTabsController = null;
 let browserSearchController = null;
@@ -1670,6 +1672,12 @@ export function initWorkspaceRuntime(context = {}) {
       remoteSyncTimer = null;
     }
   };
+  canvasThumbnailController = createCanvasThumbnailController({
+    canvasWrapper,
+    getActiveCanvasId: () => getActiveCanvasIdFromContext(),
+    canCapture: () => cloudSyncEnabled,
+    saveThumbnail: saveCanvasThumbnail
+  });
   if (typeof document !== 'undefined') {
     if (userStatusHandler) {
       document.removeEventListener('ftir:user-status', userStatusHandler);
@@ -7585,6 +7593,8 @@ const isPanelPinned = (panelId) =>
       techToolbarModebarVisibilityController = null;
       panelLockController?.teardown?.();
       panelLockController = null;
+      canvasThumbnailController?.teardown?.();
+      canvasThumbnailController = null;
       unitsToggleController?.teardown?.();
       unitsToggleController = null;
       multiTraceController?.teardown?.();
@@ -7625,6 +7635,7 @@ const isPanelPinned = (panelId) =>
     },
     onBeforeUnload: () => {
       scheduleCanvasSync({ immediate: true });
+      canvasThumbnailController?.handleBeforeUnload?.();
       persistence?.handleBeforeUnload?.();
     },
     onVisibilityChange: () => {

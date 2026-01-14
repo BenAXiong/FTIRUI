@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import io
+import re
 import tempfile
 from functools import wraps
 from pathlib import Path
@@ -48,6 +51,8 @@ MEDIA_ROOT = Path(settings.MEDIA_ROOT)
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 SESSIONS_DIR = MEDIA_ROOT / "sessions"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+THUMBNAILS_DIR = MEDIA_ROOT / "thumbnails" / "canvases"
+THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
 DEMOS_DIR = BASE_DIR / "ft" / "static" / "ft" / "demos"
 
 # Helper: coerce y to fractional Transmittance [0..1]
@@ -594,6 +599,23 @@ def _json_body(request):
     except json.JSONDecodeError as exc:
         raise ValueError("Invalid JSON body") from exc
 
+_THUMBNAIL_DATA_RE = re.compile(r"^data:(image/(png|jpeg));base64,(.+)$")
+
+
+def _decode_thumbnail_data(data_url: str) -> tuple[bytes, str]:
+    if not data_url or not isinstance(data_url, str):
+        raise ValueError("Thumbnail data is required.")
+    match = _THUMBNAIL_DATA_RE.match(data_url.strip())
+    if not match:
+        raise ValueError("Thumbnail must be a base64 PNG or JPEG data URL.")
+    mime = match.group(1)
+    ext = "png" if mime == "image/png" else "jpg"
+    try:
+        raw = base64.b64decode(match.group(3), validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("Thumbnail data could not be decoded.") from exc
+    return raw, ext
+
 def _isoformat(value):
     if not value:
         return None
@@ -1010,6 +1032,38 @@ def api_dashboard_canvas_state(request, canvas_id):
     canvas.autosave_token = payload.get("autosave_token") or canvas.autosave_token
     canvas.save(update_fields=["state_json", "state_size", "version_label", "thumbnail_url", "autosave_token", "updated_at"])
     return JsonResponse(_serialize_canvas(canvas))
+
+
+@require_http_methods(["POST"])
+@_require_json_auth
+def api_dashboard_canvas_thumbnail(request, canvas_id):
+    user = request.user
+    canvas = _get_canvas_for_user(user, canvas_id)
+    if not canvas:
+        return JsonResponse({"error": "Canvas not found"}, status=404)
+
+    try:
+        payload = _json_body(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    data_url = payload.get("thumbnail") or payload.get("data_url") or payload.get("image")
+    if not data_url:
+        return JsonResponse({"error": "'thumbnail' is required"}, status=400)
+
+    try:
+        raw, ext = _decode_thumbnail_data(data_url)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    filename = f"canvas_{canvas.id}.{ext}"
+    target_path = THUMBNAILS_DIR / filename
+    target_path.write_bytes(raw)
+
+    thumbnail_url = f"{settings.MEDIA_URL}thumbnails/canvases/{filename}"
+    canvas.thumbnail_url = thumbnail_url
+    canvas.save(update_fields=["thumbnail_url"])
+    return JsonResponse({"thumbnail_url": thumbnail_url})
 
 @require_http_methods(["GET", "POST"])
 @_require_json_auth

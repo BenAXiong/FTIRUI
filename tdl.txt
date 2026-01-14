@@ -16,9 +16,9 @@ Phase 7 – Pre-polishing pass
         - [x] bug: edit name behavior
         - [x] list mode: ensure action icons fit and recalculate columns width %
         - [x] list mode: add +x indicator with toottip for extra tags
-        - [-] list mode: add full name tooltip onHover when text ellipsed
-        - [ ] project metadata
-        - [ ] canvas thumbnails
+        - [x] list mode: add full name tooltip onHover when text ellipsed
+        - [x] project metadata
+        - [-] canvas thumbnails (inital full prompt: 30min and 5% weekly quota)
 
 - [ ] Graphs
     - [ ] Axes names and other texts: latex or helper with common units and best suggestions

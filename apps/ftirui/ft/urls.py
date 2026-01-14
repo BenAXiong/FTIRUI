@@ -41,6 +41,7 @@ urlpatterns += [
     path('api/dashboard/projects/<uuid:project_id>/canvases/', views.api_dashboard_project_canvases, name='api_dashboard_project_canvases'),
     path('api/dashboard/canvases/<uuid:canvas_id>/', views.api_dashboard_canvas_detail, name='api_dashboard_canvas_detail'),
     path('api/dashboard/canvases/<uuid:canvas_id>/state/', views.api_dashboard_canvas_state, name='api_dashboard_canvas_state'),
+    path('api/dashboard/canvases/<uuid:canvas_id>/thumbnail/', views.api_dashboard_canvas_thumbnail, name='api_dashboard_canvas_thumbnail'),
     path('api/dashboard/canvases/<uuid:canvas_id>/versions/', views.api_dashboard_canvas_versions, name='api_dashboard_canvas_versions'),
     path('api/dashboard/canvases/<uuid:canvas_id>/versions/<uuid:version_id>/', views.api_dashboard_canvas_version_detail, name='api_dashboard_canvas_version_detail'),
 ]

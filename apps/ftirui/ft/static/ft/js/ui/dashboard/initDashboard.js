@@ -187,6 +187,20 @@ export function initDashboard() {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
 
+  const appendCacheToken = (url, token) => {
+    if (!url) return '';
+    if (!token) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${encodeURIComponent(token)}`;
+  };
+
+  const resolveThumbnailStyle = (canvas) => {
+    const url = canvas?.thumbnailUrl || '';
+    if (!url) return '';
+    const cacheBusted = appendCacheToken(url, canvas.updated || '');
+    return ` style="background-image:url('${escapeAttribute(cacheBusted)}')"`;
+  };
+
   const normalizeId = (value) => (value === null || value === undefined ? '' : String(value));
   const idsMatch = (left, right) => normalizeId(left) === normalizeId(right);
 
@@ -1464,18 +1478,18 @@ const clearProjectDropIndicators = () => {
         '<p class="text-muted small mb-0">No recent canvases yet.</p>';
       return;
     }
-    state.latestCanvases.forEach((canvas) => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'latest-card';
-      card.dataset.canvas = canvas.id;
-      card.innerHTML = `
-        <div class="latest-card-thumb" aria-hidden="true"></div>
-        <div class="latest-card-title">${escapeHtml(canvas.title)}</div>
-        <div class="latest-card-time">${formatRelative(canvas.updated)}</div>
-        <div class="latest-card-meta">
-          ${escapeHtml(canvas.projectTitle)} &bull; ${escapeHtml(canvas.folderName)}
-        </div>
+      state.latestCanvases.forEach((canvas) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'latest-card';
+        card.dataset.canvas = canvas.id;
+        card.innerHTML = `
+          <div class="latest-card-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}></div>
+          <div class="latest-card-title">${escapeHtml(canvas.title)}</div>
+          <div class="latest-card-time">${formatRelative(canvas.updated)}</div>
+          <div class="latest-card-meta">
+            ${escapeHtml(canvas.projectTitle)} &bull; ${escapeHtml(canvas.folderName)}
+          </div>
       `;
       card.addEventListener('click', () => navigateToCanvas(canvas.id));
       latestContainer.appendChild(card);
@@ -1490,16 +1504,17 @@ const clearProjectDropIndicators = () => {
           rows.push({
             id: canvas.id,
             title: canvas.title || 'Untitled canvas',
-            projectTitle: section.name || 'Untitled project',
-            folderName: project.title || 'Untitled folder',
-            updated: canvas.updated,
-            owner: canvas.owner || 'You',
-            tags: canvas.tags || [],
-            type: canvas.type || '',
-            isFavorite: Boolean(canvas.is_favorite)
+              projectTitle: section.name || 'Untitled project',
+              folderName: project.title || 'Untitled folder',
+              updated: canvas.updated,
+              owner: canvas.owner || 'You',
+              tags: canvas.tags || [],
+              type: canvas.type || '',
+              isFavorite: Boolean(canvas.is_favorite),
+              thumbnailUrl: canvas.thumbnail_url || ''
+            });
           });
         });
-      });
     });
     return rows;
   };
@@ -1900,13 +1915,13 @@ const clearProjectDropIndicators = () => {
             </button>
           `;
         return `
-          <tr>
-            <td class="cell-name">
-              <div class="cell-name-content">
-                <span class="dashboard-list-thumb" aria-hidden="true"></span>
-                ${titleCell}
-              </div>
-            </td>
+            <tr>
+              <td class="cell-name">
+                <div class="cell-name-content">
+                  <span class="dashboard-list-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}></span>
+                  ${titleCell}
+                </div>
+              </td>
             <td class="cell-tags">
               <div class="cell-tags-content">
                 <div class="dashboard-tags-list">${renderTagList(canvas.tags)}</div>
@@ -2027,11 +2042,11 @@ const clearProjectDropIndicators = () => {
             </div>
           `
           : `<div class="dashboard-gallery-title">${escapeHtml(canvas.title)}</div>`;
-        return `
-          <article class="dashboard-gallery-card">
-            <div class="dashboard-gallery-thumb" aria-hidden="true"></div>
-            ${titleBlock}
-            <div class="dashboard-gallery-meta">${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}</div>
+          return `
+            <article class="dashboard-gallery-card">
+              <div class="dashboard-gallery-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}></div>
+              ${titleBlock}
+              <div class="dashboard-gallery-meta">${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}</div>
             <div class="table-actions">
               <div class="table-action-buttons">
                 <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="gallery" data-canvas="${canvas.id}" title="Duplicate canvas">

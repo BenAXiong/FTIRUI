@@ -86,6 +86,34 @@ export async function saveCanvasState(canvasId, payload) {
   return request(`/api/dashboard/canvases/${canvasId}/state/`, { method: 'PUT', body: payload });
 }
 
+export async function saveCanvasThumbnail(canvasId, payload, { keepalive = false } = {}) {
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.set('X-CSRFToken', getCsrfToken() || '');
+
+  const resp = await fetch(`/api/dashboard/canvases/${canvasId}/thumbnail/`, {
+    method: 'POST',
+    headers,
+    credentials: 'same-origin',
+    body: payload ? JSON.stringify(payload) : undefined,
+    keepalive: !!keepalive
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    let detail = text;
+    try {
+      const parsed = JSON.parse(text);
+      detail = parsed?.error || parsed?.message || text;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail || `HTTP ${resp.status}`);
+  }
+
+  return resp.json();
+}
+
 export async function listCanvasVersions(canvasId) {
   return request(`/api/dashboard/canvases/${canvasId}/versions/`);
 }
