@@ -2962,6 +2962,50 @@ const clearProjectDropIndicators = () => {
     tagOverflowTooltip.scheduleHide();
   };
 
+  const ellipsisSelectors = [
+    '.dashboard-list-name-title',
+    '.cell-project',
+    '.cell-folder',
+    '.dashboard-gallery-title',
+    '.sidebar-project-link',
+    '.sidebar-folder-label',
+    '.sidebar-folder-link'
+  ];
+
+  const resolveEllipsisTarget = (event) => {
+    if (!event?.target || !ellipsisSelectors.length) return null;
+    const selector = ellipsisSelectors.join(', ');
+    return resolveClosest(event, selector);
+  };
+
+  const updateEllipsisTooltip = (node) => {
+    if (!node || typeof node.scrollWidth !== 'number') return;
+    const text = node.textContent?.trim();
+    if (!text) return;
+    const isEllipsed = node.scrollWidth > (node.clientWidth + 1);
+    if (isEllipsed) {
+      if (!node.dataset.ellipsisOriginalTitle && node.hasAttribute('title')) {
+        node.dataset.ellipsisOriginalTitle = node.getAttribute('title') || '';
+      }
+      node.setAttribute('title', text);
+      node.dataset.ellipsisTitle = text;
+    } else if (node.dataset.ellipsisTitle) {
+      if (node.dataset.ellipsisOriginalTitle) {
+        node.setAttribute('title', node.dataset.ellipsisOriginalTitle);
+      } else {
+        node.removeAttribute('title');
+      }
+      delete node.dataset.ellipsisTitle;
+      delete node.dataset.ellipsisOriginalTitle;
+    }
+  };
+
+  const handleEllipsisEnter = (event) => {
+    const target = resolveEllipsisTarget(event);
+    if (!target) return;
+    updateEllipsisTooltip(target);
+  };
+
   sidebarTree?.addEventListener('keydown', handleInlineKeydown);
   sidebarTree?.addEventListener('focusout', handleInlineBlur, true);
   sidebarTree?.addEventListener('dragstart', handleFolderDragStart);
@@ -2978,6 +3022,8 @@ const clearProjectDropIndicators = () => {
   root.addEventListener('focusout', handleInlineBlur, true);
   root.addEventListener('pointerenter', handleTagMoreEnter, true);
   root.addEventListener('pointerleave', handleTagMoreLeave, true);
+  root.addEventListener('pointerenter', handleEllipsisEnter, true);
+  root.addEventListener('focusin', handleEllipsisEnter, true);
   titleLabel?.addEventListener('dblclick', handleTitleDoubleClick);
 
   document.addEventListener('click', (event) => {
