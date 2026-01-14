@@ -1361,8 +1361,13 @@ const clearProjectDropIndicators = () => {
     const sectionId = input.dataset.inlineProject;
     const folderId = input.dataset.inlineFolder;
     const canvasId = input.dataset.inlineCanvas;
+    const canvasContext = input.dataset.inlineContext || 'sidebar';
     clearInlineEditing();
-    renderSidebar();
+    if (canvasId && canvasContext !== 'sidebar') {
+      render();
+    } else {
+      renderSidebar();
+    }
     if (cancel) return;
     if (sectionId) {
       void handleRenameProject(sectionId, value);

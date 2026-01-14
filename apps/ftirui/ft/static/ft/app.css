@@ -954,19 +954,19 @@ body.dashboard-overlay-open {
 }
 .dashboard-table thead th.col-name,
 .dashboard-table tbody td.cell-name {
-  width: 30%;
+  width: 32%;
 }
 .dashboard-table thead th.col-tags,
 .dashboard-table tbody td.cell-tags {
-  width: 24%;
+  width: 16%;
 }
 .dashboard-table thead th.col-project,
 .dashboard-table tbody td.cell-project {
-  width: 22%;
+  width: 16%;
 }
 .dashboard-table thead th.col-folder,
 .dashboard-table tbody td.cell-folder {
-  width: 18%;
+  width: 12%;
 }
 .dashboard-table thead th.col-owner,
 .dashboard-table tbody td.cell-owner {
@@ -974,11 +974,10 @@ body.dashboard-overlay-open {
 }
 .dashboard-table thead th.col-actions,
 .dashboard-table tbody td.table-actions {
-  width: 10%;
+  width: 16%;
 }
 .dashboard-table tbody td.cell-tags {
   vertical-align: middle;
-  min-width: 160px;
 }
 .cell-tags-content {
   display: flex;

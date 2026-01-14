@@ -8,15 +8,15 @@ Phase 7 – Pre-polishing pass
     - [x] Right HUD 
         - [x] Tighten and move theme icon to left HUD (options dropdown)
         - [x] Remove user name, add chat chat & share icons and rework UI
-    - [-] Workspace browser polish
+    - [x] Workspace browser polish
         - [x] tag filtering (first sync with canvas...)
         - [x] simplify tree: fewer outlines, onClick collapse, icons onHover, hidden icons...
-        - [-] palettes
-        - [ ] swatches
-    - [ ] Dashboard polish
-        - [ ] explorer layout
-        - [ ] pins
-        - [ ] list interactions
+        - [x] palettes
+    - [-] Dashboard polish
+        - [x] bug: edit name behavior
+        - [-] list mode: narrower column (small screens)
+        - [-] list mode: add +x indicator with toottip for extra tags
+        - [ ] list mode: add full name tooltip onHover when text ellipsed
         - [ ] project metadata
         - [ ] canvas thumbnails
 
@@ -24,9 +24,11 @@ Phase 7 – Pre-polishing pass
     - [ ] Axes names and other texts: latex or helper with common units and best suggestions
     - [ ] More subtle hb highlights
     - [ ] FT-IR markers: add links lines...
-    - [ ] Conversion from .opju
     - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
     - [ ] ? Add tech ECD
+    - [ ] .opju
+        - [ ] Import and conversionfor single traces
+        - [ ] Import folders and keep structure
 
 - [ ] Toolbars
     - [ ] Sync tb2 s2 to graph type

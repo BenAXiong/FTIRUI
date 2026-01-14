@@ -81,3 +81,18 @@ To avoid desyncs between Plotly state and persisted workspace state:
 - Keep temporary UI state out of Plotly layout; store it in controllers and only persist durable intent in `layout.meta`.
 - When modifying traces, preserve `meta` fields that other features depend on (e.g., `workspace*` keys).
 - Render is authoritative; if a feature needs to reapply interaction state after a render, do it explicitly.
+
+## Theme + Trace Palette Behavior
+
+Trace colors are driven by the active workspace theme, with a fallback to payload-provided colors:
+
+- **Default palette:** `TRACE_PALETTE_ROWS` in `workspaceRuntime.js` defines the base palette rows. `TRACE_PALETTE_DEFAULT` is the flat list used when no theme palette is configured.
+- **Active palette:** the theme menu ("Trace palette" in TB1 theme dropdown) updates `theme.tracePalette` and sets the runtime `activeTracePalette`. Theme changes can reapply the palette to existing traces.
+- **Auto color assignment:** when importing/creating traces, `createTraceFromPayload` uses `payload.color` / `payload.line.color` if present; otherwise it assigns the next palette color and stores `meta.autoColorIndex` on the trace.
+- **Manual overrides:** if a trace color is changed manually, `meta.manualColor` is set so palette reapply does not overwrite it.
+- **Palette reapply logic:** `applyTracePaletteToFigure` uses `meta.autoColorIndex` when present; if a trace already has a conflicting color, it marks it as manual to prevent future overwrites.
+- **Chip palette UI is separate:** the color palettes shown in the trace styling chip panel are a local UI convenience and do **not** update the global theme palette or affect auto-assigned colors for new traces.
+
+Primary references:
+- `workspaceRuntime.js` (`TRACE_PALETTE_ROWS`, `setActiveTracePalette`, `applyTracePaletteToFigure`, theme menu wiring)
+- `panels/facade.js` (`createTraceFromPayload`)
