@@ -2654,12 +2654,82 @@ const clearProjectDropIndicators = () => {
   const handleSectionDetails = (sectionId) => {
     const section = state.sections.find((item) => idsMatch(item.id, sectionId));
     if (!section) return;
-    const folderCount = section.projects?.length || 0;
-    window.showAppToast?.({
-      title: section.name || 'Project details',
-      message: `${folderCount} folder${folderCount === 1 ? '' : 's'} in this project.`,
-      variant: 'primary'
+    const projects = Array.isArray(section.projects) ? section.projects : [];
+    const folderCount = projects.length;
+    const canvasCount = projects.reduce((sum, project) => (
+      sum + (Array.isArray(project?.canvases) ? project.canvases.length : 0)
+    ), 0);
+    const favoritesCount = projects.reduce((sum, project) => (
+      sum + (project?.canvases || []).filter((canvas) => canvas?.is_favorite).length
+    ), 0);
+    const created = section.created || section.created_at || null;
+    const updated =
+      section.updated
+      || section.updated_at
+      || projects.flatMap((project) => project?.canvases || [])
+        .reduce((latest, canvas) => {
+          const stamp = canvas?.updated;
+          if (!stamp) return latest;
+          if (!latest) return stamp;
+          return new Date(stamp) > new Date(latest) ? stamp : latest;
+        }, null);
+    const owner =
+      section.owner
+      || section.owner_name
+      || section.created_by
+      || section.user
+      || '—';
+    const detailRows = [
+      ['Project', section.name || DEFAULT_SECTION_NAME],
+      ['Project ID', section.id ?? '—'],
+      ['Owner', owner],
+      ['Created', created ? formatFullTimestamp(created) : '—'],
+      ['Updated', updated ? formatFullTimestamp(updated) : '—'],
+      ['Pinned', section.is_pinned ? 'Yes' : 'No'],
+      ['Folders', String(folderCount)],
+      ['Canvases', String(canvasCount)],
+      ['Favorites', String(favoritesCount)]
+    ];
+    const detailsHtml = detailRows
+      .map(([label, value]) => `
+        <div class="dashboard-details-row">
+          <div class="dashboard-details-label">${escapeHtml(label)}</div>
+          <div class="dashboard-details-value">${escapeHtml(value)}</div>
+        </div>
+      `)
+      .join('');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div class="dashboard-details">
+        <div class="dashboard-details-list">
+          ${detailsHtml}
+        </div>
+      </div>
+    `;
+    const dialog = window.showAppDialog?.({
+      title: 'Project details',
+      body: wrapper,
+      dismissible: true
     });
+    if (dialog && typeof dialog.show === 'function') {
+      dialog.show();
+    } else {
+      const backdrop = document.createElement('div');
+      const panel = document.createElement('div');
+      backdrop.className = 'tag-picker-backdrop';
+      panel.className = 'tag-picker-panel';
+      panel.appendChild(wrapper);
+      backdrop.appendChild(panel);
+      document.body.appendChild(backdrop);
+      backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) {
+          backdrop.classList.remove('is-visible');
+          panel.remove();
+          backdrop.remove();
+        }
+      });
+      requestAnimationFrame?.(() => backdrop.classList.add('is-visible'));
+    }
   };
 
   const moveCanvasToFolder = async (canvasId, targetFolderId, options = {}) => {

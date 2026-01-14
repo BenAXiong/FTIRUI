@@ -1125,6 +1125,33 @@ body.dashboard-overlay-open {
   max-width: 420px;
   width: min(420px, calc(100% - 2rem));
 }
+.dashboard-details {
+  min-width: 280px;
+}
+.dashboard-details-list {
+  display: grid;
+  gap: .5rem;
+}
+.dashboard-details-row {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  align-items: center;
+}
+.dashboard-details-label {
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.dashboard-details-value {
+  font-weight: 600;
+  text-align: right;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .dashboard-tag {
   border-radius: 999px;
   padding: .1rem .45rem;
