@@ -1555,15 +1555,100 @@ const clearProjectDropIndicators = () => {
 
   const renderTagList = (tags) => {
     if (!Array.isArray(tags) || !tags.length) {
-      return '<span class="dashboard-tag is-empty">—</span>';
+      return '<span class="dashboard-tag is-empty">-</span>';
     }
-    return tags
+    const visibleTags = tags.slice(0, 2);
+    const remaining = tags.length - visibleTags.length;
+    const rendered = visibleTags
       .map((tag) => {
         const color = getTagColor(tag);
         return `<span class="dashboard-tag" style="background:${color};color:#fff;">${escapeHtml(tag)}</span>`;
-      })
-      .join('');
+      });
+    if (remaining > 0) {
+      const extraTags = tags.slice(2);
+      const extraPayload = escapeAttribute(JSON.stringify(extraTags));
+      rendered.push(
+        `<span class="dashboard-tag dashboard-tag-more" data-extra-tags="${extraPayload}">+ ${remaining}</span>`
+      );
+    }
+    return rendered.join('');
   };
+
+  const tagOverflowTooltip = (() => {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'dashboard-tag-tooltip';
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.innerHTML = '<div class="dashboard-tag-tooltip-list"></div>';
+    document.body.appendChild(tooltip);
+    const list = tooltip.querySelector('.dashboard-tag-tooltip-list');
+    let activeAnchor = null;
+    let hideTimer = null;
+
+    const clearHideTimer = () => {
+      if (hideTimer) {
+        window.clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+    };
+
+    const hide = () => {
+      clearHideTimer();
+      tooltip.classList.remove('is-visible');
+      tooltip.style.left = '-9999px';
+      tooltip.style.top = '-9999px';
+      activeAnchor = null;
+    };
+
+    const scheduleHide = () => {
+      clearHideTimer();
+      hideTimer = window.setTimeout(hide, 120);
+    };
+
+    const position = (anchor) => {
+      const rect = anchor.getBoundingClientRect();
+      const gap = 8;
+      const vp = {
+        w: document.documentElement.clientWidth,
+        h: document.documentElement.clientHeight
+      };
+      const tipRect = tooltip.getBoundingClientRect();
+      let left = rect.left;
+      if (left + tipRect.width > vp.w - gap) {
+        left = Math.max(gap, vp.w - tipRect.width - gap);
+      }
+      let top = rect.bottom + gap;
+      if (top + tipRect.height > vp.h - gap) {
+        top = Math.max(gap, rect.top - tipRect.height - gap);
+      }
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    };
+
+    const show = (anchor, tags = []) => {
+      if (!anchor || !list) return;
+      clearHideTimer();
+      activeAnchor = anchor;
+      list.innerHTML = tags
+        .map((tag) => {
+          const color = getTagColor(tag);
+          return `<span class="dashboard-tag" style="background:${color};color:#fff;">${escapeHtml(tag)}</span>`;
+        })
+        .join('');
+      tooltip.classList.add('is-visible');
+      position(anchor);
+    };
+
+    tooltip.addEventListener('pointerenter', clearHideTimer);
+    tooltip.addEventListener('pointerleave', scheduleHide);
+    window.addEventListener('scroll', () => {
+      if (activeAnchor) position(activeAnchor);
+    }, true);
+    window.addEventListener('resize', () => {
+      if (activeAnchor) position(activeAnchor);
+    });
+
+    return { show, hide, scheduleHide };
+  })();
 
   const promptCanvasTags = async (canvasId) => {
     const owner = findCanvasOwner(canvasId);
@@ -2851,6 +2936,32 @@ const clearProjectDropIndicators = () => {
     finalizeInlineEdit(input);
   };
 
+  const parseExtraTags = (node) => {
+    if (!node) return null;
+    const raw = node.dataset.extraTags;
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleTagMoreEnter = (event) => {
+    const target = resolveClosest(event, '.dashboard-tag-more');
+    if (!target) return;
+    const tags = parseExtraTags(target);
+    if (!tags || !tags.length) return;
+    tagOverflowTooltip.show(target, tags);
+  };
+
+  const handleTagMoreLeave = (event) => {
+    const target = resolveClosest(event, '.dashboard-tag-more');
+    if (!target) return;
+    tagOverflowTooltip.scheduleHide();
+  };
+
   sidebarTree?.addEventListener('keydown', handleInlineKeydown);
   sidebarTree?.addEventListener('focusout', handleInlineBlur, true);
   sidebarTree?.addEventListener('dragstart', handleFolderDragStart);
@@ -2865,6 +2976,8 @@ const clearProjectDropIndicators = () => {
   sidebarTree?.addEventListener('drop', handleFolderTargetDrop);
   root.addEventListener('keydown', handleInlineKeydown, true);
   root.addEventListener('focusout', handleInlineBlur, true);
+  root.addEventListener('pointerenter', handleTagMoreEnter, true);
+  root.addEventListener('pointerleave', handleTagMoreLeave, true);
   titleLabel?.addEventListener('dblclick', handleTitleDoubleClick);
 
   document.addEventListener('click', (event) => {

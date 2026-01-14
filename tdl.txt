@@ -14,7 +14,7 @@ Phase 7 – Pre-polishing pass
         - [x] palettes
     - [-] Dashboard polish
         - [x] bug: edit name behavior
-        - [-] list mode: narrower column (small screens)
+        - [x] list mode: ensure action icons fit and recalculate columns width %
         - [-] list mode: add +x indicator with toottip for extra tags
         - [ ] list mode: add full name tooltip onHover when text ellipsed
         - [ ] project metadata

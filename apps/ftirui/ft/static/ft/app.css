@@ -1132,6 +1132,34 @@ body.dashboard-overlay-open {
   font-weight: 600;
   text-transform: uppercase;
 }
+.dashboard-tag-more{
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+}
+
+.dashboard-tag-tooltip{
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: .6rem;
+  padding: .4rem .5rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .18);
+  z-index: 2100;
+  display: none;
+}
+
+.dashboard-tag-tooltip.is-visible{
+  display: block;
+}
+
+.dashboard-tag-tooltip-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+  max-width: 220px;
+}
 .dashboard-tag.is-empty {
   font-weight: 400;
   text-transform: none;
