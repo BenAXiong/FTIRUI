@@ -268,6 +268,7 @@ export function createPanelDomFacade({
         let contentHandles = null;
         let markdownPreviewToggleBtn = null;
         let markdownPreviewToggleIcon = null;
+        let plotHost = null;
         const buildMarkdownPreviewIcon = () => {
           const icon = document.createElement('span');
           icon.className = 'workspace-markdown-preview-toggle-icon';
@@ -529,12 +530,24 @@ export function createPanelDomFacade({
           return { majorOn, minorOn };
         };
 
+        const setActionButtonState = (button, isOn) => {
+          if (!button) return;
+          const next = Boolean(isOn);
+          button.classList.toggle('is-active', next);
+          button.setAttribute('aria-pressed', String(next));
+        };
+
         const axesBtn = document.createElement('button');
         axesBtn.type = 'button';
         axesBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
         axesBtn.innerHTML = '<i class="bi bi-diagram-3"></i>';
         axesBtn.title = 'Axes options';
         axesBtn.setAttribute('aria-expanded', 'false');
+        axesBtn.setAttribute('aria-pressed', 'false');
+        {
+          const { top, bottom, left, right } = readAxisSides();
+          setActionButtonState(axesBtn, top && bottom && left && right);
+        }
 
         const axesPopover = document.createElement('div');
         axesPopover.className = 'workspace-panel-popover workspace-panel-popover-axes';
@@ -652,6 +665,8 @@ export function createPanelDomFacade({
               btn.setAttribute('aria-pressed', String(isActive));
             });
           }
+
+          setActionButtonState(axesBtn, top && bottom && left && right);
         };
 
         axesPopover.addEventListener('input', (e) => {
@@ -748,6 +763,7 @@ export function createPanelDomFacade({
                 left: isOn('left'),
                 right: isOn('right')
               });
+              setActionButtonState(axesBtn, ['top', 'bottom', 'left', 'right'].every((side) => isOn(side)));
               e.stopPropagation();
               return;
             }
@@ -764,6 +780,7 @@ export function createPanelDomFacade({
                 left: isOn('left'),
                 right: isOn('right')
               });
+              setActionButtonState(axesBtn, ['top', 'bottom', 'left', 'right'].every((side) => isOn(side)));
               e.stopPropagation();
               return;
             }
@@ -794,6 +811,7 @@ export function createPanelDomFacade({
             ? { top: false, bottom: true, left: true, right: false }
             : { top: true, bottom: true, left: true, right: true };
           safeHandleHeaderAction(panelId, 'axes-side', next);
+          setActionButtonState(axesBtn, !allOn);
         });
         appendPopoverControl(axesBtn, axesPopover, { openOnHover: true, suppressClickToggle: true });
 
@@ -803,6 +821,11 @@ export function createPanelDomFacade({
         axisLabelsBtn.innerHTML = '<i class="bi bi-type"></i>';
         axisLabelsBtn.title = 'Axis labels';
         axisLabelsBtn.setAttribute('aria-expanded', 'false');
+        axisLabelsBtn.setAttribute('aria-pressed', 'false');
+        {
+          const { labelsOn } = readAxisLabelState();
+          setActionButtonState(axisLabelsBtn, labelsOn);
+        }
 
         const axisLabelsPopover = document.createElement('div');
         axisLabelsPopover.className = 'workspace-panel-popover workspace-panel-popover-axis-labels';
@@ -860,6 +883,7 @@ export function createPanelDomFacade({
               btn.setAttribute('aria-pressed', String(isShow === labelsOn));
             });
           }
+          setActionButtonState(axisLabelsBtn, labelsOn);
 
           const fontSelect = axisLabelsPopover.querySelector('[data-font-family]');
           if (fontSelect) {
@@ -928,6 +952,7 @@ export function createPanelDomFacade({
               el.setAttribute('aria-pressed', String(active));
             });
             safeHandleHeaderAction(panelId, 'axis-title-style', { toggleLabels: show });
+            setActionButtonState(axisLabelsBtn, show);
             e.stopPropagation();
             return;
           }
@@ -975,13 +1000,16 @@ export function createPanelDomFacade({
         axisLabelsBtn.addEventListener('click', (event) => {
           event.stopPropagation();
           const { labelsOn } = readAxisLabelState();
-          safeHandleHeaderAction(panelId, 'axis-title-style', { toggleLabels: !labelsOn });
+          const next = !labelsOn;
+          safeHandleHeaderAction(panelId, 'axis-title-style', { toggleLabels: next });
+          setActionButtonState(axisLabelsBtn, next);
         });
         appendPopoverControl(axisLabelsBtn, axisLabelsPopover, { openOnHover: true, suppressClickToggle: true });
 
           // === Major Grid (header toggle) ==============================================
           const currentLayout = safeGetPanelFigure(panelId).layout || {};
           const isMajorGridOn = Boolean(currentLayout?.xaxis?.showgrid || currentLayout?.yaxis?.showgrid);
+          const isMinorGridOn = Boolean(currentLayout?.xaxis?.minor?.showgrid || currentLayout?.yaxis?.minor?.showgrid);
 
           // === Grid options (major + minor) ===========================================
         const gridBtn = document.createElement('button');
@@ -995,8 +1023,7 @@ export function createPanelDomFacade({
         `;
           gridBtn.title = 'Grid options';
           gridBtn.setAttribute('aria-expanded', 'false');
-          gridBtn.setAttribute('aria-pressed', String(isMajorGridOn));
-          gridBtn.classList.toggle('is-active', isMajorGridOn);
+          setActionButtonState(gridBtn, isMajorGridOn || isMinorGridOn);
 
           const gridPopover = document.createElement('div');
           gridPopover.className = 'workspace-panel-popover';
@@ -1056,7 +1083,7 @@ export function createPanelDomFacade({
               if (readout) readout.textContent = `${Math.max(1, Math.min(6, width))}px`;
             }
             gridBtn.setAttribute('aria-pressed', String(majorOn));
-            gridBtn.classList.toggle('is-active', majorOn);
+            setActionButtonState(gridBtn, majorOn || isMinorOn);
 
             const isMinorOn = !!(L?.xaxis?.minor?.showgrid || L?.yaxis?.minor?.showgrid);
             const minorToggle = gridPopover.querySelector('[data-role="minor-toggle"]');
@@ -1090,8 +1117,8 @@ export function createPanelDomFacade({
                 b.classList.toggle('is-active', b === t);
               });
               safeHandleHeaderAction(panelId, 'grid-major', { on });
-              gridBtn.setAttribute('aria-pressed', String(on));
-              gridBtn.classList.toggle('is-active', on);
+              const { minorOn } = readGridState();
+              setActionButtonState(gridBtn, on || minorOn);
               e.stopPropagation();
               return;
             }
@@ -1103,6 +1130,8 @@ export function createPanelDomFacade({
                 b.classList.toggle('is-active', b === t)
               );
               safeHandleHeaderAction(panelId, 'grid-minor', { on });
+              const { majorOn } = readGridState();
+              setActionButtonState(gridBtn, majorOn || on);
               e.stopPropagation();
               return;
             }
@@ -1135,8 +1164,7 @@ export function createPanelDomFacade({
             const nextOn = !(majorOn || minorOn);
             safeHandleHeaderAction(panelId, 'grid-major', { on: nextOn });
             safeHandleHeaderAction(panelId, 'grid-minor', { on: nextOn });
-            gridBtn.setAttribute('aria-pressed', String(nextOn));
-            gridBtn.classList.toggle('is-active', nextOn);
+            setActionButtonState(gridBtn, nextOn);
           });
           appendPopoverControl(gridBtn, gridPopover, { openOnHover: true, suppressClickToggle: true });
           const ticksBtn = document.createElement('button');
@@ -2563,7 +2591,7 @@ export function createPanelDomFacade({
         const body = document.createElement('div');
         body.className = 'workspace-panel-body';
 
-        const plotHost = document.createElement('div');
+        plotHost = document.createElement('div');
         plotHost.className = 'workspace-panel-plot';
         body.appendChild(plotHost);
         panelEl.appendChild(header);
