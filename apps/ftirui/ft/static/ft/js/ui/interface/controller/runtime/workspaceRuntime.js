@@ -1645,6 +1645,7 @@ export function initWorkspaceRuntime(context = {}) {
   const packageBackupBtn = document.getElementById('c_canvas_package_backup');
   const packageItemsBtn = document.getElementById('c_canvas_package_items');
   const demoBtn = roots.demoButton ?? document.getElementById('c_canvas_demo_btn');
+  const backBtn = document.querySelector('.workspace-back-btn');
   const snapshotSaveBtn = document.getElementById('c_canvas_snapshot_save');
   const snapshotManageBtn = document.getElementById('c_canvas_snapshot_manage');
   const snapshotModalEl = document.getElementById('c_canvas_snapshot_modal');
@@ -1678,6 +1679,7 @@ export function initWorkspaceRuntime(context = {}) {
     canCapture: () => cloudSyncEnabled,
     saveThumbnail: saveCanvasThumbnail
   });
+  canvasThumbnailController?.attachBackButton?.(backBtn);
   if (typeof document !== 'undefined') {
     if (userStatusHandler) {
       document.removeEventListener('ftir:user-status', userStatusHandler);

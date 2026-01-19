@@ -1,5 +1,5 @@
 const DEFAULT_MAX_WIDTH = 360;
-const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 8000;
+const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 300000;
 const DATA_URL_PREFIX = 'data:image/';
 const ERROR_STORAGE_KEY = 'ftir.thumb.lastError';
 const isDebug = () => typeof window !== 'undefined' && window.__FTIR_THUMB_DEBUG === true;
@@ -187,6 +187,9 @@ export function createCanvasThumbnailController({
   let inFlight = false;
   let captureTimer = null;
   let disposed = false;
+  let isDirty = false;
+  let backButton = null;
+  let backButtonHandler = null;
 
   const resolveTarget = () => {
     if (canvasWrapper) return canvasWrapper;
@@ -207,6 +210,10 @@ export function createCanvasThumbnailController({
   const capture = async ({ keepalive = false } = {}) => {
     if (inFlight || disposed) {
       debugLog('skip: inFlight/disposed', { inFlight, disposed });
+      return;
+    }
+    if (!isDirty) {
+      debugLog('skip: no changes');
       return;
     }
     if (!shouldCapture()) {
@@ -260,6 +267,7 @@ export function createCanvasThumbnailController({
       }
       debugLog('capture:uploading');
       await saveThumbnail(canvasId, { thumbnail: dataUrl }, { keepalive });
+      isDirty = false;
       clearError();
       debugLog('capture:saved');
     } catch (error) {
@@ -275,6 +283,7 @@ export function createCanvasThumbnailController({
 
   const scheduleAutosaveCapture = () => {
     if (disposed) return;
+    isDirty = true;
     if (captureTimer) clearTimeout(captureTimer);
     debugLog('autosave:scheduled', { delayMs: autosaveDebounceMs });
     captureTimer = setTimeout(() => {
@@ -283,15 +292,50 @@ export function createCanvasThumbnailController({
     }, autosaveDebounceMs);
   };
 
+  const attachBackButton = (button) => {
+    if (!button || typeof button.addEventListener !== 'function') return;
+    if (backButton && backButtonHandler) {
+      backButton.removeEventListener('click', backButtonHandler);
+    }
+    backButton = button;
+    backButtonHandler = (event) => {
+      if (!event || event.defaultPrevented) return;
+      if (event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const href = backButton?.getAttribute?.('href');
+      if (!href) return;
+      debugLog('back:click', { href });
+      event.preventDefault();
+      event.stopPropagation();
+      const navigate = () => window.location.assign(href);
+      if (!isDirty) {
+        navigate();
+        return;
+      }
+      capture()
+        .catch(() => {})
+        .finally(() => {
+          navigate();
+        });
+    };
+    backButton.addEventListener('click', backButtonHandler);
+  };
+
   return {
     captureNow: (options) => capture(options),
     handleAutosave: () => scheduleAutosaveCapture(),
+    attachBackButton,
     teardown() {
       disposed = true;
       if (captureTimer) {
         clearTimeout(captureTimer);
         captureTimer = null;
       }
+      if (backButton && backButtonHandler) {
+        backButton.removeEventListener('click', backButtonHandler);
+      }
+      backButton = null;
+      backButtonHandler = null;
     }
   };
 }
