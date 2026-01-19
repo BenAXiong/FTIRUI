@@ -137,3 +137,23 @@ Phase 6 – Workflow refinements
         - [x] Documentation
     - [x] Rethink dashboard top band scope.
 
+Phase 7 – Pre-polishing pass
+- [x] Phase 7_1 - UI
+    - [x] Left HUD 
+        - [x] display project/folder in tooltip only, add min info (creator, date, ...)
+        - [x] rework options
+    - [x] Right HUD 
+        - [x] Tighten and move theme icon to left HUD (options dropdown)
+        - [x] Remove user name, add chat chat & share icons and rework UI
+    - [x] Workspace browser polish
+        - [x] tag filtering (first sync with canvas...)
+        - [x] simplify tree: fewer outlines, onClick collapse, icons onHover, hidden icons...
+        - [x] palettes
+    - [x] Dashboard polish
+        - [x] bug: edit name behavior
+        - [x] list mode: ensure action icons fit and recalculate columns width %
+        - [x] list mode: add +x indicator with toottip for extra tags
+        - [x] list mode: add full name tooltip onHover when text ellipsed
+        - [x] project metadata
+        - [x] canvas thumbnails (inital full prompt: 30min and 5% weekly quota, then 3h debug)
+
