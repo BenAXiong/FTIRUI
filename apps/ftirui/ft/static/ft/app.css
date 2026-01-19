@@ -2810,6 +2810,15 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 .workspace-panel-action-item{
   display: inline-flex;
 }
+.workspace-panel-action-divider{
+  width: 1px;
+  height: 1.15rem;
+  background: color-mix(in oklab, var(--bs-border-color) 70%, transparent);
+  border-radius: 999px;
+  opacity: .7;
+  pointer-events: none;
+  flex-shrink: 0;
+}
 .workspace-panel-actions-toggle i{
   font-size: .95rem;
 }

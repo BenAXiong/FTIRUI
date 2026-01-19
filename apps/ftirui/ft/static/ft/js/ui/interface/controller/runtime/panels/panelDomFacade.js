@@ -1467,6 +1467,11 @@ export function createPanelDomFacade({
         `;
         appendPopoverControl(legendBtn, legendPopover, { openOnHover: true, suppressClickToggle: true });
 
+        const legendDivider = document.createElement('span');
+        legendDivider.className = 'workspace-panel-action-divider';
+        legendDivider.setAttribute('aria-hidden', 'true');
+        appendActionItem(legendDivider);
+
         stylePainterBtn = document.createElement('button');
         stylePainterBtn.type = 'button';
         stylePainterBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';

@@ -2,7 +2,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 - [-] Phase 7_2 - Graphs
     - [x] Add tech ECD
-    - [-] More subtle hb highlights
+    - [x] More subtle hb highlights
     - [ ] Axes names and other texts: latex or helper with common units and best suggestions
     - [ ] FT-IR markers: add links lines...
     - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
