@@ -198,7 +198,7 @@ export function initDashboard() {
     const url = canvas?.thumbnailUrl || '';
     if (!url) return '';
     const cacheBusted = appendCacheToken(url, canvas.updated || '');
-    return ` style="background-image:url('${escapeAttribute(cacheBusted)}')"`;
+    return ` style="background-image:url('${escapeAttribute(cacheBusted)}');background-size:cover;background-position:center;background-repeat:no-repeat;"`;
   };
 
   const normalizeId = (value) => (value === null || value === undefined ? '' : String(value));

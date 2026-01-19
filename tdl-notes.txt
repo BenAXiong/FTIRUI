@@ -67,6 +67,7 @@ Polishing
 - can/tb2: S3 markers cannot be manually dragged (ex user wants to declutter one by one). Not straightforward to circumvent...
 - can/tb2: S3 manual marker display overlay will zoom-in trace for accurate placement (circle magnifier)
 - gr: resize plot dims in graph by dragging axes or add slider + manual somewhere
+- dash: enlarged thumbnail overlay on hover for preview
 ___________________________________________________________
 Future work
 

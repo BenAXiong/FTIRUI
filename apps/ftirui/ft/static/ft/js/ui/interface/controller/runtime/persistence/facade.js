@@ -55,7 +55,8 @@ export function createPersistenceFacade({
   const {
     buildSnapshot: buildSnapshotHook,
     restoreSnapshot: restoreSnapshotHook,
-    closeMenu: closeMenuHook
+    closeMenu: closeMenuHook,
+    onPersist: onPersistHook
   } = hooks || {};
 
   const snapshotApi = snapshotManager || {};
@@ -69,6 +70,7 @@ export function createPersistenceFacade({
     ? () => snapshotApi.clear()
     : () => {};
   const closeMenu = typeof closeMenuHook === 'function' ? closeMenuHook : () => {};
+  const onPersist = typeof onPersistHook === 'function' ? onPersistHook : null;
 
   const showToast = notifications.showToast || (() => {});
   const autosaveStatus = typeof notifications.autosaveStatus === 'function' ? notifications.autosaveStatus : null;
@@ -201,6 +203,9 @@ export function createPersistenceFacade({
       }, AUTOSAVE_UI_DEBOUNCE_MS);
     }
     updateStorageButtons();
+    if (queued && onPersist) {
+      onPersist({ queued });
+    }
     return queued;
   };
 

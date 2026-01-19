@@ -4385,7 +4385,8 @@ const isPanelPinned = (panelId) =>
     },
     storage,
     hooks: {
-      closeMenu: closeWorkspaceMenu
+      closeMenu: closeWorkspaceMenu,
+      onPersist: () => canvasThumbnailController?.handleAutosave?.()
     },
     snapshot: snapshotManager,
     helpers: {
@@ -7635,7 +7636,6 @@ const isPanelPinned = (panelId) =>
     },
     onBeforeUnload: () => {
       scheduleCanvasSync({ immediate: true });
-      canvasThumbnailController?.handleBeforeUnload?.();
       persistence?.handleBeforeUnload?.();
     },
     onVisibilityChange: () => {

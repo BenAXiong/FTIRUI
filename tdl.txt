@@ -1,7 +1,7 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 Phase 7 – Pre-polishing pass
-- [-] UI
+- [-] Phase 7_1 - UI
     - [x] Left HUD 
         - [x] display project/folder in tooltip only, add min info (creator, date, ...)
         - [x] rework options
@@ -18,22 +18,22 @@ Phase 7 – Pre-polishing pass
         - [x] list mode: add +x indicator with toottip for extra tags
         - [x] list mode: add full name tooltip onHover when text ellipsed
         - [x] project metadata
-        - [-] canvas thumbnails (inital full prompt: 30min and 5% weekly quota)
+        - [-] canvas thumbnails (inital full prompt: 30min and 5% weekly quota, then 3h debug)
 
-- [ ] Graphs
-    - [ ] Axes names and other texts: latex or helper with common units and best suggestions
+- [ ] Phase 7_2 - Graphs
+    - [ ] Add tech ECD
     - [ ] More subtle hb highlights
+    - [ ] Axes names and other texts: latex or helper with common units and best suggestions
     - [ ] FT-IR markers: add links lines...
     - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
-    - [ ] ? Add tech ECD
     - [ ] .opju
         - [ ] Import and conversionfor single traces
         - [ ] Import folders and keep structure
 
-- [ ] Toolbars
+- [ ] Phase 7_3 - Toolbars
     - [ ] Sync tb2 s2 to graph type
 
-- [ ] Stylish landing for guests
+- [ ] Phase 7_4 - Stylish landing for guests
 
 MVP Part 5/5 -- Polishing for publishing
 
