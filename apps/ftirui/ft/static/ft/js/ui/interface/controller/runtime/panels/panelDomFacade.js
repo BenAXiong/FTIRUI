@@ -1082,10 +1082,8 @@ export function createPanelDomFacade({
               if (slider) slider.value = String(Math.max(1, Math.min(6, width)));
               if (readout) readout.textContent = `${Math.max(1, Math.min(6, width))}px`;
             }
-            gridBtn.setAttribute('aria-pressed', String(majorOn));
-            setActionButtonState(gridBtn, majorOn || isMinorOn);
-
             const isMinorOn = !!(L?.xaxis?.minor?.showgrid || L?.yaxis?.minor?.showgrid);
+            setActionButtonState(gridBtn, majorOn || isMinorOn);
             const minorToggle = gridPopover.querySelector('[data-role="minor-toggle"]');
             minorToggle.querySelectorAll('.workspace-panel-popover-btn').forEach(b => {
               const on = (b.dataset.minor === 'on');
@@ -1173,6 +1171,10 @@ export function createPanelDomFacade({
           ticksBtn.innerHTML = '<i class="bi bi-distribute-vertical"></i>';
           ticksBtn.title = 'Tick options';
           ticksBtn.setAttribute('aria-expanded', 'false');
+          {
+            const { majorOn, minorOn } = readTickState();
+            setActionButtonState(ticksBtn, majorOn || minorOn);
+          }
 
         const ticksPopoverIds = {
           between: `${panelState.id}_ticks_between`,
@@ -1296,6 +1298,10 @@ export function createPanelDomFacade({
               const active = (mplace === '' && val === 'none') || (mplace === val);
               b.classList.toggle('is-active', active);
             });
+          {
+            const { majorOn, minorOn } = readTickState();
+            setActionButtonState(ticksBtn, majorOn || minorOn);
+          }
         };
 
         ticksPopover.addEventListener('click', (e) => {
@@ -1308,6 +1314,10 @@ export function createPanelDomFacade({
             const group = ticksPopover.querySelector('[data-role="ticks-major"]');
             group.querySelectorAll('[data-placement]').forEach(b => b.classList.toggle('is-active', b === t));
             safeHandleHeaderAction(panelId, 'ticks-placement', { placement: (val === 'none' ? '' : val) });
+            {
+              const { minorOn } = readTickState();
+              setActionButtonState(ticksBtn, val !== 'none' || minorOn);
+            }
             e.stopPropagation();
             return;
           }
@@ -1350,6 +1360,10 @@ export function createPanelDomFacade({
             const group = ticksPopover.querySelector('[data-role="ticks-minor"]');
             group.querySelectorAll('[data-minor]').forEach(b => b.classList.toggle('is-active', b === t));
             safeHandleHeaderAction(panelId, 'ticks-minor', { on });
+            {
+              const { majorOn } = readTickState();
+              setActionButtonState(ticksBtn, majorOn || on);
+            }
             e.stopPropagation();
             return;
           }
@@ -1361,6 +1375,10 @@ export function createPanelDomFacade({
             group.querySelectorAll('[data-minor-placement]').forEach(b => b.classList.toggle('is-active', b === t));
 
             safeHandleHeaderAction(panelId, 'ticks-minor-placement', { placement: (val === 'none' ? '' : val) });
+            {
+              const { majorOn } = readTickState();
+              setActionButtonState(ticksBtn, majorOn || val !== 'none');
+            }
             e.stopPropagation();
             return;
           }
@@ -1425,6 +1443,7 @@ export function createPanelDomFacade({
           const nextOn = !(majorOn || minorOn);
           safeHandleHeaderAction(panelId, 'ticks-placement', { placement: nextOn ? 'outside' : '' });
           safeHandleHeaderAction(panelId, 'ticks-minor', { on: nextOn });
+          setActionButtonState(ticksBtn, nextOn);
         });
         appendPopoverControl(ticksBtn, ticksPopover, { openOnHover: true, suppressClickToggle: true });
 
