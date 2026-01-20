@@ -3,17 +3,23 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 - [-] Phase 7_2 - Graphs
     - [x] Add tech ECD
     - [x] More subtle hb highlights
-    - [ ] Axes names and other texts: latex or helper with common units and best suggestions
+    - [-] Axes names and other texts: latex or helper with common units and best suggestions
+        - [-] MathJax setup for axis titles and plotly bugs - hb2 workaround
+        - [ ] Persistence
+        - [ ] Apply to other fields: plot title, text notes (NOT in legend, ticks, UI elements)
     - [ ] FT-IR markers: add links lines...
-    - [ ] MVP? Legend options (formatting, incl next to each trace for overlaps)
+    - [ ] MVP? Legend options (formatting eg sci, incl next to each trace for overlaps)
+    - [ ] Toolbars
+        - [ ] tb2 - sync s1 and s2
+        - [ ] tb2 - s10 add right panel option: display section with 3 choices
     - [ ] .opju
         - [ ] Import and conversion for single traces
         - [ ] Import folders and keep structure
 
-- [ ] Phase 7_3 - Toolbars
-    - [ ] Sync tb2 s2 to graph type
-
-- [ ] Phase 7_4 - Stylish landing for guests
+- [ ] Phase 7_3 - 
+    - [ ] Stylish landing for guests
+    - [ ] Payment UI
+    - [ ] ? Payment methods
 
 MVP Part 5/5 -- Polishing for publishing
 
@@ -30,6 +36,11 @@ Phase x – Bugs & technical debt
 
 Phase x – Extra details
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
+- [ ] Dash dup canvas: auto name edit + rename crayon next to name on hover instead of aciton cell
+
+Phase x – (nondev)
+* think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),
+
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.

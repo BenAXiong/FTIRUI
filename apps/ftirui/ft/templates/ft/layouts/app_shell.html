@@ -46,6 +46,17 @@
     <script src="{% static 'ft/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'ft/vendor/coloris/coloris.min.js' %}"></script>
     <script src="{% static 'ft/vendor/html2canvas/html2canvas.min.js' %}"></script>
+    {% if workspace_only or workspace_tab_enabled %}
+    <script>
+      window.MathJax = {
+        tex2jax: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']]
+        }
+      };
+      window.__FTIR_MATHJAX_URL = 'https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_SVG';
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_SVG"></script>
+    {% endif %}
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <script type="module" src="{% static 'ft/app.js' %}"></script>

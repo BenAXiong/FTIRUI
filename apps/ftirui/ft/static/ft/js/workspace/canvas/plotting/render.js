@@ -366,10 +366,15 @@ const MODEBAR_CUSTOM_BUTTONS = [
   }
 ];
 
+const mathjaxUrl = (typeof window !== 'undefined' && window.__FTIR_MATHJAX_URL)
+  ? window.__FTIR_MATHJAX_URL
+  : 'https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_SVG';
+
 const plotConfig = {
   responsive: true,
   displayModeBar: true,
   displaylogo: false,
+  mathjax: mathjaxUrl,
   editable: true,
   edits: {
     legendPosition: true,

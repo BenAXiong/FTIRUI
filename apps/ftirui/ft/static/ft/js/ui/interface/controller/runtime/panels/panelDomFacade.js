@@ -838,6 +838,20 @@ export function createPanelDomFacade({
             </div>
           </div>
           <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Titles</div>
+            <div class="workspace-panel-popover-items d-flex flex-column gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted">X</span>
+                <input type="text" class="form-control form-control-sm" data-axis-title="x" placeholder="x-axis title">
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted">Y</span>
+                <input type="text" class="form-control form-control-sm" data-axis-title="y" placeholder="y-axis title">
+              </div>
+              <span class="small text-muted">TeX ok: $\\text{Wavenumber }(\\mathrm{cm}^{-1})$</span>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Typography</div>
             <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap" data-role="axis-labels-font">
               <label class="small text-muted mb-0">Font</label>
@@ -874,6 +888,13 @@ export function createPanelDomFacade({
 
         axisLabelsPopover.onOpen = () => {
           const { labelsOn, X, Y } = readAxisLabelState();
+          const resolveAxisTitleText = (axisTitle) => {
+            if (typeof axisTitle === 'string') return axisTitle;
+            if (axisTitle && typeof axisTitle === 'object' && typeof axisTitle.text === 'string') {
+              return axisTitle.text;
+            }
+            return '';
+          };
 
           const visibility = axisLabelsPopover.querySelector('[data-role="axis-labels-toggle"]');
           if (visibility) {
@@ -885,6 +906,11 @@ export function createPanelDomFacade({
           }
           setActionButtonState(axisLabelsBtn, labelsOn);
 
+          const xTitleInput = axisLabelsPopover.querySelector('[data-axis-title="x"]');
+          if (xTitleInput) xTitleInput.value = resolveAxisTitleText(X.title);
+          const yTitleInput = axisLabelsPopover.querySelector('[data-axis-title="y"]');
+          if (yTitleInput) yTitleInput.value = resolveAxisTitleText(Y.title);
+
           const fontSelect = axisLabelsPopover.querySelector('[data-font-family]');
           if (fontSelect) {
             const family = X.title?.font?.family || Y.title?.font?.family || 'inherit';
@@ -893,6 +919,17 @@ export function createPanelDomFacade({
               option.value = family;
               option.textContent = family;
               fontSelect.appendChild(option);
+            }
+            const defaultOption = fontSelect.querySelector('option[value="inherit"]');
+            if (defaultOption) {
+              let defaultFamily = X.title?.font?.family || Y.title?.font?.family
+                || plotHost?._fullLayout?.font?.family
+                || plotHost?.layout?.font?.family;
+              if (!defaultFamily && typeof window !== 'undefined') {
+                const source = plotHost || document.body;
+                defaultFamily = source ? window.getComputedStyle(source).fontFamily : '';
+              }
+              defaultOption.textContent = `${defaultFamily || 'Workspace'} (default)`;
             }
             fontSelect.value = family;
           }
@@ -966,6 +1003,16 @@ export function createPanelDomFacade({
         });
 
         axisLabelsPopover.addEventListener('change', (e) => {
+          if (e.target.matches('[data-axis-title]')) {
+            const axis = e.target.dataset.axisTitle;
+            const value = e.target.value;
+            if (axis === 'x') {
+              safeHandleHeaderAction(panelId, 'axis-title-text', { xTitle: value });
+            } else if (axis === 'y') {
+              safeHandleHeaderAction(panelId, 'axis-title-text', { yTitle: value });
+            }
+            e.stopPropagation();
+          }
           if (e.target.matches('[data-font-family]')) {
             safeHandleHeaderAction(panelId, 'axis-title-style', { fontFamily: e.target.value });
             e.stopPropagation();

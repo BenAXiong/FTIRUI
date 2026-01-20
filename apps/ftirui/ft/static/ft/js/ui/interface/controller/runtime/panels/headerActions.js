@@ -898,6 +898,40 @@ export function createHeaderActions(context = {}) {
         break;
       }
 
+      case 'axis-title-text': {
+        const patch = {};
+        const detailParts = [];
+        const normalizeTitle = (value) => {
+          if (value === null || typeof value === 'undefined') return null;
+          const text = typeof value === 'string' ? value.trim() : String(value);
+          return text.length ? text : null;
+        };
+        if (Object.prototype.hasOwnProperty.call(payload, 'xTitle')) {
+          const value = normalizeTitle(payload.xTitle);
+          patch['xaxis.title.text'] = value;
+          detailParts.push(value ? 'X title set' : 'X title cleared');
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'yTitle')) {
+          const value = normalizeTitle(payload.yTitle);
+          patch['yaxis.title.text'] = value;
+          patch['meta.workspaceUnitsAutoAxisLabel'] = false;
+          detailParts.push(value ? 'Y title set' : 'Y title cleared');
+        }
+        if (Object.keys(patch).length) {
+          const context = detailParts.length
+            ? {
+                label: 'Axis titles',
+                meta: {
+                  action: 'axis-title-text',
+                  detail: detailParts.join(' • ')
+                }
+              }
+            : null;
+          commitLayoutPatch(panelId, patch, context);
+        }
+        break;
+      }
+
       case 'smooth': {
         const figure = getPanelFigure(panelId);
         const data = Array.isArray(figure.data) ? figure.data.slice() : [];
