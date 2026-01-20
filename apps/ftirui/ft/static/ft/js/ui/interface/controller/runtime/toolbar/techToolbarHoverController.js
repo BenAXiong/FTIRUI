@@ -23,6 +23,7 @@ export function createTechToolbarHoverController({
 } = {}) {
   if (!Array.isArray(items) || !items.length) return null;
 
+  let suppressed = false;
   const listeners = [];
   const addListener = (node, event, handler, options) => {
     if (!node || typeof node.addEventListener !== 'function') return;
@@ -49,6 +50,7 @@ export function createTechToolbarHoverController({
     timers.set(key, schedule);
 
     const show = () => {
+      if (suppressed) return;
       if (toggle.disabled) return;
       const instance = getDropdownInstance(toggle);
       if (!instance) return;
@@ -57,6 +59,7 @@ export function createTechToolbarHoverController({
     };
 
     const hide = () => {
+      if (suppressed) return;
       const instance = getDropdownInstance(toggle);
       if (!instance) return;
       if (!isDropdownOpen(menu, toggle)) return;
@@ -96,6 +99,19 @@ export function createTechToolbarHoverController({
   });
 
   return {
+    setSuppressed(next) {
+      suppressed = !!next;
+      if (suppressed) {
+        items.forEach((item) => {
+          const toggle = item?.toggle || null;
+          const menu = item?.menu || null;
+          const instance = getDropdownInstance(toggle);
+          if (instance && isDropdownOpen(menu, toggle)) {
+            instance.hide();
+          }
+        });
+      }
+    },
     teardown() {
       listeners.forEach(({ node, event, handler, options }) => {
         if (!node || typeof node.removeEventListener !== 'function') return;

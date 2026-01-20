@@ -1,26 +1,45 @@
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const HOVER_GRACE_MS = 280;
 
+const resolveMode = (value, fallback) => {
+  if (!value) return fallback;
+  const normalized = String(value).toLowerCase();
+  return normalized || fallback;
+};
+
 export function createTechToolbarPinController({
   dom = {},
   getActivePanelId = () => null,
   getPanelDom = () => null,
   panelSupportsPlot = () => true,
   updateToolbarMetrics = () => {},
-  preferences = null
+  preferences = null,
+  sidePanelController = null,
+  hoverController = null
 } = {}) {
   const documentRoot = dom.documentRoot
     || (typeof document !== 'undefined' ? document : null);
   const toolbar = dom.toolbar
     || documentRoot?.querySelector?.('.workspace-toolbar-vertical')
     || null;
-  const toggle = dom.toggle
-    || documentRoot?.querySelector?.('[data-tech-pin-toggle]')
-    || null;
-  if (!toolbar || !toggle) return null;
+  const modeButtons = dom.modeButtons
+    || Array.from(documentRoot?.querySelectorAll?.('[data-tech-toolbar-mode]') || []);
+
+  if (!toolbar || !modeButtons.length) return null;
+
+  const modeMap = new Map();
+  modeButtons.forEach((button) => {
+    const mode = button?.getAttribute?.('data-tech-toolbar-mode');
+    if (mode) {
+      modeMap.set(mode, button);
+    }
+  });
+  const fallbackMode = modeMap.has('menus')
+    ? 'menus'
+    : (modeMap.keys().next().value || 'menus');
 
   let baseVisible = true;
-  let floating = false;
+  let mode = fallbackMode;
   let hoverTarget = null;
   let hoveringTarget = false;
   let hoveringToolbar = false;
@@ -42,9 +61,10 @@ export function createTechToolbarPinController({
       });
   };
 
-  const closeMenu = () => {
+  const closeMenu = (source) => {
     if (typeof window === 'undefined') return;
-    const menu = toggle.closest('.dropdown-menu');
+    const origin = source || modeButtons[0];
+    const menu = origin?.closest?.('.dropdown-menu');
     if (!menu) return;
     const labelledBy = menu.getAttribute('aria-labelledby');
     if (!labelledBy) return;
@@ -95,7 +115,9 @@ export function createTechToolbarPinController({
     toolbar.style.transform = 'none';
   };
 
-  const shouldShowFloating = () => baseVisible && floating && (hoveringTarget || hoveringToolbar);
+  const isFloating = () => mode === 'floating';
+  const isPanel = () => mode === 'panel';
+  const shouldShowFloating = () => baseVisible && isFloating() && (hoveringTarget || hoveringToolbar);
   const clearHideTimer = () => {
     if (!hideTimer) return;
     window.clearTimeout(hideTimer);
@@ -105,7 +127,7 @@ export function createTechToolbarPinController({
     clearHideTimer();
     hideTimer = window.setTimeout(() => {
       hideTimer = null;
-      updateFloating();
+      updateModeState();
     }, HOVER_GRACE_MS);
   };
 
@@ -125,7 +147,7 @@ export function createTechToolbarPinController({
     addListener(hoverTarget, 'mouseenter', () => {
       clearHideTimer();
       hoveringTarget = true;
-      updateFloating();
+      updateModeState();
     });
     addListener(hoverTarget, 'mouseleave', () => {
       hoveringTarget = false;
@@ -133,9 +155,24 @@ export function createTechToolbarPinController({
     });
   };
 
-  const updateFloating = () => {
-    toolbar.dataset.toolbarFloating = floating ? 'true' : 'false';
-    if (!floating || !baseVisible) {
+  const syncModeButtons = () => {
+    modeMap.forEach((button, key) => {
+      const active = key === mode;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  };
+
+  const syncSidePanel = () => {
+    if (!sidePanelController?.setMode) return;
+    sidePanelController.setMode(mode, { visibleOverride: isPanel() && baseVisible });
+  };
+
+  const updateModeState = () => {
+    toolbar.dataset.toolbarFloating = isFloating() ? 'true' : 'false';
+    hoverController?.setSuppressed?.(isPanel());
+    syncSidePanel();
+    if (!isFloating() || !baseVisible) {
       clearHideTimer();
     }
     if (!baseVisible) {
@@ -144,7 +181,14 @@ export function createTechToolbarPinController({
       updateToolbarMetrics();
       return;
     }
-    if (!floating) {
+    if (isPanel()) {
+      detachHoverTarget();
+      resetToolbarStyles();
+      setToolbarVisibility(false);
+      updateToolbarMetrics();
+      return;
+    }
+    if (!isFloating()) {
       detachHoverTarget();
       resetToolbarStyles();
       setToolbarVisibility(true);
@@ -169,33 +213,39 @@ export function createTechToolbarPinController({
     updateToolbarMetrics();
   };
 
-  const setFloating = (next, { persist = true } = {}) => {
-    floating = !!next;
-    toggle.checked = floating;
-    toggle.setAttribute('aria-checked', String(floating));
-    if (persist) {
-      preferences?.writeTechToolbarPin?.(floating);
+  const setMode = (next, { persist = true } = {}) => {
+    mode = resolveMode(next, fallbackMode);
+    if (!modeMap.has(mode)) {
+      mode = fallbackMode;
     }
-    updateFloating();
+    syncModeButtons();
+    if (persist) {
+      preferences?.writeTechToolbarMode?.(mode);
+    }
+    updateModeState();
   };
 
   const setBaseVisibility = (next) => {
     baseVisible = !!next;
-    updateFloating();
+    sidePanelController?.setBaseVisibility?.(baseVisible);
+    updateModeState();
   };
 
   const handleActivePanelChange = () => {
-    updateFloating();
+    updateModeState();
   };
 
-  addListener(toggle, 'change', () => {
-    setFloating(toggle.checked);
-    closeMenu();
+  modeButtons.forEach((button) => {
+    addListener(button, 'click', () => {
+      const nextMode = button.getAttribute('data-tech-toolbar-mode');
+      setMode(nextMode);
+      closeMenu(button);
+    });
   });
   addListener(toolbar, 'mouseenter', () => {
     clearHideTimer();
     hoveringToolbar = true;
-    updateFloating();
+    updateModeState();
   });
   addListener(toolbar, 'mouseleave', () => {
     hoveringToolbar = false;
@@ -203,19 +253,29 @@ export function createTechToolbarPinController({
   });
   if (typeof window !== 'undefined') {
     addListener(window, 'resize', () => {
-      if (floating && shouldShowFloating()) {
+      if (isFloating() && shouldShowFloating()) {
         positionToolbar();
       }
     });
   }
 
-  const initialPinned = preferences?.readTechToolbarPin?.(toggle.checked);
-  setFloating(typeof initialPinned === 'boolean' ? initialPinned : toggle.checked, { persist: false });
+  const storedMode = preferences?.readTechToolbarMode?.(null);
+  if (storedMode && modeMap.has(storedMode)) {
+    setMode(storedMode, { persist: false });
+  } else {
+    const legacyPinned = preferences?.readTechToolbarPin?.(null);
+    if (typeof legacyPinned === 'boolean') {
+      setMode(legacyPinned ? 'menus' : 'floating', { persist: false });
+    } else {
+      setMode(fallbackMode, { persist: false });
+    }
+  }
 
   return {
     setBaseVisibility,
     handleActivePanelChange,
-    isFloating: () => floating,
+    isFloating: () => isFloating(),
+    getMode: () => mode,
     teardown() {
       clearHideTimer();
       listeners.forEach(({ node, event, handler, options }) => {

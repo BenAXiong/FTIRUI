@@ -55,9 +55,11 @@ import { createToolbarShortcutsController } from './toolbar/toolbarShortcuts.js'
 import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js';
 import { createTechToolbarHoverController } from './toolbar/techToolbarHoverController.js';
 import { createTechToolbarPinController } from './toolbar/techToolbarPinController.js';
+import { createTechToolbarSidePanelController } from './toolbar/techToolbarSidePanelController.js';
 import { createTechToolbarHeaderVisibilityController } from './toolbar/techToolbarHeaderVisibilityController.js';
 import { createTechToolbarModebarVisibilityController } from './toolbar/techToolbarModebarVisibilityController.js';
 import { createTechSelectorController } from './toolbar/techSelectorController.js';
+import { createGraphTypeController } from './toolbar/graphTypeController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createCanvasThumbnailController } from './thumbnails/canvasThumbnailController.js';
@@ -2285,8 +2287,9 @@ const fetchRemoteImageAsDataUrl = async (url) => {
       && verticalToolbar.dataset.toolbarFloating !== 'true'
       ? Math.round(verticalToolbar.getBoundingClientRect().width)
       : 0;
+    const sidePanelWidth = techToolbarSidePanelController?.getReservedWidth?.() ?? 0;
     canvasWrapper.style.setProperty('--workspace-toolbar-height', `${toolbarHeight}px`);
-    canvasWrapper.style.setProperty('--workspace-toolbar-vertical-width', `${toolbarWidth}px`);
+    canvasWrapper.style.setProperty('--workspace-toolbar-vertical-width', `${toolbarWidth + sidePanelWidth}px`);
   };
 
   function updateOperationsToggleState() {
@@ -3374,6 +3377,7 @@ let techSelectorController = null;
 let canvasTagsController = null;
 let techToolbarHoverController = null;
 let techToolbarPinController = null;
+let techToolbarSidePanelController = null;
 let techToolbarHeaderVisibilityController = null;
 let techToolbarModebarVisibilityController = null;
 let tagFilterController = null;
@@ -3617,74 +3621,15 @@ const isPanelPinned = (panelId) =>
   });
   canvasTagsController?.refresh?.();
 
-  const graphTypeController = (() => {
-    const toggle = document.getElementById('tb2_graph_type');
-    const menu = document.querySelector('[data-graph-selector-menu]');
-    if (!toggle || !menu) {
-      return null;
-    }
-    const iconTarget = toggle.querySelector('[data-graph-icon-target]');
-    const labelTarget = toggle.querySelector('[data-graph-label-target]');
-    const options = Array.from(menu.querySelectorAll('[data-graph-option]'));
-    if (!iconTarget || !labelTarget || !options.length) {
-      return null;
-    }
-
-    const getDropdownInstance = () => {
-      const bootstrapApi = window.bootstrap?.Dropdown;
-      if (!bootstrapApi?.getOrCreateInstance) {
-        return null;
-      }
-      return bootstrapApi.getOrCreateInstance(toggle);
-    };
-
-    const setActiveOption = (option) => {
-      if (!option) return;
-      const label = option.getAttribute('data-graph-label') || 'Graph type';
-      const icon = option.getAttribute('data-graph-icon') || 'bi-graph-up';
-      const key = option.getAttribute('data-graph-option') || '';
-      iconTarget.className = `workspace-toolbar-icon bi ${icon}`;
-      iconTarget.setAttribute('aria-hidden', 'true');
-      labelTarget.textContent = `Primary graph: ${label}`;
-      toggle.setAttribute('title', `Primary graph: ${label}`);
-      toggle.setAttribute('aria-label', `Primary graph: ${label}`);
-      if (key) {
-        toggle.dataset.graphKey = key;
-      } else {
-        delete toggle.dataset.graphKey;
-      }
-      options.forEach((opt) => opt.classList.toggle('is-active', opt === option));
-      toggle.dispatchEvent(new CustomEvent('workspace:graph-type-change', {
-        bubbles: true,
-        detail: { key, label }
-      }));
-    };
-
-    const handleOptionClick = (event) => {
-      event.preventDefault();
-      const option = event.currentTarget;
-      if (!option) return;
-      setActiveOption(option);
-      try {
-        getDropdownInstance()?.hide();
-      } catch {
-        /* ignore bootstrap hide errors */
-      }
-    };
-
-    options.forEach((option) => option.addEventListener('click', handleOptionClick));
-
-    const initialOption = options.find((opt) => opt.classList.contains('is-active')) || options[0];
-    if (initialOption) {
-      setActiveOption(initialOption);
-    }
-
-    return {
-      toggle,
-      options,
-      setActiveOption
-    };
-  })();
+  const graphTypeController = createGraphTypeController({
+    toggle: document.getElementById('tb2_graph_type'),
+    menu: document.querySelector('[data-graph-selector-menu]'),
+    getActivePanelId,
+    panelSupportsPlot,
+    setPanelTag: (panelId, payload, options) =>
+      panelTagController?.setPanelTag?.(panelId, payload, options),
+    showToast
+  });
 
     const techToolbarLabelController = createTechToolbarLabelController({
       techToggle: techSelectorController?.toggle || null,
@@ -5290,16 +5235,75 @@ const isPanelPinned = (panelId) =>
         }
       ]
     });
+    techToolbarSidePanelController = createTechToolbarSidePanelController({
+      dom: {
+        panel: document.querySelector('[data-tech-side-panel]')
+      },
+      items: [
+        {
+          label: 'Tech',
+          toggle: document.getElementById('tb2_tech_selector'),
+          menu: document.querySelector('[data-tech-selector-menu]')
+        },
+        {
+          label: 'Graph type',
+          toggle: document.getElementById('tb2_graph_type'),
+          menu: document.querySelector('[data-graph-selector-menu]')
+        },
+        {
+          label: 'Peak markers',
+          toggle: document.getElementById('tb2_peak_marking'),
+          menu: document.querySelector('[data-peak-menu]')
+        },
+        {
+          label: 'Units',
+          toggle: document.getElementById('tb2_peak_integration'),
+          menu: document.querySelector('[data-units-menu]')
+        },
+        {
+          label: 'Multi-trace',
+          toggle: document.getElementById('tb2_multi_trace'),
+          menu: document.querySelector('[data-multitrace-menu]')
+        },
+        {
+          label: 'Baseline correction',
+          toggle: document.getElementById('tb2_atr_correction'),
+          menu: document.querySelector('[data-baseline-menu]')
+        },
+        {
+          label: 'Spectral cleanup',
+          toggle: document.getElementById('tb2_derivatization'),
+          menu: document.querySelector('[data-cleanup-menu]')
+        },
+        {
+          label: 'Compare modes',
+          toggle: document.getElementById('tb2_spectral_library'),
+          menu: document.querySelector('[data-compare-menu]')
+        },
+        {
+          label: 'Spectral libraries',
+          toggle: document.getElementById('tb2_placeholder_help'),
+          menu: document.querySelector('[data-library-menu]')
+        },
+        {
+          label: 'More options',
+          toggle: document.getElementById('tb2_more_options'),
+          menu: document.getElementById('tb2_more_options')?.parentElement?.querySelector('.dropdown-menu')
+        }
+      ]
+    });
     techToolbarPinController = createTechToolbarPinController({
       dom: {
         toolbar: verticalToolbar,
-        toggle: document.querySelector('[data-tech-pin-toggle]')
+        modeButtons: Array.from(document.querySelectorAll('[data-tech-toolbar-mode]'))
       },
       getActivePanelId,
       getPanelDom,
       panelSupportsPlot,
       updateToolbarMetrics,
-      preferences: preferencesFacade
+      preferences: preferencesFacade,
+      sidePanelController: techToolbarSidePanelController,
+      hoverController: techToolbarHoverController
     });
     techToolbarHeaderVisibilityController = createTechToolbarHeaderVisibilityController({
       dom: {
@@ -7591,6 +7595,8 @@ const isPanelPinned = (panelId) =>
       techToolbarLabelController?.teardown?.();
       techToolbarHoverController?.teardown?.();
       techToolbarHoverController = null;
+      techToolbarSidePanelController?.teardown?.();
+      techToolbarSidePanelController = null;
       techToolbarPinController?.teardown?.();
       techToolbarPinController = null;
       techToolbarHeaderVisibilityController?.teardown?.();

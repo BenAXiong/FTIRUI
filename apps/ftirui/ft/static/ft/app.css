@@ -4984,6 +4984,141 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   margin: 0;
   cursor: pointer;
 }
+.workspace-tech-toggle-row-mode{
+  align-items: center;
+}
+.workspace-tech-mode-toggle{
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+.workspace-tech-mode-btn{
+  padding: .2rem .55rem;
+  font-size: .68rem;
+  font-weight: 600;
+  border-radius: .55rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.workspace-tech-mode-btn.is-active,
+.workspace-tech-mode-btn[aria-pressed="true"]{
+  border-color: var(--bs-primary);
+  color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 16%, transparent);
+  box-shadow: 0 8px 16px rgba(15,23,42,.14);
+}
+.workspace-tech-side-panel{
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: clamp(240px, 24vw, 320px);
+  display: flex;
+  flex-direction: column;
+  padding: .85rem .85rem 1rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.08) 8%);
+  border-left: 1px solid var(--bs-border-color);
+  box-shadow: -18px 0 32px rgba(15,23,42,.18);
+  z-index: 2605;
+  overflow: hidden;
+  min-height: 0;
+}
+.workspace-tech-side-panel[hidden]{
+  display: none;
+}
+.workspace-tech-side-panel-inner{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  padding-right: .15rem;
+}
+.workspace-tech-panel-section{
+  border-radius: .75rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 95%, rgba(15,23,42,.06) 5%);
+  overflow: hidden;
+  width: 100%;
+  align-self: stretch;
+  flex: 0 0 auto;
+}
+.workspace-tech-panel-section-header{
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .45rem .65rem;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--bs-body-color);
+  text-align: left;
+  min-height: 2.1rem;
+}
+.workspace-tech-panel-section-header .bi{
+  font-size: .8rem;
+}
+.workspace-tech-panel-section-body{
+  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 55%, transparent);
+  padding: .65rem;
+  display: block;
+  height: auto;
+}
+.workspace-tech-panel-section.is-collapsed .workspace-tech-panel-section-body{
+  display: none;
+}
+.workspace-tech-side-panel .dropdown-menu{
+  position: static;
+  transform: none;
+  display: block;
+  float: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+  min-width: 0;
+  width: 100%;
+}
+.workspace-tech-side-panel .dropdown-menu::before,
+.workspace-tech-side-panel .dropdown-menu::after{
+  display: none;
+}
+.workspace-tech-panel-menu{
+  margin: 0;
+}
+.workspace-tech-side-panel .workspace-peak-menu-header{
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .6rem;
+}
+.workspace-tech-side-panel .workspace-peak-menu-heading{
+  min-width: 0;
+}
+.workspace-tech-side-panel .workspace-peak-menu-target{
+  justify-content: flex-start;
+  width: 100%;
+}
+.workspace-tech-side-panel .workspace-peak-menu-actions{
+  flex-direction: column;
+  gap: .4rem;
+}
+.workspace-tech-side-panel .workspace-peak-menu-actions .btn{
+  width: 100%;
+  flex: 1 1 auto;
+}
+.workspace-tech-side-panel .workspace-peak-field-control{
+  flex-direction: column;
+  align-items: flex-start;
+}
+.workspace-tech-side-panel .workspace-peak-field-value{
+  min-width: 0;
+}
+.workspace-tech-side-panel .workspace-peak-style-grid{
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
 @media (max-width: 768px){
   .workspace-canvas-wrapper{
     padding-top: 1rem;

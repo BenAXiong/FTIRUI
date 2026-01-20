@@ -11,6 +11,7 @@ export function createUiPreferencesFacade({
   pinKey = 'ftir.workspace.panelPinned.v1',
   peakDefaultsKey = 'ftir.workspace.peakDefaults.v1',
   techToolbarPinKey = 'ftir.workspace.tb2.pin.v1',
+  techToolbarModeKey = 'ftir.workspace.tb2.mode.v1',
   techToolbarHideHeadersKey = 'ftir.workspace.tb2.hideHeaders.v1',
   techToolbarHideModebarKey = 'ftir.workspace.tb2.hideModebar.v1',
   projectTreeCollapseKey = 'ftir.workspace.projectTreeCollapsed.v1',
@@ -130,6 +131,31 @@ export function createUiPreferencesFacade({
     }
   };
 
+  const readTechToolbarMode = (fallback = null) => {
+    if (!localStore) return fallback;
+    try {
+      const stored = localStore.getItem(techToolbarModeKey);
+      if (stored === null) return fallback;
+      const trimmed = stored.trim();
+      return trimmed ? trimmed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeTechToolbarMode = (mode) => {
+    if (!localStore) return;
+    try {
+      if (mode === null || mode === undefined) {
+        localStore.removeItem(techToolbarModeKey);
+      } else {
+        localStore.setItem(techToolbarModeKey, String(mode));
+      }
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
   const readTechToolbarHideHeaders = (fallback = false) => {
     if (!localStore) return fallback;
     try {
@@ -211,6 +237,8 @@ export function createUiPreferencesFacade({
     clearPeakDefaults,
     readTechToolbarPin,
     writeTechToolbarPin,
+    readTechToolbarMode,
+    writeTechToolbarMode,
     readTechToolbarHideHeaders,
     writeTechToolbarHideHeaders,
     readTechToolbarHideModebar,

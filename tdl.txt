@@ -7,7 +7,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] MathJax setup for axis titles and plotly limitations - hb2 workaround
         - [x] hb2 rework - columnns, input buttons, display behavior
         - [x] Markdown notes: fix preview button and enable mathjax for TeX rendering
-    - [-] Legend options
+    - [x] Legend options
         - [x] Enable special characters: research tradeoffs mathjax vs HTML vs Unicode
         - [x] Add formatting popup to browser trace name
         - [x] Fix trace name drag behavior
@@ -17,7 +17,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] (think how to override trace names & log)
         - [x] Write the relevant doc
         - [x] *auto-hide extensions (from browser)
-        - [-] ***autoclose tb2_s3 when graph unfocused
+        - [x] ***autoclose tb2_s3 when graph unfocused
     - [ ] Toolbars
         - [ ] tb2 - sync s1 and s2
         - [ ] tb2 - s10 add right panel option: display section with 3 choices
