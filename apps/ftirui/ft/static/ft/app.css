@@ -2810,6 +2810,93 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 .workspace-panel-action-item{
   display: inline-flex;
 }
+.workspace-panel-popover-axis-labels-grid{
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
+  gap: .75rem;
+}
+.workspace-panel-popover.workspace-panel-popover-axis-labels{
+  width: max-content;
+  min-width: 520px;
+  max-width: none;
+}
+.workspace-panel-popover-axis-labels-col{
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.workspace-panel-popover-axis-tools{
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+.workspace-panel-popover-axis-tool{
+  min-width: 2.1rem;
+  padding: .2rem .45rem;
+  line-height: 1.1;
+}
+.workspace-panel-popover-axis-greek{
+  position: relative;
+  display: inline-flex;
+}
+.workspace-panel-popover-axis-greek-menu{
+  position: absolute;
+  top: calc(100% + .4rem);
+  left: 0;
+  display: none;
+  grid-template-columns: repeat(6, minmax(1.6rem, 1fr));
+  gap: .25rem;
+  padding: .35rem;
+  background: var(--bs-body-bg);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent 20%);
+  border-radius: .6rem;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, .2);
+  min-width: 15rem;
+  max-width: 18rem;
+  z-index: 20;
+}
+.workspace-panel-popover-axis-greek-menu.is-open{
+  display: grid;
+}
+.workspace-panel-popover-axis-greek-menu .btn{
+  min-width: 2rem;
+  padding: .15rem .35rem;
+  line-height: 1.1;
+}
+.workspace-panel-popover-switch{
+  margin: 0;
+}
+.workspace-panel-popover-tip{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--bs-secondary-color, #6c757d);
+}
+.workspace-panel-popover-tip i{
+  font-size: .9rem;
+}
+.workspace-panel-popover-tip-content{
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + .4rem);
+  transform: translateX(-50%);
+  background: var(--bs-body-bg);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent 20%);
+  border-radius: .5rem;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, .18);
+  padding: .35rem .5rem;
+  font-size: .75rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+.workspace-panel-popover-tip:hover .workspace-panel-popover-tip-content{
+  opacity: 1;
+  visibility: visible;
+}
 .workspace-panel-action-divider{
   width: 1px;
   height: 1.15rem;

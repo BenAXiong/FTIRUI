@@ -4,9 +4,11 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
     - [x] Add tech ECD
     - [x] More subtle hb highlights
     - [-] Axes names and other texts: latex or helper with common units and best suggestions
-        - [-] MathJax setup for axis titles and plotly bugs - hb2 workaround
-        - [ ] Persistence
+        - [x] MathJax setup for axis titles and plotly limitations - hb2 workaround
+        - [-] hb2 rework
         - [ ] Apply to other fields: plot title, text notes (NOT in legend, ticks, UI elements)
+        - [ ] Persistence
+        - [ ] Markdown notes debug
     - [ ] FT-IR markers: add links lines...
     - [ ] MVP? Legend options (formatting eg sci, incl next to each trace for overlaps)
     - [ ] Toolbars
@@ -32,15 +34,17 @@ Phase 1 – Optimize features & UI/UX for "Workflow_1_MVP"
 Phase x – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 - [ ] Header buttons overlap with side elements
+- [ ] New dark theme : main ( #17212B or #191919), sidebar/code dark grays (e.g., #1E262F, #212B36), newer deeper blacks, with gray (#252525), brown (#2E2724), or blue (#1F282D). 
 - [ ] see full list
 
 Phase x – Extra details
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dash dup canvas: auto name edit + rename crayon next to name on hover instead of aciton cell
+- [ ] demo files (raw or worspace snapshot?)
 
 Phase x – (nondev)
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),
-
+* list priority info: what would make them use it? - formating, presentation, papers, PR, techs,...?
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
