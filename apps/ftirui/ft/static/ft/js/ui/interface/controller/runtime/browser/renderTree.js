@@ -16,6 +16,85 @@ const TRACE_NAME_SYMBOLS = [
   '\u00b1', '\u00d7', '\u00b7', '\u2264', '\u2265', '\u221e', '\u2192', '\u2190',
   '\u2194', '\u21cc', '\u00b0', '\u00b5', '\u2126', '\u2191', '\u2193', '\u21d2'
 ];
+const TRACE_NAME_SUBSCRIPT_MAP = {
+  '0': '\u2080',
+  '1': '\u2081',
+  '2': '\u2082',
+  '3': '\u2083',
+  '4': '\u2084',
+  '5': '\u2085',
+  '6': '\u2086',
+  '7': '\u2087',
+  '8': '\u2088',
+  '9': '\u2089',
+  'a': '\u2090',
+  'e': '\u2091',
+  'h': '\u2095',
+  'i': '\u1D62',
+  'j': '\u2C7C',
+  'k': '\u2096',
+  'l': '\u2097',
+  'm': '\u2098',
+  'n': '\u2099',
+  'o': '\u2092',
+  'p': '\u209A',
+  'r': '\u1D63',
+  's': '\u209B',
+  't': '\u209C',
+  'u': '\u1D64',
+  'v': '\u1D65',
+  'x': '\u2093',
+  '\u03b2': '\u1D66',
+  '\u03b3': '\u1D67',
+  '\u03c1': '\u1D68',
+  '\u03c6': '\u1D69',
+  '\u03c7': '\u1D6A'
+};
+const TRACE_NAME_SUPERSCRIPT_MAP = {
+  '0': '\u2070',
+  '1': '\u00b9',
+  '2': '\u00b2',
+  '3': '\u00b3',
+  '4': '\u2074',
+  '5': '\u2075',
+  '6': '\u2076',
+  '7': '\u2077',
+  '8': '\u2078',
+  '9': '\u2079',
+  '+': '\u207A',
+  '-': '\u207B',
+  '=': '\u207C',
+  '(': '\u207D',
+  ')': '\u207E',
+  'a': '\u1D43',
+  'b': '\u1D47',
+  'c': '\u1D9C',
+  'd': '\u1D48',
+  'e': '\u1D49',
+  'f': '\u1DA0',
+  'g': '\u1D4D',
+  'h': '\u02B0',
+  'i': '\u2071',
+  'j': '\u02B2',
+  'k': '\u1D4F',
+  'l': '\u02E1',
+  'm': '\u1D50',
+  'n': '\u207F',
+  'o': '\u1D52',
+  'p': '\u1D56',
+  'r': '\u02B3',
+  's': '\u02E2',
+  't': '\u1D57',
+  'u': '\u1D58',
+  'v': '\u1D5B',
+  'w': '\u02B7',
+  'x': '\u02E3',
+  'y': '\u02B8',
+  'z': '\u1DBB',
+  '\u03b2': '\u1D5D',
+  '\u03b3': '\u1D5E',
+  '\u03b4': '\u1D5F'
+};
 
 const insertAtCaret = (input, text) => {
   if (!input || typeof text !== 'string') return;
@@ -209,11 +288,24 @@ const wrapSelection = (input, open, close) => {
   input.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
+const traceNameToDisplayText = (input) => {
+  if (input === null || input === undefined) return '';
+  let text = String(input);
+  if (!text) return '';
+  text = text.replace(/<\s*sup\s*>(.*?)<\s*\/\s*sup\s*>/gi, (_match, content) => {
+    return String(content || '').split('').map((char) => TRACE_NAME_SUPERSCRIPT_MAP[char] || TRACE_NAME_SUPERSCRIPT_MAP[char.toLowerCase?.()] || char).join('');
+  });
+  text = text.replace(/<\s*sub\s*>(.*?)<\s*\/\s*sub\s*>/gi, (_match, content) => {
+    return String(content || '').split('').map((char) => TRACE_NAME_SUBSCRIPT_MAP[char] || TRACE_NAME_SUBSCRIPT_MAP[char.toLowerCase?.()] || char).join('');
+  });
+  return traceNameToPlainText(text);
+};
+
 const setTraceNameDisplay = (input, rawName, { editing = false } = {}) => {
   if (!input) return;
   const sanitized = sanitizeTraceName(rawName);
   input.dataset.richName = sanitized;
-  input.value = editing ? sanitized : traceNameToPlainText(sanitized);
+  input.value = editing ? sanitized : traceNameToDisplayText(sanitized);
   updateTraceNamePreview(input);
 };
 
@@ -465,7 +557,7 @@ export function renderBrowserTree(ctx, state) {
     }
 
     const rawName = sanitizeTraceName(rowInfo.rawName || rowInfo.name || `Trace ${rowInfo.idx + 1}`);
-    const displayName = traceNameToPlainText(rawName);
+    const displayName = traceNameToDisplayText(rawName);
     const safeName = escapeHtml(displayName || `Trace ${rowInfo.idx + 1}`);
     row.innerHTML = `
       <span class="drag-handle bi bi-grip-vertical" title="Drag trace"></span>

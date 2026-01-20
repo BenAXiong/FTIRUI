@@ -7,7 +7,7 @@ back to dash baord button: fix placement when viewport aspect ratio is too high
 gr eye !!!
 gr add revert x axis
 share!
-can highligh onfocus panel (will be needed for multi select)
+rework the legend logic: keep mirroring browser name but override in side panel? remove name from browser?
 regroup axes, ticks, + in big popup?
 tb1 th retrieve origin palette???!
 gr apply template

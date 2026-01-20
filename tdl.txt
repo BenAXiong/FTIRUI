@@ -11,8 +11,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Enable special characters: research tradeoffs mathjax vs HTML vs Unicode
         - [x] Add formatting popup to browser trace name
         - [x] Fix trace name drag behavior
-        - [-] Display formatted name in popup while editting
-        - [-] Display formatted name in browser when out of edit mode
+        - [x] Display formatted name in popup while editting
+        - [-] Display formatted name in browser when out of edit mode (sub and sup only)
         - [ ] hb5 legend title with own font
         - [ ] hb5 Core styles and Handy behaviors and nicities
         - [ ] (think how to override trace names...)
