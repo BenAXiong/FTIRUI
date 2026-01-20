@@ -499,6 +499,150 @@ export function createHeaderActions(context = {}) {
         break;
       }
 
+      case 'legend-title-text': {
+        const normalizeTitle = (value) => {
+          if (value === null || typeof value === 'undefined') return null;
+          const text = typeof value === 'string' ? value.trim() : String(value);
+          return text.length ? text : null;
+        };
+        const title = normalizeTitle(payload.text);
+        commitLayoutPatch(panelId, { 'legend.title.text': title }, {
+          label: 'Legend',
+          meta: {
+            action: 'legend-title',
+            detail: title ? 'Legend title set' : 'Legend title cleared'
+          }
+        });
+        break;
+      }
+
+      case 'legend-orientation': {
+        const orientation = payload.value === 'h' ? 'h' : 'v';
+        commitLayoutPatch(panelId, { 'legend.orientation': orientation }, {
+          label: 'Legend',
+          meta: {
+            action: 'legend-orientation',
+            detail: orientation === 'h' ? 'Horizontal legend' : 'Vertical legend'
+          }
+        });
+        break;
+      }
+
+      case 'legend-spacing': {
+        const patch = {};
+        if (hasOwn.call(payload, 'entrywidth')) {
+          const value = Number(payload.entrywidth);
+          patch['legend.entrywidth'] = Number.isFinite(value) && value > 0
+            ? Math.round(value)
+            : null;
+        }
+        if (hasOwn.call(payload, 'itemwidth')) {
+          const value = Number(payload.itemwidth);
+          patch['legend.itemwidth'] = Number.isFinite(value) && value > 0
+            ? Math.round(value)
+            : null;
+        }
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch, {
+            label: 'Legend',
+            meta: {
+              action: 'legend-spacing',
+              detail: 'Legend spacing updated'
+            }
+          });
+        }
+        break;
+      }
+
+      case 'legend-font': {
+        const patch = {};
+        if (typeof payload.fontFamily === 'string') {
+          const family = payload.fontFamily === 'inherit' ? '' : payload.fontFamily;
+          patch['legend.font.family'] = family || null;
+        }
+        if (payload.fontSize !== undefined) {
+          const sizeNumeric = Number(payload.fontSize);
+          if (Number.isFinite(sizeNumeric) && sizeNumeric > 0) {
+            patch['legend.font.size'] = Math.max(6, Math.round(sizeNumeric));
+          }
+        }
+        if (typeof payload.color === 'string' && payload.color) {
+          patch['legend.font.color'] = payload.color;
+        }
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch, {
+            label: 'Legend',
+            meta: {
+              action: 'legend-font',
+              detail: 'Legend typography updated'
+            }
+          });
+        }
+        break;
+      }
+
+      case 'legend-title-font': {
+        const patch = {};
+        if (typeof payload.fontFamily === 'string') {
+          const family = payload.fontFamily === 'inherit' ? '' : payload.fontFamily;
+          patch['legend.title.font.family'] = family || null;
+        }
+        if (payload.fontSize !== undefined) {
+          const sizeNumeric = Number(payload.fontSize);
+          if (Number.isFinite(sizeNumeric) && sizeNumeric > 0) {
+            patch['legend.title.font.size'] = Math.max(6, Math.round(sizeNumeric));
+          }
+        }
+        if (typeof payload.color === 'string' && payload.color) {
+          patch['legend.title.font.color'] = payload.color;
+        }
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch, {
+            label: 'Legend',
+            meta: {
+              action: 'legend-title-font',
+              detail: 'Legend title typography updated'
+            }
+          });
+        }
+        break;
+      }
+
+      case 'legend-border': {
+        const patch = {};
+        if (hasOwn.call(payload, 'on')) {
+          const on = !!payload.on;
+          if (!on) {
+            patch['legend.borderwidth'] = 0;
+          } else {
+            const widthNumeric = Number(payload.width);
+            const width = Number.isFinite(widthNumeric) && widthNumeric > 0
+              ? Math.round(widthNumeric)
+              : 1;
+            patch['legend.borderwidth'] = width;
+          }
+        }
+        if (hasOwn.call(payload, 'width')) {
+          const widthNumeric = Number(payload.width);
+          patch['legend.borderwidth'] = Number.isFinite(widthNumeric) && widthNumeric > 0
+            ? Math.round(widthNumeric)
+            : 0;
+        }
+        if (typeof payload.color === 'string' && payload.color) {
+          patch['legend.bordercolor'] = payload.color;
+        }
+        if (Object.keys(patch).length) {
+          commitLayoutPatch(panelId, patch, {
+            label: 'Legend',
+            meta: {
+              action: 'legend-border',
+              detail: 'Legend border updated'
+            }
+          });
+        }
+        break;
+      }
+
       case 'yscale-log':
       case 'yscale-linear':
       case 'xscale-log':

@@ -1785,8 +1785,270 @@ export function createPanelDomFacade({
         legendPopover.innerHTML = `
           <div class="workspace-panel-popover-section">
             <div class="workspace-panel-popover-label">Legend Options</div>
+            <div class="workspace-panel-popover-items d-flex flex-column gap-2">
+              <label class="small text-muted mb-0">Title</label>
+              <input type="text" class="form-control form-control-sm" data-legend-title placeholder="Legend title" />
+            </div>
+            <div class="workspace-panel-popover-items workspace-panel-popover-choice mt-2" data-role="legend-orientation">
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-orientation="v">Vertical</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-orientation="h">Horizontal</button>
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Spacing</div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
+              <label class="small text-muted mb-0">Entry width</label>
+              <input type="number" min="0" max="400" step="1" class="form-control form-control-sm" data-legend-entrywidth />
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 mt-2">
+              <label class="small text-muted mb-0">Item width</label>
+              <input type="number" min="0" max="400" step="1" class="form-control form-control-sm" data-legend-itemwidth />
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Typography</div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap" data-role="legend-font">
+              <label class="small text-muted mb-0">Legend</label>
+              <select class="form-select form-select-sm" data-legend-font-family style="min-width: 150px">
+                <option value="inherit">Workspace default</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times</option>
+                <option value="'Courier New', monospace">Courier</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+              </select>
+              <input type="number" min="6" max="36" step="1" class="form-control form-control-sm" data-legend-font-size title="Legend font size" />
+              <input type="color" class="form-control form-control-color form-control-sm" data-legend-font-color title="Legend font color" />
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap mt-2" data-role="legend-title-font">
+              <label class="small text-muted mb-0">Title</label>
+              <select class="form-select form-select-sm" data-legend-title-font-family style="min-width: 150px">
+                <option value="inherit">Workspace default</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times</option>
+                <option value="'Courier New', monospace">Courier</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+              </select>
+              <input type="number" min="6" max="36" step="1" class="form-control form-control-sm" data-legend-title-font-size title="Legend title size" />
+              <input type="color" class="form-control form-control-color form-control-sm" data-legend-title-font-color title="Legend title color" />
+            </div>
+          </div>
+          <div class="workspace-panel-popover-section">
+            <div class="workspace-panel-popover-label">Border</div>
+            <div class="workspace-panel-popover-items" data-role="legend-border-toggle">
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-border="on">On</button>
+              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-border="off">Off</button>
+            </div>
+            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 mt-2">
+              <label class="small text-muted mb-0">Weight</label>
+              <input type="number" min="0" max="10" step="1" class="form-control form-control-sm" data-legend-border-width />
+              <input type="color" class="form-control form-control-color form-control-sm" data-legend-border-color title="Legend border color" />
+            </div>
           </div>
         `;
+        const legendDebounce = (fn, ms=160) => {
+          let id;
+          return (...args) => {
+            clearTimeout(id);
+            id = setTimeout(() => fn(...args), ms);
+          };
+        };
+
+        const normalizeLegendTitle = (value) => {
+          if (value === null || typeof value === 'undefined') return null;
+          const text = typeof value === 'string' ? value.trim() : String(value);
+          return text.length ? text : null;
+        };
+
+        const setLegendToggleGroup = (group, activeValue, attr) => {
+          if (!group) return;
+          group.querySelectorAll(`[data-${attr}]`).forEach((btn) => {
+            const isActive = btn.dataset[attr] === activeValue;
+            btn.classList.toggle('is-active', isActive);
+            btn.setAttribute('aria-pressed', String(isActive));
+          });
+        };
+
+        const hydrateLegendFontSelect = (select, family) => {
+          if (!select) return;
+          const value = family || 'inherit';
+          if (!Array.from(select.options).some((opt) => opt.value === value)) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+          }
+          const defaultOption = select.querySelector('option[value="inherit"]');
+          if (defaultOption) {
+            let defaultFamily = family
+              || plotHost?._fullLayout?.font?.family
+              || plotHost?.layout?.font?.family;
+            if (!defaultFamily && typeof window !== 'undefined') {
+              const source = plotHost || document.body;
+              defaultFamily = source ? window.getComputedStyle(source).fontFamily : '';
+            }
+            const shortName = (defaultFamily || 'Workspace').split(',')[0].trim().replace(/^'["']|["']$/g, '');
+            defaultOption.textContent = `${shortName || 'Workspace'} (default)`;
+          }
+          select.value = value;
+        };
+
+        legendPopover.onOpen = () => {
+          const figure = safeGetPanelFigure(panelId);
+          const legend = figure?.layout?.legend || plotHost?.layout?.legend || {};
+          const title = legend.title || {};
+
+          const titleInput = legendPopover.querySelector('[data-legend-title]');
+          if (titleInput) {
+            const text = typeof title === 'string' ? title : title?.text || '';
+            titleInput.value = text || '';
+          }
+
+          const orientationGroup = legendPopover.querySelector('[data-role="legend-orientation"]');
+          const orientation = legend.orientation === 'h' ? 'h' : 'v';
+          setLegendToggleGroup(orientationGroup, orientation, 'orientation');
+
+          const entryInput = legendPopover.querySelector('[data-legend-entrywidth]');
+          if (entryInput) {
+            entryInput.value = Number.isFinite(Number(legend.entrywidth))
+              ? String(Math.round(Number(legend.entrywidth)))
+              : '';
+          }
+          const itemInput = legendPopover.querySelector('[data-legend-itemwidth]');
+          if (itemInput) {
+            itemInput.value = Number.isFinite(Number(legend.itemwidth))
+              ? String(Math.round(Number(legend.itemwidth)))
+              : '';
+          }
+
+          const legendFont = legend.font || {};
+          hydrateLegendFontSelect(legendPopover.querySelector('[data-legend-font-family]'), legendFont.family);
+          const legendSize = Number(legendFont.size);
+          const legendSizeInput = legendPopover.querySelector('[data-legend-font-size]');
+          if (legendSizeInput) {
+            legendSizeInput.value = Number.isFinite(legendSize) ? String(Math.round(legendSize)) : '';
+          }
+          const legendColorInput = legendPopover.querySelector('[data-legend-font-color]');
+          if (legendColorInput) {
+            legendColorInput.value = legendFont.color || '#000000';
+          }
+
+          const titleFont = title?.font || {};
+          hydrateLegendFontSelect(legendPopover.querySelector('[data-legend-title-font-family]'), titleFont.family);
+          const titleSize = Number(titleFont.size);
+          const titleSizeInput = legendPopover.querySelector('[data-legend-title-font-size]');
+          if (titleSizeInput) {
+            titleSizeInput.value = Number.isFinite(titleSize) ? String(Math.round(titleSize)) : '';
+          }
+          const titleColorInput = legendPopover.querySelector('[data-legend-title-font-color]');
+          if (titleColorInput) {
+            titleColorInput.value = titleFont.color || '#000000';
+          }
+
+          const borderGroup = legendPopover.querySelector('[data-role="legend-border-toggle"]');
+          const borderWidth = Number(legend.borderwidth ?? 0);
+          const borderOn = Number.isFinite(borderWidth) && borderWidth > 0;
+          setLegendToggleGroup(borderGroup, borderOn ? 'on' : 'off', 'border');
+
+          const borderWidthInput = legendPopover.querySelector('[data-legend-border-width]');
+          if (borderWidthInput) {
+            borderWidthInput.value = Number.isFinite(borderWidth) ? String(Math.round(borderWidth)) : '0';
+          }
+          const borderColorInput = legendPopover.querySelector('[data-legend-border-color]');
+          if (borderColorInput) {
+            borderColorInput.value = legend.bordercolor || '#000000';
+          }
+        };
+
+        const applyLegendTitle = legendDebounce(() => {
+          const input = legendPopover.querySelector('[data-legend-title]');
+          if (!input) return;
+          const value = normalizeLegendTitle(input.value);
+          safeHandleHeaderAction(panelId, 'legend-title-text', { text: value });
+        });
+
+        const applyLegendSpacing = legendDebounce(() => {
+          const entryInput = legendPopover.querySelector('[data-legend-entrywidth]');
+          const itemInput = legendPopover.querySelector('[data-legend-itemwidth]');
+          const entryRaw = entryInput?.value ?? '';
+          const itemRaw = itemInput?.value ?? '';
+          safeHandleHeaderAction(panelId, 'legend-spacing', {
+            entrywidth: entryRaw === '' ? null : entryRaw,
+            itemwidth: itemRaw === '' ? null : itemRaw
+          });
+        });
+
+        const applyLegendBorder = legendDebounce(() => {
+          const widthInput = legendPopover.querySelector('[data-legend-border-width]');
+          const colorInput = legendPopover.querySelector('[data-legend-border-color]');
+          const widthRaw = widthInput?.value ?? '';
+          const width = widthRaw === '' ? null : widthRaw;
+          safeHandleHeaderAction(panelId, 'legend-border', {
+            width,
+            color: colorInput?.value
+          });
+        });
+
+        legendPopover.addEventListener('click', (event) => {
+          const orientationBtn = event.target.closest('[data-orientation]');
+          if (orientationBtn) {
+            const orientation = orientationBtn.dataset.orientation === 'h' ? 'h' : 'v';
+            const group = orientationBtn.closest('[data-role="legend-orientation"]');
+            setLegendToggleGroup(group, orientation, 'orientation');
+            safeHandleHeaderAction(panelId, 'legend-orientation', { value: orientation });
+            event.stopPropagation();
+            return;
+          }
+          const borderBtn = event.target.closest('[data-border]');
+          if (borderBtn) {
+            const on = borderBtn.dataset.border === 'on';
+            const group = borderBtn.closest('[data-role="legend-border-toggle"]');
+            setLegendToggleGroup(group, on ? 'on' : 'off', 'border');
+            safeHandleHeaderAction(panelId, 'legend-border', { on });
+            event.stopPropagation();
+          }
+        });
+
+        legendPopover.addEventListener('change', (event) => {
+          if (event.target.matches('[data-legend-font-family]')) {
+            safeHandleHeaderAction(panelId, 'legend-font', { fontFamily: event.target.value });
+            event.stopPropagation();
+          }
+          if (event.target.matches('[data-legend-title-font-family]')) {
+            safeHandleHeaderAction(panelId, 'legend-title-font', { fontFamily: event.target.value });
+            event.stopPropagation();
+          }
+        });
+
+        legendPopover.addEventListener('input', (event) => {
+          if (event.target.matches('[data-legend-title]')) {
+            applyLegendTitle();
+            event.stopPropagation();
+          }
+          if (event.target.matches('[data-legend-entrywidth],[data-legend-itemwidth]')) {
+            applyLegendSpacing();
+            event.stopPropagation();
+          }
+          if (event.target.matches('[data-legend-font-size]')) {
+            safeHandleHeaderAction(panelId, 'legend-font', { fontSize: event.target.value });
+            event.stopPropagation();
+          }
+          if (event.target.matches('[data-legend-font-color]')) {
+            safeHandleHeaderAction(panelId, 'legend-font', { color: event.target.value });
+            event.stopPropagation();
+          }
+          if (event.target.matches('[data-legend-title-font-size]')) {
+            safeHandleHeaderAction(panelId, 'legend-title-font', { fontSize: event.target.value });
+            event.stopPropagation();
+          }
+          if (event.target.matches('[data-legend-title-font-color]')) {
+            safeHandleHeaderAction(panelId, 'legend-title-font', { color: event.target.value });
+            event.stopPropagation();
+          }
+          if (event.target.matches('[data-legend-border-width],[data-legend-border-color]')) {
+            applyLegendBorder();
+            event.stopPropagation();
+          }
+        });
         appendPopoverControl(legendBtn, legendPopover, { openOnHover: true, suppressClickToggle: true });
 
         const legendDivider = document.createElement('span');
