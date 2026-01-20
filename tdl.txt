@@ -9,12 +9,13 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Markdown notes: fix preview button and enable mathjax for TeX rendering
     - [-] Legend options
         - [x] Enable special characters: research tradeoffs mathjax vs HTML vs Unicode
-        - [-] Add formatting popup to browser trace name
-        - [ ] Display formatted name in popup while editting
+        - [x] Add formatting popup to browser trace name
+        - [-] Fix trace name drag behavior
+        - [-] Display formatted name in popup while editting
         - [ ] Display formatted name in browser when out of edit mode
-        - [ ] Legend title with own font
-        - [ ] hb5 : Core styles and Handy behaviors and nicities
-        - [ ] 
+        - [ ] hb5 legend title with own font
+        - [ ] hb5 Core styles and Handy behaviors and nicities
+        - [ ] (think how to override trace names...)
         - [ ] Write the relevant doc
         - [ ] *auto-hide extensions (from browser)
         - [ ] *** autoclose tb2_s3 when graph unfocused

@@ -69,6 +69,11 @@ function buildTraceRow(trace) {
   if (renameInput) {
     renameInput.dataset.richName = rawName;
     renameInput.value = displayName;
+    renameInput.readOnly = true;
+    renameInput.tabIndex = 0;
+    renameInput.setAttribute('aria-readonly', 'true');
+    renameInput.setAttribute('draggable', 'false');
+    renameInput.addEventListener('dragstart', (event) => event.preventDefault());
   }
 
   // Ensure a chip exists (create or select)

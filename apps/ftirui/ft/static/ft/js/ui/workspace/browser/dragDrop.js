@@ -13,8 +13,7 @@ const resolvePanelId = (target) => {
   if (header?.dataset?.panelId) {
     return header.dataset.panelId;
   }
-  const node = target?.closest('.graph-node');
-  return node?.dataset?.panelId || null;
+  return null;
 };
 
 const resolveSectionId = (target) => {
@@ -22,8 +21,7 @@ const resolveSectionId = (target) => {
   if (sectionHeader?.dataset?.sectionId) {
     return sectionHeader.dataset.sectionId;
   }
-  const sectionNode = target?.closest('.section-node');
-  return sectionNode?.dataset?.sectionId || null;
+  return null;
 };
 
 const setDropTarget = (ctx, element) => {
@@ -184,6 +182,12 @@ export function attach(rootEl, options = {}) {
   const handleDragStart = (event) => {
     if (event.target?.closest('button')) {
       event.preventDefault();
+      return;
+    }
+    if (event.target?.closest('.folder-trace')) {
+      return;
+    }
+    if (event.target?.closest('input, textarea, select')) {
       return;
     }
     const panelId = resolvePanelId(event.target);

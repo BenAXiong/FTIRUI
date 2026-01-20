@@ -314,19 +314,22 @@ export function renderBrowserTree(ctx, state) {
     `;
 
     row.draggable = false;
-    let dragFromHandle = false;
-    const setDragFromHandle = (enabled) => {
-      dragFromHandle = !!enabled;
-      row.draggable = dragFromHandle;
-    };
     const dragHandle = row.querySelector('.drag-handle');
     if (dragHandle) {
-      dragHandle.addEventListener('pointerdown', (evt) => {
-        if (typeof evt.button === 'number' && evt.button !== 0) return;
-        setDragFromHandle(true);
+      dragHandle.setAttribute('draggable', 'true');
+      dragHandle.addEventListener('dragstart', (event) => {
+        event.stopPropagation();
+        setDragState({ type: 'trace', panelId, traceIndex: rowInfo.idx });
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData(traceDragMime, JSON.stringify(getDragState()));
+        event.dataTransfer.setData('text/plain', `${panelId}:${rowInfo.idx}`);
+        row.classList.add('is-dragging');
       });
-      dragHandle.addEventListener('pointerup', () => setDragFromHandle(false));
-      dragHandle.addEventListener('pointercancel', () => setDragFromHandle(false));
+      dragHandle.addEventListener('dragend', () => {
+        row.classList.remove('is-dragging');
+        setDragState(null);
+        setDropTarget(null);
+      });
     }
 
     updateTraceChip(row, trace);
@@ -334,6 +337,11 @@ export function renderBrowserTree(ctx, state) {
     const renameInput = row.querySelector('.rename');
     if (renameInput) {
       setTraceNameDisplay(renameInput, rawName);
+      renameInput.readOnly = true;
+      renameInput.tabIndex = 0;
+      renameInput.setAttribute('aria-readonly', 'true');
+      renameInput.setAttribute('draggable', 'false');
+      renameInput.addEventListener('dragstart', (event) => event.preventDefault());
       row.appendChild(buildTraceNameToolbar(renameInput));
     }
     renameInput?.addEventListener('dblclick', (evt) => {
@@ -342,12 +350,14 @@ export function renderBrowserTree(ctx, state) {
       renameInput.focus();
       renameInput.select();
       row.classList.add('trace-name-editing');
+      row.closest('.folder-children')?.classList.add('trace-name-editing-parent');
       evt.stopPropagation();
     });
     renameInput?.addEventListener('blur', () => {
-      if (!renameInput || renameInput.readOnly) return;
+      if (!renameInput) return;
       renameInput.readOnly = true;
       row.classList.remove('trace-name-editing');
+      row.closest('.folder-children')?.classList.remove('trace-name-editing-parent');
       const sanitized = sanitizeTraceName(renameInput.value.trim());
       if (!sanitized) {
         rerender();
@@ -404,16 +414,8 @@ export function renderBrowserTree(ctx, state) {
     });
 
     row.addEventListener('dragstart', (event) => {
-      if (!dragFromHandle) {
-        event.preventDefault();
-        setDragFromHandle(false);
-        return;
-      }
-      setDragState({ type: 'trace', panelId, traceIndex: rowInfo.idx });
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData(traceDragMime, JSON.stringify(getDragState()));
-      event.dataTransfer.setData('text/plain', `${panelId}:${rowInfo.idx}`);
-      row.classList.add('is-dragging');
+      if (event.target.closest('.drag-handle')) return;
+      event.preventDefault();
     });
     row.addEventListener('dragend', () => {
       row.classList.remove('is-dragging');
@@ -616,13 +618,16 @@ export function renderBrowserTree(ctx, state) {
     node.dataset.locked = section.locked ? 'true' : 'false';
     node.dataset.visible = section.visible === false ? 'false' : 'true';
     if (!section.locked) {
-      node.setAttribute('draggable', 'true');
+      node.setAttribute('draggable', 'false');
     }
 
     const header = document.createElement('div');
     header.className = 'folder-header section-header';
     header.dataset.sectionId = sectionId;
     header.dataset.depth = String(depth);
+    if (!section.locked) {
+      header.setAttribute('draggable', 'true');
+    }
     if (section.visible === false) {
       header.classList.add('is-hidden');
     }
