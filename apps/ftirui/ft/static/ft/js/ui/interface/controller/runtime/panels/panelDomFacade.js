@@ -1781,67 +1781,69 @@ export function createPanelDomFacade({
           onClick: (isOn) => safeHandleHeaderAction(panelId, 'legend', { on: isOn })
         });
         const legendPopover = document.createElement('div');
-        legendPopover.className = 'workspace-panel-popover';
+        legendPopover.className = 'workspace-panel-popover workspace-panel-popover-legend';
         legendPopover.innerHTML = `
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Legend Options</div>
-            <div class="workspace-panel-popover-items d-flex flex-column gap-2">
-              <label class="small text-muted mb-0">Title</label>
-              <input type="text" class="form-control form-control-sm" data-legend-title placeholder="Legend title" />
+          <div class="workspace-panel-popover-legend-grid">
+            <div class="workspace-panel-popover-legend-col">
+              <div class="workspace-panel-popover-section">
+                <div class="workspace-panel-popover-label">Layout</div>
+                <div class="workspace-panel-popover-items workspace-panel-popover-choice" data-role="legend-orientation">
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-orientation="v">Vertical</button>
+                  <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-orientation="h">Horizontal</button>
+                </div>
+              </div>
+              <div class="workspace-panel-popover-section">
+                <div class="workspace-panel-popover-label">Title</div>
+                <div class="workspace-panel-popover-items d-flex flex-column gap-2">
+                  <input type="text" class="form-control form-control-sm" data-legend-title placeholder="Legend title" />
+                </div>
+                <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap mt-2" data-role="legend-title-font">
+                  <select class="form-select form-select-sm" data-legend-title-font-family style="min-width: 150px">
+                    <option value="inherit">Workspace default</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="'Times New Roman', serif">Times</option>
+                    <option value="'Courier New', monospace">Courier</option>
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                  </select>
+                  <input type="color" class="form-control form-control-color form-control-sm workspace-panel-popover-legend-color" data-legend-title-font-color title="Legend title color" />
+                  <input type="number" min="6" max="36" step="1" class="form-control form-control-sm workspace-panel-popover-legend-size" data-legend-title-font-size title="Legend title size" />
+                </div>
+              </div>
             </div>
-            <div class="workspace-panel-popover-items workspace-panel-popover-choice mt-2" data-role="legend-orientation">
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-orientation="v">Vertical</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-orientation="h">Horizontal</button>
-            </div>
-          </div>
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Spacing</div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
-              <label class="small text-muted mb-0">Entry width</label>
-              <input type="number" min="0" max="400" step="1" class="form-control form-control-sm" data-legend-entrywidth />
-            </div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 mt-2">
-              <label class="small text-muted mb-0">Item width</label>
-              <input type="number" min="0" max="400" step="1" class="form-control form-control-sm" data-legend-itemwidth />
-            </div>
-          </div>
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Typography</div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap" data-role="legend-font">
-              <label class="small text-muted mb-0">Legend</label>
-              <select class="form-select form-select-sm" data-legend-font-family style="min-width: 150px">
-                <option value="inherit">Workspace default</option>
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="'Times New Roman', serif">Times</option>
-                <option value="'Courier New', monospace">Courier</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-              </select>
-              <input type="number" min="6" max="36" step="1" class="form-control form-control-sm" data-legend-font-size title="Legend font size" />
-              <input type="color" class="form-control form-control-color form-control-sm" data-legend-font-color title="Legend font color" />
-            </div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap mt-2" data-role="legend-title-font">
-              <label class="small text-muted mb-0">Title</label>
-              <select class="form-select form-select-sm" data-legend-title-font-family style="min-width: 150px">
-                <option value="inherit">Workspace default</option>
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="'Times New Roman', serif">Times</option>
-                <option value="'Courier New', monospace">Courier</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-              </select>
-              <input type="number" min="6" max="36" step="1" class="form-control form-control-sm" data-legend-title-font-size title="Legend title size" />
-              <input type="color" class="form-control form-control-color form-control-sm" data-legend-title-font-color title="Legend title color" />
-            </div>
-          </div>
-          <div class="workspace-panel-popover-section">
-            <div class="workspace-panel-popover-label">Border</div>
-            <div class="workspace-panel-popover-items" data-role="legend-border-toggle">
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-border="on">On</button>
-              <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-border="off">Off</button>
-            </div>
-            <div class="workspace-panel-popover-items d-flex align-items-center gap-2 mt-2">
-              <label class="small text-muted mb-0">Weight</label>
-              <input type="number" min="0" max="10" step="1" class="form-control form-control-sm" data-legend-border-width />
-              <input type="color" class="form-control form-control-color form-control-sm" data-legend-border-color title="Legend border color" />
+            <div class="workspace-panel-popover-legend-col">
+              <div class="workspace-panel-popover-section">
+                <div class="workspace-panel-popover-label">Traces</div>
+                <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap" data-role="legend-font">
+                  <select class="form-select form-select-sm" data-legend-font-family style="min-width: 150px">
+                    <option value="inherit">Workspace default</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="'Times New Roman', serif">Times</option>
+                    <option value="'Courier New', monospace">Courier</option>
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                  </select>
+                  <input type="color" class="form-control form-control-color form-control-sm workspace-panel-popover-legend-color" data-legend-font-color title="Legend font color" />
+                  <input type="number" min="6" max="36" step="1" class="form-control form-control-sm workspace-panel-popover-legend-size" data-legend-font-size title="Legend font size" />
+                </div>
+                <div class="workspace-panel-popover-items d-flex align-items-center gap-2 mt-2">
+                  <label class="small text-muted mb-0 legend-width-label">Entry width</label>
+                  <input type="number" min="0" max="400" step="1" class="form-control form-control-sm workspace-panel-popover-legend-width" data-legend-entrywidth />
+                </div>
+                <div class="workspace-panel-popover-items d-flex align-items-center gap-2 mt-2">
+                  <label class="small text-muted mb-0 legend-width-label">Item width</label>
+                  <input type="number" min="0" max="400" step="1" class="form-control form-control-sm workspace-panel-popover-legend-width" data-legend-itemwidth />
+                </div>
+              </div>
+              <div class="workspace-panel-popover-section">
+                <div class="workspace-panel-popover-label">Border</div>
+                <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
+                  <div class="workspace-panel-popover-choice" data-role="legend-border-toggle">
+                    <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-border="on">On</button>
+                    <button type="button" class="btn btn-outline-secondary workspace-panel-popover-btn" data-border="off">Off</button>
+                  </div>
+                  <input type="number" min="0" max="10" step="1" class="form-control form-control-sm workspace-panel-popover-legend-size" data-legend-border-width />
+                  <input type="color" class="form-control form-control-color form-control-sm workspace-panel-popover-legend-color" data-legend-border-color title="Legend border color" />
+                </div>
+              </div>
             </div>
           </div>
         `;
@@ -1909,23 +1911,34 @@ export function createPanelDomFacade({
 
           const entryInput = legendPopover.querySelector('[data-legend-entrywidth]');
           if (entryInput) {
-            entryInput.value = Number.isFinite(Number(legend.entrywidth))
-              ? String(Math.round(Number(legend.entrywidth)))
-              : '';
+            const resolved = Number.isFinite(Number(legend.entrywidth))
+              ? Number(legend.entrywidth)
+              : (Number.isFinite(Number(plotHost?._fullLayout?.legend?.entrywidth))
+                ? Number(plotHost?._fullLayout?.legend?.entrywidth)
+                : 0);
+            entryInput.value = String(Math.round(resolved));
           }
           const itemInput = legendPopover.querySelector('[data-legend-itemwidth]');
           if (itemInput) {
-            itemInput.value = Number.isFinite(Number(legend.itemwidth))
-              ? String(Math.round(Number(legend.itemwidth)))
-              : '';
+            const resolved = Number.isFinite(Number(legend.itemwidth))
+              ? Number(legend.itemwidth)
+              : (Number.isFinite(Number(plotHost?._fullLayout?.legend?.itemwidth))
+                ? Number(plotHost?._fullLayout?.legend?.itemwidth)
+                : 0);
+            itemInput.value = String(Math.round(resolved));
           }
 
           const legendFont = legend.font || {};
           hydrateLegendFontSelect(legendPopover.querySelector('[data-legend-font-family]'), legendFont.family);
-          const legendSize = Number(legendFont.size);
+          const legendSize = Number(
+            legendFont.size
+              ?? plotHost?._fullLayout?.legend?.font?.size
+              ?? plotHost?._fullLayout?.font?.size
+              ?? 12
+          );
           const legendSizeInput = legendPopover.querySelector('[data-legend-font-size]');
           if (legendSizeInput) {
-            legendSizeInput.value = Number.isFinite(legendSize) ? String(Math.round(legendSize)) : '';
+            legendSizeInput.value = Number.isFinite(legendSize) ? String(Math.round(legendSize)) : '12';
           }
           const legendColorInput = legendPopover.querySelector('[data-legend-font-color]');
           if (legendColorInput) {
@@ -1934,10 +1947,17 @@ export function createPanelDomFacade({
 
           const titleFont = title?.font || {};
           hydrateLegendFontSelect(legendPopover.querySelector('[data-legend-title-font-family]'), titleFont.family);
-          const titleSize = Number(titleFont.size);
+          const titleSize = Number(
+            titleFont.size
+              ?? legendFont.size
+              ?? plotHost?._fullLayout?.legend?.title?.font?.size
+              ?? plotHost?._fullLayout?.legend?.font?.size
+              ?? plotHost?._fullLayout?.font?.size
+              ?? 12
+          );
           const titleSizeInput = legendPopover.querySelector('[data-legend-title-font-size]');
           if (titleSizeInput) {
-            titleSizeInput.value = Number.isFinite(titleSize) ? String(Math.round(titleSize)) : '';
+            titleSizeInput.value = Number.isFinite(titleSize) ? String(Math.round(titleSize)) : '12';
           }
           const titleColorInput = legendPopover.querySelector('[data-legend-title-font-color]');
           if (titleColorInput) {

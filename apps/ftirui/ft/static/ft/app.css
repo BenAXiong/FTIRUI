@@ -3278,6 +3278,54 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   width: max-content;
   max-width: none;
 }
+.workspace-panel-popover-legend{
+  width: max-content;
+  max-width: none;
+}
+.workspace-panel-popover-legend-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, max-content));
+  gap: .85rem;
+}
+.workspace-panel-popover-legend-col{
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.workspace-panel-popover-legend-col .workspace-panel-popover-section{
+  margin-bottom: 0;
+}
+.workspace-panel-popover-legend [data-legend-title]::placeholder{
+  color: var(--bs-secondary-color);
+  opacity: .7;
+}
+.workspace-panel-popover-legend .legend-width-label{
+  width: 72px;
+  flex: 0 0 auto;
+}
+.workspace-panel-popover-legend select.form-select{
+  min-width: 120px;
+  width: 120px;
+  flex: 0 0 auto;
+}
+.workspace-panel-popover-legend .workspace-panel-popover-legend-size{
+  width: 64px;
+  flex: 0 0 auto;
+  text-align: right;
+}
+.workspace-panel-popover-legend .workspace-panel-popover-legend-width{
+  width: 72px;
+  flex: 0 0 auto;
+  text-align: right;
+}
+.workspace-panel-popover-legend .workspace-panel-popover-legend-color{
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
 .workspace-panel-popover-axes-grid{
   display: grid;
   grid-template-columns: repeat(2, minmax(160px, max-content));

@@ -41,8 +41,9 @@ hb2 popup: many refinement needed. X/Y toggle wiring, Layout behavior, etc
 plots: how to enable advanced formating and Tex in legends?
 plot axis label: separate inboxes for name and unit
 FTIR, NMR (?): leader lines connectors with auto layout, self organized for crowded spectra (complex with Plotly?)
+br DnD new file directly in a specific graph
 
-*colba features
+*colab features
 lab presets: lab-specific formatting for students to apply (and customize)
 _________________________________________________________________________________________________
 Polishing
