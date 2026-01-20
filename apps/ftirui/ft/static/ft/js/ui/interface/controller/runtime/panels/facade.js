@@ -213,6 +213,14 @@ export function createPanelsFacade({
     return nextFigure;
   };
 
+  const stripFileExtension = (value) => {
+    if (!value) return '';
+    const text = String(value);
+    const lastDot = text.lastIndexOf('.');
+    if (lastDot <= 0) return text;
+    return text.slice(0, lastDot);
+  };
+
   const createTraceFromPayload = (payload = {}, file = null) => {
     const baseLine = payload?.line || {};
     const paletteSelection = typeof allocateTraceColor === 'function'
@@ -220,15 +228,21 @@ export function createPanelsFacade({
       : { color: pickColor(), index: null };
     const providedColor = payload?.color || payload?.line?.color || null;
     const colorValue = providedColor || paletteSelection.color;
-    const traceName = sanitizeTraceName(decodeName(payload?.name || payload?.meta?.name || ''));
+    const rawFilename = decodeName(payload?.filename || file?.name || '');
+    const rawName = decodeName(payload?.name || payload?.meta?.name || '');
+    const derivedName = rawName && rawFilename && rawName === rawFilename
+      ? stripFileExtension(rawName)
+      : rawName;
+    const fallbackName = rawFilename ? stripFileExtension(rawFilename) : '';
+    const traceName = sanitizeTraceName(derivedName || fallbackName || '');
     const rawX = ensureArray(payload?.x);
     const rawY = ensureArray(payload?.y || payload?.values);
     const xValues = rawX.length ? rawX : ensureArray(payload?.wavenumber);
     const yValues = rawY.length ? rawY : ensureArray(payload?.intensity);
 
     const trace = {
-      name: traceName || sanitizeTraceName(file ? decodeName(file.name) : 'Trace'),
-      filename: decodeName(payload?.filename || file?.name || ''),
+      name: traceName || sanitizeTraceName(file ? stripFileExtension(decodeName(file.name)) : 'Trace'),
+      filename: rawFilename,
       type: payload?.type || 'scatter',
       mode: payload?.mode || 'lines',
       x: xValues,
@@ -313,6 +327,9 @@ export function createPanelsFacade({
         }
         if (!providedColor && Number.isInteger(paletteSelection.index) && !Number.isInteger(meta.autoColorIndex)) {
           meta.autoColorIndex = paletteSelection.index;
+        }
+        if (!meta.filename && rawFilename) {
+          meta.filename = rawFilename;
         }
         return meta;
       })()
