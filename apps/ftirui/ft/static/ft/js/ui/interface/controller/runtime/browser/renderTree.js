@@ -31,6 +31,169 @@ const insertAtCaret = (input, text) => {
   input.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
+const updateTraceNamePreview = (input) => {
+  if (!input) return;
+  const wrapper = input.closest('.folder-trace');
+  const preview = wrapper?.querySelector('.trace-name-toolbar-preview');
+  if (!preview) return;
+  const rawSource = input.readOnly ? (input.dataset.richName || input.value || '') : (input.value || '');
+  const raw = sanitizeTraceName(rawSource);
+  preview.innerHTML = raw || '';
+};
+
+const toggleTraceNameOverlay = (input, enabled) => {
+  if (!input) return;
+  const row = input.closest('.folder-trace');
+  const browser = input.closest('.workspace-browser');
+  const panelBody = input.closest('.panel-body');
+  const children = input.closest('.folder-children');
+  row?.classList.toggle('trace-name-editing', !!enabled);
+  children?.classList.toggle('trace-name-editing-parent', !!enabled);
+  browser?.classList.toggle('trace-name-editing', !!enabled);
+  panelBody?.classList.toggle('trace-name-editing', !!enabled);
+};
+
+const positionTraceNameMenu = (menu, anchor) => {
+  if (!menu || !anchor || typeof document === 'undefined') return;
+  const rect = anchor.getBoundingClientRect();
+  const vpW = document.documentElement.clientWidth;
+  const vpH = document.documentElement.clientHeight;
+  const previousDisplay = menu.style.display;
+  menu.style.display = 'grid';
+  const width = menu.offsetWidth || 180;
+  const height = menu.offsetHeight || 120;
+  let left = rect.left + (rect.width / 2) - (width / 2);
+  let top = rect.top - height - 6;
+  if (top < 8) {
+    top = rect.bottom + 6;
+  }
+  if (left + width > vpW - 8) {
+    left = Math.max(8, vpW - width - 8);
+  }
+  if (top + height > vpH - 8) {
+    top = Math.max(8, vpH - height - 8);
+  }
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.style.display = previousDisplay;
+};
+
+const attachFloatingMenu = (group, menuKey, input) => {
+  if (!group || typeof document === 'undefined') return;
+  const menu = group.querySelector(`[data-menu="${menuKey}"]`);
+  if (!menu) return;
+  menu.classList.add('trace-name-toolbar-menu-floating');
+  menu.setAttribute('draggable', 'false');
+  menu.querySelectorAll('.trace-name-toolbar-symbol').forEach((btn) => {
+    btn.setAttribute('draggable', 'false');
+  });
+  const anchor = group.querySelector('[data-action]');
+  let hideTimer = null;
+  let pinnedOpen = false;
+  let docListener = null;
+
+  const clearHideTimer = () => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+  };
+
+  const setDocListener = (enabled) => {
+    if (!enabled && docListener) {
+      document.removeEventListener('pointerdown', docListener, true);
+      docListener = null;
+      return;
+    }
+    if (enabled && !docListener) {
+      docListener = (event) => {
+        if (!pinnedOpen) return;
+        if (menu.contains(event.target) || anchor?.contains(event.target)) return;
+        hide(true);
+      };
+      document.addEventListener('pointerdown', docListener, true);
+    }
+  };
+
+  const show = (pinned = false) => {
+    clearHideTimer();
+    if (!menu.isConnected) {
+      document.body.appendChild(menu);
+    } else if (menu.parentElement !== document.body) {
+      document.body.appendChild(menu);
+    }
+    positionTraceNameMenu(menu, anchor);
+    menu.style.display = 'grid';
+    if (pinned) {
+      pinnedOpen = true;
+      anchor?.classList.add('is-open');
+      setDocListener(true);
+    }
+  };
+  const hide = (force = false) => {
+    if (!force && pinnedOpen) return;
+    pinnedOpen = false;
+    anchor?.classList.remove('is-open');
+    menu.style.display = 'none';
+    if (menu.parentElement !== group) {
+      group.appendChild(menu);
+    }
+    setDocListener(false);
+  };
+
+  group.addEventListener('pointerenter', () => show(false));
+  group.addEventListener('pointerleave', (event) => {
+    if (pinnedOpen) return;
+    if (!menu.contains(event.relatedTarget)) {
+      clearHideTimer();
+      hideTimer = setTimeout(() => hide(false), 180);
+    }
+  });
+  group.addEventListener('focusin', () => show(false));
+  group.addEventListener('focusout', (event) => {
+    if (pinnedOpen) return;
+    if (!menu.contains(event.relatedTarget)) {
+      clearHideTimer();
+      hideTimer = setTimeout(() => hide(false), 180);
+    }
+  });
+  anchor?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (pinnedOpen) {
+      hide(true);
+      return;
+    }
+    show(true);
+  });
+  menu.addEventListener('pointerleave', (event) => {
+    if (pinnedOpen) return;
+    if (!group.contains(event.relatedTarget)) {
+      clearHideTimer();
+      hideTimer = setTimeout(() => hide(false), 180);
+    }
+  });
+  menu.addEventListener('pointerenter', () => clearHideTimer());
+  menu.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  menu.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  menu.addEventListener('dragstart', (event) => event.preventDefault());
+  menu.addEventListener('click', (event) => {
+    const insertBtn = event.target.closest('[data-insert]');
+    if (!insertBtn || !input) return;
+    event.preventDefault();
+    event.stopPropagation();
+    insertAtCaret(input, insertBtn.dataset.insert || '');
+    input.focus();
+  });
+  menu.style.display = 'none';
+};
+
 const wrapSelection = (input, open, close) => {
   if (!input) return;
   const start = Number.isFinite(input.selectionStart) ? input.selectionStart : input.value.length;
@@ -51,6 +214,7 @@ const setTraceNameDisplay = (input, rawName, { editing = false } = {}) => {
   const sanitized = sanitizeTraceName(rawName);
   input.dataset.richName = sanitized;
   input.value = editing ? sanitized : traceNameToPlainText(sanitized);
+  updateTraceNamePreview(input);
 };
 
 const buildTraceNameToolbar = (input) => {
@@ -58,21 +222,25 @@ const buildTraceNameToolbar = (input) => {
   toolbar.className = 'trace-name-toolbar';
   toolbar.setAttribute('role', 'toolbar');
   toolbar.innerHTML = `
-    <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="sup" title="Superscript">x<sup>2</sup></button>
-    <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="sub" title="Subscript">x<sub>2</sub></button>
-    <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="br" title="Line break">\u21b5</button>
-    <div class="trace-name-toolbar-group">
-      <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="greek" title="Greek letters">\u03b1\u03b2</button>
-      <div class="trace-name-toolbar-menu" data-menu="greek">
-        ${TRACE_NAME_GREEK.map((symbol) => `<button type="button" class="trace-name-toolbar-symbol" data-insert="${symbol}">${symbol}</button>`).join('')}
+    <div class="trace-name-toolbar-label">Formatting tools</div>
+    <div class="trace-name-toolbar-row">
+      <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="sup" title="Superscript">x<sup>2</sup></button>
+      <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="sub" title="Subscript">x<sub>2</sub></button>
+      <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="br" title="Line break">\u21b5</button>
+      <div class="trace-name-toolbar-group">
+        <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="greek" title="Greek letters">\u03b1</button>
+        <div class="trace-name-toolbar-menu" data-menu="greek">
+          ${TRACE_NAME_GREEK.map((symbol) => `<button type="button" class="trace-name-toolbar-symbol" data-insert="${symbol}">${symbol}</button>`).join('')}
+        </div>
+      </div>
+      <div class="trace-name-toolbar-group">
+        <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="symbols" title="Symbols">\u00b1</button>
+        <div class="trace-name-toolbar-menu" data-menu="symbols">
+          ${TRACE_NAME_SYMBOLS.map((symbol) => `<button type="button" class="trace-name-toolbar-symbol" data-insert="${symbol}">${symbol}</button>`).join('')}
+        </div>
       </div>
     </div>
-    <div class="trace-name-toolbar-group">
-      <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="symbols" title="Symbols">\u00b1\u00d7</button>
-      <div class="trace-name-toolbar-menu" data-menu="symbols">
-        ${TRACE_NAME_SYMBOLS.map((symbol) => `<button type="button" class="trace-name-toolbar-symbol" data-insert="${symbol}">${symbol}</button>`).join('')}
-      </div>
-    </div>
+    <div class="trace-name-toolbar-preview" aria-live="polite"></div>
   `;
 
   toolbar.addEventListener('pointerdown', (event) => {
@@ -99,6 +267,11 @@ const buildTraceNameToolbar = (input) => {
     }
     input.focus();
   });
+
+  input?.addEventListener('input', () => updateTraceNamePreview(input));
+  updateTraceNamePreview(input);
+  attachFloatingMenu(toolbar.querySelector('[data-action="greek"]')?.closest('.trace-name-toolbar-group'), 'greek', input);
+  attachFloatingMenu(toolbar.querySelector('[data-action="symbols"]')?.closest('.trace-name-toolbar-group'), 'symbols', input);
 
   return toolbar;
 };
@@ -349,15 +522,13 @@ export function renderBrowserTree(ctx, state) {
       setTraceNameDisplay(renameInput, renameInput.dataset.richName || renameInput.value, { editing: true });
       renameInput.focus();
       renameInput.select();
-      row.classList.add('trace-name-editing');
-      row.closest('.folder-children')?.classList.add('trace-name-editing-parent');
+      toggleTraceNameOverlay(renameInput, true);
       evt.stopPropagation();
     });
     renameInput?.addEventListener('blur', () => {
       if (!renameInput) return;
       renameInput.readOnly = true;
-      row.classList.remove('trace-name-editing');
-      row.closest('.folder-children')?.classList.remove('trace-name-editing-parent');
+      toggleTraceNameOverlay(renameInput, false);
       const sanitized = sanitizeTraceName(renameInput.value.trim());
       if (!sanitized) {
         rerender();

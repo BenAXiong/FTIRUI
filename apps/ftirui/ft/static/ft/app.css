@@ -5729,6 +5729,15 @@ pre, code, .pre-like {
   overflow: visible;
   z-index: 2;
 }
+.workspace-browser.trace-name-editing{
+  z-index: 1100;
+}
+.workspace-browser.trace-name-editing .panel-body{
+  overflow: visible;
+}
+.workspace-browser.trace-name-editing .folder-children{
+  overflow: visible;
+}
 
 .folder-children::before{
   content: '';
@@ -5804,14 +5813,35 @@ pre, code, .pre-like {
   margin-bottom: .25rem;
   padding: .25rem .35rem;
   display: none;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: .25rem;
   flex-wrap: wrap;
   background: var(--bs-body-bg);
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: .45rem;
   box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
-  z-index: 24;
+  z-index: 2000;
+}
+.trace-name-toolbar-label{
+  font-size: .6rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.trace-name-toolbar-row{
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  flex-wrap: wrap;
+}
+.trace-name-toolbar-preview{
+  min-height: 1.4rem;
+  padding: .2rem .35rem;
+  border-radius: .35rem;
+  background: color-mix(in oklab, var(--bs-tertiary-bg) 70%, transparent);
+  font-size: .8rem;
+  line-height: 1.2;
 }
 .folder-trace.trace-name-editing .trace-name-toolbar{
   display: flex;
@@ -5819,6 +5849,12 @@ pre, code, .pre-like {
 .trace-name-toolbar-btn{
   padding: .12rem .4rem;
   line-height: 1;
+}
+.trace-name-toolbar-btn.is-open{
+  border-color: rgba(59, 130, 246, 0.6);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--bs-body-color);
 }
 .trace-name-toolbar-group{
   position: relative;
@@ -5840,8 +5876,13 @@ pre, code, .pre-like {
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
   z-index: 5;
 }
-.trace-name-toolbar-group:hover .trace-name-toolbar-menu,
-.trace-name-toolbar-group:focus-within .trace-name-toolbar-menu{
+.trace-name-toolbar-menu-floating{
+  position: fixed;
+  z-index: 10000;
+  margin-top: 0;
+}
+.trace-name-toolbar-group:hover .trace-name-toolbar-menu:not(.trace-name-toolbar-menu-floating),
+.trace-name-toolbar-group:focus-within .trace-name-toolbar-menu:not(.trace-name-toolbar-menu-floating){
   display: grid;
 }
 .trace-name-toolbar-symbol{
