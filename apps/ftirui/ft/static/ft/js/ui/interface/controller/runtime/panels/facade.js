@@ -1,5 +1,9 @@
 import { createPanelContext } from '../context/panelContext.js';
 import { normalizeTraceMeta } from '../../../../utils/traceMeta.js';
+import {
+  applyLegendFontPolicy,
+  sanitizeTraceName
+} from '../../../../utils/traceName.js';
 
 export function createPanelsFacade({
   models = {},
@@ -179,7 +183,9 @@ export function createPanelsFacade({
       if (!original) return original;
       const trace = deepClone(original);
       syncTraceAppearance(trace);
-      if (typeof trace.name === 'string') trace.name = decodeName(trace.name);
+      if (typeof trace.name === 'string') {
+        trace.name = sanitizeTraceName(decodeName(trace.name));
+      }
       if (typeof trace.filename === 'string') trace.filename = decodeName(trace.filename);
       if (trace.meta) {
         if (typeof trace.meta.name === 'string') trace.meta.name = decodeName(trace.meta.name);
@@ -197,9 +203,11 @@ export function createPanelsFacade({
       trace.dash = trace.line.dash;
       return trace;
     });
+    const { layout: nextLayout } = applyLegendFontPolicy(figure.layout, traces);
     const nextFigure = {
       ...figure,
-      data: traces
+      data: traces,
+      layout: nextLayout
     };
     panelsModel.updatePanelFigure(panelId, nextFigure);
     return nextFigure;
@@ -212,14 +220,14 @@ export function createPanelsFacade({
       : { color: pickColor(), index: null };
     const providedColor = payload?.color || payload?.line?.color || null;
     const colorValue = providedColor || paletteSelection.color;
-    const traceName = decodeName(payload?.name || payload?.meta?.name || '');
+    const traceName = sanitizeTraceName(decodeName(payload?.name || payload?.meta?.name || ''));
     const rawX = ensureArray(payload?.x);
     const rawY = ensureArray(payload?.y || payload?.values);
     const xValues = rawX.length ? rawX : ensureArray(payload?.wavenumber);
     const yValues = rawY.length ? rawY : ensureArray(payload?.intensity);
 
     const trace = {
-      name: traceName || (file ? decodeName(file.name) : 'Trace'),
+      name: traceName || sanitizeTraceName(file ? decodeName(file.name) : 'Trace'),
       filename: decodeName(payload?.filename || file?.name || ''),
       type: payload?.type || 'scatter',
       mode: payload?.mode || 'lines',

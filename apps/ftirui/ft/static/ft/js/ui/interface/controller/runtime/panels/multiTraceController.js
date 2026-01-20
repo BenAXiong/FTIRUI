@@ -1,3 +1,5 @@
+import { traceNameToPlainText } from '../../../../utils/traceName.js';
+
 const MULTI_TRACE_META_KEY = 'multiTrace';
 const BASE_Y_KEY = 'workspaceMultiTraceBaseY';
 const LEGEND_META_KEY = 'multiTraceLegend';
@@ -183,7 +185,7 @@ const buildLegendAnnotations = (traces = []) => {
       }
     }
     if (anchorIndex < 0) return;
-    const label = trace.name || `Trace ${idx + 1}`;
+    const label = traceNameToPlainText(trace.name || `Trace ${idx + 1}`);
     annotations.push({
       x: xValues[anchorIndex],
       y: yValues[anchorIndex],

@@ -2,8 +2,106 @@ import { render as renderTreeView } from '../../../../workspace/browser/treeView
 import { escapeHtml } from '../../../../utils/dom.js';
 import { toHexColor } from '../../../../utils/styling.js';
 import { getWorkspaceTagColor } from '../../../../utils/tagColors.js';
+import { sanitizeTraceName, traceNameToPlainText } from '../../../../utils/traceName.js';
 import { DEFAULT_TAG_LABEL } from '../panels/panelTagMapping.js';
 import { getNonPlotPanelInfo } from './panelMeta.js';
+
+const TRACE_NAME_GREEK = [
+  '\u03b1', '\u03b2', '\u03b3', '\u03b4', '\u03b5', '\u03b6', '\u03b7', '\u03b8',
+  '\u03b9', '\u03ba', '\u03bb', '\u03bc', '\u03bd', '\u03be', '\u03bf', '\u03c0',
+  '\u03c1', '\u03c3', '\u03c4', '\u03c5', '\u03c6', '\u03c7', '\u03c8', '\u03c9',
+  '\u0394', '\u039b', '\u03a0', '\u03a3', '\u03a6', '\u03a9'
+];
+const TRACE_NAME_SYMBOLS = [
+  '\u00b1', '\u00d7', '\u00b7', '\u2264', '\u2265', '\u221e', '\u2192', '\u2190',
+  '\u2194', '\u21cc', '\u00b0', '\u00b5', '\u2126', '\u2191', '\u2193', '\u21d2'
+];
+
+const insertAtCaret = (input, text) => {
+  if (!input || typeof text !== 'string') return;
+  const start = Number.isFinite(input.selectionStart) ? input.selectionStart : input.value.length;
+  const end = Number.isFinite(input.selectionEnd) ? input.selectionEnd : input.value.length;
+  const before = input.value.slice(0, start);
+  const after = input.value.slice(end);
+  input.value = `${before}${text}${after}`;
+  const caret = start + text.length;
+  if (typeof input.setSelectionRange === 'function') {
+    input.setSelectionRange(caret, caret);
+  }
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+};
+
+const wrapSelection = (input, open, close) => {
+  if (!input) return;
+  const start = Number.isFinite(input.selectionStart) ? input.selectionStart : input.value.length;
+  const end = Number.isFinite(input.selectionEnd) ? input.selectionEnd : input.value.length;
+  const before = input.value.slice(0, start);
+  const selection = input.value.slice(start, end);
+  const after = input.value.slice(end);
+  input.value = `${before}${open}${selection}${close}${after}`;
+  const caret = end + open.length + close.length;
+  if (typeof input.setSelectionRange === 'function') {
+    input.setSelectionRange(caret, caret);
+  }
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+};
+
+const setTraceNameDisplay = (input, rawName, { editing = false } = {}) => {
+  if (!input) return;
+  const sanitized = sanitizeTraceName(rawName);
+  input.dataset.richName = sanitized;
+  input.value = editing ? sanitized : traceNameToPlainText(sanitized);
+};
+
+const buildTraceNameToolbar = (input) => {
+  const toolbar = document.createElement('div');
+  toolbar.className = 'trace-name-toolbar';
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.innerHTML = `
+    <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="sup" title="Superscript">x<sup>2</sup></button>
+    <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="sub" title="Subscript">x<sub>2</sub></button>
+    <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="br" title="Line break">\u21b5</button>
+    <div class="trace-name-toolbar-group">
+      <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="greek" title="Greek letters">\u03b1\u03b2</button>
+      <div class="trace-name-toolbar-menu" data-menu="greek">
+        ${TRACE_NAME_GREEK.map((symbol) => `<button type="button" class="trace-name-toolbar-symbol" data-insert="${symbol}">${symbol}</button>`).join('')}
+      </div>
+    </div>
+    <div class="trace-name-toolbar-group">
+      <button type="button" class="btn btn-outline-secondary btn-sm trace-name-toolbar-btn" data-action="symbols" title="Symbols">\u00b1\u00d7</button>
+      <div class="trace-name-toolbar-menu" data-menu="symbols">
+        ${TRACE_NAME_SYMBOLS.map((symbol) => `<button type="button" class="trace-name-toolbar-symbol" data-insert="${symbol}">${symbol}</button>`).join('')}
+      </div>
+    </div>
+  `;
+
+  toolbar.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+  });
+
+  toolbar.addEventListener('click', (event) => {
+    const insertBtn = event.target.closest('[data-insert]');
+    if (insertBtn && input) {
+      insertAtCaret(input, insertBtn.dataset.insert || '');
+      input.focus();
+      return;
+    }
+    const actionBtn = event.target.closest('[data-action]');
+    if (!actionBtn) return;
+    const action = actionBtn.dataset.action;
+    if (!input) return;
+    if (action === 'sup') {
+      wrapSelection(input, '<sup>', '</sup>');
+    } else if (action === 'sub') {
+      wrapSelection(input, '<sub>', '</sub>');
+    } else if (action === 'br') {
+      insertAtCaret(input, '<br>');
+    }
+    input.focus();
+  });
+
+  return toolbar;
+};
 
 /**
  * Render the workspace browser DOM using the prepared tree state.
@@ -158,9 +256,10 @@ export function renderBrowserTree(ctx, state) {
     const label = meta.displayTitle || rawTitle || (labelIndex ? `Graph ${labelIndex}` : 'Graph');
     const graphMatches = !term || label.toLowerCase().includes(term);
     const rows = traces.map((trace, idx) => {
-      const name = trace?.name || `Trace ${idx + 1}`;
+      const rawName = sanitizeTraceName(trace?.name || `Trace ${idx + 1}`);
+      const name = traceNameToPlainText(rawName);
       const matchesTrace = !term || name.toLowerCase().includes(term);
-      return { trace, idx, name, matchesTrace };
+      return { trace, idx, name, rawName, matchesTrace };
     });
     const visibleRows = term ? rows.filter((row) => row.matchesTrace || graphMatches) : rows;
     return {
@@ -192,7 +291,9 @@ export function renderBrowserTree(ctx, state) {
       row.classList.add('is-muted');
     }
 
-    const safeName = escapeHtml(rowInfo.name || `Trace ${rowInfo.idx + 1}`);
+    const rawName = sanitizeTraceName(rowInfo.rawName || rowInfo.name || `Trace ${rowInfo.idx + 1}`);
+    const displayName = traceNameToPlainText(rawName);
+    const safeName = escapeHtml(displayName || `Trace ${rowInfo.idx + 1}`);
     row.innerHTML = `
       <span class="drag-handle bi bi-grip-vertical" title="Drag trace"></span>
       <input class="form-control form-control-sm rename" type="text" value="${safeName}" title="Double-click to rename" readonly>
@@ -231,16 +332,24 @@ export function renderBrowserTree(ctx, state) {
     updateTraceChip(row, trace);
 
     const renameInput = row.querySelector('.rename');
+    if (renameInput) {
+      setTraceNameDisplay(renameInput, rawName);
+      row.appendChild(buildTraceNameToolbar(renameInput));
+    }
     renameInput?.addEventListener('dblclick', (evt) => {
       renameInput.readOnly = false;
+      setTraceNameDisplay(renameInput, renameInput.dataset.richName || renameInput.value, { editing: true });
       renameInput.focus();
       renameInput.select();
+      row.classList.add('trace-name-editing');
       evt.stopPropagation();
     });
     renameInput?.addEventListener('blur', () => {
+      if (!renameInput || renameInput.readOnly) return;
       renameInput.readOnly = true;
-      const value = renameInput.value.trim();
-      if (!value) {
+      row.classList.remove('trace-name-editing');
+      const sanitized = sanitizeTraceName(renameInput.value.trim());
+      if (!sanitized) {
         rerender();
         return;
       }
@@ -248,15 +357,19 @@ export function renderBrowserTree(ctx, state) {
       const tracesData = ensureArray(figure.data);
       const current = tracesData[rowInfo.idx];
       if (!current) return;
-      if ((current.name || '').trim() === value) return;
+      if ((current.name || '').trim() === sanitized) {
+        setTraceNameDisplay(renameInput, sanitized);
+        return;
+      }
       pushHistory();
-      current.name = value;
+      current.name = sanitized;
       figure.data = tracesData;
       normalizePanelTraces(panelId, figure);
       renderPlot(panelId);
       rerender();
       persist();
       updateHistoryButtons();
+      setTraceNameDisplay(renameInput, sanitized);
     });
     renameInput?.addEventListener('keydown', (evt) => {
       if (evt.key === 'Enter') {
@@ -264,7 +377,8 @@ export function renderBrowserTree(ctx, state) {
       } else if (evt.key === 'Escape') {
         const tracesData = getPanelTraces(panelId);
         const current = tracesData[rowInfo.idx];
-        renameInput.value = current?.name || `Trace ${rowInfo.idx + 1}`;
+        const fallback = current?.name || `Trace ${rowInfo.idx + 1}`;
+        setTraceNameDisplay(renameInput, fallback, { editing: true });
         renameInput.blur();
       }
     });

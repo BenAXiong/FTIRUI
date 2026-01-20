@@ -1,3 +1,5 @@
+import { traceNameToPlainText } from '../../../../utils/traceName.js';
+
 const hasOwn = Object.prototype.hasOwnProperty;
 
 export function createHeaderActions(context = {}) {
@@ -1134,7 +1136,8 @@ export function createHeaderActions(context = {}) {
             const defaultTitle = deriveGraphTitle();
             let baseFilename = provided || defaultTitle;
             if (!provided && figureData.length === 1) {
-              const traceName = typeof figureData[0]?.name === 'string' ? figureData[0].name.trim() : '';
+              const traceNameRaw = typeof figureData[0]?.name === 'string' ? figureData[0].name.trim() : '';
+              const traceName = traceNameToPlainText(traceNameRaw);
               if (traceName) {
                 baseFilename = `${baseFilename} - ${traceName}`;
               }

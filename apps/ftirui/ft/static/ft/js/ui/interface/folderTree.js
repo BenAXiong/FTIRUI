@@ -14,6 +14,7 @@ import { applyDashIcon, normalizeDashValue, toHexColor } from '../utils/styling.
 import { applyLineChip } from '../utils/styling_linechip.js';
 import { normalizeTraceMeta, summarizeTraceMeta } from '../utils/traceMeta.js';
 import { escapeHtml } from '../utils/dom.js';
+import { sanitizeTraceName, traceNameToPlainText } from '../utils/traceName.js';
 import { collectDroppedFiles } from './dropzone.js';
 import { createChipPanels } from './chipPanels.js';
 
@@ -45,13 +46,15 @@ function buildTraceRow(trace) {
     ['longdashdot', 'Long dash + dot']
   ];
 
+  const rawName = sanitizeTraceName(trace.name || trace.filename || trace.id);
+  const displayName = traceNameToPlainText(rawName);
   row.innerHTML = `
     <span class="drag-handle bi bi-grip-vertical" draggable="true" title="Drag trace"></span>
     <input class="form-check-input vis" type="checkbox" ${trace.visible ? 'checked' : ''} title="Toggle visibility">
     <button class="line-chip" type="button" aria-label="Edit line style"></button>
     <button class="color-dot" type="button" style="--c:${toHexColor(trace.color)}" title="Pick colour"></button>
     <input class="color form-control form-control-color form-control-sm" type="color" value="${toHexColor(trace.color)}" title="Colour picker">
-    <input class="form-control form-control-sm rename" type="text" value="${escapeHtml(trace.name || trace.filename || trace.id)}" title="Double-click to rename" readonly>
+    <input class="form-control form-control-sm rename" type="text" value="${escapeHtml(displayName)}" title="Double-click to rename" readonly>
     <button class="trace-info-icon" type="button" title="Trace info"><i class="bi bi-info-circle"></i></button>
     <select class="dash form-select form-select-sm" title="Line style">
       ${dashOptions.map(([value, label]) => `<option value="${value}" ${dashValue === value ? 'selected' : ''}></option>`).join('')}
@@ -62,6 +65,11 @@ function buildTraceRow(trace) {
 
   applyDashIcon(row.querySelector('.dash'), dashValue);
   applyTraceMetaToRow(row, trace);
+  const renameInput = row.querySelector('.rename');
+  if (renameInput) {
+    renameInput.dataset.richName = rawName;
+    renameInput.value = displayName;
+  }
 
   // Ensure a chip exists (create or select)
   let chip = row.querySelector('.line-chip');
@@ -375,7 +383,7 @@ function handleTreeInput(event, instance, deps) {
     if (!traceId) return;
     const trace = instance.state.traces[traceId];
     if (!trace) return;
-    trace.name = target.value || trace.name;
+    trace.name = sanitizeTraceName(target.value || trace.name);
     deps.renderPlot();
   }
 }
@@ -570,11 +578,15 @@ export function bindFolderTree(instance, deps) {
     if (!input) return;
     // Enable editing
     input.readOnly = false;
+    input.value = input.dataset.richName || input.value;
     input.focus();
     input.select();
     // Commit and lock on blur/Enter
     const finish = () => {
       input.readOnly = true;
+      const sanitized = sanitizeTraceName(input.value || '');
+      input.dataset.richName = sanitized;
+      input.value = traceNameToPlainText(sanitized);
       input.removeEventListener('blur', finish);
       input.removeEventListener('keydown', onKey);
       // Trigger change to persist name via existing handlers

@@ -3,16 +3,32 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 - [-] Phase 7_2 - Graphs
     - [x] Add tech ECD
     - [x] More subtle hb highlights
-    - [-] Axes names and other texts: latex or helper with common units and best suggestions
+    - [x] Axes names and other texts: latex or helper with common units and best suggestions
         - [x] MathJax setup for axis titles and plotly limitations - hb2 workaround
         - [x] hb2 rework - columnns, input buttons, display behavior
-        - [ ] Apply to other fields: plot title, text notes (NOT in legend, ticks, UI elements)
-        - [-] Markdown notes: fix preview button and enable mathjax for TeX rendering
-    - [ ] FT-IR markers: add links lines...
-    - [ ] MVP? Legend options (formatting eg sci, incl next to each trace for overlaps)
+        - [x] Markdown notes: fix preview button and enable mathjax for TeX rendering
+    - [-] Legend options
+        - [x] Enable special characters: research tradeoffs mathjax vs HTML vs Unicode
+        - [-] Add formatting popup to browser trace name
+        - [ ] Display formatted name in popup while editting
+        - [ ] Display formatted name in browser when out of edit mode
+        - [ ] Legend title with own font
+        - [ ] hb5 : Core styles and Handy behaviors and nicities
+        - [ ] 
+        - [ ] Write the relevant doc
+        - [ ] *auto-hide extensions (from browser)
+        - [ ] *** autoclose tb2_s3 when graph unfocused
     - [ ] Toolbars
         - [ ] tb2 - sync s1 and s2
         - [ ] tb2 - s10 add right panel option: display section with 3 choices
+    - [ ] Md notes
+        - [ ] Rename as Notes
+        - [ ] Add 4th preview toggle mode: vertical stack
+        - [ ] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
+        - [ ] Make preview... editable (with buttons)
+    - [ ] Spreadsheets
+        - [ ] Review necessery improvement for MVP and demo
+        - [ ] (...)
     - [ ] .opju
         - [ ] Import and conversion for single traces
         - [ ] Import folders and keep structure
@@ -40,10 +56,12 @@ Phase x – Extra details
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dash dup canvas: auto name edit + rename crayon next to name on hover instead of aciton cell
 - [ ] demo files (raw or worspace snapshot?)
+- [ ] all icons...
 
 Phase x – (nondev)
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),
-* list priority info: what would make them use it? - formating, presentation, papers, PR, techs,...?
+* list priority info: what would make them use it? - formating, papers vs PR, techs, live mode...?
+dedicated mail email?
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
