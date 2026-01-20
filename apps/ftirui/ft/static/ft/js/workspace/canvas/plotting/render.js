@@ -5,6 +5,8 @@
  * Never: never mutate PanelsModel state, never access browser UI modules, never emit autosave/history events.
  */
 
+import { TRACE_NAME_LEGEND_FONT_STACK } from '../../../ui/utils/traceName.js';
+
 const rendered = new WeakSet();  // marks containers that had an initial render
 const resizeQueue = new Set();
 let resizeRaf = null;
@@ -70,6 +72,89 @@ const MODEBAR_CUSTOM_ICONS = {
     width: 24,
     height: 24,
     path: 'M8 4 H16 L17 6 H21 V8 H3 V6 H7 Z M6 8 H18 L17 20 H7 Z'
+  }
+};
+
+const FONT_COVERAGE_SAMPLE = '\u03b1\u03b2\u03b3\u0394\u03bc\u03a9 \u00b1 \u00d7 \u00b7 \u2264 \u2265 \u221e \u2192 \u2194 \u21cc 10\u22123 H\u2082O';
+const FONT_READY_TIMEOUT_MS = 1800;
+let fontPreloadEl = null;
+let fontCoverageWarned = false;
+
+const isDevMode = () => {
+  if (typeof window === 'undefined') return false;
+  if (typeof window.__DEV__ !== 'undefined') return !!window.__DEV__;
+  if (typeof document !== 'undefined') {
+    const flag = document.body?.dataset?.workspaceDev;
+    if (flag != null) return flag === 'true';
+  }
+  try {
+    return new URLSearchParams(window.location.search).get('dev') === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const ensureFontPreload = (fontFamily) => {
+  if (typeof document === 'undefined' || !document.body) return false;
+  if (fontPreloadEl && fontPreloadEl.isConnected) return false;
+  const el = document.createElement('div');
+  el.setAttribute('data-font-preload', 'plotly-export');
+  el.style.position = 'fixed';
+  el.style.left = '-9999px';
+  el.style.top = '0';
+  el.style.width = '1px';
+  el.style.height = '1px';
+  el.style.opacity = '0';
+  el.style.pointerEvents = 'none';
+  el.style.overflow = 'hidden';
+  el.style.whiteSpace = 'nowrap';
+  el.style.fontFamily = fontFamily;
+  el.textContent = FONT_COVERAGE_SAMPLE;
+  document.body.appendChild(el);
+  fontPreloadEl = el;
+  return true;
+};
+
+const showFontCoverageWarning = (fontFamily) => {
+  if (typeof document === 'undefined' || fontCoverageWarned) return;
+  fontCoverageWarned = true;
+  if (document.querySelector('[data-font-coverage-warning]')) return;
+  const banner = document.createElement('div');
+  banner.setAttribute('data-font-coverage-warning', 'true');
+  banner.textContent = `Font coverage incomplete for legend export. Check "${fontFamily}".`;
+  banner.style.position = 'fixed';
+  banner.style.right = '1rem';
+  banner.style.bottom = '1rem';
+  banner.style.zIndex = '9999';
+  banner.style.background = 'rgba(180, 24, 24, 0.95)';
+  banner.style.color = '#fff';
+  banner.style.padding = '.5rem .75rem';
+  banner.style.borderRadius = '.5rem';
+  banner.style.fontSize = '.75rem';
+  banner.style.fontFamily = 'system-ui, sans-serif';
+  banner.style.boxShadow = '0 6px 18px rgba(0,0,0,0.2)';
+  document.body.appendChild(banner);
+};
+
+const ensureFontsForExport = async (figureLayout) => {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  const legendFamily = figureLayout?.legend?.font?.family;
+  const fontFamily = typeof legendFamily === 'string' && legendFamily.trim()
+    ? legendFamily
+    : TRACE_NAME_LEGEND_FONT_STACK;
+  const created = ensureFontPreload(fontFamily);
+  if (created && typeof requestAnimationFrame === 'function') {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+  if (document.fonts?.ready && typeof document.fonts.ready.then === 'function') {
+    await Promise.race([
+      document.fonts.ready,
+      new Promise((resolve) => setTimeout(resolve, FONT_READY_TIMEOUT_MS))
+    ]);
+  }
+  if (!fontCoverageWarned && isDevMode() && typeof document.fonts.check === 'function') {
+    const ok = document.fonts.check(`12px ${fontFamily}`, FONT_COVERAGE_SAMPLE);
+    if (!ok) showFontCoverageWarning(fontFamily);
   }
 };
 
@@ -457,6 +542,7 @@ export async function exportFigure(panelId, containerEl, opts = {}) {
     format = 'png',       // 'png' | 'svg' | 'jpeg' | 'webp'
     width, height, scale = 2, background, view = 'current', figure
   } = opts;
+  await ensureFontsForExport(figure?.layout || containerEl?.layout);
   const exportOpts = { format, width, height, scale };
   const wantsCustomBackground = background === 'white' || background === 'transparent';
   const wantsFullRange = view === 'full';
@@ -539,6 +625,7 @@ export async function exportFigure(panelId, containerEl, opts = {}) {
       responsive: false,
       editable: false
     });
+    await ensureFontsForExport(nextFigure.layout);
     // eslint-disable-next-line no-undef
     return Plotly.toImage(scratch, exportOpts);
   } finally {

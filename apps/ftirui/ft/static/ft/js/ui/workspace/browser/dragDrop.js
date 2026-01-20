@@ -190,6 +190,19 @@ export function attach(rootEl, options = {}) {
     if (event.target?.closest('input, textarea, select')) {
       return;
     }
+    if (event.target?.closest('.folder-traces, .folder-children')) {
+      event.preventDefault();
+      return;
+    }
+    if (event.target?.closest('.drag-handle')) {
+      return;
+    }
+    const inGraphHeader = event.target?.closest('.graph-header');
+    const inSectionHeader = event.target?.closest('.section-header');
+    if (!inGraphHeader && !inSectionHeader) {
+      event.preventDefault();
+      return;
+    }
     const panelId = resolvePanelId(event.target);
     if (panelId) {
       context.draggingPanelId = panelId;
