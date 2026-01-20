@@ -938,7 +938,7 @@ const applyPlotThemeToLayout = (layout = {}, theme = getActiveTheme()) => {
       bordercolor: toRgbaString(mixHex(colors.paperBg || colors.plotBg, '#000000', 0.25), 0.35),
       font: {
         ...(layout.legend?.font || {}),
-        color: colors.plotTextColor
+        color: '#000000'
       }
     },
     hoverlabel: {

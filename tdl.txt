@@ -13,9 +13,9 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Fix trace name drag behavior
         - [x] Display formatted name in popup while editting
         - [x] Display formatted name in browser when out of edit mode (sub and sup only)
-        - [-] hb5 legend title with own font + some styles and behaviors
+        - [x] hb5 legend title with own font + some styles and behaviors
         - [x] (think how to override trace names & log)
-        - [ ] Write the relevant doc
+        - [-] Write the relevant doc
         - [ ] *auto-hide extensions (from browser)
         - [ ] *** autoclose tb2_s3 when graph unfocused
     - [ ] Toolbars
@@ -56,6 +56,7 @@ Phase x – Extra details
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
 - [ ] Dash dup canvas: auto name edit + rename crayon next to name on hover instead of aciton cell
 - [ ] demo files (raw or worspace snapshot?)
+- [ ] browser extra options: exp/col all, hide tags, ...
 - [ ] all icons...
 
 Phase x – (nondev)

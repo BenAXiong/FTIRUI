@@ -83,6 +83,27 @@ To avoid desyncs between Plotly state and persisted workspace state:
 - When modifying traces, preserve `meta` fields that other features depend on (e.g., `workspace*` keys).
 - Render is authoritative; if a feature needs to reapply interaction state after a render, do it explicitly.
 
+## Trace Name Formatting
+
+The trace name editor in the workspace browser accepts a small, safe subset of formatting and sanitizes everything else.
+
+- Source of truth: `trace.name` stored in the panel figure. The browser input shows a plain-text/Unicode-safe display version when not editing.
+- Sanitizer: `utils/traceName.js` allows only `<br>`, `<sub>`, `<sup>` (strips/escapes everything else). This is used before saving back to the trace.
+- Display helpers:
+  - `traceNameToPlainText` strips tags for non-legend UI.
+  - `traceNameToDisplayText` (runtime browser) converts `<sub>/<sup>` into Unicode where available for the read-only input.
+- Legend font policy: if a trace name contains markup or non-ASCII, the legend font stack is switched to a symbols-friendly fallback (see `TRACE_NAME_LEGEND_FONT_STACK`).
+
+## Legend Popover Controls
+
+The hb5 legend popover maps UI controls to Plotly `layout.legend.*` and `layout.legend.title.*` keys.
+
+- Layout: orientation (vertical/horizontal).
+- Title: text, font family/size/color.
+- Traces: font family/size/color, entry width, item width.
+- Border: toggle + width + color.
+- Theme override: legend text color is forced to black in `workspaceRuntime.js` (intended for white plot backgrounds).
+
 ## Theme + Trace Palette Behavior
 
 Trace colors are driven by the active workspace theme, with a fallback to payload-provided colors:
