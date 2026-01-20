@@ -2584,8 +2584,14 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-markdown-panel[data-mode="edit"] .workspace-markdown-preview{
   display: none;
 }
+.workspace-markdown-panel[data-mode="preview"] .workspace-markdown-editor{
+  display: none;
+}
 .workspace-markdown-panel[data-mode="split"] .workspace-markdown-editor,
 .workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
+  display: block;
+}
+.workspace-markdown-panel[data-mode="preview"] .workspace-markdown-preview{
   display: block;
 }
 .workspace-markdown-preview p:last-child{

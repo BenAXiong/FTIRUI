@@ -108,16 +108,32 @@ export const markdownPanelType = {
     let selectionSnapshot = null;
 
     const applyMode = (mode) => {
-      const resolvedMode = mode === 'edit' ? 'edit' : 'split';
+      const resolvedMode = (mode === 'edit' || mode === 'preview') ? mode : 'split';
       wrapper.dataset.mode = resolvedMode;
       if (resolvedMode === 'edit' && document.activeElement !== editor) {
         editor.focus();
       }
     };
 
+
+    const scheduleMathTypeset = createDebounce(() => {
+      if (typeof window === 'undefined') return;
+      const mathjax = window.MathJax;
+      if (!mathjax) return;
+      if (typeof mathjax.typesetPromise === 'function') {
+        mathjax.typesetPromise([preview]).catch(() => {});
+        return;
+      }
+      if (mathjax.Hub && typeof mathjax.Hub.Queue === 'function') {
+        mathjax.Hub.Queue(['Typeset', mathjax.Hub, preview]);
+      }
+    }, 500);
     const updatePreview = (text) => {
       preview.innerHTML = renderMarkdown(text);
       preview.classList.toggle('is-empty', !text.trim());
+      if (text.includes('$') || text.includes('\\(') || text.includes('\\[')) {
+        scheduleMathTypeset();
+      }
     };
 
     const persistContent = () => {

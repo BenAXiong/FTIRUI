@@ -290,12 +290,18 @@ export function createPanelDomFacade({
           if (!markdownPreviewToggleBtn) return;
           const hasHandles = Boolean(contentHandles);
           markdownPreviewToggleBtn.disabled = !hasHandles;
-          const previewVisible = (contentHandles?.getMode?.() ?? 'split') !== 'edit';
-          const label = previewVisible ? 'Hide Markdown preview' : 'Show Markdown preview';
+          const mode = contentHandles?.getMode?.() ?? 'split';
+          const previewVisible = mode !== 'edit';
+          const label = mode === 'edit'
+            ? 'Edit only'
+            : (mode === 'preview' ? 'Preview only' : 'Split view');
           markdownPreviewToggleBtn.title = label;
           markdownPreviewToggleBtn.setAttribute('aria-label', label);
           markdownPreviewToggleBtn.classList.toggle('is-preview-visible', previewVisible);
+          markdownPreviewToggleBtn.classList.toggle('is-preview-only', mode === 'preview');
+          markdownPreviewToggleBtn.classList.toggle('is-edit-only', mode === 'edit');
           markdownPreviewToggleBtn.classList.toggle('is-preview-available', hasHandles);
+          markdownPreviewToggleBtn.dataset.mode = mode;
           if (!markdownPreviewToggleIcon && markdownPreviewToggleBtn) {
             markdownPreviewToggleIcon = buildMarkdownPreviewIcon();
             markdownPreviewToggleBtn.appendChild(markdownPreviewToggleIcon);
@@ -2685,13 +2691,15 @@ export function createPanelDomFacade({
             markdownPreviewToggleBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-markdown-preview-toggle';
             markdownPreviewToggleBtn.addEventListener('click', () => {
               if (!contentHandles) return;
+              const modes = ['edit', 'split', 'preview'];
               const currentMode = contentHandles.getMode?.() || 'split';
-              const nextMode = currentMode === 'edit' ? 'split' : 'edit';
+              const currentIndex = Math.max(0, modes.indexOf(currentMode));
+              const nextMode = modes[(currentIndex + 1) % modes.length];
               contentHandles.setMode?.(nextMode);
               updateMarkdownPreviewToggle();
             });
             updateMarkdownPreviewToggle();
-            actions.appendChild(markdownPreviewToggleBtn);
+            actionsCenter.appendChild(markdownPreviewToggleBtn);
 
             const markdownShortcutTabs = [
               {

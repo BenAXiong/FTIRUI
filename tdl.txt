@@ -5,10 +5,9 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
     - [x] More subtle hb highlights
     - [-] Axes names and other texts: latex or helper with common units and best suggestions
         - [x] MathJax setup for axis titles and plotly limitations - hb2 workaround
-        - [-] hb2 rework - columnns, input buttons, display behavior
+        - [x] hb2 rework - columnns, input buttons, display behavior
         - [ ] Apply to other fields: plot title, text notes (NOT in legend, ticks, UI elements)
-        - [ ] Persistence
-        - [ ] Markdown notes debug
+        - [-] Markdown notes: fix preview button and enable mathjax for TeX rendering
     - [ ] FT-IR markers: add links lines...
     - [ ] MVP? Legend options (formatting eg sci, incl next to each trace for overlaps)
     - [ ] Toolbars
@@ -18,7 +17,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [ ] Import and conversion for single traces
         - [ ] Import folders and keep structure
 
-- [ ] Phase 7_3 - 
+- [ ] Phase 7_3 - Peripheral (?)
     - [ ] Stylish landing for guests
     - [ ] Payment UI
     - [ ] ? Payment methods

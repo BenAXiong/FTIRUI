@@ -37,7 +37,7 @@ tags backend sync (needed for dashboard)
 edit mode for toolbars
 ! tb1 consider main or 0 button for advanced data analysis (fitting, etc) since can be applied to many techs
     otherwise tie them to graph types on tb2
-plot text: feature (with toggle to dis) auto math conversion, eg ^ to superscript without latex
+hb2 popup: many refinement needed. X/Y toggle wiring, Layout behavior, etc
 
 *colba features
 lab presets: lab-specific formatting for students to apply (and customize)
