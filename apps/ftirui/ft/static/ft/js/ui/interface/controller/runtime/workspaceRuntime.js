@@ -7466,6 +7466,9 @@ const isPanelPinned = (panelId) =>
         if (panelId !== lastResult?.panelId) {
           lastResult = { panelId: null, peaks: [] };
         }
+        if (!panelId) {
+          hidePeakMenu();
+        }
         syncMenuFromFigure(panelId);
         updateTargetLabel(panelId);
         attachManualHandler(panelId);

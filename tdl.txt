@@ -16,8 +16,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] hb5 legend title with own font + some styles and behaviors
         - [x] (think how to override trace names & log)
         - [x] Write the relevant doc
-        - [-] *auto-hide extensions (from browser)
-        - [ ] *** autoclose tb2_s3 when graph unfocused
+        - [x] *auto-hide extensions (from browser)
+        - [-] ***autoclose tb2_s3 when graph unfocused
     - [ ] Toolbars
         - [ ] tb2 - sync s1 and s2
         - [ ] tb2 - s10 add right panel option: display section with 3 choices
