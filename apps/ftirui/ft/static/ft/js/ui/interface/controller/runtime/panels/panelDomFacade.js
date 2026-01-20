@@ -838,7 +838,13 @@ export function createPanelDomFacade({
           <div class="workspace-panel-popover-axis-labels-grid">
             <div class="workspace-panel-popover-axis-labels-col">
               <div class="workspace-panel-popover-section">
-                <div class="workspace-panel-popover-label">Titles</div>
+                <div class="workspace-panel-popover-label-row">
+                  <div class="workspace-panel-popover-label">Titles</div>
+                  <div class="workspace-panel-popover-axis-scope workspace-peak-toggle-group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn workspace-peak-toggle is-active" data-axis-scope="x" aria-pressed="true">X-axis</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn workspace-peak-toggle is-active" data-axis-scope="y" aria-pressed="true">Y-axis</button>
+                  </div>
+                </div>
                 <div class="workspace-panel-popover-items d-flex flex-column gap-2">
                   <div class="workspace-panel-popover-axis-tools">
                     <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn workspace-panel-popover-axis-tool" data-axis-tool="superscript" title="Superscript">x<sup>2</sup></button>
@@ -870,6 +876,25 @@ export function createPanelDomFacade({
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="chi">&chi;</button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="psi">&psi;</button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="omega">&omega;</button>
+                      </span>
+                    </span>
+                    <span class="workspace-panel-popover-axis-symbols">
+                      <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn workspace-panel-popover-axis-tool" data-axis-tool="symbols" aria-expanded="false" title="Symbols">&plusmn;</button>
+                      <span class="workspace-panel-popover-axis-symbols-menu" data-axis-symbols-menu>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="plusminus">&plusmn;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="times">&times;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="middot">&middot;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="degree">&deg;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="angstrom">&Aring;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="le">&le;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="ge">&ge;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="approx">&asymp;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="notequal">&ne;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="infinity">&infin;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="arrow">&rarr;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="leftarrow">&larr;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="leftright">&harr;</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-axis-insert="equilibrium">&#8644;</button>
                       </span>
                     </span>
                   </div>
@@ -912,26 +937,27 @@ export function createPanelDomFacade({
                     <option value="'Courier New', monospace">Courier</option>
                     <option value="'Roboto', sans-serif">Roboto</option>
                   </select>
-                  <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" data-font-weight="bold">Bold</button>
                 </div>
-                <div class="workspace-panel-popover-items d-flex align-items-center gap-2 flex-wrap">
-                  <label class="small text-muted mb-0">Size</label>
-                  <input type="number" min="6" max="36" step="1" value="12" class="form-control form-control-sm" data-font-size style="width: 72px" />
-                  <label class="small text-muted mb-0">Color</label>
-                  <input type="color" value="#000000" class="form-control form-control-color form-control-sm" data-font-color title="Axis title color" />
+                <div class="workspace-panel-popover-items workspace-panel-popover-axis-typography-row">
+                  <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" data-font-weight="bold" title="Bold">B</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" title="Italic" disabled>I</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" title="Underline" disabled>U</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm workspace-panel-popover-btn" title="Strike" disabled>S</button>
+                  <input type="number" min="6" max="36" step="1" value="12" class="form-control form-control-sm workspace-panel-popover-axis-size" data-font-size title="Font size" />
+                  <input type="color" value="#000000" class="form-control form-control-color form-control-sm workspace-panel-popover-axis-color" data-font-color title="Axis title color" />
                 </div>
               </div>
               <div class="workspace-panel-popover-section">
                 <div class="workspace-panel-popover-label">Layout</div>
-                <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
-                  <span class="small text-muted">Angle</span>
-                  <input type="range" min="-90" max="90" step="5" value="0" class="form-range" style="width:160px" data-angle />
-                  <span class="small text-muted" data-readout-angle>0ů</span>
+                <div class="workspace-panel-popover-items d-flex align-items-center gap-2 workspace-panel-popover-axis-layout">
+                  <span class="small text-muted workspace-panel-popover-axis-layout-label">Angle</span>
+                  <input type="range" min="-90" max="90" step="5" value="0" class="form-range workspace-panel-popover-axis-range" data-angle />
+                  <span class="small text-muted workspace-panel-popover-axis-readout" data-readout-angle>0°</span>
                 </div>
-                <div class="workspace-panel-popover-items d-flex align-items-center gap-2">
-                  <span class="small text-muted">Distance</span>
-                  <input type="range" min="0" max="80" step="2" value="10" class="form-range" style="width:160px" data-distance />
-                  <span class="small text-muted" data-readout-distance>10px</span>
+                <div class="workspace-panel-popover-items d-flex align-items-center gap-2 workspace-panel-popover-axis-layout">
+                  <span class="small text-muted workspace-panel-popover-axis-layout-label">Distance</span>
+                  <input type="range" min="0" max="80" step="2" value="10" class="form-range workspace-panel-popover-axis-range" data-distance />
+                  <span class="small text-muted workspace-panel-popover-axis-readout" data-readout-distance>10px</span>
                 </div>
               </div>
             </div>
@@ -986,7 +1012,8 @@ export function createPanelDomFacade({
                 const source = plotHost || document.body;
                 defaultFamily = source ? window.getComputedStyle(source).fontFamily : '';
               }
-              defaultOption.textContent = `${defaultFamily || 'Workspace'} (default)`;
+              const shortName = (defaultFamily || 'Workspace').split(',')[0].trim().replace(/^'["']|["']$/g, '');
+              defaultOption.textContent = `${shortName || 'Workspace'} (default)`;
             }
             fontSelect.value = family;
           }
@@ -1016,7 +1043,7 @@ export function createPanelDomFacade({
           const angleInput = axisLabelsPopover.querySelector('[data-angle]');
           const angleReadout = axisLabelsPopover.querySelector('[data-readout-angle]');
           if (angleInput && angleReadout) {
-            const angle = Number(X.title?.textangle ?? Y.title?.textangle ?? 0);
+            const angle = Number(X.tickangle ?? Y.tickangle ?? 0);
             const resolved = Number.isFinite(angle) ? angle : 0;
             angleInput.value = resolved;
             angleReadout.textContent = `${resolved}°`;
@@ -1053,16 +1080,36 @@ export function createPanelDomFacade({
           rho: '\u03C1', sigma: '\u03C3', tau: '\u03C4', upsilon: '\u03C5',
           phi: '\u03C6', chi: '\u03C7', psi: '\u03C8', omega: '\u03C9'
         };
+        const axisTitleSymbolMap = {
+          plusminus: '\u00B1',
+          times: '\u00D7',
+          middot: '\u00B7',
+          degree: '\u00B0',
+          angstrom: '\u00C5',
+          le: '\u2264',
+          ge: '\u2265',
+          approx: '\u2248',
+          notequal: '\u2260',
+          infinity: '\u221E',
+          arrow: '\u2192',
+          leftarrow: '\u2190',
+          leftright: '\u2194',
+          equilibrium: '\u21CC'
+        };
+        const axisTitleMenuLocks = { greek: false, symbols: false };
+        const getAxisMenu = (type) => axisLabelsPopover.querySelector(
+          type === 'greek' ? '[data-axis-greek-menu]' : '[data-axis-symbols-menu]'
+        );
+        const getAxisMenuButton = (type) => axisLabelsPopover.querySelector(
+          `[data-axis-tool="${type}"]`
+        );
         const setAxisTitleMode = (mode) => {
           axisTitleInputMode = mode;
           axisLabelsPopover.querySelectorAll('[data-axis-tool]').forEach((btn) => {
-            const wants = btn.dataset.axisTool === mode;
+            const tool = btn.dataset.axisTool;
+            if (tool !== 'superscript' && tool !== 'subscript') return;
+            const wants = tool === mode;
             btn.classList.toggle('is-active', wants);
-            if (btn.dataset.axisTool === 'greek') {
-              btn.setAttribute('aria-expanded', 'false');
-              const menu = axisLabelsPopover.querySelector('[data-axis-greek-menu]');
-              if (menu) menu.classList.remove('is-open');
-            }
           });
         };
         const insertAxisTitleText = (input, value) => {
@@ -1077,12 +1124,44 @@ export function createPanelDomFacade({
           }
           input.dispatchEvent(new Event('change', { bubbles: true }));
         };
-        const toggleGreekMenu = (btn) => {
-          const menu = axisLabelsPopover.querySelector('[data-axis-greek-menu]');
-          if (!menu) return;
-          const isOpen = menu.classList.toggle('is-open');
-          btn?.setAttribute('aria-expanded', String(isOpen));
+        const setAxisMenuState = (type, open) => {
+          const menu = getAxisMenu(type);
+          const btn = getAxisMenuButton(type);
+          if (!menu || !btn) return;
+          menu.classList.toggle('is-open', open);
+          btn.setAttribute('aria-expanded', String(open));
         };
+        const setAxisMenuLock = (type, locked) => {
+          axisTitleMenuLocks[type] = locked;
+          const btn = getAxisMenuButton(type);
+          if (btn) {
+            btn.classList.toggle('is-active', locked);
+            btn.setAttribute('aria-pressed', String(locked));
+          }
+          setAxisMenuState(type, locked);
+        };
+        const wireAxisMenuHover = (type) => {
+          const btn = getAxisMenuButton(type);
+          const menu = getAxisMenu(type);
+          if (!btn || !menu) return;
+          const maybeClose = () => {
+            if (axisTitleMenuLocks[type]) return;
+            if (btn.matches(':hover') || menu.matches(':hover')) return;
+            setAxisMenuState(type, false);
+          };
+          btn.addEventListener('mouseenter', () => {
+            if (axisTitleMenuLocks[type]) return;
+            setAxisMenuState(type, true);
+          });
+          btn.addEventListener('mouseleave', maybeClose);
+          menu.addEventListener('mouseenter', () => {
+            if (axisTitleMenuLocks[type]) return;
+            setAxisMenuState(type, true);
+          });
+          menu.addEventListener('mouseleave', maybeClose);
+        };
+        wireAxisMenuHover('greek');
+        wireAxisMenuHover('symbols');
 
         axisLabelsPopover.addEventListener('click', (event) => event.stopPropagation());
 
@@ -1118,6 +1197,14 @@ export function createPanelDomFacade({
         });
 
         axisLabelsPopover.addEventListener('click', (e) => {
+          const scopeBtn = e.target.closest('[data-axis-scope]');
+          if (scopeBtn) {
+            const nextState = !scopeBtn.classList.contains('is-active');
+            scopeBtn.classList.toggle('is-active', nextState);
+            scopeBtn.setAttribute('aria-pressed', String(nextState));
+            e.stopPropagation();
+            return;
+          }
           const tool = e.target.closest('[data-axis-tool]');
           const insert = e.target.closest('[data-axis-insert]');
           if (!tool && !insert) return;
@@ -1131,7 +1218,15 @@ export function createPanelDomFacade({
               return;
             }
             if (mode === 'greek') {
-              toggleGreekMenu(tool);
+              const next = !axisTitleMenuLocks.greek;
+              setAxisMenuLock('greek', next);
+              (activeAxisTitleInput || axisLabelsPopover.querySelector('[data-axis-title="x"]'))?.focus();
+              e.stopPropagation();
+              return;
+            }
+            if (mode === 'symbols') {
+              const next = !axisTitleMenuLocks.symbols;
+              setAxisMenuLock('symbols', next);
               (activeAxisTitleInput || axisLabelsPopover.querySelector('[data-axis-title="x"]'))?.focus();
               e.stopPropagation();
               return;
@@ -1140,13 +1235,14 @@ export function createPanelDomFacade({
           if (insert) {
             const targetInput = activeAxisTitleInput || axisLabelsPopover.querySelector('[data-axis-title="x"]');
             const key = insert.dataset.axisInsert || '';
-            const resolved = axisTitleGreekMap[key] || insert.textContent || key;
+            const resolved = axisTitleGreekMap[key] || axisTitleSymbolMap[key] || insert.textContent || key;
             insertAxisTitleText(targetInput, resolved);
             targetInput?.focus();
-            const menu = axisLabelsPopover.querySelector('[data-axis-greek-menu]');
-            const toggle = axisLabelsPopover.querySelector('[data-axis-tool="greek"]');
-            if (menu) menu.classList.remove('is-open');
-            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+            const menu = insert.closest('[data-axis-greek-menu],[data-axis-symbols-menu]');
+            const menuType = menu?.hasAttribute('data-axis-greek-menu') ? 'greek' : 'symbols';
+            if (menuType && !axisTitleMenuLocks[menuType]) {
+              setAxisMenuState(menuType, false);
+            }
             e.stopPropagation();
           }
         });

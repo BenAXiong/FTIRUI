@@ -863,6 +863,8 @@ export function createHeaderActions(context = {}) {
           const angleNumeric = Number(payload.angle);
           if (Number.isFinite(angleNumeric)) {
             const angle = Math.max(-180, Math.min(180, Math.round(angleNumeric)));
+            patch['xaxis.tickangle'] = angle;
+            patch['yaxis.tickangle'] = angle;
             patch['xaxis.title.textangle'] = angle;
             patch['yaxis.title.textangle'] = angle;
             detailParts.push(`Angle ${angle}°`);

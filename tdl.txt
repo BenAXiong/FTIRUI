@@ -5,7 +5,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
     - [x] More subtle hb highlights
     - [-] Axes names and other texts: latex or helper with common units and best suggestions
         - [x] MathJax setup for axis titles and plotly limitations - hb2 workaround
-        - [-] hb2 rework
+        - [-] hb2 rework - columnns, input buttons, display behavior
         - [ ] Apply to other fields: plot title, text notes (NOT in legend, ticks, UI elements)
         - [ ] Persistence
         - [ ] Markdown notes debug

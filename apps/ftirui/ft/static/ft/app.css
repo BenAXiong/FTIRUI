@@ -2813,7 +2813,7 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 .workspace-panel-popover-axis-labels-grid{
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
-  gap: .75rem;
+  gap: 1.1rem;
 }
 .workspace-panel-popover.workspace-panel-popover-axis-labels{
   width: max-content;
@@ -2825,11 +2825,73 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   flex-direction: column;
   gap: .6rem;
 }
+.workspace-panel-popover-axis-scope{
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-left: auto;
+}
+.workspace-panel-popover-axis-scope.workspace-peak-toggle-group{
+  gap: 0;
+  flex-wrap: nowrap;
+}
+.workspace-panel-popover-axis-scope .workspace-peak-toggle{
+  padding: .2rem .7rem;
+  line-height: 1.1;
+  min-height: 1.45rem;
+  font-size: .75rem;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: .2rem 0 0 .2rem;
+}
+.workspace-panel-popover-axis-scope .workspace-peak-toggle:focus,
+.workspace-panel-popover-axis-scope .workspace-peak-toggle:focus-visible{
+  box-shadow: none !important;
+  outline: none !important;
+}
+.workspace-panel-popover-axis-scope .workspace-peak-toggle:active{
+  box-shadow: none !important;
+  outline: none !important;
+}
+.workspace-panel-popover-axis-scope .workspace-peak-toggle + .workspace-peak-toggle{
+  margin-left: -1px;
+  border-radius: 0 .2rem .2rem 0;
+}
 .workspace-panel-popover-axis-tools{
   display: flex;
   align-items: center;
   gap: .35rem;
   flex-wrap: wrap;
+}
+.workspace-panel-popover-axis-typography-row{
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+.workspace-panel-popover-axis-layout{
+  align-items: center;
+}
+.workspace-panel-popover-axis-layout-label{
+  min-width: 64px;
+}
+.workspace-panel-popover-axis-range{
+  width: 170px;
+}
+.workspace-panel-popover-axis-readout{
+  min-width: 3rem;
+  text-align: right;
+}
+.workspace-panel-popover-axis-size{
+  width: 3.2rem;
+  text-align: center;
+}
+.workspace-panel-popover-axis-color{
+  width: 2.1rem;
+  padding: .2rem;
+  border: none;
+  box-shadow: none;
 }
 .workspace-panel-popover-axis-tool{
   min-width: 2.1rem;
@@ -2845,16 +2907,44 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   top: calc(100% + .4rem);
   left: 0;
   display: none;
-  grid-template-columns: repeat(6, minmax(1.6rem, 1fr));
+  grid-template-columns: repeat(6, minmax(2rem, max-content));
   gap: .25rem;
   padding: .35rem;
   background: var(--bs-body-bg);
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent 20%);
   border-radius: .6rem;
   box-shadow: 0 16px 32px rgba(15, 23, 42, .2);
-  min-width: 15rem;
-  max-width: 18rem;
+  width: max-content;
+  max-width: none;
   z-index: 20;
+}
+.workspace-panel-popover-axis-symbols{
+  position: relative;
+  display: inline-flex;
+}
+.workspace-panel-popover-axis-symbols-menu{
+  position: absolute;
+  top: calc(100% + .4rem);
+  left: 0;
+  display: none;
+  grid-template-columns: repeat(7, minmax(2rem, max-content));
+  gap: .25rem;
+  padding: .35rem;
+  background: var(--bs-body-bg);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent 20%);
+  border-radius: .6rem;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, .2);
+  width: max-content;
+  max-width: none;
+  z-index: 20;
+}
+.workspace-panel-popover-axis-symbols-menu.is-open{
+  display: grid;
+}
+.workspace-panel-popover-axis-symbols-menu .btn{
+  min-width: 2rem;
+  padding: .15rem .35rem;
+  line-height: 1.1;
 }
 .workspace-panel-popover-axis-greek-menu.is-open{
   display: grid;
@@ -2999,6 +3089,12 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   flex-direction: column;
   gap: .4rem;
   margin-bottom: .6rem;
+}
+.workspace-panel-popover-label-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
 }
 .workspace-panel-popover-section:last-child{
   margin-bottom: 0;
@@ -6701,4 +6797,15 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   text-align: center;
   border-radius: .7rem;
   padding: .5rem;
+}
+.workspace-panel-popover-axis-scope .workspace-peak-toggle.btn-sm{
+  padding: .2rem .7rem !important;
+  line-height: 1.1 !important;
+  min-height: 1.45rem !important;
+  height: 1.45rem !important;
+  font-size: .75rem !important;
+  border-radius: .2rem 0 0 .2rem !important;
+}
+.workspace-panel-popover-axis-scope .workspace-peak-toggle.btn-sm + .workspace-peak-toggle.btn-sm{
+  border-radius: 0 .2rem .2rem 0 !important;
 }
