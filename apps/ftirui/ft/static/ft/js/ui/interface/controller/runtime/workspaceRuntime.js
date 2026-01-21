@@ -1761,7 +1761,7 @@ const gatherVisiblePanelsByType = ({ includeNonPlots = false } = {}) => {
       case 'plot':
         return 'Plot';
       case 'markdown':
-        return 'Markdown note';
+        return 'Note';
       case 'spreadsheet':
         return 'Spreadsheet';
       case 'image':
@@ -1988,7 +1988,7 @@ const gatherVisiblePanelsByType = ({ includeNonPlots = false } = {}) => {
       const text = extractMarkdownText(getPanelContent(record.id) || record.content || {});
       files.push({
         name: `${dir}/note.md`,
-        data: text || '# Markdown note\n'
+        data: text || '# Note\n'
       });
     } else if (type === 'spreadsheet') {
       const content = getPanelContent(record.id) || record.content || {};

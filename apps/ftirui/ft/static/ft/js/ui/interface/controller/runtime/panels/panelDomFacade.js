@@ -292,14 +292,13 @@ export function createPanelDomFacade({
           markdownPreviewToggleBtn.disabled = !hasHandles;
           const mode = contentHandles?.getMode?.() ?? 'split';
           const previewVisible = mode !== 'edit';
-          const label = mode === 'edit'
-            ? 'Edit only'
-            : (mode === 'preview' ? 'Preview only' : 'Split view');
+          const label = 'Toggle view';
           markdownPreviewToggleBtn.title = label;
           markdownPreviewToggleBtn.setAttribute('aria-label', label);
           markdownPreviewToggleBtn.classList.toggle('is-preview-visible', previewVisible);
           markdownPreviewToggleBtn.classList.toggle('is-preview-only', mode === 'preview');
           markdownPreviewToggleBtn.classList.toggle('is-edit-only', mode === 'edit');
+          markdownPreviewToggleBtn.classList.toggle('is-split-horizontal', mode === 'split-h');
           markdownPreviewToggleBtn.classList.toggle('is-preview-available', hasHandles);
           markdownPreviewToggleBtn.dataset.mode = mode;
           if (!markdownPreviewToggleIcon && markdownPreviewToggleBtn) {
@@ -2973,7 +2972,7 @@ export function createPanelDomFacade({
             markdownPreviewToggleBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-markdown-preview-toggle';
             markdownPreviewToggleBtn.addEventListener('click', () => {
               if (!contentHandles) return;
-              const modes = ['edit', 'split', 'preview'];
+              const modes = ['edit', 'preview', 'split-h', 'split'];
               const currentMode = contentHandles.getMode?.() || 'split';
               const currentIndex = Math.max(0, modes.indexOf(currentMode));
               const nextMode = modes[(currentIndex + 1) % modes.length];

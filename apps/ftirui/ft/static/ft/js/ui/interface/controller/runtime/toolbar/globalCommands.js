@@ -35,7 +35,7 @@ export function createGlobalCommandsController({
   } = actions;
 
   add(markdownButton, () => createPanel('markdown', {
-    title: 'Markdown note',
+    title: 'Note',
     width: 640,
     height: 420
   }));

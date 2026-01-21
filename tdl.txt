@@ -27,8 +27,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] tb2 - pane extend search to sub-items and add pin button
         - [x] tb2 - pane merge tech tabs and add s10 toggle
     - [-] Md notes
-        - [-] Rename as Notes
-        - [-] Add 4th preview toggle mode: vertical stack
+        - [x] Rename as Notes
+        - [x] Add 4th preview toggle mode: vertical stack
         - [-] Make preview... editable (with buttons)
         - [ ] Add buttons: greek letters, symbols
         - [ ] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
@@ -43,8 +43,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [ ] 
             - [ ] 
         - [ ] Rework "table area"
-            - [ ] Cross icon to delete columns
-            - [ ] Add column button??
+            - [ ] Cross icons to delete columns & rows, onHover, ensure unredo
+            - [ ] Header buttons: right 3, add column, duplicate,  
         - [ ] Remove top band (feature already implement elswhere)
         - [ ] 
     - [ ] .opju

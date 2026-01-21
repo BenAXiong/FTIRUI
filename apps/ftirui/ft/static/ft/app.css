@@ -2121,11 +2121,11 @@ body.workspace-panel-fullscreen .header-actions{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .25rem;
+  gap: .2rem;
 }
 .workspace-markdown-preview-toggle .workspace-markdown-preview-toggle-icon .pane{
-  width: .6rem;
-  height: .95rem;
+  width: .5rem;
+  height: .8rem;
   border: 1px solid currentColor;
   border-radius: .15rem;
   opacity: .4;
@@ -2603,6 +2603,10 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
   display: block;
 }
+.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-editor,
+.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
+  display: block;
+}
 .workspace-markdown-panel[data-mode="preview"] .workspace-markdown-preview{
   display: block;
 }
@@ -2610,6 +2614,13 @@ body.workspace-panel-fullscreen .header-actions{
   margin-bottom: 0;
 }
 .workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
+  border-style: solid;
+  opacity: .95;
+}
+.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-body{
+  flex-direction: column;
+}
+.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
   border-style: solid;
   opacity: .95;
 }

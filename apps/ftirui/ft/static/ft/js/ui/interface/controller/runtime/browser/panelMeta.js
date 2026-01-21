@@ -1,6 +1,6 @@
 const NON_PLOT_PANEL_INFO = {
   markdown: {
-    label: 'Markdown note',
+    label: 'Note',
     icon: 'bi-markdown'
   },
   spreadsheet: {

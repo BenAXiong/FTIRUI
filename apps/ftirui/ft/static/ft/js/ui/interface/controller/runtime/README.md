@@ -38,6 +38,7 @@ Per-panel tags are stored in Plotly layout metadata so they persist via snapshot
 - Scope: changes apply only to the active panel; the TB2 tech selector mirrors the active panel tag.
 - Detection: the runtime infers FT-IR tags from trace/layout metadata (JCAMP headers, X/Y units, input mode) when a panel lacks a manual tag.
 - HUD list: `state/canvasTagsController.js` aggregates unique tags across plot panels and renders the HUD summary.
+  - Note: the HUD tags list should not use the dashboard compact grid class (`workspace-tags-list--compact`). The controller clears that class on re-render to avoid inflating the HUD layout.
 
 Future backend sync (not implemented yet):
 - On canvas save, compute the unique tag list from snapshot panels and store it on the Canvas model (or equivalent).

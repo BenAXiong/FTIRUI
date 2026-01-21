@@ -46,17 +46,17 @@ registerContentKind('markdown', {
 
 export const markdownPanelType = {
   id: 'markdown',
-  label: 'Markdown note',
+  label: 'Note',
   capabilities: {
     plot: false
   },
   panelClass: 'workspace-panel--markdown',
   getDefaultTitle() {
-    return 'Markdown note';
+    return 'Note';
   },
   prepareInitialState(incomingState = {}) {
     const existing = incomingState.content;
-    const text = resolveText(existing) || '# Markdown note\n\nStart typing…';
+    const text = resolveText(existing) || '# Note\n\nStart typing…';
     return {
       content: buildContent(text)
     };
@@ -108,7 +108,8 @@ export const markdownPanelType = {
     let selectionSnapshot = null;
 
     const applyMode = (mode) => {
-      const resolvedMode = (mode === 'edit' || mode === 'preview') ? mode : 'split';
+      const allowedModes = new Set(['edit', 'preview', 'split', 'split-h']);
+      const resolvedMode = allowedModes.has(mode) ? mode : 'split';
       wrapper.dataset.mode = resolvedMode;
       if (resolvedMode === 'edit' && document.activeElement !== editor) {
         editor.focus();
