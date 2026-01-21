@@ -2604,7 +2604,7 @@ body.workspace-panel-fullscreen .header-actions{
   height: 100%;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
   background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.08) 8%);
-  border-radius: .85rem;
+  border-radius: .6rem;
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
   padding: .85rem;
   resize: none;
@@ -2615,9 +2615,9 @@ body.workspace-panel-fullscreen .header-actions{
   min-height: 0;
   height: 100%;
   padding: 1rem;
-  border-radius: .85rem;
+  border-radius: .6rem;
   border: 1px dashed color-mix(in srgb, var(--bs-border-color) 60%, transparent);
-  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.05) 6%);
+  background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(15,23,42,.1) 10%);
   overflow-y: auto;
 }
 .workspace-markdown-preview.is-plain{
@@ -2648,11 +2648,34 @@ body.workspace-panel-fullscreen .header-actions{
   border-style: solid;
   opacity: .95;
 }
+.workspace-markdown-panel[data-mode="split"] .workspace-markdown-body,
+.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-body{
+  gap: 0;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  border-radius: .6rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.06) 8%);
+  overflow: hidden;
+}
+.workspace-markdown-panel[data-mode="split"] .workspace-markdown-editor,
+.workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview,
+.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-editor,
+.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
+  border: 0;
+  border-radius: 0;
+}
+.workspace-markdown-panel[data-mode="split"] .workspace-markdown-editor{
+  padding-right: 1rem;
+}
+.workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
+  border-left: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  padding-left: 1rem;
+}
 .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-body{
   flex-direction: column;
 }
 .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
-  border-style: solid;
+  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  padding-top: 1rem;
   opacity: .95;
 }
 .workspace-panel-plot{
