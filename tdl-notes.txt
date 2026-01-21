@@ -42,6 +42,7 @@ plot axis label: separate inboxes for name and unit
 FTIR, NMR (?): leader lines connectors with auto layout, self organized for crowded spectra (complex with Plotly?)
 br DnD new file directly in a specific graph
 tb2 pane should mirror exactly the other mode. seemslike the logic is badly duplicated
+br wire ctrl+click multiselect (significant details)
 
 *colab features
 lab presets: lab-specific formatting for students to apply (and customize)

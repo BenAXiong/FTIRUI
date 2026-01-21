@@ -70,24 +70,26 @@ export function attach(rootEl, options = {}) {
     const target = event.target;
     if (!target) return;
 
-    const sectionToggle = target.closest('.section-node .toggle');
-    if (sectionToggle) {
-      const sectionId = resolveSectionId(sectionToggle);
-      if (sectionId) {
-        event.preventDefault();
-        handleStatefulResult(callGuarded(context.toggleSectionCollapsed, sectionId));
+    const toggleBtn = target.closest('.toggle');
+    if (toggleBtn) {
+      const graphHeader = toggleBtn.closest('.graph-header');
+      if (graphHeader) {
+        const panelId = resolvePanelId(graphHeader);
+        if (panelId) {
+          event.preventDefault();
+          handleStatefulResult(callGuarded(context.togglePanelCollapsed, panelId));
+        }
+        return;
       }
-      return;
-    }
-
-    const panelToggle = target.closest('.graph-node .toggle');
-    if (panelToggle) {
-      const panelId = resolvePanelId(panelToggle);
-      if (panelId) {
-        event.preventDefault();
-        handleStatefulResult(callGuarded(context.togglePanelCollapsed, panelId));
+      const sectionHeader = toggleBtn.closest('.section-header');
+      if (sectionHeader) {
+        const sectionId = resolveSectionId(sectionHeader);
+        if (sectionId) {
+          event.preventDefault();
+          handleStatefulResult(callGuarded(context.toggleSectionCollapsed, sectionId));
+        }
+        return;
       }
-      return;
     }
 
     const sectionVisibility = target.closest('.section-visibility');

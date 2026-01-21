@@ -33,10 +33,10 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Add plain txt mode and header button to switch with Md
         - [x] Add buttons: greek letters, symbols
         - [x] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
-    - [-] Browser: duplication and mutliselect
+    - [x] Browser: duplication and mutliselect
         - [x] Add onHover button for section, folders and graphs
-        - [-] Add ctrl+alt+drag duplication
-        - [ ] Wire ctrl+click multiselect
+        - [x] Add ctrl+alt+drag duplication
+        - [.] (postponed) Wire ctrl+click multiselect
     - [-] Spreadsheets
         - [-] Review necessary improvement for MVP and demo
         - [ ] Switch bubble UI to streamlined

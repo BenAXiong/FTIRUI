@@ -4733,7 +4733,7 @@ const isPanelPinned = (panelId) =>
     const record = getPanelRecord(panelId);
     if (!record) return false;
     const current = record.collapsed === true;
-    panelsModel.setCollapsed(panelId, !current);
+    panelsModel.setPanelCollapsed(panelId, !current);
     renderBrowser();
     persist();
     return true;
