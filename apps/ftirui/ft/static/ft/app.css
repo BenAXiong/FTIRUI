@@ -1495,6 +1495,18 @@ body.dashboard-overlay-open {
   display:flex;
   flex-wrap:nowrap;
   gap:.25rem;
+  align-self:center;
+  align-items:center;
+}
+.workspace-hud-card__actions > .workspace-tags-list{
+  align-self:center;
+  flex:0 0 auto;
+  height:auto;
+  min-height:0;
+}
+.workspace-hud-card__actions .workspace-tags-list .dashboard-tag,
+.workspace-hud-card__actions .workspace-tags-summary{
+  line-height:1;
 }
 .workspace-tags-summary{
   position:relative;

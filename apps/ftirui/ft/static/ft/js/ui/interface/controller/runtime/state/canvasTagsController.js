@@ -58,6 +58,10 @@ export function createCanvasTagsController({
     if (!tags.length && !cached.list) return;
     const list = ensureListEl();
     if (!list) return;
+    list.classList.remove('workspace-tags-list--compact');
+    list.querySelectorAll('.workspace-tag-compact').forEach((item) => {
+      item.classList.remove('workspace-tag-compact');
+    });
     list.innerHTML = '';
     if (!tags.length) {
       list.hidden = true;

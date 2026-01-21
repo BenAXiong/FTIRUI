@@ -18,19 +18,20 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Write the relevant doc
         - [x] *auto-hide extensions (from browser)
         - [x] ***autoclose tb2_s3 when graph unfocused
-    - [-] Toolbars
+    - [x] Toolbars
         - [x] tb2 - sync s1 and s2
         - [x] tb2 - s10 add right pane option: display section with 3 choices and build pane
         - [x] tb2 - pane minimal UI fixing
         - [x] tb2 - pane test full width sections instead of bubbles (extra tab)
         - [X] tb2 - pane recover tech-dependent tool logic
         - [x] tb2 - pane extend search to sub-items and add pin button
-        - [-] tb2 - pane merge tech tabs and add s10 toggle
-    - [ ] Md notes
-        - [ ] Rename as Notes
-        - [ ] Add 4th preview toggle mode: vertical stack
+        - [x] tb2 - pane merge tech tabs and add s10 toggle
+    - [-] Md notes
+        - [-] Rename as Notes
+        - [-] Add 4th preview toggle mode: vertical stack
+        - [-] Make preview... editable (with buttons)
+        - [ ] Add buttons: greek letters, symbols
         - [ ] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
-        - [ ] Make preview... editable (with buttons)
     - [-] Spreadsheets
         - [-] Review necessary improvement for MVP and demo
         - [ ] Switch bubble UI to linear

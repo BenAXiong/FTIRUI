@@ -497,9 +497,10 @@ function initWorkspaceTagColors() {
       el.style.color = '#fff';
     }
   });
-  if (tagEls.length > 4) {
+  const directTags = tagList.querySelectorAll(':scope > .dashboard-tag');
+  if (directTags.length > 4) {
     tagList.classList.add('workspace-tags-list--compact');
-    tagEls.forEach((el) => el.classList.add('workspace-tag-compact'));
+    directTags.forEach((el) => el.classList.add('workspace-tag-compact'));
   } else {
     tagList.classList.remove('workspace-tags-list--compact');
     tagEls.forEach((el) => el.classList.remove('workspace-tag-compact'));

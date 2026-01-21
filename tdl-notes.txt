@@ -2,9 +2,8 @@ $env:WORKSPACE_LEGACY_ENABLED = "false"
 ___________________________________
 Misc improvements
 
-br -- consider tabs: panels, explorer, dashboard (to see current project and switch canvases)
+s1/s2 mechnism: review optimal flow. Enable access to all features even when filtered by tag
 back to dash baord button: fix placement when viewport aspect ratio is too high
-gr eye !!!
 gr add revert x axis
 share!
 rework the legend logic: keep mirroring browser name but override in side panel? remove name from browser?
