@@ -796,6 +796,15 @@ export function renderBrowserTree(ctx, state) {
     graphVisibilityBtn.innerHTML = `<i class="bi ${graphVisible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
     actions.appendChild(graphVisibilityBtn);
 
+    const graphDuplicateBtn = document.createElement('button');
+    graphDuplicateBtn.className = 'btn-icon graph-duplicate';
+    graphDuplicateBtn.type = 'button';
+    graphDuplicateBtn.dataset.panelId = resolvedPanelId;
+    graphDuplicateBtn.title = isPlotPanel ? 'Duplicate graph' : 'Duplicate panel';
+    graphDuplicateBtn.setAttribute('draggable', 'false');
+    graphDuplicateBtn.innerHTML = '<i class="bi bi-files"></i>';
+    actions.appendChild(graphDuplicateBtn);
+
     if (isPlotPanel) {
       const graphBrowseBtn = document.createElement('button');
       graphBrowseBtn.className = 'btn-icon graph-browse';
@@ -920,6 +929,16 @@ export function renderBrowserTree(ctx, state) {
     visibilityBtn.title = visible ? 'Hide group' : 'Show group';
     visibilityBtn.innerHTML = `<i class="bi ${visible ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
     actions.appendChild(visibilityBtn);
+
+    const sectionLabel = depth === 0 ? 'group' : 'subgroup';
+    const duplicateBtn = document.createElement('button');
+    duplicateBtn.className = 'btn-icon section-duplicate';
+    duplicateBtn.type = 'button';
+    duplicateBtn.dataset.sectionId = sectionId;
+    duplicateBtn.title = `Duplicate ${sectionLabel}`;
+    duplicateBtn.setAttribute('draggable', 'false');
+    duplicateBtn.innerHTML = '<i class="bi bi-files"></i>';
+    actions.appendChild(duplicateBtn);
 
     const addGraphBtn = document.createElement('button');
     addGraphBtn.className = 'btn-icon section-add-graph';

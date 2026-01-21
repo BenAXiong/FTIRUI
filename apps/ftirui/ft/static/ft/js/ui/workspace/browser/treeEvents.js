@@ -50,6 +50,8 @@ export function attach(rootEl, options = {}) {
     togglePanelVisibility: options.togglePanelVisibility ?? noop,
     addGraphToSection: options.addGraphToSection ?? noop,
     addSubSection: options.addSubSection ?? noop,
+    duplicateSection: options.duplicateSection ?? noop,
+    duplicatePanel: options.duplicatePanel ?? noop,
     deleteSection: options.deleteSection ?? noop,
     deletePanel: options.deletePanel ?? noop,
     browsePanel: options.browsePanel ?? noop,
@@ -104,6 +106,26 @@ export function attach(rootEl, options = {}) {
       if (panelId) {
         event.preventDefault();
         handleStatefulResult(callGuarded(context.togglePanelVisibility, panelId));
+      }
+      return;
+    }
+
+    const sectionDuplicate = target.closest('.section-duplicate');
+    if (sectionDuplicate) {
+      const sectionId = resolveSectionId(sectionDuplicate);
+      if (sectionId) {
+        event.preventDefault();
+        handleStatefulResult(callGuarded(context.duplicateSection, sectionId));
+      }
+      return;
+    }
+
+    const panelDuplicate = target.closest('.graph-duplicate');
+    if (panelDuplicate) {
+      const panelId = resolvePanelId(panelDuplicate);
+      if (panelId) {
+        event.preventDefault();
+        handleStatefulResult(callGuarded(context.duplicatePanel, panelId));
       }
       return;
     }

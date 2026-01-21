@@ -17,6 +17,7 @@ import * as chipPanelsBridge from '../../../workspace/browser/chipPanelsBridge.j
 
 import * as Actions from '../../../../workspace/canvas/plotting/actionsController.js';
 import { createBrowserFacade } from './browser/facade.js';
+import { createBrowserDuplicateActions } from './browser/duplicateActions.js';
 import { createBrowserTagFilterController } from './browser/tagFilterController.js';
 import { createBrowserTabsController } from './browser/tabController.js';
 import { createBrowserSearchToggleController } from './browser/searchToggleController.js';
@@ -5828,21 +5829,32 @@ const isPanelPinned = (panelId) =>
       renderBrowser();
     });
   });
-  tagFilterController = createBrowserTagFilterController({
-    filterMenu: panelDom.filterMenu,
-    techMenu: document.querySelector('[data-tech-selector-menu]'),
-    getPanelTagKey: (panelId, fallback) =>
-      panelTagController?.getPanelTagKey?.(panelId, fallback),
-    onChange: () => {
-      syncBrowserFilterControls();
-      renderBrowser();
-    }
-  });
-  syncBrowserFilterControls();
+    tagFilterController = createBrowserTagFilterController({
+      filterMenu: panelDom.filterMenu,
+      techMenu: document.querySelector('[data-tech-selector-menu]'),
+      getPanelTagKey: (panelId, fallback) =>
+        panelTagController?.getPanelTagKey?.(panelId, fallback),
+      onChange: () => {
+        syncBrowserFilterControls();
+        renderBrowser();
+      }
+    });
+    syncBrowserFilterControls();
 
-  browserFacade = createBrowserFacade({
-    dom: { panelDom },
-    state: {
+    const browserDuplicateActions = createBrowserDuplicateActions({
+      panelsModel,
+      sectionManager,
+      registerPanel,
+      resolvePanelTitle,
+      pushHistory,
+      persist,
+      updateHistoryButtons,
+      showToast
+    });
+
+    browserFacade = createBrowserFacade({
+      dom: { panelDom },
+      state: {
       sections,
       getSectionOrder: () => sectionManager.getOrder(),
       defaultSectionId: DEFAULT_SECTION_ID,
@@ -5879,21 +5891,23 @@ const isPanelPinned = (panelId) =>
       togglePanelCollapsedState,
       toggleSectionCollapsedState,
       toggleSectionVisibility,
-      moveTrace,
-      moveGraph,
-      moveSection,
-      removePanel,
-      deleteSectionInteractive,
-      deleteGraphInteractive,
-      requestGraphFileBrowse: ioFacade.requestGraphFileBrowse,
-      showToast,
-      queueSectionRename,
-      startSectionRename,
-      startPanelRename,
-      getPendingRenameSectionId: () => pendingRenameSectionId,
-      clearPendingRenameSectionId: () => {
-        pendingRenameSectionId = null;
-      },
+        moveTrace,
+        moveGraph,
+        moveSection,
+        removePanel,
+        deleteSectionInteractive,
+        deleteGraphInteractive,
+        requestGraphFileBrowse: ioFacade.requestGraphFileBrowse,
+        showToast,
+        queueSectionRename,
+        startSectionRename,
+        startPanelRename,
+        duplicatePanel: browserDuplicateActions.duplicatePanel,
+        duplicateSection: browserDuplicateActions.duplicateSection,
+        getPendingRenameSectionId: () => pendingRenameSectionId,
+        clearPendingRenameSectionId: () => {
+          pendingRenameSectionId = null;
+        },
       createSection,
       renameSection,
       setSectionCollapsed,

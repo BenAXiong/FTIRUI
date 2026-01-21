@@ -118,6 +118,8 @@ export function createBrowserFacade({
       requestGraphFileBrowse: actions.requestGraphFileBrowse,
       startSectionRename: actions.startSectionRename,
       startPanelRename: actions.startPanelRename,
+      duplicatePanel: actions.duplicatePanel,
+      duplicateSection: actions.duplicateSection,
       chipPanelsBridge: services.chipPanelsBridge
     });
   };

@@ -28,7 +28,9 @@ export function attachBrowserEvents(ctx = {}) {
     requestGraphFileBrowse,
     startSectionRename,
     startPanelRename = () => {},
-    chipPanelsBridge
+    chipPanelsBridge,
+    duplicatePanel,
+    duplicateSection
   } = ctx;
 
   const tree = panelDom?.tree;
@@ -106,6 +108,12 @@ export function attachBrowserEvents(ctx = {}) {
     browsePanel: (panelId) => {
       requestGraphFileBrowse(panelId);
       return false;
+    },
+    duplicatePanel: (panelId) => {
+      return duplicatePanel?.(panelId) ?? false;
+    },
+    duplicateSection: (sectionId) => {
+      return duplicateSection?.(sectionId) ?? false;
     },
     startSectionRename: (sectionId, nameEl, opts) => {
       startSectionRename(sectionId, nameEl, opts);
