@@ -21,6 +21,17 @@ const resolveRenderMode = (content) => {
   return mode === 'plain' ? 'plain' : 'markdown';
 };
 
+const MARKDOWN_GREEK = [
+  '\u03b1', '\u03b2', '\u03b3', '\u03b4', '\u03b5', '\u03b6', '\u03b7', '\u03b8',
+  '\u03b9', '\u03ba', '\u03bb', '\u03bc', '\u03bd', '\u03be', '\u03bf', '\u03c0',
+  '\u03c1', '\u03c3', '\u03c4', '\u03c5', '\u03c6', '\u03c7', '\u03c8', '\u03c9',
+  '\u0394', '\u039b', '\u03a0', '\u03a3', '\u03a6', '\u03a9'
+];
+const MARKDOWN_SYMBOLS = [
+  '\u00b1', '\u00d7', '\u00b7', '\u2264', '\u2265', '\u221e', '\u2192', '\u2190',
+  '\u2194', '\u21cc', '\u00b0', '\u00b5', '\u2126', '\u2191', '\u2193', '\u21d2'
+];
+
 const createDebounce = (fn, delay = 400) => {
   let handle = null;
   const wrapped = (...args) => {
@@ -264,6 +275,160 @@ export const markdownPanelType = {
       commitEditorValue();
     };
 
+    const insertAtCaret = (value) => {
+      ensureEditorFocus();
+      const start = Number.isFinite(editor.selectionStart) ? editor.selectionStart : editor.value.length;
+      const end = Number.isFinite(editor.selectionEnd) ? editor.selectionEnd : start;
+      const before = editor.value.slice(0, start);
+      const after = editor.value.slice(end);
+      editor.value = `${before}${value}${after}`;
+      const caret = start + value.length;
+      editor.setSelectionRange(caret, caret);
+      commitEditorValue();
+    };
+
+    const positionSymbolMenu = (menu, anchor) => {
+      if (!menu || !anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const vpW = window.innerWidth || document.documentElement.clientWidth;
+      const vpH = window.innerHeight || document.documentElement.clientHeight;
+      const previousDisplay = menu.style.display;
+      menu.style.display = 'grid';
+      const width = menu.offsetWidth || 180;
+      const height = menu.offsetHeight || 120;
+      let left = rect.left + (rect.width / 2) - (width / 2);
+      let top = rect.top - height - 6;
+      if (top < 8) {
+        top = rect.bottom + 6;
+      }
+      if (left + width > vpW - 8) {
+        left = Math.max(8, vpW - width - 8);
+      }
+      if (top + height > vpH - 8) {
+        top = Math.max(8, vpH - height - 8);
+      }
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+      menu.style.display = previousDisplay;
+    };
+
+    const attachSymbolMenu = (group, menuKey) => {
+      if (!group || typeof document === 'undefined') return;
+      const menu = group.querySelector(`[data-menu="${menuKey}"]`);
+      if (!menu) return;
+      menu.classList.add('trace-name-toolbar-menu-floating');
+      menu.setAttribute('draggable', 'false');
+      menu.querySelectorAll('.trace-name-toolbar-symbol').forEach((btn) => {
+        btn.setAttribute('draggable', 'false');
+      });
+      const anchor = group.querySelector('[data-action]');
+      let hideTimer = null;
+      let pinnedOpen = false;
+      let docListener = null;
+
+      const clearHideTimer = () => {
+        if (hideTimer) {
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        }
+      };
+
+      const setDocListener = (enabled) => {
+        if (!enabled && docListener) {
+          document.removeEventListener('pointerdown', docListener, true);
+          docListener = null;
+          return;
+        }
+        if (enabled && !docListener) {
+          docListener = (event) => {
+            if (!pinnedOpen) return;
+            if (menu.contains(event.target) || anchor?.contains(event.target)) return;
+            hide(true);
+          };
+          document.addEventListener('pointerdown', docListener, true);
+        }
+      };
+
+      const show = (pinned = false) => {
+        clearHideTimer();
+        if (!menu.isConnected || menu.parentElement !== document.body) {
+          document.body.appendChild(menu);
+        }
+        positionSymbolMenu(menu, anchor);
+        menu.style.display = 'grid';
+        if (pinned) {
+          pinnedOpen = true;
+          anchor?.classList.add('is-open');
+          setDocListener(true);
+        }
+      };
+
+      const hide = (force = false) => {
+        if (!force && pinnedOpen) return;
+        pinnedOpen = false;
+        anchor?.classList.remove('is-open');
+        menu.style.display = 'none';
+        if (menu.parentElement !== group) {
+          group.appendChild(menu);
+        }
+        setDocListener(false);
+      };
+
+      group.addEventListener('pointerenter', () => show(false));
+      group.addEventListener('pointerleave', (event) => {
+        if (pinnedOpen) return;
+        if (!menu.contains(event.relatedTarget)) {
+          clearHideTimer();
+          hideTimer = setTimeout(() => hide(false), 180);
+        }
+      });
+      group.addEventListener('focusin', () => show(false));
+      group.addEventListener('focusout', (event) => {
+        if (pinnedOpen) return;
+        if (!menu.contains(event.relatedTarget)) {
+          clearHideTimer();
+          hideTimer = setTimeout(() => hide(false), 180);
+        }
+      });
+      anchor?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (pinnedOpen) {
+          hide(true);
+          return;
+        }
+        show(true);
+      });
+      menu.addEventListener('pointerleave', (event) => {
+        if (pinnedOpen) return;
+        if (!group.contains(event.relatedTarget)) {
+          clearHideTimer();
+          hideTimer = setTimeout(() => hide(false), 180);
+        }
+      });
+      menu.addEventListener('pointerenter', () => clearHideTimer());
+      menu.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      menu.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      menu.addEventListener('dragstart', (event) => event.preventDefault());
+      menu.addEventListener('click', (event) => {
+        const insertBtn = event.target.closest('[data-insert]');
+        if (!insertBtn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        insertAtCaret(insertBtn.dataset.insert || '');
+        if (!pinnedOpen) {
+          hide(true);
+        }
+      });
+      menu.style.display = 'none';
+    };
+
     const formattingActions = [
       { id: 'h1', label: 'H1', title: 'Heading 1', handler: () => insertHeading(1) },
       { id: 'h2', label: 'H2', title: 'Heading 2', handler: () => insertHeading(2) },
@@ -291,6 +456,45 @@ export const markdownPanelType = {
     };
     formattingActions.forEach((action) => {
       toolbarActions.appendChild(createFormattingButton(action));
+    });
+
+    const buildSymbolGroup = ({ key, label, title, symbols }) => {
+      const group = document.createElement('div');
+      group.className = 'trace-name-toolbar-group workspace-markdown-symbol-group';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline-secondary btn-sm workspace-markdown-format-btn workspace-markdown-symbol-toggle';
+      btn.dataset.action = key;
+      btn.title = title;
+      btn.textContent = label;
+      const menu = document.createElement('div');
+      menu.className = 'trace-name-toolbar-menu';
+      menu.dataset.menu = key;
+      symbols.forEach((symbol) => {
+        const entry = document.createElement('button');
+        entry.type = 'button';
+        entry.className = 'trace-name-toolbar-symbol';
+        entry.dataset.insert = symbol;
+        entry.textContent = symbol;
+        menu.appendChild(entry);
+      });
+      group.appendChild(btn);
+      group.appendChild(menu);
+      toolbarActions.appendChild(group);
+      attachSymbolMenu(group, key);
+    };
+
+    buildSymbolGroup({
+      key: 'greek',
+      label: 'α',
+      title: 'Greek letters',
+      symbols: MARKDOWN_GREEK
+    });
+    buildSymbolGroup({
+      key: 'symbols',
+      label: '±',
+      title: 'Symbols',
+      symbols: MARKDOWN_SYMBOLS
     });
 
     editor.addEventListener('input', () => {
