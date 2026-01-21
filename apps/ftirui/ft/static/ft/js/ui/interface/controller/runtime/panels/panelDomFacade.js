@@ -3064,6 +3064,21 @@ export function createPanelDomFacade({
             });
             appendActionItem(addColumnBtn);
 
+            let freezeEnabled = true;
+            const freezeBtn = createToggleButton({
+              icon: 'bi-snow',
+              title: 'Freeze first row/column',
+              pressed: freezeEnabled,
+              onClick: (isOn) => {
+                freezeEnabled = isOn;
+                contentHandles?.setFreeze?.(isOn);
+              }
+            });
+            freezeBtn.dataset.panelAction = 'freeze';
+            freezeBtn.classList.add('workspace-panel-action-btn--freeze');
+            appendActionItem(freezeBtn);
+            contentHandles?.setFreeze?.(freezeEnabled);
+
             const duplicateBtn = document.createElement('button');
             duplicateBtn.type = 'button';
             duplicateBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';

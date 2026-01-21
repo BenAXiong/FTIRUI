@@ -2280,15 +2280,18 @@ body.workspace-panel-fullscreen .header-actions{
   min-width: 9rem;
 }
 .workspace-spreadsheet-col-header{
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.1rem 1fr auto;
   align-items: center;
-  gap: .4rem;
+  gap: .35rem;
 }
 .workspace-spreadsheet-col-token{
   font-size: .72rem;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
+  justify-self: center;
 }
 .workspace-spreadsheet-col-handle{
   border: none;
@@ -2303,7 +2306,7 @@ body.workspace-panel-fullscreen .header-actions{
   cursor: grabbing;
 }
 .workspace-spreadsheet-col-actions{
-  margin-left: auto;
+  justify-self: end;
   display: inline-flex;
   align-items: center;
   gap: .25rem;
@@ -2326,12 +2329,42 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-col-action--danger{
   color: color-mix(in srgb, var(--bs-danger) 80%, rgba(15,23,42,.2) 20%);
 }
+.workspace-spreadsheet-col-resizer{
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}
 .workspace-spreadsheet-header-input{
   width: 100%;
   font-size: .78rem;
 }
 .workspace-spreadsheet-name-input{
   text-transform: none;
+}
+.workspace-spreadsheet-column-header--formula{
+  position: relative;
+}
+.workspace-spreadsheet-column-header--formula .workspace-spreadsheet-formula-input{
+  padding-right: 1.4rem;
+}
+.workspace-spreadsheet-formula-clear{
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--bs-secondary-color) 70%, rgba(15,23,42,.25) 30%);
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.workspace-spreadsheet-column-header--formula:hover .workspace-spreadsheet-formula-clear{
+  opacity: 1;
+  pointer-events: auto;
 }
 .workspace-spreadsheet-grid tbody th{
   position: sticky;
@@ -2376,6 +2409,7 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-cell-wrapper{
   padding: 0;
+  position: relative;
 }
 .workspace-spreadsheet-cell{
   width: 100%;
@@ -2385,6 +2419,20 @@ body.workspace-panel-fullscreen .header-actions{
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
   font-size: .82rem;
   color: var(--bs-body-color);
+}
+.workspace-spreadsheet-cell.is-selected{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 70%, rgba(15,23,42,.08) 30%);
+}
+.workspace-spreadsheet-fill-handle{
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  right: 2px;
+  bottom: 2px;
+  background: var(--bs-primary);
+  border-radius: 2px;
+  cursor: crosshair;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.15);
 }
 .workspace-spreadsheet-cell.is-derived{
   color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
@@ -2404,6 +2452,13 @@ body.workspace-panel-fullscreen .header-actions{
   display: flex;
   flex-direction: column;
   gap: .75rem;
+}
+.workspace-spreadsheet-panel[data-freeze='false'] .workspace-spreadsheet-grid thead th,
+.workspace-spreadsheet-panel[data-freeze='false'] .workspace-spreadsheet-grid tbody th{
+  position: static;
+  top: auto;
+  left: auto;
+  z-index: auto;
 }
 .workspace-spreadsheet-axis-controls{
   display: flex;

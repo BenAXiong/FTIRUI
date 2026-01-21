@@ -102,6 +102,7 @@ const normalizeColumns = (value) => {
       id: uniqueId,
       label: sanitizeString(column?.label, toColumnLabel(index)),
       units: sanitizeString(column?.units ?? '', ''),
+      width: Number.isFinite(Number(column?.width)) ? Math.max(80, Math.round(Number(column?.width))) : null,
       type: column?.type === 'text' ? 'text' : 'number',
       formula: sanitizeString(column?.formula ?? '', '')
     };
@@ -203,6 +204,12 @@ export const spreadsheetPanelType = {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'workspace-spreadsheet-panel';
+    let freezeEnabled = true;
+    const setFreezeEnabled = (isEnabled) => {
+      freezeEnabled = Boolean(isEnabled);
+      wrapper.dataset.freeze = freezeEnabled ? 'true' : 'false';
+    };
+    setFreezeEnabled(true);
 
     const tipsMarkup = `
       <span class="fw-semibold d-block">Quick tips</span>
@@ -305,6 +312,11 @@ export const spreadsheetPanelType = {
     let activeColumnIndex = null;
     let lastFocusedCell = null;
     let draggedColumnIndex = null;
+    let selectionAnchor = null;
+    let selectionRange = null;
+    let isSelecting = false;
+    let isFilling = false;
+    let pendingFillTarget = null;
     let selectedXColumnId = sheetState.columns[0]?.id || null;
     let selectedYColumnIds = new Set(
       sheetState.columns
@@ -396,6 +408,7 @@ const formatDisplayValue = (value) => {
     const buildFormulaTokens = () => sheetState.columns.map((column, index) => {
       const tokens = new Set();
       tokens.add(columnTokenForIndex(index));
+      tokens.add(`Col${toColumnShortLabel(index)}`);
       tokens.add(`c${index + 1}`);
       tokens.add(column.id.replace(/[^a-zA-Z0-9]/g, ''));
       if (column.label) {
@@ -822,6 +835,220 @@ const formatDisplayValue = (value) => {
       });
     };
 
+    const normalizeSelectionRange = (start, end) => {
+      if (!start || !end) return null;
+      const startRow = Math.min(start.rowIndex, end.rowIndex);
+      const endRow = Math.max(start.rowIndex, end.rowIndex);
+      const startCol = Math.min(start.columnIndex, end.columnIndex);
+      const endCol = Math.max(start.columnIndex, end.columnIndex);
+      return { startRow, endRow, startCol, endCol };
+    };
+
+    const getCellFromPoint = (clientX, clientY) => {
+      if (typeof document === 'undefined') return null;
+      const element = document.elementFromPoint(clientX, clientY);
+      const input = element?.closest?.('.workspace-spreadsheet-cell');
+      if (!input) return null;
+      const rowIndex = Number(input.dataset.rowIndex);
+      const columnIndex = Number(input.dataset.colIndex);
+      if (!Number.isInteger(rowIndex) || !Number.isInteger(columnIndex)) return null;
+      return { rowIndex, columnIndex };
+    };
+
+    const updateSelectionStyles = () => {
+      const range = selectionRange;
+      table.querySelectorAll('.workspace-spreadsheet-cell').forEach((input) => {
+        if (!range) {
+          input.classList.remove('is-selected');
+          return;
+        }
+        const rowIndex = Number(input.dataset.rowIndex);
+        const columnIndex = Number(input.dataset.colIndex);
+        const isSelected = rowIndex >= range.startRow
+          && rowIndex <= range.endRow
+          && columnIndex >= range.startCol
+          && columnIndex <= range.endCol;
+        input.classList.toggle('is-selected', isSelected);
+      });
+      table.querySelectorAll('.workspace-spreadsheet-fill-handle').forEach((handle) => handle.remove());
+      if (!range) return;
+      const handleHost = table.querySelector(
+        `[data-row-index="${range.endRow}"][data-col-index="${range.endCol}"]`
+      );
+      if (!handleHost) return;
+      const handle = document.createElement('div');
+      handle.className = 'workspace-spreadsheet-fill-handle';
+      handle.title = 'Drag to fill';
+      handle.addEventListener('mousedown', (event) => startFillDrag(event, range));
+      handleHost.parentElement?.appendChild(handle);
+    };
+
+    const setSelectionRange = (start, end) => {
+      const normalized = normalizeSelectionRange(start, end);
+      if (!normalized) return;
+      selectionRange = normalized;
+      updateSelectionStyles();
+    };
+
+    const handleSelectionMove = (event) => {
+      if (!isSelecting || isFilling) return;
+      const cell = getCellFromPoint(event.clientX, event.clientY);
+      if (!cell || !selectionAnchor) return;
+      setSelectionRange(selectionAnchor, cell);
+    };
+
+    const handleSelectionEnd = () => {
+      if (!isSelecting) return;
+      isSelecting = false;
+      document.removeEventListener('mousemove', handleSelectionMove);
+      document.removeEventListener('mouseup', handleSelectionEnd);
+    };
+
+    const applyFillFromSelection = (range, target) => {
+      if (!range || !target) return;
+      const fillDown = target.rowIndex > range.endRow;
+      const fillUp = target.rowIndex < range.startRow;
+      const fillRight = target.columnIndex > range.endCol;
+      const fillLeft = target.columnIndex < range.startCol;
+      if (!fillDown && !fillUp && !fillRight && !fillLeft) return;
+
+      const nextRows = sheetState.rows.slice();
+
+      if (fillDown || fillUp) {
+        if (target.columnIndex < range.startCol || target.columnIndex > range.endCol) return;
+        const fillStart = fillDown ? range.endRow + 1 : target.rowIndex;
+        const fillEnd = fillDown ? target.rowIndex : range.startRow - 1;
+        if (fillStart > fillEnd) return;
+        for (let colIndex = range.startCol; colIndex <= range.endCol; colIndex += 1) {
+          const column = sheetState.columns[colIndex];
+          if (!column) continue;
+          const values = [];
+          for (let rowIndex = range.startRow; rowIndex <= range.endRow; rowIndex += 1) {
+            const raw = nextRows[rowIndex]?.[column.id];
+            values.push(sanitizeCellValue(raw));
+          }
+          const numericValues = values.filter((value) => typeof value === 'number' && Number.isFinite(value));
+          const anchorValue = fillDown ? values[values.length - 1] : values[0];
+          let step = 0;
+          if (numericValues.length >= 2) {
+            const last = fillDown ? numericValues[numericValues.length - 1] : numericValues[1];
+            const prev = fillDown ? numericValues[numericValues.length - 2] : numericValues[0];
+            step = last - prev;
+          } else if (numericValues.length === 1) {
+            step = 1;
+          }
+          for (let rowIndex = fillStart; rowIndex <= fillEnd; rowIndex += 1) {
+            const offset = fillDown
+              ? rowIndex - range.endRow
+              : range.startRow - rowIndex;
+            let nextValue = anchorValue ?? '';
+            if (typeof anchorValue === 'number' && Number.isFinite(anchorValue)) {
+              nextValue = limitNumericPrecision(anchorValue + (step * offset));
+            } else if (numericValues.length === 1 && typeof numericValues[0] === 'number') {
+              nextValue = limitNumericPrecision(numericValues[0] + (step * offset));
+            }
+            nextRows[rowIndex] = { ...nextRows[rowIndex], [column.id]: nextValue };
+          }
+        }
+        selectionRange = fillDown
+          ? { ...range, endRow: fillEnd }
+          : { ...range, startRow: fillStart };
+      } else {
+        if (target.rowIndex < range.startRow || target.rowIndex > range.endRow) return;
+        const fillStart = fillRight ? range.endCol + 1 : target.columnIndex;
+        const fillEnd = fillRight ? target.columnIndex : range.startCol - 1;
+        if (fillStart > fillEnd) return;
+        for (let rowIndex = range.startRow; rowIndex <= range.endRow; rowIndex += 1) {
+          const values = [];
+          for (let colIndex = range.startCol; colIndex <= range.endCol; colIndex += 1) {
+            const column = sheetState.columns[colIndex];
+            if (!column) continue;
+            const raw = nextRows[rowIndex]?.[column.id];
+            values.push(sanitizeCellValue(raw));
+          }
+          const numericValues = values.filter((value) => typeof value === 'number' && Number.isFinite(value));
+          const anchorValue = fillRight ? values[values.length - 1] : values[0];
+          let step = 0;
+          if (numericValues.length >= 2) {
+            const last = fillRight ? numericValues[numericValues.length - 1] : numericValues[1];
+            const prev = fillRight ? numericValues[numericValues.length - 2] : numericValues[0];
+            step = last - prev;
+          } else if (numericValues.length === 1) {
+            step = 1;
+          }
+          for (let colIndex = fillStart; colIndex <= fillEnd; colIndex += 1) {
+            const column = sheetState.columns[colIndex];
+            if (!column) continue;
+            const offset = fillRight
+              ? colIndex - range.endCol
+              : range.startCol - colIndex;
+            let nextValue = anchorValue ?? '';
+            if (typeof anchorValue === 'number' && Number.isFinite(anchorValue)) {
+              nextValue = limitNumericPrecision(anchorValue + (step * offset));
+            } else if (numericValues.length === 1 && typeof numericValues[0] === 'number') {
+              nextValue = limitNumericPrecision(numericValues[0] + (step * offset));
+            }
+            nextRows[rowIndex] = { ...nextRows[rowIndex], [column.id]: nextValue };
+          }
+        }
+        selectionRange = fillRight
+          ? { ...range, endCol: fillEnd }
+          : { ...range, startCol: fillStart };
+      }
+
+      sheetState = { ...sheetState, rows: nextRows };
+      recalculateFormulas();
+      markDirty();
+      renderGrid();
+    };
+
+    const startFillDrag = (event, baseRange) => {
+      if (!baseRange) return;
+      event.preventDefault();
+      event.stopPropagation();
+      isFilling = true;
+      pendingFillTarget = null;
+      const handleFillMove = (moveEvent) => {
+        const cell = getCellFromPoint(moveEvent.clientX, moveEvent.clientY);
+        if (!cell) return;
+        pendingFillTarget = cell;
+      };
+      const handleFillEnd = () => {
+        document.removeEventListener('mousemove', handleFillMove);
+        document.removeEventListener('mouseup', handleFillEnd);
+        isFilling = false;
+        if (pendingFillTarget) {
+          applyFillFromSelection(baseRange, pendingFillTarget);
+          pendingFillTarget = null;
+        }
+      };
+      document.addEventListener('mousemove', handleFillMove);
+      document.addEventListener('mouseup', handleFillEnd);
+    };
+
+    const startColumnResize = (event, columnIndex, colEl) => {
+      if (!colEl) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const startX = event.clientX;
+      const startWidth = colEl.getBoundingClientRect().width;
+      const minWidth = 90;
+      const handleMove = (moveEvent) => {
+        const delta = moveEvent.clientX - startX;
+        const nextWidth = Math.max(minWidth, startWidth + delta);
+        colEl.style.width = `${Math.round(nextWidth)}px`;
+      };
+      const handleUp = () => {
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleUp);
+        document.body.style.cursor = '';
+        updateColumnWidth(columnIndex, Number.parseFloat(colEl.style.width) || startWidth);
+      };
+      document.body.style.cursor = 'col-resize';
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
+    };
+
     const handleCellInput = (event) => {
       const input = event.currentTarget;
       const rowIndex = Number(input.dataset.rowIndex);
@@ -901,6 +1128,19 @@ const formatDisplayValue = (value) => {
     const renderGrid = () => {
       table.innerHTML = '';
       const thead = document.createElement('thead');
+      const colgroup = document.createElement('colgroup');
+      const cornerCol = document.createElement('col');
+      cornerCol.style.width = '3rem';
+      colgroup.appendChild(cornerCol);
+      const colEls = sheetState.columns.map((column) => {
+        const col = document.createElement('col');
+        if (Number.isFinite(column.width)) {
+          col.style.width = `${column.width}px`;
+        }
+        colgroup.appendChild(col);
+        return col;
+      });
+      table.appendChild(colgroup);
       const headerRows = [
         {
           key: 'col',
@@ -968,6 +1208,12 @@ const formatDisplayValue = (value) => {
             header.appendChild(handle);
             header.appendChild(token);
             header.appendChild(actions);
+            const resizer = document.createElement('div');
+            resizer.className = 'workspace-spreadsheet-col-resizer';
+            resizer.addEventListener('mousedown', (event) => {
+              startColumnResize(event, columnIndex, colEls[columnIndex]);
+            });
+            header.appendChild(resizer);
             th.appendChild(header);
             th.addEventListener('click', () => handleHeaderClick(columnIndex));
             th.addEventListener('dragover', (event) => {
@@ -995,6 +1241,7 @@ const formatDisplayValue = (value) => {
             input.type = 'text';
             input.className = 'form-control form-control-sm workspace-spreadsheet-header-input workspace-spreadsheet-name-input';
             input.value = column.label || toColumnLabel(columnIndex);
+            input.placeholder = 'Name';
             input.addEventListener('focus', () => {
               activeColumnIndex = columnIndex;
               syncActiveHighlights();
@@ -1080,6 +1327,18 @@ const formatDisplayValue = (value) => {
               }
             });
             th.appendChild(input);
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'workspace-spreadsheet-formula-clear';
+            clearBtn.title = 'Clear formula';
+            clearBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+            clearBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              if (!input.value.trim()) return;
+              input.value = '';
+              applyFormulaValue(column.id, '');
+            });
+            th.appendChild(clearBtn);
             if (errorMessage) {
               const hint = document.createElement('div');
               hint.className = 'workspace-spreadsheet-formula-error';
@@ -1159,6 +1418,20 @@ const formatDisplayValue = (value) => {
             input.readOnly = true;
             input.classList.add('is-derived');
           }
+          input.addEventListener('mousedown', (event) => {
+            if (event.button !== 0) return;
+            if (event.shiftKey && selectionAnchor) {
+              setSelectionRange(selectionAnchor, { rowIndex, columnIndex });
+            } else {
+              selectionAnchor = { rowIndex, columnIndex };
+              setSelectionRange(selectionAnchor, selectionAnchor);
+            }
+            if (!isSelecting) {
+              isSelecting = true;
+              document.addEventListener('mousemove', handleSelectionMove);
+              document.addEventListener('mouseup', handleSelectionEnd);
+            }
+          });
           input.addEventListener('focus', () => {
             activeRowIndex = rowIndex;
             activeColumnIndex = columnIndex;
@@ -1166,6 +1439,8 @@ const formatDisplayValue = (value) => {
               rowIndex,
               columnIndex
             };
+            selectionAnchor = { rowIndex, columnIndex };
+            setSelectionRange(selectionAnchor, selectionAnchor);
             syncActiveHighlights();
           });
           input.addEventListener('input', handleCellInput);
@@ -1184,6 +1459,7 @@ const formatDisplayValue = (value) => {
       refreshPlotControls();
       requestAnimationFrame(() => {
         syncActiveHighlights();
+        updateSelectionStyles();
         if (lastFocusedCell) {
           focusCell(lastFocusedCell.rowIndex, lastFocusedCell.columnIndex);
         }
@@ -1215,6 +1491,18 @@ const formatDisplayValue = (value) => {
       if (nextUnits === (column.units || '')) return;
       const nextColumns = sheetState.columns.slice();
       nextColumns[columnIndex] = { ...column, units: nextUnits };
+      sheetState = { ...sheetState, columns: nextColumns };
+      markDirty();
+    };
+
+    const updateColumnWidth = (columnIndex, width) => {
+      const column = sheetState.columns[columnIndex];
+      if (!column) return;
+      const numeric = Number(width);
+      const nextWidth = Number.isFinite(numeric) ? Math.max(80, Math.round(numeric)) : null;
+      if ((column.width ?? null) === nextWidth) return;
+      const nextColumns = sheetState.columns.slice();
+      nextColumns[columnIndex] = { ...column, width: nextWidth };
       sheetState = { ...sheetState, columns: nextColumns };
       markDirty();
     };
@@ -1260,6 +1548,7 @@ const formatDisplayValue = (value) => {
         id: generateId('col'),
         label,
         units: '',
+        width: null,
         type: 'number',
         formula: ''
       };
@@ -1285,6 +1574,7 @@ const formatDisplayValue = (value) => {
         id: generateId('col'),
         label: buildCopyLabel(column.label, toColumnLabel(insertIndex)),
         units: column.units || '',
+        width: Number.isFinite(column.width) ? column.width : null,
         type: column.type === 'text' ? 'text' : 'number',
         formula: column.formula || ''
       };
@@ -1355,6 +1645,7 @@ const formatDisplayValue = (value) => {
     return {
       plotEl: null,
       addColumn: handleAddColumn,
+      setFreeze: setFreezeEnabled,
       getQuickTipsMarkup: () => tipsMarkup,
       refreshContent(nextContent) {
         if (!nextContent || typeof nextContent !== 'object') return;

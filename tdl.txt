@@ -42,6 +42,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [-] Header buttons
             - [x] Add right 3, add column, duplicate, tips
             - [-] Solve pin & lock issues
+        - [x] Remove top band (feature already implemented above)
+        - [x] Switch bubble UI to streamlined
         - [-] Rework Table
             - [x] Add cross icons to delete columns & rows, onHover, ensure unredo
             - [x] Make and style a header with Cols, Name, Units and f
@@ -51,12 +53,14 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [-] Column resize handles (with per-column width persistence).
             - [-] Multi-cell selection + fill-handle for quick series.
             - [-] hb2: “Freeze first row/column” toggle.
+            - [ ] Add XYZ toggle to column headers
         - [ ] Rework "Add to graph section"
-            - [ ] Workflow: 
+            - [ ] Move to hb 
+            - [ ] Workflow:
+            - [ ] On hb click: create graph(s) from selection (warn if no or several graphs)
+            - [ ] Add toggle: use columns settings (default) vs custom
             - [ ] 
             - [ ] 
-        - [x] Remove top band (feature already implemented above)
-        - [x] Switch bubble UI to streamlined
         - [ ] 
         - [ ] Doc
     - [ ] .opju
