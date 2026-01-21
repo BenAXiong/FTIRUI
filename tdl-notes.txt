@@ -95,6 +95,7 @@ Future work
 - attach files like gdocs for collab
 - .ben = binned/basic/? experiment notebook
 - custom tags (based on existing)
+- pub/PR mode: specific QoL additions, eg auto placement and seq for Fig letters (a.) and styling
 ___________________________________________________________
 Bugs
 

@@ -56,6 +56,7 @@ import { createTechToolbarLabelController } from './toolbar/techToolbarLabels.js
 import { createTechToolbarHoverController } from './toolbar/techToolbarHoverController.js';
 import { createTechToolbarPinController } from './toolbar/techToolbarPinController.js';
 import { createTechToolbarSidePanelController } from './toolbar/techToolbarSidePanelController.js';
+import { createTechToolbarSidePanelResizeController } from './toolbar/techToolbarSidePanelResizeController.js';
 import { createTechToolbarHeaderVisibilityController } from './toolbar/techToolbarHeaderVisibilityController.js';
 import { createTechToolbarModebarVisibilityController } from './toolbar/techToolbarModebarVisibilityController.js';
 import { createTechSelectorController } from './toolbar/techSelectorController.js';
@@ -3378,6 +3379,7 @@ let canvasTagsController = null;
 let techToolbarHoverController = null;
 let techToolbarPinController = null;
 let techToolbarSidePanelController = null;
+let techToolbarSidePanelResizeController = null;
 let techToolbarHeaderVisibilityController = null;
 let techToolbarModebarVisibilityController = null;
 let tagFilterController = null;
@@ -5239,58 +5241,108 @@ const isPanelPinned = (panelId) =>
       dom: {
         panel: document.querySelector('[data-tech-side-panel]')
       },
-      items: [
+      tabs: [
         {
+          id: 'tech',
           label: 'Tech',
-          toggle: document.getElementById('tb2_tech_selector'),
-          menu: document.querySelector('[data-tech-selector-menu]')
+          items: [
+            {
+              id: 'tech-selector',
+              label: 'Tech',
+              toggle: document.getElementById('tb2_tech_selector'),
+              menu: document.querySelector('[data-tech-selector-menu]')
+            },
+            {
+              id: 'graph-type',
+              label: 'Graph type',
+              toggle: document.getElementById('tb2_graph_type'),
+              menu: document.querySelector('[data-graph-selector-menu]')
+            },
+            {
+              id: 'peak-markers',
+              label: 'Peak markers',
+              toggle: document.getElementById('tb2_peak_marking'),
+              menu: document.querySelector('[data-peak-menu]')
+            },
+            {
+              id: 'units',
+              label: 'Units',
+              toggle: document.getElementById('tb2_peak_integration'),
+              menu: document.querySelector('[data-units-menu]')
+            },
+            {
+              id: 'multi-trace',
+              label: 'Multi-trace',
+              toggle: document.getElementById('tb2_multi_trace'),
+              menu: document.querySelector('[data-multitrace-menu]')
+            },
+            {
+              id: 'baseline',
+              label: 'Baseline correction',
+              toggle: document.getElementById('tb2_atr_correction'),
+              menu: document.querySelector('[data-baseline-menu]')
+            },
+            {
+              id: 'cleanup',
+              label: 'Spectral cleanup',
+              toggle: document.getElementById('tb2_derivatization'),
+              menu: document.querySelector('[data-cleanup-menu]')
+            },
+            {
+              id: 'compare',
+              label: 'Compare modes',
+              toggle: document.getElementById('tb2_spectral_library'),
+              menu: document.querySelector('[data-compare-menu]')
+            },
+            {
+              id: 'libraries',
+              label: 'Spectral libraries',
+              toggle: document.getElementById('tb2_placeholder_help'),
+              menu: document.querySelector('[data-library-menu]')
+            },
+            {
+              id: 'more',
+              label: 'More options',
+              toggle: document.getElementById('tb2_more_options'),
+              menu: document.getElementById('tb2_more_options')?.parentElement?.querySelector('.dropdown-menu')
+            }
+          ]
         },
         {
-          label: 'Graph type',
-          toggle: document.getElementById('tb2_graph_type'),
-          menu: document.querySelector('[data-graph-selector-menu]')
+          id: 'styles',
+          label: 'Styles',
+          items: [
+            {
+              id: 'styles-panels',
+              label: 'Panel styling',
+              placeholderText: 'Styling options will appear here.'
+            },
+            {
+              id: 'styles-traces',
+              label: 'Trace styling',
+              placeholderText: 'Trace styling presets coming soon.'
+            },
+            {
+              id: 'styles-axes',
+              label: 'Axis styling',
+              placeholderText: 'Axis formatting controls coming soon.'
+            }
+          ]
         },
         {
-          label: 'Peak markers',
-          toggle: document.getElementById('tb2_peak_marking'),
-          menu: document.querySelector('[data-peak-menu]')
-        },
-        {
-          label: 'Units',
-          toggle: document.getElementById('tb2_peak_integration'),
-          menu: document.querySelector('[data-units-menu]')
-        },
-        {
-          label: 'Multi-trace',
-          toggle: document.getElementById('tb2_multi_trace'),
-          menu: document.querySelector('[data-multitrace-menu]')
-        },
-        {
-          label: 'Baseline correction',
-          toggle: document.getElementById('tb2_atr_correction'),
-          menu: document.querySelector('[data-baseline-menu]')
-        },
-        {
-          label: 'Spectral cleanup',
-          toggle: document.getElementById('tb2_derivatization'),
-          menu: document.querySelector('[data-cleanup-menu]')
-        },
-        {
-          label: 'Compare modes',
-          toggle: document.getElementById('tb2_spectral_library'),
-          menu: document.querySelector('[data-compare-menu]')
-        },
-        {
-          label: 'Spectral libraries',
-          toggle: document.getElementById('tb2_placeholder_help'),
-          menu: document.querySelector('[data-library-menu]')
-        },
-        {
-          label: 'More options',
-          toggle: document.getElementById('tb2_more_options'),
-          menu: document.getElementById('tb2_more_options')?.parentElement?.querySelector('.dropdown-menu')
+          id: 'tech_2',
+          label: 'Tech 2',
+          items: []
         }
-      ]
+      ],
+      preferences: preferencesFacade,
+      onClose: () => techToolbarPinController?.setMode?.('menus')
+    });
+    techToolbarSidePanelResizeController = createTechToolbarSidePanelResizeController({
+      panel: document.querySelector('[data-tech-side-panel]'),
+      handle: document.querySelector('[data-tech-side-panel-resizer]'),
+      onResize: () => updateToolbarMetrics(),
+      preferences: preferencesFacade
     });
     techToolbarPinController = createTechToolbarPinController({
       dom: {
@@ -7597,6 +7649,8 @@ const isPanelPinned = (panelId) =>
       techToolbarHoverController = null;
       techToolbarSidePanelController?.teardown?.();
       techToolbarSidePanelController = null;
+      techToolbarSidePanelResizeController?.teardown?.();
+      techToolbarSidePanelResizeController = null;
       techToolbarPinController?.teardown?.();
       techToolbarPinController = null;
       techToolbarHeaderVisibilityController?.teardown?.();

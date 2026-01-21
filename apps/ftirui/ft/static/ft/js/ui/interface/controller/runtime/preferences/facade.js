@@ -12,6 +12,8 @@ export function createUiPreferencesFacade({
   peakDefaultsKey = 'ftir.workspace.peakDefaults.v1',
   techToolbarPinKey = 'ftir.workspace.tb2.pin.v1',
   techToolbarModeKey = 'ftir.workspace.tb2.mode.v1',
+  techToolbarPanelStateKey = 'ftir.workspace.tb2.panelState.v1',
+  techToolbarPanelWidthKey = 'ftir.workspace.tb2.panelWidth.v1',
   techToolbarHideHeadersKey = 'ftir.workspace.tb2.hideHeaders.v1',
   techToolbarHideModebarKey = 'ftir.workspace.tb2.hideModebar.v1',
   projectTreeCollapseKey = 'ftir.workspace.projectTreeCollapsed.v1',
@@ -156,6 +158,56 @@ export function createUiPreferencesFacade({
     }
   };
 
+  const readTechToolbarPanelState = (fallback = null) => {
+    if (!localStore) return fallback;
+    try {
+      const raw = localStore.getItem(techToolbarPanelStateKey);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeTechToolbarPanelState = (state) => {
+    if (!localStore) return;
+    try {
+      if (!state || typeof state !== 'object') {
+        localStore.removeItem(techToolbarPanelStateKey);
+        return;
+      }
+      localStore.setItem(techToolbarPanelStateKey, JSON.stringify(state));
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
+  const readTechToolbarPanelWidth = (fallback = null) => {
+    if (!localStore) return fallback;
+    try {
+      const raw = localStore.getItem(techToolbarPanelWidthKey);
+      if (raw === null) return fallback;
+      const parsed = Number.parseFloat(raw);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeTechToolbarPanelWidth = (value) => {
+    if (!localStore) return;
+    try {
+      if (!Number.isFinite(value)) {
+        localStore.removeItem(techToolbarPanelWidthKey);
+        return;
+      }
+      localStore.setItem(techToolbarPanelWidthKey, `${value}`);
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
   const readTechToolbarHideHeaders = (fallback = false) => {
     if (!localStore) return fallback;
     try {
@@ -239,6 +291,10 @@ export function createUiPreferencesFacade({
     writeTechToolbarPin,
     readTechToolbarMode,
     writeTechToolbarMode,
+    readTechToolbarPanelState,
+    writeTechToolbarPanelState,
+    readTechToolbarPanelWidth,
+    writeTechToolbarPanelWidth,
     readTechToolbarHideHeaders,
     writeTechToolbarHideHeaders,
     readTechToolbarHideModebar,

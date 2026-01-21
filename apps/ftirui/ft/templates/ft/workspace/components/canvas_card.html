@@ -14,6 +14,61 @@
         <input id="c_canvas_folder_input" type="file" webkitdirectory multiple hidden>
         {% include 'ft/workspace/components/canvas_toolbar_vertical.html' %}
         <aside class="workspace-tech-side-panel" data-tech-side-panel hidden aria-label="Tech controls panel">
+          <div class="workspace-tech-side-panel-resizer" data-tech-side-panel-resizer aria-hidden="true"></div>
+          <div class="workspace-tech-side-panel-header" data-tech-side-panel-header>
+            <div class="workspace-tech-side-panel-tabs" role="tablist" data-tech-side-panel-tabs>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-tech-panel-tab is-active"
+                      role="tab"
+                      aria-selected="true"
+                      data-tech-panel-tab="tech">
+                Tech
+              </button>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-tech-panel-tab"
+                      role="tab"
+                      aria-selected="false"
+                      data-tech-panel-tab="tech_2">
+                Tech 2
+              </button>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-tech-panel-tab"
+                      role="tab"
+                      aria-selected="false"
+                      data-tech-panel-tab="styles">
+                Styles
+              </button>
+            </div>
+            <div class="workspace-tech-side-panel-actions" data-tech-side-panel-actions>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-tech-panel-action"
+                      data-tech-panel-action="toggle-all"
+                      title="Collapse all"
+                      aria-label="Collapse all sections">
+                <i class="bi bi-arrows-collapse" aria-hidden="true"></i>
+              </button>
+              <div class="workspace-tech-panel-search" data-tech-panel-search>
+                <button type="button"
+                        class="btn btn-outline-secondary workspace-tech-panel-action"
+                        data-tech-panel-action="search-toggle"
+                        title="Search"
+                        aria-label="Search sections">
+                  <i class="bi bi-search" aria-hidden="true"></i>
+                </button>
+                <input type="text"
+                       class="form-control form-control-sm workspace-tech-panel-search-input"
+                       placeholder="Search"
+                       data-tech-panel-search-input>
+              </div>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-tech-panel-action"
+                      data-tech-panel-action="close"
+                      title="Close"
+                      aria-label="Close tech panel">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
           <div class="workspace-tech-side-panel-inner" data-tech-side-panel-body></div>
         </aside>
       </div>

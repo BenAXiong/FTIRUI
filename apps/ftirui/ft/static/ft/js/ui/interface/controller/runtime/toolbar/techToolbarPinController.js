@@ -274,6 +274,7 @@ export function createTechToolbarPinController({
   return {
     setBaseVisibility,
     handleActivePanelChange,
+    setMode,
     isFloating: () => isFloating(),
     getMode: () => mode,
     teardown() {
