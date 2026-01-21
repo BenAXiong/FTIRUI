@@ -5403,6 +5403,17 @@ const isPanelPinned = (panelId) =>
     onTraceStyleChange: (panelId) => peakMarkingController?.handleTraceStyleChange?.(panelId)
   });
 
+  const browserDuplicateActions = createBrowserDuplicateActions({
+    panelsModel,
+    sectionManager,
+    registerPanel,
+    resolvePanelTitle,
+    pushHistory,
+    persist,
+    updateHistoryButtons,
+    showToast
+  });
+
   panelDomFacade = createPanelDomFacade({
     canvas,
     registerPanelDom,
@@ -5423,6 +5434,7 @@ const isPanelPinned = (panelId) =>
       onTemplatesRename: templatesController?.handleRenameTemplate,
       onTemplatesDelete: templatesController?.handleDeleteTemplate,
       onTemplatesDuplicate: templatesController?.handleDuplicateTemplate,
+      duplicatePanel: browserDuplicateActions?.duplicatePanel,
       onPanelLockToggle: panelLockController?.handleLockToggle,
       onPanelPinToggle: panelLockController?.handlePinToggle,
       onPanelVisibilityToggle: (panelId, opts) => setGraphVisibility(panelId, opts?.hidden ?? null)
@@ -5840,17 +5852,6 @@ const isPanelPinned = (panelId) =>
       }
     });
     syncBrowserFilterControls();
-
-    const browserDuplicateActions = createBrowserDuplicateActions({
-      panelsModel,
-      sectionManager,
-      registerPanel,
-      resolvePanelTitle,
-      pushHistory,
-      persist,
-      updateHistoryButtons,
-      showToast
-    });
 
     browserFacade = createBrowserFacade({
       dom: { panelDom },

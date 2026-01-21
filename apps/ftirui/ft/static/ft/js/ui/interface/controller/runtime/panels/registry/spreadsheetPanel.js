@@ -6,6 +6,7 @@ const DEFAULT_COLUMN_COUNT = 3;
 const DEFAULT_ROW_COUNT = 8;
 const FOCUS_DELAY = 20;
 const MAX_DECIMAL_PLACES = 5;
+const HEADER_ROW_HEIGHT = 30;
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const toColumnLabel = (index = 0) => {
@@ -16,6 +17,7 @@ const toColumnLabel = (index = 0) => {
   const second = index % LETTERS.length;
   return `Col ${LETTERS[first]}${LETTERS[second]}`;
 };
+const toColumnShortLabel = (index = 0) => toColumnLabel(index).replace(/^Col\s+/i, '');
 
 const sanitizeString = (value, fallback = '') => {
   if (typeof value === 'string') {
@@ -99,6 +101,7 @@ const normalizeColumns = (value) => {
     return {
       id: uniqueId,
       label: sanitizeString(column?.label, toColumnLabel(index)),
+      units: sanitizeString(column?.units ?? '', ''),
       type: column?.type === 'text' ? 'text' : 'number',
       formula: sanitizeString(column?.formula ?? '', '')
     };
@@ -201,21 +204,10 @@ export const spreadsheetPanelType = {
     const wrapper = document.createElement('div');
     wrapper.className = 'workspace-spreadsheet-panel';
 
-    const toolbar = document.createElement('div');
-    toolbar.className = 'workspace-spreadsheet-toolbar';
-
-    const toolbarActions = document.createElement('div');
-    toolbarActions.className = 'workspace-spreadsheet-toolbar-actions';
-
-    const toolbarHint = document.createElement('div');
-    toolbarHint.className = 'workspace-spreadsheet-toolbar-hint';
-    toolbarHint.innerHTML = `
+    const tipsMarkup = `
       <span class="fw-semibold d-block">Quick tips</span>
-      <span>Paste from Excel/CSV with <kbd>Ctrl/Cmd + V</kbd>. Double-click headers to rename.</span>
+      <span>Paste from Excel/CSV with <kbd>Ctrl/Cmd + V</kbd>. Edit column names/units inline.</span>
     `;
-
-    toolbar.appendChild(toolbarActions);
-    toolbar.appendChild(toolbarHint);
 
     const gridScroll = document.createElement('div');
     gridScroll.className = 'workspace-spreadsheet-grid-scroll';
@@ -284,7 +276,6 @@ export const spreadsheetPanelType = {
     plotControls.appendChild(axisControls);
     plotControls.appendChild(targetControls);
 
-    wrapper.appendChild(toolbar);
     wrapper.appendChild(gridScroll);
     wrapper.appendChild(plotControls);
     hostEl.appendChild(wrapper);
@@ -313,6 +304,7 @@ export const spreadsheetPanelType = {
     let activeRowIndex = null;
     let activeColumnIndex = null;
     let lastFocusedCell = null;
+    let draggedColumnIndex = null;
     let selectedXColumnId = sheetState.columns[0]?.id || null;
     let selectedYColumnIds = new Set(
       sheetState.columns
@@ -806,11 +798,6 @@ const formatDisplayValue = (value) => {
       updateActionButtons();
     };
 
-    const updateToolbarState = () => {
-      removeColumnBtn.disabled = sheetState.columns.length <= 1;
-      removeRowBtn.disabled = sheetState.rows.length <= 1;
-    };
-
     const focusCell = (rowIndex, columnIndex, { selectAll = false } = {}) => {
       if (!Number.isInteger(rowIndex) || !Number.isInteger(columnIndex)) return;
       const selector = `[data-row-index="${rowIndex}"][data-col-index="${columnIndex}"]`;
@@ -833,19 +820,6 @@ const formatDisplayValue = (value) => {
         const index = Number(node.dataset.rowHeaderIndex);
         node.classList.toggle('is-active', index === activeRowIndex);
       });
-    };
-
-    const renameColumn = (columnIndex) => {
-      const column = sheetState.columns[columnIndex];
-      if (!column) return;
-      const nextLabel = window.prompt('Column name', column.label) ?? '';
-      const trimmed = nextLabel.trim();
-      if (!trimmed || trimmed === column.label) return;
-      const nextColumns = sheetState.columns.slice();
-      nextColumns[columnIndex] = { ...column, label: trimmed };
-      sheetState = { ...sheetState, columns: nextColumns };
-      markDirty();
-      renderGrid();
     };
 
     const handleCellInput = (event) => {
@@ -927,74 +901,218 @@ const formatDisplayValue = (value) => {
     const renderGrid = () => {
       table.innerHTML = '';
       const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      const corner = document.createElement('th');
-      corner.className = 'workspace-spreadsheet-corner';
-      corner.textContent = '#';
-      headerRow.appendChild(corner);
+      const headerRows = [
+        {
+          key: 'col',
+          label: 'Col',
+          className: 'workspace-spreadsheet-column-header--col',
+          buildCell: (th, columnIndex) => {
+            const header = document.createElement('div');
+            header.className = 'workspace-spreadsheet-col-header';
 
-      sheetState.columns.forEach((column, columnIndex) => {
-        const th = document.createElement('th');
-        th.className = 'workspace-spreadsheet-column-header';
-        th.dataset.columnIndex = String(columnIndex);
+            const handle = document.createElement('button');
+            handle.type = 'button';
+            handle.className = 'workspace-spreadsheet-col-handle';
+            handle.title = 'Drag to reorder column';
+            handle.innerHTML = '<i class="bi bi-grip-vertical"></i>';
+            handle.draggable = true;
+            handle.addEventListener('dragstart', (event) => {
+              draggedColumnIndex = columnIndex;
+              event.dataTransfer?.setData('text/plain', String(columnIndex));
+              event.dataTransfer.effectAllowed = 'move';
+            });
+            handle.addEventListener('dragend', () => {
+              draggedColumnIndex = null;
+            });
 
-        const nameBtn = document.createElement('button');
-        nameBtn.type = 'button';
-        nameBtn.className = 'workspace-spreadsheet-column-name';
-        nameBtn.textContent = column.label || toColumnLabel(columnIndex);
-        nameBtn.title = 'Double-click to rename column';
-        nameBtn.addEventListener('click', () => handleHeaderClick(columnIndex));
-        nameBtn.addEventListener('dblclick', (evt) => {
-          evt.stopPropagation();
-          renameColumn(columnIndex);
-        });
+            const token = document.createElement('span');
+            token.className = 'workspace-spreadsheet-col-token';
+            token.textContent = toColumnShortLabel(columnIndex);
 
-        th.appendChild(nameBtn);
-        headerRow.appendChild(th);
-      });
-      thead.appendChild(headerRow);
+            const actions = document.createElement('div');
+            actions.className = 'workspace-spreadsheet-col-actions';
 
-      const formulaRow = document.createElement('tr');
-      formulaRow.className = 'workspace-spreadsheet-formula-row';
-      const formulaCorner = document.createElement('th');
-      formulaCorner.className = 'workspace-spreadsheet-corner workspace-spreadsheet-formula-corner';
-      formulaCorner.textContent = 'ƒ';
-      formulaRow.appendChild(formulaCorner);
-      sheetState.columns.forEach((column) => {
-        const th = document.createElement('th');
-        th.className = 'workspace-spreadsheet-formula-cell';
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'form-control form-control-sm workspace-spreadsheet-formula-input';
-        input.placeholder = 'e.g., colA*2';
-        const currentFormula = sheetState.formulas[column.id] || '';
-        input.value = currentFormula;
-        const errorMessage = formulaErrors[column.id];
-        if (errorMessage) {
-          input.classList.add('is-invalid');
-        }
-        input.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            applyFormulaValue(column.id, input.value);
+            const duplicateBtn = document.createElement('button');
+            duplicateBtn.type = 'button';
+            duplicateBtn.className = 'workspace-spreadsheet-col-action';
+            duplicateBtn.title = 'Duplicate column';
+            duplicateBtn.innerHTML = '<i class="bi bi-files"></i>';
+            duplicateBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              duplicateColumnAt(columnIndex);
+            });
+
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'workspace-spreadsheet-col-action';
+            clearBtn.title = 'Clear column';
+            clearBtn.innerHTML = '<i class="bi bi-eraser"></i>';
+            clearBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              clearColumnAt(columnIndex);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'workspace-spreadsheet-col-action workspace-spreadsheet-col-action--danger';
+            deleteBtn.title = 'Delete column';
+            deleteBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+            deleteBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              removeColumnAt(columnIndex);
+            });
+
+            actions.appendChild(duplicateBtn);
+            actions.appendChild(clearBtn);
+            actions.appendChild(deleteBtn);
+            header.appendChild(handle);
+            header.appendChild(token);
+            header.appendChild(actions);
+            th.appendChild(header);
+            th.addEventListener('click', () => handleHeaderClick(columnIndex));
+            th.addEventListener('dragover', (event) => {
+              if (!Number.isInteger(draggedColumnIndex)) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+            });
+            th.addEventListener('drop', (event) => {
+              event.preventDefault();
+              const from = Number.isInteger(draggedColumnIndex)
+                ? draggedColumnIndex
+                : Number(event.dataTransfer?.getData('text/plain'));
+              if (!Number.isInteger(from)) return;
+              moveColumn(from, columnIndex);
+              draggedColumnIndex = null;
+            });
           }
-        });
-        input.addEventListener('blur', () => {
-          const trimmed = input.value.trim();
-          if (trimmed !== currentFormula) {
-            applyFormulaValue(column.id, input.value);
+        },
+        {
+          key: 'name',
+          label: 'Name',
+          className: 'workspace-spreadsheet-column-header--name',
+          buildCell: (th, columnIndex, column) => {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm workspace-spreadsheet-header-input workspace-spreadsheet-name-input';
+            input.value = column.label || toColumnLabel(columnIndex);
+            input.addEventListener('focus', () => {
+              activeColumnIndex = columnIndex;
+              syncActiveHighlights();
+            });
+            input.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                input.blur();
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                input.value = column.label || toColumnLabel(columnIndex);
+                input.blur();
+              }
+            });
+            input.addEventListener('blur', () => {
+              updateColumnLabel(columnIndex, input.value);
+              input.value = sheetState.columns[columnIndex]?.label || toColumnLabel(columnIndex);
+            });
+            th.appendChild(input);
           }
-        });
-        th.appendChild(input);
-        if (errorMessage) {
-          const hint = document.createElement('div');
-          hint.className = 'workspace-spreadsheet-formula-error';
-          hint.textContent = errorMessage;
-          th.appendChild(hint);
+        },
+        {
+          key: 'units',
+          label: 'Units',
+          className: 'workspace-spreadsheet-column-header--units',
+          buildCell: (th, columnIndex, column) => {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm workspace-spreadsheet-header-input workspace-spreadsheet-units-input';
+            input.value = column.units || '';
+            input.placeholder = 'Units';
+            input.addEventListener('focus', () => {
+              activeColumnIndex = columnIndex;
+              syncActiveHighlights();
+            });
+            input.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                input.blur();
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                input.value = column.units || '';
+                input.blur();
+              }
+            });
+            input.addEventListener('blur', () => {
+              updateColumnUnits(columnIndex, input.value);
+              input.value = sheetState.columns[columnIndex]?.units || '';
+            });
+            th.appendChild(input);
+          }
+        },
+        {
+          key: 'formula',
+          label: 'f',
+          className: 'workspace-spreadsheet-column-header--formula',
+          buildCell: (th, columnIndex, column) => {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm workspace-spreadsheet-formula-input';
+            input.placeholder = 'e.g., colA*2';
+            const currentFormula = sheetState.formulas[column.id] || '';
+            input.value = currentFormula;
+            const errorMessage = formulaErrors[column.id];
+            if (errorMessage) {
+              input.classList.add('is-invalid');
+            }
+            input.addEventListener('focus', () => {
+              activeColumnIndex = columnIndex;
+            });
+            input.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                applyFormulaValue(column.id, input.value);
+              }
+            });
+            input.addEventListener('blur', () => {
+              const trimmed = input.value.trim();
+              if (trimmed !== currentFormula) {
+                applyFormulaValue(column.id, input.value);
+              }
+            });
+            th.appendChild(input);
+            if (errorMessage) {
+              const hint = document.createElement('div');
+              hint.className = 'workspace-spreadsheet-formula-error';
+              hint.textContent = errorMessage;
+              th.appendChild(hint);
+            }
+          }
         }
-        formulaRow.appendChild(th);
+      ];
+
+      headerRows.forEach((rowConfig, rowIndex) => {
+        const row = document.createElement('tr');
+        row.className = `workspace-spreadsheet-head-row workspace-spreadsheet-head-row--${rowConfig.key}`;
+
+        const corner = document.createElement('th');
+        corner.className = 'workspace-spreadsheet-corner workspace-spreadsheet-header-corner';
+        corner.textContent = rowConfig.label;
+        corner.style.top = `${rowIndex * HEADER_ROW_HEIGHT}px`;
+        corner.style.height = `${HEADER_ROW_HEIGHT}px`;
+        row.appendChild(corner);
+
+        sheetState.columns.forEach((column, columnIndex) => {
+          const th = document.createElement('th');
+          th.className = `workspace-spreadsheet-column-header ${rowConfig.className}`;
+          th.dataset.columnIndex = String(columnIndex);
+          th.style.top = `${rowIndex * HEADER_ROW_HEIGHT}px`;
+          th.style.height = `${HEADER_ROW_HEIGHT}px`;
+          rowConfig.buildCell(th, columnIndex, column);
+          row.appendChild(th);
+        });
+
+        thead.appendChild(row);
       });
-      thead.appendChild(formulaRow);
 
       const tbody = document.createElement('tbody');
       sheetState.rows.forEach((row, rowIndex) => {
@@ -1004,7 +1122,23 @@ const formatDisplayValue = (value) => {
         rowHeader.className = 'workspace-spreadsheet-row-header';
         rowHeader.dataset.rowHeaderIndex = String(rowIndex);
         rowHeader.title = 'Select row';
-        rowHeader.innerHTML = `<span>${rowIndex + 1}</span>`;
+
+        const rowHeaderContent = document.createElement('div');
+        rowHeaderContent.className = 'workspace-spreadsheet-row-header-content';
+        const rowLabel = document.createElement('span');
+        rowLabel.textContent = String(rowIndex + 1);
+        const rowDelete = document.createElement('button');
+        rowDelete.type = 'button';
+        rowDelete.className = 'workspace-spreadsheet-row-delete';
+        rowDelete.title = 'Delete row';
+        rowDelete.innerHTML = '<i class="bi bi-x-lg"></i>';
+        rowDelete.addEventListener('click', (event) => {
+          event.stopPropagation();
+          removeRowAt(rowIndex);
+        });
+        rowHeaderContent.appendChild(rowLabel);
+        rowHeaderContent.appendChild(rowDelete);
+        rowHeader.appendChild(rowHeaderContent);
         rowHeader.addEventListener('click', () => handleRowHeaderClick(rowIndex));
         tr.appendChild(rowHeader);
 
@@ -1048,13 +1182,73 @@ const formatDisplayValue = (value) => {
       table.appendChild(tbody);
 
       refreshPlotControls();
-      updateToolbarState();
       requestAnimationFrame(() => {
         syncActiveHighlights();
         if (lastFocusedCell) {
           focusCell(lastFocusedCell.rowIndex, lastFocusedCell.columnIndex);
         }
       });
+    };
+
+    const buildCopyLabel = (label, fallback = 'Column Copy') => {
+      const base = sanitizeString(label, '');
+      if (!base) return fallback;
+      return `${base} Copy`;
+    };
+
+    const updateColumnLabel = (columnIndex, value) => {
+      const column = sheetState.columns[columnIndex];
+      if (!column) return;
+      const nextLabel = sanitizeString(value, column.label || toColumnLabel(columnIndex));
+      if (nextLabel === column.label) return;
+      const nextColumns = sheetState.columns.slice();
+      nextColumns[columnIndex] = { ...column, label: nextLabel };
+      sheetState = { ...sheetState, columns: nextColumns };
+      markDirty();
+      refreshPlotControls();
+    };
+
+    const updateColumnUnits = (columnIndex, value) => {
+      const column = sheetState.columns[columnIndex];
+      if (!column) return;
+      const nextUnits = typeof value === 'string' ? value.trim() : '';
+      if (nextUnits === (column.units || '')) return;
+      const nextColumns = sheetState.columns.slice();
+      nextColumns[columnIndex] = { ...column, units: nextUnits };
+      sheetState = { ...sheetState, columns: nextColumns };
+      markDirty();
+    };
+
+    const removeColumnAt = (targetIndex) => {
+      if (sheetState.columns.length <= 1) return;
+      if (!Number.isInteger(targetIndex)) return;
+      const safeIndex = Math.max(0, Math.min(targetIndex, sheetState.columns.length - 1));
+      const column = sheetState.columns[safeIndex];
+      if (!column) return;
+      const nextColumns = sheetState.columns.filter((_, idx) => idx !== safeIndex);
+      const nextRows = sheetState.rows.map((row) => {
+        const { [column.id]: omit, ...rest } = row;
+        return rest;
+      });
+      const nextFormulas = { ...sheetState.formulas };
+      delete nextFormulas[column.id];
+      sheetState = { ...sheetState, columns: nextColumns, rows: nextRows, formulas: nextFormulas };
+      activeColumnIndex = Math.min(safeIndex, nextColumns.length - 1);
+      recalculateFormulas();
+      markDirty();
+      renderGrid();
+    };
+
+    const removeRowAt = (targetIndex) => {
+      if (sheetState.rows.length <= 1) return;
+      if (!Number.isInteger(targetIndex)) return;
+      const safeIndex = Math.max(0, Math.min(targetIndex, sheetState.rows.length - 1));
+      const nextRows = sheetState.rows.filter((_, idx) => idx !== safeIndex);
+      sheetState = { ...sheetState, rows: nextRows };
+      activeRowIndex = Math.min(safeIndex, nextRows.length - 1);
+      recalculateFormulas();
+      markDirty();
+      renderGrid();
     };
 
     const handleAddColumn = () => {
@@ -1065,6 +1259,7 @@ const formatDisplayValue = (value) => {
       const newColumn = {
         id: generateId('col'),
         label,
+        units: '',
         type: 'number',
         formula: ''
       };
@@ -1082,94 +1277,58 @@ const formatDisplayValue = (value) => {
       renderGrid();
     };
 
-    const handleRemoveColumn = () => {
-      if (sheetState.columns.length <= 1) return;
-      const targetIndex = Number.isInteger(activeColumnIndex)
-        ? Math.max(0, Math.min(activeColumnIndex, sheetState.columns.length - 1))
-        : sheetState.columns.length - 1;
-      const column = sheetState.columns[targetIndex];
+    const duplicateColumnAt = (index) => {
+      const column = sheetState.columns[index];
       if (!column) return;
-      const nextColumns = sheetState.columns.filter((_, idx) => idx !== targetIndex);
-      const nextRows = sheetState.rows.map((row) => {
-        const { [column.id]: omit, ...rest } = row;
-        return rest;
-      });
-      const nextFormulas = { ...sheetState.formulas };
-      delete nextFormulas[column.id];
+      const insertIndex = Math.min(index + 1, sheetState.columns.length);
+      const nextColumn = {
+        id: generateId('col'),
+        label: buildCopyLabel(column.label, toColumnLabel(insertIndex)),
+        units: column.units || '',
+        type: column.type === 'text' ? 'text' : 'number',
+        formula: column.formula || ''
+      };
+      const nextColumns = sheetState.columns.slice();
+      nextColumns.splice(insertIndex, 0, nextColumn);
+      const nextRows = sheetState.rows.map((row) => ({
+        ...row,
+        [nextColumn.id]: row[column.id]
+      }));
+      const nextFormulas = { ...sheetState.formulas, [nextColumn.id]: nextColumn.formula || '' };
       sheetState = { ...sheetState, columns: nextColumns, rows: nextRows, formulas: nextFormulas };
-      activeColumnIndex = Math.min(targetIndex, nextColumns.length - 1);
+      activeColumnIndex = insertIndex;
       recalculateFormulas();
       markDirty();
       renderGrid();
     };
 
-    const handleAddRow = () => {
-      const insertIndex = Number.isInteger(activeRowIndex)
-        ? activeRowIndex + 1
-        : sheetState.rows.length;
-      const nextRows = sheetState.rows.slice();
-      nextRows.splice(insertIndex, 0, createBlankRow(sheetState.columns));
+    const clearColumnAt = (index) => {
+      const column = sheetState.columns[index];
+      if (!column) return;
+      const nextRows = sheetState.rows.map((row) => ({
+        ...row,
+        [column.id]: ''
+      }));
       sheetState = { ...sheetState, rows: nextRows };
-      activeRowIndex = insertIndex;
       recalculateFormulas();
       markDirty();
       renderGrid();
     };
 
-    const handleRemoveRow = () => {
-      if (sheetState.rows.length <= 1) return;
-      const targetIndex = Number.isInteger(activeRowIndex)
-        ? Math.max(0, Math.min(activeRowIndex, sheetState.rows.length - 1))
-        : sheetState.rows.length - 1;
-      const nextRows = sheetState.rows.filter((_, idx) => idx !== targetIndex);
-      sheetState = { ...sheetState, rows: nextRows };
-      activeRowIndex = Math.min(targetIndex, nextRows.length - 1);
+    const moveColumn = (fromIndex, toIndex) => {
+      if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return;
+      if (fromIndex === toIndex) return;
+      const nextColumns = sheetState.columns.slice();
+      const [moved] = nextColumns.splice(fromIndex, 1);
+      if (!moved) return;
+      const resolvedIndex = Math.max(0, Math.min(toIndex, nextColumns.length));
+      nextColumns.splice(resolvedIndex, 0, moved);
+      sheetState = { ...sheetState, columns: nextColumns };
+      activeColumnIndex = resolvedIndex;
       recalculateFormulas();
       markDirty();
       renderGrid();
     };
-
-    const createToolbarButton = ({ label, icon, title, onClick }) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-outline-secondary btn-sm workspace-spreadsheet-toolbar-btn';
-      btn.innerHTML = icon
-        ? `<i class="bi ${icon}"></i><span>${label}</span>`
-        : label;
-      btn.title = title || label;
-      btn.addEventListener('click', onClick);
-      return btn;
-    };
-
-    const addColumnBtn = createToolbarButton({
-      label: 'Add column',
-      icon: 'bi-plus-lg',
-      title: 'Insert a column after the current selection',
-      onClick: handleAddColumn
-    });
-    const addRowBtn = createToolbarButton({
-      label: 'Add row',
-      icon: 'bi-plus-lg',
-      title: 'Insert a row after the current selection',
-      onClick: handleAddRow
-    });
-    const removeColumnBtn = createToolbarButton({
-      label: 'Delete column',
-      icon: 'bi-dash-lg',
-      title: 'Remove the selected column',
-      onClick: handleRemoveColumn
-    });
-    const removeRowBtn = createToolbarButton({
-      label: 'Delete row',
-      icon: 'bi-dash-lg',
-      title: 'Remove the selected row',
-      onClick: handleRemoveRow
-    });
-
-    toolbarActions.appendChild(addColumnBtn);
-    toolbarActions.appendChild(addRowBtn);
-    toolbarActions.appendChild(removeColumnBtn);
-    toolbarActions.appendChild(removeRowBtn);
 
     xSelect.addEventListener('change', () => {
       selectedXColumnId = xSelect.value || null;
@@ -1195,6 +1354,8 @@ const formatDisplayValue = (value) => {
 
     return {
       plotEl: null,
+      addColumn: handleAddColumn,
+      getQuickTipsMarkup: () => tipsMarkup,
       refreshContent(nextContent) {
         if (!nextContent || typeof nextContent !== 'object') return;
         sheetState = buildContent(nextContent);

@@ -34,6 +34,62 @@ This document captures the current structure we use to build panels inside the w
 * After mounting, it calls `panelType.mountContent` so each type renders its body UI and returns handles (plot container, markdown editor, etc.).
 * Header controls are capability-aware: Plot panels keep the full toolbar; non-plot panels get a lightweight header while still honoring drag/resize logic.
 
+## Spreadsheet Panel (current, subject to change)
+
+The spreadsheet panel is already implemented and wired into the runtime. This section documents the current
+behavior so future refactors can keep feature parity.
+
+Primary files:
+* Panel UI + behavior: `apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/panels/registry/spreadsheetPanel.js`
+* Plot insertion action: `apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/panels/headerActions.js` (action: `spreadsheet-plot-columns`)
+
+### UI/UX surface
+
+* Grid editor with column headers, row headers, and per-cell inputs.
+* Column rename via double click (prompt-based rename).
+* Formula row (per column) with error hints.
+* Toolbar with quick tips, add/remove rows/columns.
+* Plot controls:
+  - X-axis select (single column).
+  - Y-series list (multi-select, minimum 1).
+  - Graph targets list (existing plots + "New graph").
+  - Actions: "Add to graph(s)", "Copy selection", "Export CSV".
+* Paste handling: tab/newline matrix paste from clipboard into the grid.
+
+### Data model + persistence
+
+* Content kind: `spreadsheet` registered in `workspace/canvas/state/contentStore.js`.
+* Serialized payload shape:
+  - `columns`: `{ id, label, type, formula }[]`
+  - `rows`: `{ id, [columnId]: value }[]`
+  - `formulas`: `{ [columnId]: string }`
+  - `version`: `CURRENT_VERSION`
+* Autosave is debounced (650ms) and uses `setPanelContent` with history batching.
+* `beforeunload` flush ensures pending edits persist.
+
+### Formulas
+
+* Expressions compiled via `new Function` with a scoped `with(ctx){...}` context.
+* Supported tokens:
+  - column tokens (`colA`, `c1`, column id, slugified label)
+  - row metadata (`rowIndex`, `rowNumber`, `row()`, `ROW()`)
+  - math helpers (sin/cos/log/etc.).
+* Evaluation happens per row; errors are tracked per column and shown inline.
+
+### Plotting flow
+
+* `buildTracePayloads` uses evaluated rows; it sanitizes numeric values and skips empty columns.
+* `spreadsheet-plot-columns` header action:
+  - `mode: "new"` creates a new plot panel from payloads.
+  - `mode: "existing"` appends traces to a chosen plot panel.
+  - Both paths attach `meta` (source panel id, column id/label, x label).
+
+### Notes for upcoming changes
+
+* Treat this as a baseline snapshot; UI structure and plot controls are likely to change.
+* If refactoring formulas, keep the token mapping and per-row evaluation behavior aligned.
+* Ensure new UI still feeds the same header action or update it in one place.
+
 ## Next Steps
 
 * When adding new panel types (spreadsheets, Jupyter, images), create a new registry module that:

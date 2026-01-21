@@ -39,20 +39,26 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [.] (postponed) Wire ctrl+click multiselect
     - [-] Spreadsheets
         - [-] Review necessary improvement for MVP and demo
-        - [ ] Switch bubble UI to streamlined
-        - [ ] Header buttons: right 3, add column, duplicate,  
-        - [ ] Rework Table
-            - [ ] Cross icons to delete columns & rows, onHover, ensure unredo
-            - [ ] Make and style a header with Cols, Name, Units and f
-            - [ ] Rename columns on double click
-            - [ ] 
-            - [ ] 
+        - [-] Header buttons
+            - [x] Add right 3, add column, duplicate, tips
+            - [-] Solve pin & lock issues
+        - [-] Rework Table
+            - [x] Add cross icons to delete columns & rows, onHover, ensure unredo
+            - [x] Make and style a header with Cols, Name, Units and f
+            - [x] Rename columns on double click
+            - [x] Make column draggable
+            - [x] Add duplicate column and clear buttons
+            - [-] Column resize handles (with per-column width persistence).
+            - [-] Multi-cell selection + fill-handle for quick series.
+            - [-] hb2: “Freeze first row/column” toggle.
         - [ ] Rework "Add to graph section"
             - [ ] Workflow: 
             - [ ] 
             - [ ] 
-        - [ ] Remove top band (feature already implement elswhere)
+        - [x] Remove top band (feature already implemented above)
+        - [x] Switch bubble UI to streamlined
         - [ ] 
+        - [ ] Doc
     - [ ] .opju
         - [ ] Import and conversion for single traces
         - [ ] Import folders and keep structure

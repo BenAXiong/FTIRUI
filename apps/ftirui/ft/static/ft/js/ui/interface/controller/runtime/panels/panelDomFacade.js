@@ -23,6 +23,7 @@ export function createPanelDomFacade({
       onTemplatesRename = () => {},
       onTemplatesDelete = () => {},
       onTemplatesDuplicate = () => {},
+      duplicatePanel = () => {},
       onPanelLockToggle = () => {},
       onPanelPinToggle = () => {},
       onPanelVisibilityToggle = () => {}
@@ -67,6 +68,7 @@ export function createPanelDomFacade({
   const safeTemplatesDuplicate = typeof onTemplatesDuplicate === 'function'
     ? onTemplatesDuplicate
     : () => {};
+  const safeDuplicatePanel = typeof duplicatePanel === 'function' ? duplicatePanel : () => {};
   const safePanelLockToggle = typeof onPanelLockToggle === 'function' ? onPanelLockToggle : () => {};
   const safePanelPinToggle = typeof onPanelPinToggle === 'function' ? onPanelPinToggle : () => {};
   const safePanelVisibilityToggle = typeof onPanelVisibilityToggle === 'function'
@@ -227,6 +229,7 @@ export function createPanelDomFacade({
         const panelType = getPanelTypeConfig(panelState);
         const isPlotPanel = panelType?.capabilities?.plot !== false;
         const isMarkdownPanel = panelType?.id === 'markdown';
+        const isSpreadsheetPanel = panelType?.id === 'spreadsheet';
         const panelEl = document.createElement('div');
         panelEl.className = 'workspace-panel';
         if (panelType?.panelClass) {
@@ -276,6 +279,11 @@ export function createPanelDomFacade({
         let markdownRenderToggleBtn = null;
         let markdownRenderToggleLabel = null;
         let plotHost = null;
+        let stylePainterBtn = null;
+        let stylePainterPopover = null;
+        let lockBtn = null;
+        let pinBtn = null;
+        let panelLockState = { editLocked: false, pinned: false };
         const buildMarkdownPreviewIcon = () => {
           const icon = document.createElement('span');
           icon.className = 'workspace-markdown-preview-toggle-icon';
@@ -326,11 +334,55 @@ export function createPanelDomFacade({
           markdownRenderToggleBtn.classList.toggle('is-plain', isPlain);
         };
 
-    let stylePainterBtn = null;
-    let stylePainterPopover = null;
-    let lockBtn = null;
-    let pinBtn = null;
-    let panelLockState = { editLocked: false, pinned: false };
+    const createToggleButton = ({
+      icon,
+      title,
+      pressed = false,
+      onClick = null
+    }) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+      btn.innerHTML = `<i class="bi ${icon}"></i>`;
+      btn.title = title;
+      btn.setAttribute('aria-pressed', String(pressed));
+      btn.classList.toggle('is-active', pressed);
+      btn.addEventListener('click', () => {
+        const next = btn.getAttribute('aria-pressed') !== 'true';
+        btn.setAttribute('aria-pressed', String(next));
+        btn.classList.toggle('is-active', next);
+        if (typeof onClick === 'function') {
+          const result = onClick(next, btn);
+          if (result === false) {
+            const reverted = !next;
+            btn.setAttribute('aria-pressed', String(reverted));
+            btn.classList.toggle('is-active', reverted);
+          }
+        }
+      });
+      return btn;
+    };
+
+  const applyHeaderLockState = (state) => {
+    if (!panelEl) return;
+    panelEl.classList.toggle('is-edit-locked', state?.editLocked === true);
+    panelEl.classList.toggle('is-panel-pinned', state?.pinned === true);
+    panelEl.querySelectorAll('.workspace-panel-action-btn').forEach((btn) => {
+      if (state?.editLocked === true && btn.dataset?.panelAction !== 'lock') {
+        if (!btn.disabled) {
+          btn.dataset.lockDisabled = '1';
+        }
+        btn.disabled = true;
+        btn.setAttribute('aria-disabled', 'true');
+        btn.classList.add('is-locked');
+      } else if (btn.dataset.lockDisabled === '1') {
+        btn.disabled = false;
+        btn.removeAttribute('aria-disabled');
+        btn.classList.remove('is-locked');
+        delete btn.dataset.lockDisabled;
+      }
+    });
+  };
     if (isPlotPanel) {
         const popoverClosers = [];
         const registerPopoverCloser = (fn) => {
@@ -348,36 +400,6 @@ export function createPanelDomFacade({
           });
         };
 
-        const createToggleButton = ({
-          icon,
-          title,
-          pressed = false,
-          onClick = null
-        }) => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
-          btn.innerHTML = `<i class="bi ${icon}"></i>`;
-          btn.title = title;
-          btn.setAttribute('aria-pressed', String(pressed));
-          btn.classList.toggle('is-active', pressed);
-          btn.addEventListener('click', () => {
-            const next = btn.getAttribute('aria-pressed') !== 'true';
-            btn.setAttribute('aria-pressed', String(next));
-            btn.classList.toggle('is-active', next);
-            if (typeof onClick === 'function') {
-              const result = onClick(next, btn);
-              if (result === false) {
-                const reverted = !next;
-                btn.setAttribute('aria-pressed', String(reverted));
-                btn.classList.toggle('is-active', reverted);
-              }
-            }
-          });
-          return btn;
-        };
-
-
         const readPanelLockState = () => {
           const meta = safeGetPanelFigure(panelId)?.layout?.meta;
           const panelMeta = meta && typeof meta === 'object' ? meta.workspacePanel : null;
@@ -385,27 +407,6 @@ export function createPanelDomFacade({
             editLocked: panelMeta?.editLocked === true,
             pinned: panelMeta?.pinned === true
           };
-        };
-
-        const applyHeaderLockState = (state) => {
-          if (!panelEl) return;
-          panelEl.classList.toggle('is-edit-locked', state?.editLocked === true);
-          panelEl.classList.toggle('is-panel-pinned', state?.pinned === true);
-          panelEl.querySelectorAll('.workspace-panel-action-btn').forEach((btn) => {
-            if (state?.editLocked === true && btn.dataset?.panelAction !== 'lock') {
-              if (!btn.disabled) {
-                btn.dataset.lockDisabled = '1';
-              }
-              btn.disabled = true;
-              btn.setAttribute('aria-disabled', 'true');
-              btn.classList.add('is-locked');
-            } else if (btn.dataset.lockDisabled === '1') {
-              btn.disabled = false;
-              btn.removeAttribute('aria-disabled');
-              btn.classList.remove('is-locked');
-              delete btn.dataset.lockDisabled;
-            }
-          });
         };
 
         const controlsWrapper = document.createElement('div');
@@ -2968,6 +2969,7 @@ export function createPanelDomFacade({
         applyHeaderLockState(panelLockState);
         } else {
           let fullscreenEnabled = false;
+          let spreadsheetOverflowPanel = null;
           const nonPlotFullscreenBtn = document.createElement('button');
           nonPlotFullscreenBtn.type = 'button';
           nonPlotFullscreenBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
@@ -2984,6 +2986,345 @@ export function createPanelDomFacade({
             safeHandleHeaderAction(panelId, 'toggle-fullscreen', { on: fullscreenEnabled });
           });
           updateNonPlotFullscreenBtn();
+
+          if (isSpreadsheetPanel) {
+            const controlsWrapper = document.createElement('div');
+            controlsWrapper.className = 'workspace-panel-actions-collection';
+            controlsWrapper.setAttribute('aria-hidden', 'false');
+
+            const ACTION_ORDER_ATTR = 'data-panel-action-order';
+            const actionItems = [];
+            let overflowPanel = null;
+
+            const toOrder = (node) => Number(node?.getAttribute(ACTION_ORDER_ATTR)) || 0;
+            const registerActionItem = (node) => {
+              if (!node) return null;
+              node.dataset.panelActionItem = '1';
+              node.classList.add('workspace-panel-action-item');
+              node.classList.remove('is-overflowed');
+              node.removeAttribute('data-panel-action-overflow');
+              return node;
+            };
+            const appendActionItem = (node) => {
+              if (!node) return null;
+              registerActionItem(node);
+              node.setAttribute(ACTION_ORDER_ATTR, String(actionItems.length));
+              actionItems.push(node);
+              controlsWrapper.appendChild(node);
+              return node;
+            };
+            const isVisibleActionItem = (item) => {
+              if (!item || item.hidden) return false;
+              if (item.offsetParent !== null) return true;
+              return item.getClientRects().length > 0;
+            };
+            const getOrderedInlineItems = ({ includeHidden = false } = {}) => actionItems
+              .filter((item) => item
+                && item.parentElement === controlsWrapper
+                && (includeHidden || isVisibleActionItem(item)))
+              .sort((a, b) => toOrder(a) - toOrder(b));
+            const moveItemToInline = (node) => {
+              if (!node || node.parentElement === controlsWrapper) return;
+              const nextSibling = getOrderedInlineItems()
+                .find((item) => toOrder(item) > toOrder(node)) || null;
+              if (nextSibling) {
+                controlsWrapper.insertBefore(node, nextSibling);
+              } else {
+                controlsWrapper.appendChild(node);
+              }
+              node.classList.remove('is-overflowed');
+              node.removeAttribute('data-panel-action-overflow');
+            };
+            const moveAllItemsInline = () => {
+              actionItems.forEach((item) => moveItemToInline(item));
+            };
+            const moveItemToOverflow = (node) => {
+              if (!node || !overflowPanel || node.parentElement === overflowPanel) return;
+              overflowPanel.appendChild(node);
+              node.classList.add('is-overflowed');
+              node.setAttribute('data-panel-action-overflow', '1');
+            };
+
+            const appendPopoverControl = (buttonEl, popoverEl, options = {}) => {
+              const wrapper = document.createElement('div');
+              wrapper.className = 'workspace-panel-action-wrapper';
+              wrapper.appendChild(buttonEl);
+              wrapper.appendChild(popoverEl);
+              appendActionItem(wrapper);
+              registerPopoverButton(buttonEl, popoverEl, options);
+            };
+
+            const addColumnBtn = document.createElement('button');
+            addColumnBtn.type = 'button';
+            addColumnBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+            addColumnBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+            addColumnBtn.title = 'Add column';
+            addColumnBtn.addEventListener('click', () => {
+              contentHandles?.addColumn?.();
+            });
+            appendActionItem(addColumnBtn);
+
+            const duplicateBtn = document.createElement('button');
+            duplicateBtn.type = 'button';
+            duplicateBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+            duplicateBtn.innerHTML = '<i class="bi bi-files"></i>';
+            duplicateBtn.title = 'Duplicate spreadsheet';
+            duplicateBtn.addEventListener('click', () => {
+              safeDuplicatePanel(panelId);
+            });
+            appendActionItem(duplicateBtn);
+
+            const tipsBtn = document.createElement('button');
+            tipsBtn.type = 'button';
+            tipsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+            tipsBtn.innerHTML = '<i class="bi bi-lightbulb"></i>';
+            tipsBtn.title = 'Tips';
+            tipsBtn.setAttribute('aria-expanded', 'false');
+
+            const tipsPopover = document.createElement('div');
+            tipsPopover.className = 'workspace-panel-popover workspace-panel-popover--tips';
+            const ensureTipsContent = () => {
+              const tipsMarkup = contentHandles?.getQuickTipsMarkup?.();
+              if (!tipsMarkup) return;
+              tipsPopover.innerHTML = `
+                <div class="workspace-panel-popover-section">
+                  ${tipsMarkup}
+                </div>
+              `;
+            };
+            tipsPopover.onOpen = () => ensureTipsContent();
+            ensureTipsContent();
+            appendPopoverControl(tipsBtn, tipsPopover, { openOnHover: true, suppressClickToggle: true });
+
+            const settingsBtn = document.createElement('button');
+            settingsBtn.type = 'button';
+            settingsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-toggle workspace-panel-action-btn--settings';
+            settingsBtn.innerHTML = '<i class="bi bi-gear-wide"></i>';
+            settingsBtn.title = 'Hide tools';
+            settingsBtn.setAttribute('aria-pressed', 'false');
+
+            const updateSettingsToggle = (collapsed) => {
+              settingsBtn.setAttribute('aria-pressed', String(collapsed));
+              settingsBtn.innerHTML = collapsed ? '<i class="bi bi-gear-fill"></i>' : '<i class="bi bi-gear-wide"></i>';
+              settingsBtn.title = collapsed ? 'Show tools' : 'Hide tools';
+            };
+
+            let toolsCollapsed = false;
+            updateSettingsToggle(toolsCollapsed);
+            settingsBtn.addEventListener('click', () => {
+              toolsCollapsed = !toolsCollapsed;
+              controlsWrapper.classList.toggle('is-collapsed', toolsCollapsed);
+              controlsWrapper.setAttribute('aria-hidden', String(toolsCollapsed));
+              updateSettingsToggle(toolsCollapsed);
+              refreshActionOverflow();
+              safeUpdateToolbarMetrics();
+            });
+
+            panelLockState = { editLocked: false, pinned: false };
+            lockBtn = createToggleButton({
+              icon: 'bi-lock',
+              title: 'Lock panel',
+              pressed: panelLockState.editLocked,
+              onClick: (isOn) => {
+                panelLockState = { ...panelLockState, editLocked: isOn };
+                applyHeaderLockState(panelLockState);
+              }
+            });
+            lockBtn.dataset.panelAction = 'lock';
+            lockBtn.classList.add('workspace-panel-action-btn--lock');
+
+            pinBtn = createToggleButton({
+              icon: 'bi-pin-angle',
+              title: 'Pin position',
+              pressed: panelLockState.pinned,
+              onClick: (isOn) => {
+                panelLockState = { ...panelLockState, pinned: isOn };
+                applyHeaderLockState(panelLockState);
+              }
+            });
+            pinBtn.dataset.panelAction = 'pin';
+            pinBtn.classList.add('workspace-panel-action-btn--visibility');
+
+            const overflowBtn = document.createElement('button');
+            overflowBtn.type = 'button';
+            overflowBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-overflow';
+            overflowBtn.innerHTML = '<i class="bi bi-chevron-down"></i>';
+            overflowBtn.title = 'More tools';
+            overflowBtn.setAttribute('aria-expanded', 'false');
+            overflowBtn.hidden = true;
+
+            overflowPanel = document.createElement('div');
+            overflowPanel.className = 'workspace-panel-actions-overflow-panel';
+            overflowPanel.hidden = true;
+            overflowPanel.tabIndex = -1;
+            overflowPanel.setAttribute('role', 'menu');
+            overflowPanel.setAttribute('aria-hidden', 'true');
+            spreadsheetOverflowPanel = overflowPanel;
+
+            let overflowOutsideActive = false;
+            let handleOverflowOutside = () => {};
+            let overflowMenuOpen = false;
+            const isOverflowMenuOpen = () => overflowMenuOpen;
+            const closeOverflowItemPopovers = () => {
+              if (!overflowPanel) return;
+              overflowPanel.querySelectorAll('.workspace-panel-popover').forEach((pop) => {
+                pop?.__close?.();
+              });
+            };
+            const closeOverflowMenu = () => {
+              if (!overflowMenuOpen) return;
+              closeOverflowItemPopovers();
+              closePortaledPopover(overflowBtn, overflowPanel);
+              overflowPanel.hidden = true;
+              overflowPanel.setAttribute('aria-hidden', 'true');
+              overflowPanel.classList.remove('is-open');
+              overflowBtn.classList.remove('is-active');
+              overflowMenuOpen = false;
+              if (overflowOutsideActive) {
+                document.removeEventListener('click', handleOverflowOutside);
+                overflowOutsideActive = false;
+              }
+            };
+            handleOverflowOutside = (event) => {
+              if (!isOverflowMenuOpen()) return;
+              if (overflowPanel.contains(event.target) || overflowBtn.contains(event.target)) return;
+              closeOverflowMenu();
+            };
+
+            const openOverflowMenu = () => {
+              if (overflowMenuOpen) return;
+              if (!overflowPanel || !overflowPanel.childElementCount) return;
+              closeOverflowItemPopovers();
+              overflowPanel.hidden = false;
+              overflowPanel.setAttribute('aria-hidden', 'false');
+              overflowPanel.classList.add('is-open');
+              openPortaledPopover(overflowBtn, overflowPanel);
+              overflowPanel.focus({ preventScroll: true });
+              overflowBtn.classList.add('is-active');
+              overflowMenuOpen = true;
+              if (!overflowOutsideActive) {
+                document.addEventListener('click', handleOverflowOutside);
+                overflowOutsideActive = true;
+              }
+            };
+
+            overflowBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              if (overflowBtn.hidden) return;
+              const willOpen = !isOverflowMenuOpen();
+              if (willOpen) {
+                openOverflowMenu();
+              } else {
+                closeOverflowMenu();
+              }
+            });
+
+            const isInlineOverflowing = () => {
+              const inlineItems = getOrderedInlineItems();
+              if (inlineItems.length <= 1) return false;
+              const containerRect = controlsWrapper.getBoundingClientRect();
+              if (!containerRect || !Number.isFinite(containerRect.width)) return false;
+              let minLeft = Infinity;
+              let maxRight = -Infinity;
+              inlineItems.forEach((item) => {
+                const rect = item.getBoundingClientRect();
+                if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.right)) return;
+                if (rect.left < minLeft) minLeft = rect.left;
+                if (rect.right > maxRight) maxRight = rect.right;
+              });
+              if (!Number.isFinite(minLeft) || !Number.isFinite(maxRight)) return false;
+              const contentWidth = maxRight - minLeft;
+              return contentWidth > containerRect.width + 1;
+            };
+
+            const updateActionsReservedWidths = () => {
+              if (!actions || !actionsRight || !title) return;
+              const actionsRect = actions.getBoundingClientRect();
+              const titleRect = title.getBoundingClientRect();
+              const rightRect = actionsRight.getBoundingClientRect();
+              const gapValue = (() => {
+                const styles = window.getComputedStyle(actionsRight);
+                return Number.parseFloat(styles.columnGap || styles.gap || '0') || 0;
+              })();
+              const sampleBtn = actionsRight.querySelector('.workspace-panel-action-btn')
+                || controlsWrapper.querySelector('.workspace-panel-action-btn');
+              const btnWidth = sampleBtn?.getBoundingClientRect().width || 24;
+              const minRightWidth = (btnWidth * 4) + (gapValue * 3);
+              const rightReserved = Math.max(rightRect.width || 0, minRightWidth);
+              const leftReserved = Number.isFinite(actionsRect.left) && Number.isFinite(titleRect.right)
+                ? Math.max(0, titleRect.right - actionsRect.left + 8)
+                : 0;
+              actions.style.setProperty('--workspace-panel-actions-right-reserved', `${Math.ceil(rightReserved)}px`);
+              actions.style.setProperty('--workspace-panel-actions-left-reserved', `${Math.ceil(leftReserved)}px`);
+            };
+
+            const reconcileOverflowItems = ({ preserveMenuState = false } = {}) => {
+              const menuWasOpen = isOverflowMenuOpen();
+              if (menuWasOpen) {
+                closeOverflowMenu();
+              }
+              moveAllItemsInline();
+              if (!controlsWrapper || controlsWrapper.offsetParent === null) {
+                return overflowPanel && overflowPanel.childElementCount > 0;
+              }
+              let wrapped = isInlineOverflowing();
+              let guard = 0;
+              while (wrapped && guard < actionItems.length) {
+                const inlineItems = getOrderedInlineItems();
+                if (!inlineItems.length) break;
+                const candidate = inlineItems[inlineItems.length - 1];
+                moveItemToOverflow(candidate);
+                wrapped = isInlineOverflowing();
+                guard += 1;
+              }
+              const hasOverflow = overflowPanel && overflowPanel.childElementCount > 0;
+              if (preserveMenuState && menuWasOpen && hasOverflow) {
+                openOverflowMenu();
+              }
+              return hasOverflow;
+            };
+
+            refreshActionOverflow = () => {
+              updateActionsReservedWidths();
+              if (!controlsWrapper || controlsWrapper.clientWidth <= 0) {
+                moveAllItemsInline();
+                closeOverflowMenu();
+                overflowBtn.hidden = true;
+                actions.classList.remove('has-overflow');
+                return;
+              }
+              const collapsed = controlsWrapper.classList.contains('is-collapsed');
+              if (collapsed) {
+                moveAllItemsInline();
+                closeOverflowMenu();
+                overflowBtn.hidden = true;
+                actions.classList.remove('has-overflow');
+                return;
+              }
+              const hasOverflow = reconcileOverflowItems({ preserveMenuState: true });
+              if (!hasOverflow) {
+                closeOverflowMenu();
+              }
+              overflowBtn.hidden = !hasOverflow;
+              actions.classList.toggle('has-overflow', hasOverflow);
+            };
+
+            if (typeof ResizeObserver === 'function') {
+              const resizeObserver = new ResizeObserver(() => refreshActionOverflow());
+              resizeObserver.observe(actions);
+            }
+
+            actionsCenter.appendChild(controlsWrapper);
+            actionsCenter.appendChild(overflowBtn);
+            actionsRight.appendChild(settingsBtn);
+            if (pinBtn) {
+              actionsRight.appendChild(pinBtn);
+            }
+            if (lockBtn) {
+              actionsRight.appendChild(lockBtn);
+            }
+            applyHeaderLockState(panelLockState);
+          }
 
           if (isMarkdownPanel) {
             markdownRenderToggleBtn = document.createElement('button');
@@ -3235,6 +3576,9 @@ export function createPanelDomFacade({
           });
           actionsRight.appendChild(closeBtn);
           actions.appendChild(actionsCenter);
+          if (spreadsheetOverflowPanel) {
+            actions.appendChild(spreadsheetOverflowPanel);
+          }
           actions.appendChild(actionsRight);
         }
         if (headerTagBadge) {

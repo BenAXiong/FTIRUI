@@ -2219,10 +2219,10 @@ body.workspace-panel-fullscreen .header-actions{
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  border-radius: 1rem;
+  border-radius: 0;
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
-  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.03) 4%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+  background: transparent;
+  box-shadow: none;
 }
 .workspace-spreadsheet-grid{
   width: 100%;
@@ -2234,18 +2234,18 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-grid thead th{
   position: sticky;
   top: 0;
-  background: color-mix(in srgb, var(--bs-body-bg) 88%, rgba(15,23,42,.08) 12%);
+  background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(15,23,42,.06) 10%);
   backdrop-filter: blur(6px);
   font-weight: 600;
   text-align: left;
-  padding: .45rem .5rem;
+  padding: .3rem .45rem;
+  height: 30px;
   border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent);
-  z-index: 2;
+  z-index: 3;
 }
-.workspace-spreadsheet-formula-row th{
-  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.05) 8%);
+.workspace-spreadsheet-head-row--formula th{
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.04) 6%);
   border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 75%, transparent);
-  padding: .35rem .4rem;
 }
 .workspace-spreadsheet-formula-input{
   width: 100%;
@@ -2269,23 +2269,69 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-column-header.is-active{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, rgba(15,23,42,.08) 15%);
 }
-.workspace-spreadsheet-column-name{
+.workspace-spreadsheet-column-header--col{
+  min-width: 6.5rem;
+}
+.workspace-spreadsheet-column-header--name,
+.workspace-spreadsheet-column-header--units{
+  min-width: 9.5rem;
+}
+.workspace-spreadsheet-column-header--formula{
+  min-width: 9rem;
+}
+.workspace-spreadsheet-col-header{
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.workspace-spreadsheet-col-token{
+  font-size: .72rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
+}
+.workspace-spreadsheet-col-handle{
   border: none;
   background: transparent;
-  font-weight: 600;
-  font-size: .78rem;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  padding: .15rem .25rem;
-  border-radius: .4rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.25) 20%);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  cursor: grab;
+}
+.workspace-spreadsheet-col-handle:active{
+  cursor: grabbing;
+}
+.workspace-spreadsheet-col-actions{
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: .25rem;
-  color: var(--bs-body-color);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
 }
-.workspace-spreadsheet-column-name:hover,
-.workspace-spreadsheet-column-name:focus{
-  background: rgba(15,23,42,.08);
+.workspace-spreadsheet-column-header--col:hover .workspace-spreadsheet-col-actions{
+  opacity: 1;
+  pointer-events: auto;
+}
+.workspace-spreadsheet-col-action{
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.2) 20%);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.workspace-spreadsheet-col-action--danger{
+  color: color-mix(in srgb, var(--bs-danger) 80%, rgba(15,23,42,.2) 20%);
+}
+.workspace-spreadsheet-header-input{
+  width: 100%;
+  font-size: .78rem;
+}
+.workspace-spreadsheet-name-input{
+  text-transform: none;
 }
 .workspace-spreadsheet-grid tbody th{
   position: sticky;
@@ -2301,6 +2347,25 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-row-header.is-active{
   color: var(--bs-primary);
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, transparent);
+}
+.workspace-spreadsheet-row-header-content{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .35rem;
+}
+.workspace-spreadsheet-row-delete{
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--bs-danger) 80%, rgba(15,23,42,.2) 20%);
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.workspace-spreadsheet-row-header:hover .workspace-spreadsheet-row-delete{
+  opacity: 1;
+  pointer-events: auto;
 }
 .workspace-spreadsheet-grid td{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 40%, transparent);
@@ -2332,10 +2397,10 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-plot-controls{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
-  border-radius: 1rem;
+  border-radius: 0;
   padding: .75rem;
-  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.04) 4%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+  background: transparent;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: .75rem;
