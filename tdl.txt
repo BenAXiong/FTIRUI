@@ -34,8 +34,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Add buttons: greek letters, symbols
         - [x] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
     - [-] Browser: duplication and mutliselect
-        - [-] Add onHover button for section, folders and graphs
-        - [-] Add ctrl+alt behavior
+        - [x] Add onHover button for section, folders and graphs
+        - [-] Add ctrl+alt+drag duplication
         - [ ] Wire ctrl+click multiselect
     - [-] Spreadsheets
         - [-] Review necessary improvement for MVP and demo
@@ -82,6 +82,8 @@ Phase x – Extra details
 - [ ] demo files (raw or worspace snapshot?)
 - [ ] browser extra options: exp/col all, hide tags, ...
 - [ ] *spreadsheets flow
+- [ ] *styling flow: avoid spread styling on multiple places (browser chip, hb, right pane).
+        Ctrl+click on plot elements?
 - [ ] all icons...
 
 Phase x – (nondev)
@@ -94,6 +96,7 @@ ________________________________________________________________________________
 
 Phase x – Future explorations
 - [ ] Next tech = XRD & CV?
+- [ ] Merge left HUD with browser?
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
 - [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
 - [ ] Mock-up 'in-paper' preview for wows

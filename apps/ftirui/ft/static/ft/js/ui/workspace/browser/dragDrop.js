@@ -155,13 +155,17 @@ export function attach(rootEl, options = {}) {
     rootEl,
     onStateChanged: options.onStateChanged ?? noop,
     onDropPanel: options.onDropPanel ?? noop,
+    onCopyPanel: options.onCopyPanel ?? noop,
     onDropSection: options.onDropSection ?? noop,
+    onCopySection: options.onCopySection ?? noop,
     currentDropTarget: null,
     draggingPanelId: null,
     draggingSectionId: null,
     draggingSectionParentId: null,
     pendingSectionDrop: null,
-    pendingPanelDrop: null
+    pendingPanelDrop: null,
+    dragMode: 'move',
+    copyHoverEligible: false
   };
 
   const handleStatefulResult = (result) => {
@@ -170,12 +174,40 @@ export function attach(rootEl, options = {}) {
     }
   };
 
+  const isCopyModifier = (event) => !!(event?.ctrlKey && event?.altKey);
+
+  const isDuplicateTarget = (target) => {
+    if (!target) return false;
+    if (target.closest('.graph-header')) {
+      return true;
+    }
+    const sectionHeader = target.closest('.section-header');
+    if (sectionHeader) {
+      const sectionNode = sectionHeader.closest('.section-node');
+      if (sectionNode?.dataset?.locked === 'true') return false;
+      return true;
+    }
+    return false;
+  };
+
+  const updateCopyHoverState = (active) => {
+    if (!context.rootEl?.classList) return;
+    context.rootEl.classList.toggle('is-copy-hover', !!active);
+  };
+
   const resetDragState = () => {
     context.draggingPanelId = null;
     context.draggingSectionId = null;
     context.draggingSectionParentId = null;
     context.pendingSectionDrop = null;
     context.pendingPanelDrop = null;
+    context.dragMode = 'move';
+    context.rootEl?.classList?.remove('is-copy-drag');
+    context.rootEl?.classList?.remove('is-copy-hover');
+    context.copyHoverEligible = false;
+    if (context.rootEl?.dataset) {
+      delete context.rootEl.dataset.dragMode;
+    }
     setDropTarget(context, null);
   };
 
@@ -190,15 +222,15 @@ export function attach(rootEl, options = {}) {
     if (event.target?.closest('input, textarea, select')) {
       return;
     }
-    if (event.target?.closest('.folder-traces, .folder-children')) {
-      event.preventDefault();
-      return;
-    }
     if (event.target?.closest('.drag-handle')) {
       return;
     }
     const inGraphHeader = event.target?.closest('.graph-header');
     const inSectionHeader = event.target?.closest('.section-header');
+    if (!inGraphHeader && !inSectionHeader && event.target?.closest('.folder-traces, .folder-children')) {
+      event.preventDefault();
+      return;
+    }
     if (!inGraphHeader && !inSectionHeader) {
       event.preventDefault();
       return;
@@ -222,8 +254,17 @@ export function attach(rootEl, options = {}) {
       context.pendingPanelDrop = null;
     }
     if (!context.draggingPanelId && !context.draggingSectionId) return;
+    const isCopy = !!(event.ctrlKey && event.altKey);
+    context.dragMode = isCopy ? 'copy' : 'move';
+    if (context.rootEl?.classList) {
+      context.rootEl.classList.toggle('is-copy-drag', isCopy);
+      context.rootEl.classList.remove('is-copy-hover');
+    }
+    if (context.rootEl?.dataset) {
+      context.rootEl.dataset.dragMode = context.dragMode;
+    }
     if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.effectAllowed = isCopy ? 'copy' : 'move';
       const payload = context.draggingPanelId || context.draggingSectionId;
       event.dataTransfer.setData('text/plain', payload);
     }
@@ -236,7 +277,7 @@ export function attach(rootEl, options = {}) {
       const targetNode = drop.element?.closest('.section-node') || context.rootEl.querySelector(`[data-section-id="${drop.sectionId}"]`);
       event.preventDefault();
       if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'move';
+        event.dataTransfer.dropEffect = context.dragMode === 'copy' ? 'copy' : 'move';
       }
       setDropTarget(context, drop.element || targetNode || null);
       context.pendingPanelDrop = drop;
@@ -253,7 +294,7 @@ export function attach(rootEl, options = {}) {
       if (targetNode?.dataset?.locked === 'true') return;
       event.preventDefault();
       if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'move';
+        event.dataTransfer.dropEffect = context.dragMode === 'copy' ? 'copy' : 'move';
       }
       setDropTarget(context, drop.element || targetNode || null);
       context.pendingSectionDrop = drop;
@@ -279,8 +320,11 @@ export function attach(rootEl, options = {}) {
       }
       event.preventDefault();
       const panelId = context.draggingPanelId;
+      const isCopy = context.dragMode === 'copy';
       resetDragState();
-      const result = callGuarded(context.onDropPanel, panelId, drop);
+      const result = isCopy
+        ? callGuarded(context.onCopyPanel, panelId, drop)
+        : callGuarded(context.onDropPanel, panelId, drop);
       handleStatefulResult(result);
       return;
     }
@@ -303,15 +347,17 @@ export function attach(rootEl, options = {}) {
       }
       event.preventDefault();
       const sectionId = context.draggingSectionId;
+      const isCopy = context.dragMode === 'copy';
       resetDragState();
-      const result = callGuarded(
-        context.onDropSection,
-        sectionId,
-        {
-          parentId: drop.parentId,
-          beforeSectionId: drop.beforeSectionId
-        }
-      );
+      const result = isCopy
+        ? callGuarded(context.onCopySection, sectionId, {
+            parentId: drop.parentId,
+            beforeSectionId: drop.beforeSectionId
+          })
+        : callGuarded(context.onDropSection, sectionId, {
+            parentId: drop.parentId,
+            beforeSectionId: drop.beforeSectionId
+          });
       handleStatefulResult(result);
     }
   };
@@ -320,11 +366,32 @@ export function attach(rootEl, options = {}) {
     resetDragState();
   };
 
+  const handlePointerMove = (event) => {
+    if (!event) return;
+    const eligible = isDuplicateTarget(event.target);
+    context.copyHoverEligible = eligible;
+    updateCopyHoverState(eligible && isCopyModifier(event));
+  };
+
+  const handlePointerLeave = () => {
+    context.copyHoverEligible = false;
+    updateCopyHoverState(false);
+  };
+
+  const handleKeyToggle = (event) => {
+    if (!context.copyHoverEligible) return;
+    updateCopyHoverState(isCopyModifier(event));
+  };
+
   rootEl.addEventListener('dragstart', handleDragStart, true);
   rootEl.addEventListener('dragover', handleDragOver);
   rootEl.addEventListener('dragleave', handleDragLeave);
   rootEl.addEventListener('drop', handleDrop);
   rootEl.addEventListener('dragend', handleDragEnd);
+  rootEl.addEventListener('pointermove', handlePointerMove);
+  rootEl.addEventListener('pointerleave', handlePointerLeave);
+  document.addEventListener('keydown', handleKeyToggle);
+  document.addEventListener('keyup', handleKeyToggle);
 
   contexts.set(rootEl, {
     ...context,
@@ -333,7 +400,10 @@ export function attach(rootEl, options = {}) {
       handleDragOver,
       handleDragLeave,
       handleDrop,
-      handleDragEnd
+      handleDragEnd,
+      handlePointerMove,
+      handlePointerLeave,
+      handleKeyToggle
     }
   });
 }
@@ -348,9 +418,18 @@ export function detach(rootEl) {
     ctx.rootEl.removeEventListener('dragleave', handlers.handleDragLeave);
     ctx.rootEl.removeEventListener('drop', handlers.handleDrop);
     ctx.rootEl.removeEventListener('dragend', handlers.handleDragEnd);
+    ctx.rootEl.removeEventListener('pointermove', handlers.handlePointerMove);
+    ctx.rootEl.removeEventListener('pointerleave', handlers.handlePointerLeave);
+    document.removeEventListener('keydown', handlers.handleKeyToggle);
+    document.removeEventListener('keyup', handlers.handleKeyToggle);
   }
   if (ctx.currentDropTarget) {
     ctx.currentDropTarget.classList.remove('is-drop-target');
+  }
+  ctx.rootEl?.classList?.remove('is-copy-drag');
+  ctx.rootEl?.classList?.remove('is-copy-hover');
+  if (ctx.rootEl?.dataset) {
+    delete ctx.rootEl.dataset.dragMode;
   }
   ctx.pendingSectionDrop = null;
   ctx.pendingPanelDrop = null;

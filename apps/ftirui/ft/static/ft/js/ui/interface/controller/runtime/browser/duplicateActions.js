@@ -63,19 +63,31 @@ export function createBrowserDuplicateActions({
     return nextId;
   };
 
-  const duplicatePanel = (panelId) => {
+  const duplicatePanel = (panelId, {
+    sectionId,
+    offset = 24,
+    skipHistory = false,
+    skipPersist = false,
+    allowToast = true
+  } = {}) => {
     if (!panelId || !panelsModel?.getPanel) return false;
     const record = panelsModel.getPanel(panelId);
     if (!record) return false;
-    pushHistory?.();
+    if (!skipHistory) {
+      pushHistory?.();
+    }
     const nextId = duplicatePanelRecord(record, {
+      sectionId: sectionId || record.sectionId,
+      offset,
       skipHistory: true,
       skipPersist: true,
-      allowToast: true
+      allowToast
     });
-    persist?.();
+    if (!skipPersist) {
+      persist?.();
+    }
     updateHistoryButtons?.();
-    return !!nextId;
+    return nextId || false;
   };
 
   const duplicateSectionTree = (sectionId, { parentId = null } = {}) => {
@@ -104,23 +116,39 @@ export function createBrowserDuplicateActions({
     return newSection.id;
   };
 
-  const duplicateSection = (sectionId) => {
+  const duplicateSection = (sectionId, {
+    parentId,
+    beforeSectionId,
+    skipHistory = false,
+    skipPersist = false,
+    allowToast = true
+  } = {}) => {
     if (!sectionId || !sectionManager?.get) return false;
     const section = sectionManager.get(sectionId);
     if (!section) return false;
-    pushHistory?.();
-    const parentId = section.parentId || null;
-    const beforeSectionId = resolveSiblingBefore(sectionManager, sectionId);
-    const newSectionId = duplicateSectionTree(sectionId, { parentId });
-    if (newSectionId && typeof sectionManager.moveSection === 'function' && beforeSectionId) {
-      sectionManager.moveSection(newSectionId, { parentId, beforeSectionId });
+    if (!skipHistory) {
+      pushHistory?.();
     }
-    if (newSectionId && typeof showToast === 'function') {
+    const sourceParent = section.parentId || null;
+    const targetParentId = parentId === undefined
+      ? sourceParent
+      : (parentId || null);
+    const shouldPlaceAfterSource = beforeSectionId === undefined && targetParentId === sourceParent;
+    const resolvedBefore = shouldPlaceAfterSource
+      ? resolveSiblingBefore(sectionManager, sectionId)
+      : (beforeSectionId || null);
+    const newSectionId = duplicateSectionTree(sectionId, { parentId: targetParentId });
+    if (newSectionId && typeof sectionManager.moveSection === 'function' && resolvedBefore) {
+      sectionManager.moveSection(newSectionId, { parentId: targetParentId, beforeSectionId: resolvedBefore });
+    }
+    if (newSectionId && allowToast && typeof showToast === 'function') {
       showToast(`${buildCopyLabel(section.name || 'Group', 'Group Copy')} created.`, 'success');
     }
-    persist?.();
+    if (!skipPersist) {
+      persist?.();
+    }
     updateHistoryButtons?.();
-    return !!newSectionId;
+    return newSectionId || false;
   };
 
   return {

@@ -23,7 +23,9 @@ export function attachBrowserDragDrop(ctx = {}) {
     defaultSectionId,
     renderBrowser,
     persist,
-    updateHistoryButtons
+    updateHistoryButtons,
+    duplicatePanel,
+    duplicateSection
   } = ctx;
 
   const tree = panelDom?.tree;
@@ -144,6 +146,41 @@ export function attachBrowserDragDrop(ctx = {}) {
     return false;
   };
 
+  const handlePanelCopy = (panelId, dropContext = {}) => {
+    if (!panelId || !dropContext || !dropContext.sectionId) return false;
+    if (typeof duplicatePanel !== 'function') return false;
+    const record = getPanelRecord(panelId);
+    if (!record) return false;
+    const targetSectionId = sections.has(dropContext.sectionId) ? dropContext.sectionId : null;
+    if (!targetSectionId) return false;
+    if (sections.get(targetSectionId)?.locked) return false;
+    const beforeRecord = dropContext.beforePanelId && dropContext.beforePanelId !== panelId
+      ? getPanelRecord(dropContext.beforePanelId)
+      : null;
+    const beforeSectionId = sections.has(beforeRecord?.sectionId) ? beforeRecord.sectionId : defaultSectionId;
+    const beforeId = beforeRecord && beforeSectionId === targetSectionId
+      ? dropContext.beforePanelId
+      : null;
+    pushHistory();
+    const newPanelId = duplicatePanel(panelId, {
+      sectionId: targetSectionId,
+      skipHistory: true,
+      skipPersist: true,
+      allowToast: true
+    });
+    if (!newPanelId) {
+      history.rewind();
+      return false;
+    }
+    if (beforeId || record.sectionId !== targetSectionId) {
+      moveGraph(newPanelId, { sectionId: targetSectionId, beforePanelId: beforeId });
+    }
+    renderBrowser();
+    persist();
+    updateHistoryButtons();
+    return false;
+  };
+
   const handleSectionReorder = (sectionId, dropContext = {}) => {
     if (!sectionId || sectionId === defaultSectionId) return false;
     const target = sections.get(sectionId);
@@ -172,6 +209,33 @@ export function attachBrowserDragDrop(ctx = {}) {
     return false;
   };
 
+  const handleSectionCopy = (sectionId, dropContext = {}) => {
+    if (!sectionId) return false;
+    if (typeof duplicateSection !== 'function') return false;
+    const parentId = dropContext.parentId && sections.has(dropContext.parentId)
+      ? dropContext.parentId
+      : null;
+    const beforeId = dropContext.beforeSectionId && sections.has(dropContext.beforeSectionId)
+      ? dropContext.beforeSectionId
+      : null;
+    pushHistory();
+    const newSectionId = duplicateSection(sectionId, {
+      parentId,
+      beforeSectionId: beforeId,
+      skipHistory: true,
+      skipPersist: true,
+      allowToast: true
+    });
+    if (!newSectionId) {
+      history.rewind();
+      return false;
+    }
+    renderBrowser();
+    persist();
+    updateHistoryButtons();
+    return false;
+  };
+
   tree.addEventListener('dragover', handleTreeDragOver);
   tree.addEventListener('drop', handleTreeDrop);
   tree.addEventListener('dragleave', handleTreeDragLeave);
@@ -180,7 +244,9 @@ export function attachBrowserDragDrop(ctx = {}) {
   dragDrop.attach(tree, {
     onStateChanged: renderBrowser,
     onDropPanel: handlePanelReorder,
-    onDropSection: handleSectionReorder
+    onDropSection: handleSectionReorder,
+    onCopyPanel: handlePanelCopy,
+    onCopySection: handleSectionCopy
   });
 
   return {

@@ -139,6 +139,8 @@ export function createBrowserFacade({
       getPanelRecord: selectors.getPanelRecord,
       moveGraph: actions.moveGraph,
       moveSection: actions.moveSection,
+      duplicatePanel: actions.duplicatePanel,
+      duplicateSection: actions.duplicateSection,
       defaultSectionId: state.defaultSectionId,
       renderBrowser: render,
       persist: actions.persist,

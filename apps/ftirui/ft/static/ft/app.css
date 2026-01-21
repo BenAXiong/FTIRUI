@@ -6215,9 +6215,23 @@ pre, code, .pre-like {
   cursor: grab;
 }
 
-.folder-header.graph-header:active{
-  cursor: grabbing;
-}
+  .folder-header.graph-header:active{
+    cursor: grabbing;
+  }
+
+  .workspace-browser.is-copy-drag .folder-header{
+    cursor: copy;
+  }
+
+  .workspace-browser.is-copy-hover .graph-header,
+  .workspace-browser.is-copy-hover .section-header{
+    cursor: copy;
+  }
+
+  .workspace-browser.is-copy-drag .is-drop-target{
+    outline: 1px dashed color-mix(in oklab, var(--bs-primary) 55%, transparent);
+    background: color-mix(in oklab, var(--bs-primary) 10%, transparent);
+  }
 
 .graph-node.graph-hidden .folder-header,
 .graph-node.graph-hidden .folder-name{
