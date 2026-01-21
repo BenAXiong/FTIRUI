@@ -2598,28 +2598,28 @@ body.workspace-panel-fullscreen .header-actions{
   background: rgba(59, 130, 246, 0.12);
   color: var(--bs-body-color);
 }
-.workspace-markdown-editor{
-  flex: 1 1 50%;
-  min-height: 0;
-  height: 100%;
-  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.08) 8%);
-  border-radius: .6rem;
-  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
-  padding: .85rem;
-  resize: none;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
-}
-.workspace-markdown-preview{
-  flex: 1 1 50%;
-  min-height: 0;
-  height: 100%;
-  padding: 1rem;
-  border-radius: .6rem;
-  border: 1px dashed color-mix(in srgb, var(--bs-border-color) 60%, transparent);
-  background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(15,23,42,.1) 10%);
-  overflow-y: auto;
-}
+  .workspace-markdown-editor{
+    flex: 1 1 50%;
+    min-height: 0;
+    height: 100%;
+    font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.08) 8%);
+    border-radius: .5rem;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+    padding: .85rem;
+    resize: none;
+    box-shadow: none;
+  }
+  .workspace-markdown-preview{
+    flex: 1 1 50%;
+    min-height: 0;
+    height: 100%;
+    padding: 1rem;
+    border-radius: .5rem;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+    background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(15,23,42,.1) 10%);
+    overflow-y: auto;
+  }
 .workspace-markdown-preview.is-plain{
   white-space: pre-wrap;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
@@ -2644,40 +2644,42 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-markdown-preview p:last-child{
   margin-bottom: 0;
 }
-.workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
-  border-style: solid;
-  opacity: .95;
-}
-.workspace-markdown-panel[data-mode="split"] .workspace-markdown-body,
-.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-body{
-  gap: 0;
-  border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
-  border-radius: .6rem;
-  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.06) 8%);
-  overflow: hidden;
-}
-.workspace-markdown-panel[data-mode="split"] .workspace-markdown-editor,
-.workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview,
-.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-editor,
-.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
-  border: 0;
-  border-radius: 0;
-}
-.workspace-markdown-panel[data-mode="split"] .workspace-markdown-editor{
-  padding-right: 1rem;
-}
-.workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
-  border-left: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
-  padding-left: 1rem;
-}
+  .workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
+    opacity: .95;
+  }
+  .workspace-markdown-panel[data-mode="split"] .workspace-markdown-body,
+  .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-body{
+    gap: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+  .workspace-markdown-panel[data-mode="split"] .workspace-markdown-editor,
+  .workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview,
+  .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-editor,
+  .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
+    border-radius: 0;
+  }
+  .workspace-markdown-panel[data-mode="split"] .workspace-markdown-editor{
+    border-right: 0;
+    padding-right: 1rem;
+  }
+  .workspace-markdown-panel[data-mode="split"] .workspace-markdown-preview{
+    border-left: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+    padding-left: 1rem;
+  }
 .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-body{
   flex-direction: column;
 }
-.workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
-  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
-  padding-top: 1rem;
-  opacity: .95;
-}
+  .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-preview{
+    border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+    padding-top: 1rem;
+    opacity: .95;
+  }
+  .workspace-markdown-panel[data-mode="split-h"] .workspace-markdown-editor{
+    border-bottom: 0;
+  }
 .workspace-panel-plot{
   width: 100%;
   height: 100%;
