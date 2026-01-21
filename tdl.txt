@@ -74,6 +74,7 @@ Phase x – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
 - [ ] Header buttons overlap with side elements
 - [ ] New dark theme : main ( #17212B or #191919), sidebar/code dark grays (e.g., #1E262F, #212B36), newer deeper blacks, with gray (#252525), brown (#2E2724), or blue (#1F282D). 
+- [ ] Md notes: cursor and selection reset on rendering
 - [ ] see full list
 
 Phase x – Extra details

@@ -434,10 +434,12 @@ export const markdownPanelType = {
       { id: 'h2', label: 'H2', title: 'Heading 2', handler: () => insertHeading(2) },
       { id: 'h3', label: 'H3', title: 'Heading 3', handler: () => insertHeading(3) },
       { id: 'bold', label: 'B', title: 'Bold', handler: () => wrapSelection({ before: '**', after: '**', placeholder: 'bold text' }) },
-      { id: 'italic', label: 'I', title: 'Italic', handler: () => wrapSelection({ before: '*', after: '*', placeholder: 'italic text' }) },
-      { id: 'underline', label: 'U', title: 'Underline', handler: () => wrapSelection({ before: '<u>', after: '</u>', placeholder: 'underlined' }) },
-      { id: 'strike', label: 'S', title: 'Strikethrough', handler: () => wrapSelection({ before: '~~', after: '~~', placeholder: 'strike' }) }
-    ];
+        { id: 'italic', label: 'I', title: 'Italic', handler: () => wrapSelection({ before: '*', after: '*', placeholder: 'italic text' }) },
+        { id: 'underline', label: 'U', title: 'Underline', handler: () => wrapSelection({ before: '<u>', after: '</u>', placeholder: 'underlined' }) },
+        { id: 'strike', label: 'S', title: 'Strikethrough', handler: () => wrapSelection({ before: '~~', after: '~~', placeholder: 'strike' }) },
+        { id: 'sub', label: 'x₂', title: 'Subscript', handler: () => wrapSelection({ before: '<sub>', after: '</sub>', placeholder: 'sub' }) },
+        { id: 'sup', label: 'x²', title: 'Superscript', handler: () => wrapSelection({ before: '<sup>', after: '</sup>', placeholder: 'sup' }) }
+      ];
 
     const createFormattingButton = (action) => {
       const btn = document.createElement('button');
