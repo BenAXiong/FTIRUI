@@ -5335,12 +5335,6 @@ const isPanelPinned = (panelId) =>
               placeholderText: 'Axis formatting controls coming soon.'
             }
           ]
-        },
-        {
-          id: 'tech_2',
-          label: 'Tech 2',
-          aliasOf: 'tech',
-          items: []
         }
       ],
       techToggle: techSelectorController?.toggle || null,

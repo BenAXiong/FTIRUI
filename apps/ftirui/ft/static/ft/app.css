@@ -5076,7 +5076,7 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 }
 .workspace-tech-side-panel-tabs{
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 0;
 }
 .workspace-tech-panel-tab{

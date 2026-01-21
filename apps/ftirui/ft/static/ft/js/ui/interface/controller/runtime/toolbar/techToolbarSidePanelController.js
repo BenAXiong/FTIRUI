@@ -68,6 +68,9 @@ export function createTechToolbarSidePanelController({
   const pinToggle = dom.pinToggle
     || panel?.querySelector?.('[data-tech-panel-action="pin"]')
     || null;
+  const paneUiToggle = dom.paneUiToggle
+    || documentRoot?.querySelector?.('[data-tech-panel-ui-toggle]')
+    || null;
   const behaviorToggle = dom.behaviorToggle
     || panel?.querySelector?.('[data-tech-panel-action="toggle-behavior"]')
     || null;
@@ -115,6 +118,7 @@ export function createTechToolbarSidePanelController({
   const collapsedByTab = new Map();
   let sectionBehavior = storedState?.behavior === 'single' ? 'single' : 'free';
   let panelPinned = storedState?.pinned === true;
+  let techLayout = storedState?.techLayout === 'tech_2' ? 'tech_2' : 'tech';
   const focusedByTab = new Map();
 
   if (storedState?.focused && typeof storedState.focused === 'object') {
@@ -148,7 +152,8 @@ export function createTechToolbarSidePanelController({
       collapsed,
       behavior: sectionBehavior,
       focused,
-      pinned: panelPinned
+      pinned: panelPinned,
+      techLayout
     });
   };
 
@@ -337,6 +342,18 @@ export function createTechToolbarSidePanelController({
     panel.dataset.panelPinned = panelPinned ? 'true' : 'false';
   };
 
+  const updatePaneUiControl = () => {
+    if (paneUiToggle) {
+      paneUiToggle.checked = techLayout === 'tech_2';
+    }
+  };
+
+  const applyPanelLayout = () => {
+    const layoutId = activeTabId === 'tech' ? techLayout : activeTabId;
+    panel.dataset.panelLayout = layoutId;
+    applyFocusForTab(visibleTabId);
+  };
+
   const buildPlaceholder = (item, bodyEl) => {
     const placeholder = documentRoot?.createElement?.('div');
     if (!placeholder || !bodyEl) return;
@@ -485,7 +502,7 @@ export function createTechToolbarSidePanelController({
     if (!nextTab) return;
     activeTabId = nextTab.id;
     visibleTabId = nextTab.aliasOf || nextTab.id;
-    panel.dataset.panelLayout = activeTabId;
+    applyPanelLayout();
     const buttons = Array.from(tabsRow?.querySelectorAll?.('[data-tech-panel-tab]') || []);
     buttons.forEach((button) => {
       const isActive = button.getAttribute('data-tech-panel-tab') === activeTabId;
@@ -498,7 +515,6 @@ export function createTechToolbarSidePanelController({
     if (sectionBehavior === 'single') {
       enforceSingleBehavior(visibleTabId);
     }
-    applyFocusForTab(visibleTabId);
     persistState();
     updateToggleAllButton();
     applySearchFilter(searchTerm);
@@ -632,6 +648,15 @@ export function createTechToolbarSidePanelController({
     });
   }
 
+  if (paneUiToggle) {
+    addListener(paneUiToggle, 'change', () => {
+      techLayout = paneUiToggle.checked ? 'tech_2' : 'tech';
+      updatePaneUiControl();
+      applyPanelLayout();
+      persistState();
+    });
+  }
+
   const handleOutsideClick = (event) => {
     if (!panel.classList.contains('is-searching')) return;
     if (searchWrap?.contains(event.target)) return;
@@ -666,6 +691,7 @@ export function createTechToolbarSidePanelController({
   }
   updateBehaviorControl();
   updatePinControl();
+  updatePaneUiControl();
   setActiveTab(activeTabId);
   syncSectionIcons();
   if (techToggle) {
