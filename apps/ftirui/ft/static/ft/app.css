@@ -2219,10 +2219,26 @@ body.workspace-panel-fullscreen .header-actions{
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  position: relative;
   border-radius: 0;
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
   background: transparent;
   box-shadow: none;
+}
+.workspace-spreadsheet-panel[data-freeze='true'] .workspace-spreadsheet-grid-scroll::after{
+  content: "Frozen";
+  position: absolute;
+  top: .4rem;
+  right: .5rem;
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.25) 25%);
+  background: color-mix(in srgb, var(--bs-body-bg) 85%, rgba(15,23,42,.1) 15%);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  padding: .1rem .4rem;
+  border-radius: .6rem;
+  pointer-events: none;
 }
 .workspace-spreadsheet-grid{
   width: 100%;
@@ -2281,17 +2297,43 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-col-header{
   position: relative;
-  display: grid;
-  grid-template-columns: 1.1rem 1fr auto;
+  display: flex;
   align-items: center;
   gap: .35rem;
+}
+.workspace-spreadsheet-col-role-toggle{
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.2) 20%);
+  border-radius: .35rem;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: .05rem .3rem;
+  line-height: 1;
+}
+.workspace-spreadsheet-col-role-toggle.is-x{
+  color: var(--bs-primary);
+  border-color: color-mix(in srgb, var(--bs-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 75%, transparent);
+}
+.workspace-spreadsheet-col-role-toggle.is-y{
+  color: color-mix(in srgb, var(--bs-info) 85%, rgba(15,23,42,.2) 20%);
+  border-color: color-mix(in srgb, var(--bs-info) 55%, transparent);
+  background: color-mix(in srgb, var(--bs-info-bg-subtle, rgba(13,110,253,.12)) 75%, transparent);
+}
+.workspace-spreadsheet-col-role-toggle.is-z{
+  opacity: .5;
 }
 .workspace-spreadsheet-col-token{
   font-size: .72rem;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
-  justify-self: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 .workspace-spreadsheet-col-handle{
   border: none;
@@ -2306,7 +2348,7 @@ body.workspace-panel-fullscreen .header-actions{
   cursor: grabbing;
 }
 .workspace-spreadsheet-col-actions{
-  justify-self: end;
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: .25rem;
@@ -2365,6 +2407,10 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-column-header--formula:hover .workspace-spreadsheet-formula-clear{
   opacity: 1;
   pointer-events: auto;
+}
+.workspace-spreadsheet-head-row th.workspace-spreadsheet-column-header:nth-of-type(2){
+  border-left: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--bs-border-color) 60%, transparent);
 }
 .workspace-spreadsheet-grid tbody th{
   position: sticky;

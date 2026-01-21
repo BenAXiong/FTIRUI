@@ -50,17 +50,17 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] Rename columns on double click
             - [x] Make column draggable
             - [x] Add duplicate column and clear buttons
-            - [-] Column resize handles (with per-column width persistence).
-            - [-] Multi-cell selection + fill-handle for quick series.
+            - [x] Column resize handles (with per-column width persistence).
+            - [x] Multi-cell selection + fill-handle for quick series.
             - [-] hb2: “Freeze first row/column” toggle.
-            - [ ] Add XYZ toggle to column headers
+            - [x] Add XYZ toggle to column headers
         - [ ] Rework "Add to graph section"
             - [ ] Move to hb 
             - [ ] Workflow:
             - [ ] On hb click: create graph(s) from selection (warn if no or several graphs)
-            - [ ] Add toggle: use columns settings (default) vs custom
-            - [ ] 
-            - [ ] 
+            - [ ] Popup: Add toggle -  use columns settings (default) vs custom
+            - [ ] Popup: 3 rows - mode, source, target
+            - [ ] Popup: 
         - [ ] 
         - [ ] Doc
     - [ ] .opju
@@ -96,6 +96,7 @@ Phase x – Extra details
 - [ ] *styling flow: avoid spread styling on multiple places (browser chip, hb, right pane).
         Ctrl+click on plot elements?
 - [ ] all icons...
+- [ ] SS name and save custom formulas in f
 
 Phase x – (nondev)
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),

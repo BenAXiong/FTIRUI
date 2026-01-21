@@ -204,12 +204,12 @@ export const spreadsheetPanelType = {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'workspace-spreadsheet-panel';
-    let freezeEnabled = true;
+    let freezeEnabled = false;
     const setFreezeEnabled = (isEnabled) => {
       freezeEnabled = Boolean(isEnabled);
       wrapper.dataset.freeze = freezeEnabled ? 'true' : 'false';
     };
-    setFreezeEnabled(true);
+    setFreezeEnabled(false);
 
     const tipsMarkup = `
       <span class="fw-semibold d-block">Quick tips</span>
@@ -318,6 +318,7 @@ export const spreadsheetPanelType = {
     let isFilling = false;
     let pendingFillTarget = null;
     let selectedXColumnId = sheetState.columns[0]?.id || null;
+    let selectedXColumnIds = new Set(selectedXColumnId ? [selectedXColumnId] : []);
     let selectedYColumnIds = new Set(
       sheetState.columns
         .filter((column) => column.id !== selectedXColumnId)
@@ -384,23 +385,37 @@ const formatDisplayValue = (value) => {
       const columnIds = sheetState.columns.map((column) => column.id);
       if (!columnIds.length) {
         selectedXColumnId = null;
+        selectedXColumnIds.clear();
         selectedYColumnIds.clear();
         return;
       }
       if (!selectedXColumnId || !columnIds.includes(selectedXColumnId)) {
         selectedXColumnId = columnIds[0];
       }
+      selectedXColumnIds = new Set(
+        [...selectedXColumnIds].filter((columnId) => columnIds.includes(columnId))
+      );
+      if (selectedXColumnId) {
+        selectedXColumnIds.add(selectedXColumnId);
+      }
+      if (!selectedXColumnIds.size && selectedXColumnId) {
+        selectedXColumnIds.add(selectedXColumnId);
+      }
       const nextY = new Set(
         [...selectedYColumnIds]
-          .filter((columnId) => columnId !== selectedXColumnId && columnIds.includes(columnId))
+          .filter((columnId) => !selectedXColumnIds.has(columnId) && columnIds.includes(columnId))
       );
       if (!nextY.size) {
-        const fallback = sheetState.columns.find((column) => column.id !== selectedXColumnId);
+        const fallback = sheetState.columns.find((column) => !selectedXColumnIds.has(column.id));
         if (fallback) {
           nextY.add(fallback.id);
         }
       }
       selectedYColumnIds = nextY;
+      if (!selectedXColumnId || !selectedXColumnIds.has(selectedXColumnId)) {
+        selectedXColumnId = [...selectedXColumnIds][0] || columnIds[0];
+        selectedXColumnIds.add(selectedXColumnId);
+      }
     };
 
     const canPlot = () => Boolean(selectedXColumnId && selectedYColumnIds.size && evaluatedRows.length);
@@ -408,7 +423,10 @@ const formatDisplayValue = (value) => {
     const buildFormulaTokens = () => sheetState.columns.map((column, index) => {
       const tokens = new Set();
       tokens.add(columnTokenForIndex(index));
-      tokens.add(`Col${toColumnShortLabel(index)}`);
+      const shortLabel = toColumnShortLabel(index);
+      tokens.add(shortLabel);
+      tokens.add(shortLabel.toLowerCase());
+      tokens.add(`Col${shortLabel}`);
       tokens.add(`c${index + 1}`);
       tokens.add(column.id.replace(/[^a-zA-Z0-9]/g, ''));
       if (column.label) {
@@ -1126,6 +1144,7 @@ const formatDisplayValue = (value) => {
     };
 
     const renderGrid = () => {
+      ensureSelectionIntegrity();
       table.innerHTML = '';
       const thead = document.createElement('thead');
       const colgroup = document.createElement('colgroup');
@@ -1146,7 +1165,7 @@ const formatDisplayValue = (value) => {
           key: 'col',
           label: 'Col',
           className: 'workspace-spreadsheet-column-header--col',
-          buildCell: (th, columnIndex) => {
+          buildCell: (th, columnIndex, column) => {
             const header = document.createElement('div');
             header.className = 'workspace-spreadsheet-col-header';
 
@@ -1202,10 +1221,37 @@ const formatDisplayValue = (value) => {
               removeColumnAt(columnIndex);
             });
 
+            const role = selectedXColumnIds.has(column.id)
+              ? 'x'
+              : (selectedYColumnIds.has(column.id) ? 'y' : 'z');
+            const roleBtn = document.createElement('button');
+            roleBtn.type = 'button';
+            roleBtn.className = `workspace-spreadsheet-col-role-toggle is-${role}`;
+            roleBtn.textContent = role.toUpperCase();
+            roleBtn.title = role === 'x'
+              ? 'X axis'
+              : (role === 'y' ? 'Y series' : 'Z axis (coming soon)');
+            roleBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              if (role === 'x') {
+                selectedXColumnIds.delete(column.id);
+                selectedYColumnIds.add(column.id);
+              } else if (role === 'y') {
+                selectedYColumnIds.delete(column.id);
+              } else {
+                selectedXColumnIds.add(column.id);
+                selectedYColumnIds.delete(column.id);
+              }
+              ensureSelectionIntegrity();
+              refreshPlotControls();
+              renderGrid();
+            });
+
             actions.appendChild(duplicateBtn);
             actions.appendChild(clearBtn);
             actions.appendChild(deleteBtn);
             header.appendChild(handle);
+            header.appendChild(roleBtn);
             header.appendChild(token);
             header.appendChild(actions);
             const resizer = document.createElement('div');
@@ -1622,15 +1668,11 @@ const formatDisplayValue = (value) => {
 
     xSelect.addEventListener('change', () => {
       selectedXColumnId = xSelect.value || null;
-      if (selectedXColumnId && selectedYColumnIds.has(selectedXColumnId)) {
+      if (selectedXColumnId) {
+        selectedXColumnIds.add(selectedXColumnId);
         selectedYColumnIds.delete(selectedXColumnId);
       }
-      if (!selectedYColumnIds.size) {
-        const fallback = sheetState.columns.find((column) => column.id !== selectedXColumnId);
-        if (fallback) {
-          selectedYColumnIds.add(fallback.id);
-        }
-      }
+      ensureSelectionIntegrity();
       refreshPlotControls();
     });
     plotExistingBtn.addEventListener('click', () => handlePlotRequest());

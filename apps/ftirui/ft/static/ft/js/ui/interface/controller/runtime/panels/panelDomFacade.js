@@ -3064,7 +3064,7 @@ export function createPanelDomFacade({
             });
             appendActionItem(addColumnBtn);
 
-            let freezeEnabled = true;
+            let freezeEnabled = false;
             const freezeBtn = createToggleButton({
               icon: 'bi-snow',
               title: 'Freeze first row/column',
