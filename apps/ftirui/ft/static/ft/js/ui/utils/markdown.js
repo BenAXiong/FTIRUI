@@ -1,5 +1,7 @@
 import { escapeHtml } from './dom.js';
 
+let markedConfigured = false;
+
 const getMarked = () => {
   if (typeof window === 'undefined') return null;
   const candidate = window.marked || window.Marked;
@@ -29,6 +31,10 @@ export function renderMarkdown(text = '') {
   const marked = getMarked();
   if (marked) {
     try {
+      if (!markedConfigured && typeof marked.setOptions === 'function') {
+        marked.setOptions({ breaks: true });
+        markedConfigured = true;
+      }
       return marked.parse(value);
     } catch {
       return formatPlainMarkdown(value);
