@@ -16,6 +16,19 @@ const resolveLabel = (item, fallback) => {
   return fallback;
 };
 
+const resolveToggleIcon = (toggle) => {
+  if (!toggle) return null;
+  const badge = toggle.querySelector('[data-tech-badge]');
+  if (badge && !badge.hidden) return badge;
+  const candidates = toggle.querySelectorAll(
+    '[data-tech-icon-target], [data-graph-icon-target], [data-units-icon], .workspace-toolbar-icon, .workspace-tech-symbol'
+  );
+  for (const node of candidates) {
+    if (node && !node.hidden) return node;
+  }
+  return null;
+};
+
 const buildTabsFromItems = (items = []) => ([
   {
     id: 'tech',
@@ -72,6 +85,7 @@ export function createTechToolbarSidePanelController({
 
   const menuState = new Map();
   const sectionState = new Map();
+  const iconObservers = new Map();
   const tabItems = Array.isArray(tabs) && tabs.length
     ? tabs.map((tab) => ({
       id: tab.id || normalizeId(tab.label) || 'tab',
@@ -224,6 +238,37 @@ export function createTechToolbarSidePanelController({
     }
   };
 
+  const updateSectionIcon = (entry) => {
+    if (!entry?.toggle || !entry?.titleWrap) return;
+    const source = resolveToggleIcon(entry.toggle);
+    if (!source) return;
+    entry.titleWrap.querySelectorAll('.workspace-tech-panel-section-icon').forEach((node) => node.remove());
+    const nextIcon = source.cloneNode(true);
+    nextIcon.classList.add('workspace-tech-panel-section-icon');
+    nextIcon.setAttribute('aria-hidden', 'true');
+    entry.titleWrap.prepend(nextIcon);
+    entry.iconNode = nextIcon;
+  };
+
+  const attachIconObserver = (entry) => {
+    if (!entry?.toggle || typeof MutationObserver === 'undefined') return;
+    if (iconObservers.has(entry.toggle)) return;
+    const observer = new MutationObserver(() => updateSectionIcon(entry));
+    observer.observe(entry.toggle, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true
+    });
+    iconObservers.set(entry.toggle, observer);
+  };
+
+  const syncSectionIcons = () => {
+    sectionState.forEach((entry) => {
+      if (entry.toggle) updateSectionIcon(entry);
+    });
+  };
+
   const applyFeatureSet = (features) => {
     sectionState.forEach((entry) => {
       if (!entry.slot) return;
@@ -354,9 +399,12 @@ export function createTechToolbarSidePanelController({
           tabId: tab.id,
           label,
           baseLabel: label,
+          titleWrap: titleWrap || null,
+          iconNode: titleWrap?.querySelector?.('.workspace-tech-panel-section-icon') || null,
           labelNode: title || null,
           slot: Number.isFinite(slot) ? slot : null,
           sectionId,
+          toggle: item?.toggle || null,
           menu: item?.menu || null,
           placeholder: item?.placeholder !== false,
           placeholderText: item?.placeholderText || ''
@@ -377,6 +425,10 @@ export function createTechToolbarSidePanelController({
           if (panel.dataset.panelLayout !== 'tech_2') return;
           setFocusedSection(visibleTabId, sectionId);
         });
+        if (item?.toggle) {
+          addListener(item.toggle, 'workspace:graph-type-change', () => updateSectionIcon(sectionState.get(sectionId)));
+          attachIconObserver(sectionState.get(sectionId));
+        }
         if (!item?.menu && item?.placeholder !== false) {
           buildPlaceholder(item, bodyEl);
         }
@@ -557,12 +609,14 @@ export function createTechToolbarSidePanelController({
         updateSectionLabel(entry, entry.baseLabel);
         setSectionDisabled(entry, false);
       });
+      syncSectionIcons();
       updateToggleAllButton();
       applySearchFilter(searchTerm);
       return;
     }
     const features = featureResolver({ techKey: nextKey, techOptions, defaultTech });
     applyFeatureSet(features);
+    syncSectionIcons();
     applySearchFilter(searchTerm);
   };
 
@@ -575,6 +629,7 @@ export function createTechToolbarSidePanelController({
   }
   updateBehaviorControl();
   setActiveTab(activeTabId);
+  syncSectionIcons();
   if (techToggle) {
     updateFeaturesFromTech(techToggle.dataset?.techKey || defaultTech);
     addListener(techToggle, 'workspace:tech-change', (event) => {
@@ -619,6 +674,10 @@ export function createTechToolbarSidePanelController({
     getReservedWidth,
     teardown() {
       restoreMenus();
+      iconObservers.forEach((observer) => {
+        if (observer?.disconnect) observer.disconnect();
+      });
+      iconObservers.clear();
       listeners.forEach(({ node, event, handler, options }) => {
         if (!node || typeof node.removeEventListener !== 'function') return;
         node.removeEventListener(event, handler, options);

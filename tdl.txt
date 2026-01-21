@@ -23,8 +23,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] tb2 - s10 add right pane option: display section with 3 choices and build pane
         - [x] tb2 - s10 pane minimal UI fixing
         - [x] tb2 - s10 pane test full width sections instead of bubbles (extra tab)
-        - [-] tb2 - s10 pane recover tech-dependent tool logic
-        - [ ] tb2 - s10 pane extend search to sub-items and add pin button
+        - [X] tb2 - s10 pane recover tech-dependent tool logic
+        - [-] tb2 - s10 pane extend search to sub-items and add pin button
     - [ ] Md notes
         - [ ] Rename as Notes
         - [ ] Add 4th preview toggle mode: vertical stack
