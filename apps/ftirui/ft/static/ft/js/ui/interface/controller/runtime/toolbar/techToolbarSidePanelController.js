@@ -1,3 +1,5 @@
+import { DEFAULT_TECH_KEY, resolveTechFeatureSet } from './techToolbarConfig.js';
+
 const normalizeId = (value) => String(value || '')
   .trim()
   .toLowerCase()
@@ -26,6 +28,10 @@ export function createTechToolbarSidePanelController({
   dom = {},
   items = [],
   tabs = [],
+  techToggle = null,
+  techOptions = [],
+  defaultTech = DEFAULT_TECH_KEY,
+  featureResolver = resolveTechFeatureSet,
   preferences = null,
   onClose = () => {}
 } = {}) {
@@ -46,6 +52,12 @@ export function createTechToolbarSidePanelController({
   const searchInput = dom.searchInput
     || panel?.querySelector?.('[data-tech-panel-search-input]')
     || null;
+  const behaviorToggle = dom.behaviorToggle
+    || panel?.querySelector?.('[data-tech-panel-action="toggle-behavior"]')
+    || null;
+  const behaviorLabel = dom.behaviorLabel
+    || panel?.querySelector?.('[data-tech-panel-behavior-label]')
+    || null;
   const searchToggle = dom.searchToggle
     || panel?.querySelector?.('[data-tech-panel-action="search-toggle"]')
     || null;
@@ -64,13 +76,15 @@ export function createTechToolbarSidePanelController({
     ? tabs.map((tab) => ({
       id: tab.id || normalizeId(tab.label) || 'tab',
       label: tab.label || tab.id || 'Tab',
-      items: Array.isArray(tab.items) ? tab.items : []
+      items: Array.isArray(tab.items) ? tab.items : [],
+      aliasOf: tab.aliasOf || null
     }))
     : buildTabsFromItems(items);
   const listeners = [];
   let activeMode = 'menus';
   let baseVisible = true;
   let activeTabId = tabItems[0]?.id || 'tech';
+  let visibleTabId = activeTabId;
   let searchTerm = '';
 
   const addListener = (node, event, handler, options) => {
@@ -82,6 +96,14 @@ export function createTechToolbarSidePanelController({
   const getStoredState = () => preferences?.readTechToolbarPanelState?.(null) || null;
   const storedState = getStoredState();
   const collapsedByTab = new Map();
+  let sectionBehavior = storedState?.behavior === 'single' ? 'single' : 'free';
+  const focusedByTab = new Map();
+
+  if (storedState?.focused && typeof storedState.focused === 'object') {
+    Object.entries(storedState.focused).forEach(([tabId, sectionId]) => {
+      if (sectionId) focusedByTab.set(tabId, sectionId);
+    });
+  }
 
   tabItems.forEach((tab) => {
     const storedCollapsed = storedState?.collapsed?.[tab.id];
@@ -99,9 +121,15 @@ export function createTechToolbarSidePanelController({
     collapsedByTab.forEach((set, tabId) => {
       collapsed[tabId] = Array.from(set);
     });
+    const focused = {};
+    focusedByTab.forEach((sectionId, tabId) => {
+      if (sectionId) focused[tabId] = sectionId;
+    });
     preferences?.writeTechToolbarPanelState?.({
       activeTab: activeTabId,
-      collapsed
+      collapsed,
+      behavior: sectionBehavior,
+      focused
     });
   };
 
@@ -174,6 +202,83 @@ export function createTechToolbarSidePanelController({
     section.classList.toggle('is-collapsed', collapsed);
   };
 
+  const updateSectionLabel = (entry, nextLabel) => {
+    if (!entry || !nextLabel) return;
+    entry.label = nextLabel;
+    if (entry.labelNode) {
+      entry.labelNode.textContent = nextLabel;
+    }
+    if (entry.section) {
+      entry.section.dataset.sectionLabel = String(nextLabel || '').toLowerCase();
+    }
+  };
+
+  const setSectionDisabled = (entry, disabled) => {
+    if (!entry?.section || !entry?.header) return;
+    entry.section.classList.toggle('is-disabled', disabled);
+    entry.section.dataset.sectionDisabled = disabled ? 'true' : 'false';
+    entry.header.disabled = !!disabled;
+    entry.header.setAttribute('aria-disabled', String(!!disabled));
+    if (disabled) {
+      applyCollapseState(entry.section, entry.tabId, entry.sectionId, true);
+    }
+  };
+
+  const applyFeatureSet = (features) => {
+    sectionState.forEach((entry) => {
+      if (!entry.slot) return;
+      const feature = features?.[entry.slot] || null;
+      const nextLabel = feature?.label || entry.baseLabel || entry.label;
+      updateSectionLabel(entry, nextLabel);
+      const isPlaceholder = !!feature?.isPlaceholder || !!feature?.disabled;
+      setSectionDisabled(entry, isPlaceholder);
+    });
+    updateToggleAllButton();
+  };
+
+  const applyFocusForTab = (tabId) => {
+    const focusId = focusedByTab.get(tabId);
+    const allowFocus = panel.dataset.panelLayout === 'tech_2';
+    sectionState.forEach((entry) => {
+      if (entry.tabId !== tabId) return;
+      entry.section.classList.toggle('is-focused', allowFocus && entry.sectionId === focusId);
+    });
+  };
+
+  const setFocusedSection = (tabId, sectionId) => {
+    focusedByTab.set(tabId, sectionId);
+    applyFocusForTab(tabId);
+    persistState();
+  };
+
+  const collapseOtherSections = (tabId, keepSectionId) => {
+    const entries = Array.from(sectionState.values()).filter((entry) => entry.tabId === tabId);
+    entries.forEach((entry) => {
+      if (entry.sectionId === keepSectionId) return;
+      applyCollapseState(entry.section, entry.tabId, entry.sectionId, true);
+    });
+  };
+
+  const enforceSingleBehavior = (tabId) => {
+    const entries = Array.from(sectionState.values()).filter((entry) => entry.tabId === tabId);
+    const expanded = entries.filter((entry) => !entry.section.classList.contains('is-collapsed'));
+    if (expanded.length <= 1) return;
+    const keepId = expanded[0]?.sectionId;
+    entries.forEach((entry) => {
+      applyCollapseState(entry.section, entry.tabId, entry.sectionId, entry.sectionId !== keepId);
+    });
+  };
+
+  const updateBehaviorControl = () => {
+    if (behaviorLabel) {
+      behaviorLabel.textContent = sectionBehavior === 'single' ? 'Single' : 'Free';
+    }
+    if (behaviorToggle) {
+      behaviorToggle.setAttribute('aria-pressed', String(sectionBehavior === 'single'));
+    }
+    panel.dataset.sectionBehavior = sectionBehavior;
+  };
+
   const buildPlaceholder = (item, bodyEl) => {
     const placeholder = documentRoot?.createElement?.('div');
     if (!placeholder || !bodyEl) return;
@@ -191,9 +296,11 @@ export function createTechToolbarSidePanelController({
         const section = documentRoot?.createElement?.('section');
         const header = documentRoot?.createElement?.('button');
         const bodyEl = documentRoot?.createElement?.('div');
+        const contentWrap = documentRoot?.createElement?.('div');
         if (!section || !header || !bodyEl) return;
         const label = resolveLabel(item, `TB2 ${index + 1}`);
         const sectionId = resolveSectionId(tab.id, item, index);
+        const slot = item?.slot ? Number(item.slot) : null;
         section.className = 'workspace-tech-panel-section';
         if (item?.id === 'graph-type') {
           section.classList.add('workspace-tech-panel-section--graph-type');
@@ -203,9 +310,24 @@ export function createTechToolbarSidePanelController({
         section.dataset.sectionLabel = label.toLowerCase();
         header.type = 'button';
         header.className = 'workspace-tech-panel-section-header';
+        const titleWrap = documentRoot?.createElement?.('span');
         const title = documentRoot?.createElement?.('span');
         const icon = documentRoot?.createElement?.('i');
-        if (title) {
+        const iconSource = item?.toggle?.querySelector?.('[aria-hidden="true"], [data-tech-icon-target], [data-graph-icon-target], [data-units-icon], .workspace-toolbar-icon, .workspace-tech-symbol');
+        if (titleWrap) {
+          titleWrap.className = 'workspace-tech-panel-section-title';
+          if (iconSource) {
+            const iconClone = iconSource.cloneNode(true);
+            iconClone.classList.add('workspace-tech-panel-section-icon');
+            iconClone.setAttribute('aria-hidden', 'true');
+            titleWrap.appendChild(iconClone);
+          }
+          if (title) {
+            title.textContent = label;
+            titleWrap.appendChild(title);
+          }
+          header.appendChild(titleWrap);
+        } else if (title) {
           title.textContent = label;
           header.appendChild(title);
         }
@@ -215,8 +337,15 @@ export function createTechToolbarSidePanelController({
           header.appendChild(icon);
         }
         bodyEl.className = 'workspace-tech-panel-section-body';
-        section.appendChild(header);
-        section.appendChild(bodyEl);
+        if (contentWrap) {
+          contentWrap.className = 'workspace-tech-panel-section-content';
+          contentWrap.appendChild(header);
+          contentWrap.appendChild(bodyEl);
+          section.appendChild(contentWrap);
+        } else {
+          section.appendChild(header);
+          section.appendChild(bodyEl);
+        }
         body.appendChild(section);
         sectionState.set(sectionId, {
           section,
@@ -224,6 +353,10 @@ export function createTechToolbarSidePanelController({
           bodyEl,
           tabId: tab.id,
           label,
+          baseLabel: label,
+          labelNode: title || null,
+          slot: Number.isFinite(slot) ? slot : null,
+          sectionId,
           menu: item?.menu || null,
           placeholder: item?.placeholder !== false,
           placeholderText: item?.placeholderText || ''
@@ -232,9 +365,17 @@ export function createTechToolbarSidePanelController({
         applyCollapseState(section, tab.id, sectionId, shouldCollapse);
         addListener(header, 'click', () => {
           const isCollapsed = section.classList.contains('is-collapsed');
-          applyCollapseState(section, tab.id, sectionId, !isCollapsed);
+          const nextCollapsed = !isCollapsed;
+          applyCollapseState(section, tab.id, sectionId, nextCollapsed);
+          if (!nextCollapsed && sectionBehavior === 'single') {
+            collapseOtherSections(tab.id, sectionId);
+          }
           persistState();
           updateToggleAllButton();
+        });
+        addListener(section, 'pointerdown', () => {
+          if (panel.dataset.panelLayout !== 'tech_2') return;
+          setFocusedSection(visibleTabId, sectionId);
         });
         if (!item?.menu && item?.placeholder !== false) {
           buildPlaceholder(item, bodyEl);
@@ -267,6 +408,8 @@ export function createTechToolbarSidePanelController({
     const nextTab = tabItems.find((tab) => tab.id === tabId) || tabItems[0];
     if (!nextTab) return;
     activeTabId = nextTab.id;
+    visibleTabId = nextTab.aliasOf || nextTab.id;
+    panel.dataset.panelLayout = activeTabId;
     const buttons = Array.from(tabsRow?.querySelectorAll?.('[data-tech-panel-tab]') || []);
     buttons.forEach((button) => {
       const isActive = button.getAttribute('data-tech-panel-tab') === activeTabId;
@@ -274,8 +417,12 @@ export function createTechToolbarSidePanelController({
       button.setAttribute('aria-selected', String(isActive));
     });
     sectionState.forEach(({ section, tabId: sectionTab }) => {
-      section.hidden = sectionTab !== activeTabId;
+      section.hidden = sectionTab !== visibleTabId;
     });
+    if (sectionBehavior === 'single') {
+      enforceSingleBehavior(visibleTabId);
+    }
+    applyFocusForTab(visibleTabId);
     persistState();
     updateToggleAllButton();
     applySearchFilter(searchTerm);
@@ -284,7 +431,7 @@ export function createTechToolbarSidePanelController({
   const applySearchFilter = (value = '') => {
     searchTerm = value.trim().toLowerCase();
     sectionState.forEach(({ section, tabId, label }) => {
-      if (tabId !== activeTabId) return;
+      if (tabId !== visibleTabId) return;
       if (!searchTerm) {
         section.hidden = false;
         return;
@@ -311,7 +458,7 @@ export function createTechToolbarSidePanelController({
 
   const updateToggleAllButton = () => {
     if (!toggleAllBtn) return;
-    const sections = Array.from(sectionState.values()).filter((entry) => entry.tabId === activeTabId);
+    const sections = Array.from(sectionState.values()).filter((entry) => entry.tabId === visibleTabId);
     if (!sections.length) return;
     const allCollapsed = sections.every(({ section }) => section.classList.contains('is-collapsed'));
     toggleAllBtn.setAttribute('title', allCollapsed ? 'Expand all' : 'Collapse all');
@@ -323,7 +470,7 @@ export function createTechToolbarSidePanelController({
   };
 
   const toggleAllSections = () => {
-    const entries = Array.from(sectionState.values()).filter((entry) => entry.tabId === activeTabId);
+    const entries = Array.from(sectionState.values()).filter((entry) => entry.tabId === visibleTabId);
     if (!entries.length) return;
     const shouldExpand = entries.every(({ section }) => section.classList.contains('is-collapsed'));
     entries.forEach(({ section, tabId, sectionId }) => {
@@ -362,6 +509,19 @@ export function createTechToolbarSidePanelController({
     });
   }
 
+  if (behaviorToggle) {
+    addListener(behaviorToggle, 'click', (event) => {
+      event.preventDefault();
+      sectionBehavior = sectionBehavior === 'single' ? 'free' : 'single';
+      updateBehaviorControl();
+      if (sectionBehavior === 'single') {
+        enforceSingleBehavior(visibleTabId);
+      }
+      persistState();
+      updateToggleAllButton();
+    });
+  }
+
   if (searchInput) {
     addListener(searchInput, 'input', () => {
       applySearchFilter(searchInput.value);
@@ -389,6 +549,23 @@ export function createTechToolbarSidePanelController({
     toggleSearch(false);
   };
 
+  const updateFeaturesFromTech = (techKey) => {
+    const nextKey = techKey || techToggle?.dataset?.techKey || defaultTech;
+    if (!nextKey || nextKey === defaultTech) {
+      sectionState.forEach((entry) => {
+        if (!entry.slot) return;
+        updateSectionLabel(entry, entry.baseLabel);
+        setSectionDisabled(entry, false);
+      });
+      updateToggleAllButton();
+      applySearchFilter(searchTerm);
+      return;
+    }
+    const features = featureResolver({ techKey: nextKey, techOptions, defaultTech });
+    applyFeatureSet(features);
+    applySearchFilter(searchTerm);
+  };
+
   if (typeof document !== 'undefined') {
     addListener(document, 'pointerdown', handleOutsideClick);
   }
@@ -396,7 +573,14 @@ export function createTechToolbarSidePanelController({
   if (!tabItems.some((tab) => tab.id === activeTabId)) {
     activeTabId = tabItems[0]?.id || 'tech';
   }
+  updateBehaviorControl();
   setActiveTab(activeTabId);
+  if (techToggle) {
+    updateFeaturesFromTech(techToggle.dataset?.techKey || defaultTech);
+    addListener(techToggle, 'workspace:tech-change', (event) => {
+      updateFeaturesFromTech(event?.detail?.key);
+    });
+  }
   if (!storedState) {
     persistState();
   }

@@ -108,6 +108,7 @@ Bugs
 - plotly default buttons: behaviors or autoscale and reset axis conflict
 - plot behavior on click: sometimes reverses axis
 - header button 1 (toggle crosshair cursor) only activates after extra click
+- tb2 pane mode: section contents not padded despite several trials and css additions
 
 ___________________________________________________________
 Peak marking follow-ups (tb2 s3)

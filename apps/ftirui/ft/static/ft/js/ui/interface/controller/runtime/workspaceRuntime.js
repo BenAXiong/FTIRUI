@@ -5261,42 +5261,49 @@ const isPanelPinned = (panelId) =>
             {
               id: 'peak-markers',
               label: 'Peak markers',
+              slot: 3,
               toggle: document.getElementById('tb2_peak_marking'),
               menu: document.querySelector('[data-peak-menu]')
             },
             {
               id: 'units',
               label: 'Units',
+              slot: 4,
               toggle: document.getElementById('tb2_peak_integration'),
               menu: document.querySelector('[data-units-menu]')
             },
             {
               id: 'multi-trace',
               label: 'Multi-trace',
+              slot: 5,
               toggle: document.getElementById('tb2_multi_trace'),
               menu: document.querySelector('[data-multitrace-menu]')
             },
             {
               id: 'baseline',
               label: 'Baseline correction',
+              slot: 6,
               toggle: document.getElementById('tb2_atr_correction'),
               menu: document.querySelector('[data-baseline-menu]')
             },
             {
               id: 'cleanup',
               label: 'Spectral cleanup',
+              slot: 7,
               toggle: document.getElementById('tb2_derivatization'),
               menu: document.querySelector('[data-cleanup-menu]')
             },
             {
               id: 'compare',
               label: 'Compare modes',
+              slot: 8,
               toggle: document.getElementById('tb2_spectral_library'),
               menu: document.querySelector('[data-compare-menu]')
             },
             {
               id: 'libraries',
               label: 'Spectral libraries',
+              slot: 9,
               toggle: document.getElementById('tb2_placeholder_help'),
               menu: document.querySelector('[data-library-menu]')
             },
@@ -5332,9 +5339,12 @@ const isPanelPinned = (panelId) =>
         {
           id: 'tech_2',
           label: 'Tech 2',
+          aliasOf: 'tech',
           items: []
         }
       ],
+      techToggle: techSelectorController?.toggle || null,
+      techOptions: techSelectorController?.options || [],
       preferences: preferencesFacade,
       onClose: () => techToolbarPinController?.setMode?.('menus')
     });

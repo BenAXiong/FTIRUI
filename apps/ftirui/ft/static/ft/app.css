@@ -5008,12 +5008,14 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   box-shadow: 0 8px 16px rgba(15,23,42,.14);
 }
 .workspace-tech-side-panel{
+  --tech-panel-pad: .85rem;
+  --tech-panel-inner-pad-right: .15rem;
   position: absolute;
   inset: 0 0 0 auto;
   width: clamp(240px, 24vw, 320px);
   display: flex;
   flex-direction: column;
-  padding: .85rem .85rem 1rem;
+  padding: .85rem var(--tech-panel-pad) 1rem;
   background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.08) 8%);
   border-left: 1px solid var(--bs-border-color);
   box-shadow: -18px 0 32px rgba(15,23,42,.18);
@@ -5023,6 +5025,16 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 }
 .workspace-tech-side-panel[hidden]{
   display: none;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"]{
+  background: color-mix(in srgb, var(--bs-body-bg) 90%, #000 10%);
+  padding-left: 0;
+  padding-right: 0;
+  --tech-panel-section-inset: .6rem;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-side-panel-header{
+  padding-left: var(--tech-panel-pad);
+  padding-right: var(--tech-panel-pad);
 }
 .workspace-tech-side-panel-resizer{
   position: absolute;
@@ -5127,11 +5139,18 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: visible;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: .75rem;
-  padding-right: .15rem;
+  padding-right: var(--tech-panel-inner-pad-right);
+  scrollbar-gutter: stable;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-side-panel-inner{
+  padding-left: 0;
+  padding-right: 0;
+  overflow-x: hidden;
 }
 .workspace-tech-panel-section{
   border-radius: .75rem;
@@ -5141,6 +5160,11 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   width: 100%;
   align-self: stretch;
   flex: 0 0 auto;
+}
+.workspace-tech-panel-section-content{
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 .workspace-tech-panel-section-header{
   width: 100%;
@@ -5157,14 +5181,66 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   text-align: left;
   min-height: 2.1rem;
 }
+.workspace-tech-panel-section-title{
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 0;
+  padding-left: .2rem;
+}
+.workspace-tech-panel-section-icon{
+  font-size: .85rem;
+  line-height: 1;
+  opacity: .8;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section-header{
+  font-size: .98rem;
+  padding: .45rem 0;
+}
 .workspace-tech-panel-section-header .bi{
   font-size: .8rem;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section-header .bi{
+  margin-right: .2rem;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section{
+  position: relative;
+  overflow: visible;
+  padding-left: calc(var(--tech-panel-pad) + var(--tech-panel-section-inset));
+  padding-right: calc(var(--tech-panel-pad) + var(--tech-panel-section-inset));
+  box-sizing: border-box;
 }
 .workspace-tech-panel-section-body{
   border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 55%, transparent);
   padding: .65rem;
   display: block;
   height: auto;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section-body{
+  border-top: none;
+  padding: .65rem 0;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section:not(.is-collapsed){
+  box-shadow: inset 0 1px color-mix(in srgb, var(--bs-border-color) 55%, transparent),
+    inset 0 -1px color-mix(in srgb, var(--bs-border-color) 55%, transparent);
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section > *{
+  position: relative;
+  z-index: 1;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section.is-focused::before{
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, #fff 4%);
+  z-index: 0;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section-content{
+  padding-left: 0;
+  padding-right: 0;
 }
 .workspace-tech-panel-section.is-collapsed .workspace-tech-panel-section-body{
   display: none;
@@ -5187,6 +5263,40 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 }
 .workspace-tech-panel-menu{
   margin: 0;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-menu-header,
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-menu-divider{
+  display: none;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-units-menu-divider,
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-multitrace-menu-divider{
+  display: none;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-multitrace-menu-header h3,
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-units-menu-header h3,
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-peak-menu-heading h3{
+  display: none;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section.is-focused{
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section[data-panel-tab="tech"]:not(.is-focused){
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section[data-panel-tab="tech"] .workspace-tech-panel-section-header{
+  padding-left: 0;
+  padding-right: 0;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section[data-panel-tab="tech"] .workspace-tech-panel-section-body{
+  padding-left: 0;
+  padding-right: 0;
 }
 .workspace-tech-side-panel .workspace-tech-panel-section--graph-type .workspace-graph-selector-grid{
   display: grid;
@@ -5259,6 +5369,13 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 .workspace-tech-side-panel .workspace-peak-menu-actions .btn{
   width: 100%;
   flex: 1 1 auto;
+}
+.workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-peak-menu-section{
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  gap: .85rem;
 }
 .workspace-tech-side-panel .workspace-peak-field-control{
   flex-direction: column;

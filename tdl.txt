@@ -21,16 +21,30 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
     - [-] Toolbars
         - [x] tb2 - sync s1 and s2
         - [x] tb2 - s10 add right pane option: display section with 3 choices and build pane
-        - [-] tb2 - s10 pane minimal UI fixing
-        - [-] tb2 - s10 pane test full width sections instead of bubbles (extra tab)
+        - [x] tb2 - s10 pane minimal UI fixing
+        - [x] tb2 - s10 pane test full width sections instead of bubbles (extra tab)
+        - [-] tb2 - s10 pane recover tech-dependent tool logic
+        - [ ] tb2 - s10 pane extend search to sub-items and add pin button
     - [ ] Md notes
         - [ ] Rename as Notes
         - [ ] Add 4th preview toggle mode: vertical stack
         - [ ] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
         - [ ] Make preview... editable (with buttons)
-    - [ ] Spreadsheets
-        - [ ] Review necessery improvement for MVP and demo
-        - [ ] (...)
+    - [-] Spreadsheets
+        - [-] Review necessary improvement for MVP and demo
+        - [ ] Switch bubble UI to linear
+        - [ ] Rename columns on double click
+        - [ ] Collapsible sections
+        - [ ] Make and style a header with Cols, Name, Units and f 
+        - [ ] Rework "Add to graph section"
+            - [ ] 
+            - [ ] 
+            - [ ] 
+        - [ ] Rework "table area"
+            - [ ] Cross icon to delete columns
+            - [ ] Add column button??
+        - [ ] Remove top band (feature already implement elswhere)
+        - [ ] 
     - [ ] .opju
         - [ ] Import and conversion for single traces
         - [ ] Import folders and keep structure
@@ -59,12 +73,14 @@ Phase x – Extra details
 - [ ] Dash dup canvas: auto name edit + rename crayon next to name on hover instead of aciton cell
 - [ ] demo files (raw or worspace snapshot?)
 - [ ] browser extra options: exp/col all, hide tags, ...
+- [ ] *spreadsheets flow
 - [ ] all icons...
 
 Phase x – (nondev)
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),
 * list priority info: what would make them use it? - formating, papers vs PR, techs, live mode...?
 dedicated mail email?
+_________________________________________________________________________________________________
 
 Phase x – Future explorations
 - [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
@@ -78,12 +94,3 @@ Phase x – Future explorations
     Right pane: add tab for metadata and other info (incl user notes for self and collab)
 - [ ] Explore Papers/Reports workflow integration.
 _________________________________________________________________________________________________
-**Plan of action -- Template for tasks**
-
-Step x - ...
-    Task 1: ...
-    Task 2: ...
-    Task 3: ...
-    Task 4: ...
-    Task 5: ...
-    Task 6: ...
