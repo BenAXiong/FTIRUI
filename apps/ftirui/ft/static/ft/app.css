@@ -5118,6 +5118,12 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   min-width: 0;
   border-radius: .6rem;
 }
+.workspace-tech-panel-action.is-active,
+.workspace-tech-panel-action[aria-pressed="true"]{
+  border-color: var(--bs-primary);
+  color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+}
 .workspace-tech-panel-search{
   display: flex;
   align-items: center;

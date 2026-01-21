@@ -65,6 +65,9 @@ export function createTechToolbarSidePanelController({
   const searchInput = dom.searchInput
     || panel?.querySelector?.('[data-tech-panel-search-input]')
     || null;
+  const pinToggle = dom.pinToggle
+    || panel?.querySelector?.('[data-tech-panel-action="pin"]')
+    || null;
   const behaviorToggle = dom.behaviorToggle
     || panel?.querySelector?.('[data-tech-panel-action="toggle-behavior"]')
     || null;
@@ -111,6 +114,7 @@ export function createTechToolbarSidePanelController({
   const storedState = getStoredState();
   const collapsedByTab = new Map();
   let sectionBehavior = storedState?.behavior === 'single' ? 'single' : 'free';
+  let panelPinned = storedState?.pinned === true;
   const focusedByTab = new Map();
 
   if (storedState?.focused && typeof storedState.focused === 'object') {
@@ -143,7 +147,8 @@ export function createTechToolbarSidePanelController({
       activeTab: activeTabId,
       collapsed,
       behavior: sectionBehavior,
-      focused
+      focused,
+      pinned: panelPinned
     });
   };
 
@@ -324,6 +329,14 @@ export function createTechToolbarSidePanelController({
     panel.dataset.sectionBehavior = sectionBehavior;
   };
 
+  const updatePinControl = () => {
+    if (pinToggle) {
+      pinToggle.classList.toggle('is-active', panelPinned);
+      pinToggle.setAttribute('aria-pressed', String(panelPinned));
+    }
+    panel.dataset.panelPinned = panelPinned ? 'true' : 'false';
+  };
+
   const buildPlaceholder = (item, bodyEl) => {
     const placeholder = documentRoot?.createElement?.('div');
     if (!placeholder || !bodyEl) return;
@@ -451,9 +464,20 @@ export function createTechToolbarSidePanelController({
   };
 
   const setPanelVisibility = (visible) => {
-    const next = !!visible;
+    const next = activeMode === 'panel' ? (!!visible || panelPinned) : !!visible;
+    if (!next && typeof document !== 'undefined') {
+      const active = document.activeElement;
+      if (active && panel.contains(active) && typeof active.blur === 'function') {
+        active.blur();
+      }
+    }
     panel.hidden = !next;
     panel.setAttribute('aria-hidden', String(!next));
+    if (!next) {
+      panel.setAttribute('inert', '');
+    } else {
+      panel.removeAttribute('inert');
+    }
   };
 
   const setActiveTab = (tabId) => {
@@ -488,7 +512,8 @@ export function createTechToolbarSidePanelController({
         section.hidden = false;
         return;
       }
-      const haystack = `${label}`.toLowerCase();
+      const contentText = section.textContent || '';
+      const haystack = `${label} ${contentText}`.toLowerCase();
       section.hidden = !haystack.includes(searchTerm);
     });
   };
@@ -595,6 +620,18 @@ export function createTechToolbarSidePanelController({
     });
   }
 
+  if (pinToggle) {
+    addListener(pinToggle, 'click', (event) => {
+      event.preventDefault();
+      panelPinned = !panelPinned;
+      updatePinControl();
+      persistState();
+      if (activeMode === 'panel') {
+        setPanelVisibility(baseVisible);
+      }
+    });
+  }
+
   const handleOutsideClick = (event) => {
     if (!panel.classList.contains('is-searching')) return;
     if (searchWrap?.contains(event.target)) return;
@@ -628,6 +665,7 @@ export function createTechToolbarSidePanelController({
     activeTabId = tabItems[0]?.id || 'tech';
   }
   updateBehaviorControl();
+  updatePinControl();
   setActiveTab(activeTabId);
   syncSectionIcons();
   if (techToggle) {
