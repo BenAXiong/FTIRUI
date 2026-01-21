@@ -29,22 +29,24 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
     - [-] Md notes
         - [x] Rename as Notes
         - [x] Add 4th preview toggle mode: vertical stack
-        - [-] Make preview... editable (with buttons)
+        - [.] (aborted) Make preview... editable (with buttons)
+        - [-] Add plain txt mode and header button to switch with Md
         - [ ] Add buttons: greek letters, symbols
         - [ ] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
     - [-] Spreadsheets
         - [-] Review necessary improvement for MVP and demo
-        - [ ] Switch bubble UI to linear
-        - [ ] Rename columns on double click
-        - [ ] Collapsible sections
-        - [ ] Make and style a header with Cols, Name, Units and f 
-        - [ ] Rework "Add to graph section"
-            - [ ] 
-            - [ ] 
-            - [ ] 
-        - [ ] Rework "table area"
+        - [ ] Switch bubble UI to streamlined
+        - [ ] Header buttons: right 3, add column, duplicate,  
+        - [ ] Rework Table
             - [ ] Cross icons to delete columns & rows, onHover, ensure unredo
-            - [ ] Header buttons: right 3, add column, duplicate,  
+            - [ ] Make and style a header with Cols, Name, Units and f
+            - [ ] Rename columns on double click
+            - [ ] 
+            - [ ] 
+        - [ ] Rework "Add to graph section"
+            - [ ] Workflow: 
+            - [ ] 
+            - [ ] 
         - [ ] Remove top band (feature already implement elswhere)
         - [ ] 
     - [ ] .opju

@@ -273,6 +273,8 @@ export function createPanelDomFacade({
         let contentHandles = null;
         let markdownPreviewToggleBtn = null;
         let markdownPreviewToggleIcon = null;
+        let markdownRenderToggleBtn = null;
+        let markdownRenderToggleLabel = null;
         let plotHost = null;
         const buildMarkdownPreviewIcon = () => {
           const icon = document.createElement('span');
@@ -289,7 +291,9 @@ export function createPanelDomFacade({
         const updateMarkdownPreviewToggle = () => {
           if (!markdownPreviewToggleBtn) return;
           const hasHandles = Boolean(contentHandles);
-          markdownPreviewToggleBtn.disabled = !hasHandles;
+          const renderMode = contentHandles?.getRenderMode?.() ?? 'markdown';
+          const isPlain = renderMode === 'plain';
+          markdownPreviewToggleBtn.disabled = !hasHandles || isPlain;
           const mode = contentHandles?.getMode?.() ?? 'split';
           const previewVisible = mode !== 'edit';
           const label = 'Toggle view';
@@ -305,6 +309,21 @@ export function createPanelDomFacade({
             markdownPreviewToggleIcon = buildMarkdownPreviewIcon();
             markdownPreviewToggleBtn.appendChild(markdownPreviewToggleIcon);
           }
+        };
+        const updateMarkdownRenderToggle = () => {
+          if (!markdownRenderToggleBtn) return;
+          const renderMode = contentHandles?.getRenderMode?.() ?? 'markdown';
+          const isPlain = renderMode === 'plain';
+          const label = isPlain ? 'T' : 'Md';
+          markdownRenderToggleBtn.title = isPlain ? 'Plain text' : 'Markdown';
+          markdownRenderToggleBtn.setAttribute('aria-label', markdownRenderToggleBtn.title);
+          markdownRenderToggleBtn.setAttribute('aria-pressed', String(!isPlain));
+          if (markdownRenderToggleLabel) {
+            markdownRenderToggleLabel.textContent = label;
+          } else {
+            markdownRenderToggleBtn.textContent = label;
+          }
+          markdownRenderToggleBtn.classList.toggle('is-plain', isPlain);
         };
 
     let stylePainterBtn = null;
@@ -2967,6 +2986,27 @@ export function createPanelDomFacade({
           updateNonPlotFullscreenBtn();
 
           if (isMarkdownPanel) {
+            markdownRenderToggleBtn = document.createElement('button');
+            markdownRenderToggleBtn.type = 'button';
+            markdownRenderToggleBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-markdown-render-toggle';
+            markdownRenderToggleLabel = document.createElement('span');
+            markdownRenderToggleLabel.className = 'workspace-markdown-render-toggle-label';
+            markdownRenderToggleLabel.textContent = 'Md';
+            markdownRenderToggleBtn.appendChild(markdownRenderToggleLabel);
+            markdownRenderToggleBtn.addEventListener('click', () => {
+              if (!contentHandles?.setRenderMode) return;
+              const currentMode = contentHandles.getRenderMode?.() ?? 'markdown';
+              const nextMode = currentMode === 'plain' ? 'markdown' : 'plain';
+              const shouldNormalize = currentMode !== 'plain' && nextMode === 'plain';
+              contentHandles.setRenderMode?.(nextMode, {
+                normalizeText: shouldNormalize,
+                pushHistory: true
+              });
+              updateMarkdownRenderToggle();
+              updateMarkdownPreviewToggle();
+            });
+            actionsCenter.appendChild(markdownRenderToggleBtn);
+
             markdownPreviewToggleBtn = document.createElement('button');
             markdownPreviewToggleBtn.type = 'button';
             markdownPreviewToggleBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-markdown-preview-toggle';
@@ -2981,6 +3021,7 @@ export function createPanelDomFacade({
             });
             updateMarkdownPreviewToggle();
             actionsCenter.appendChild(markdownPreviewToggleBtn);
+            updateMarkdownRenderToggle();
 
             const markdownShortcutTabs = [
               {
@@ -3247,6 +3288,7 @@ export function createPanelDomFacade({
           contentHandles = { plotEl: plotHost };
         }
         updateMarkdownPreviewToggle();
+        updateMarkdownRenderToggle();
         const resolvedPlotHost = contentHandles?.plotEl ?? (isPlotPanel ? plotHost : null);
 
         const domHandles = {

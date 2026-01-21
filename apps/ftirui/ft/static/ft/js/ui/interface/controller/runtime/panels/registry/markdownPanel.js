@@ -1,10 +1,10 @@
 import { renderMarkdown } from '../../../../../utils/markdown.js';
 import { registerContentKind } from '../../../../../../workspace/canvas/state/contentStore.js';
 
-const buildContent = (text = '') => ({
+const buildContent = (text = '', renderMode = 'markdown') => ({
   kind: 'markdown',
   version: 1,
-  data: { text }
+  data: { text, renderMode }
 });
 
 const resolveText = (content) => {
@@ -14,6 +14,11 @@ const resolveText = (content) => {
     return content.data.text;
   }
   return '';
+};
+
+const resolveRenderMode = (content) => {
+  const mode = content?.data?.renderMode || content?.renderMode;
+  return mode === 'plain' ? 'plain' : 'markdown';
 };
 
 const createDebounce = (fn, delay = 400) => {
@@ -37,10 +42,10 @@ const createDebounce = (fn, delay = 400) => {
 
 registerContentKind('markdown', {
   normalize(value) {
-    return buildContent(resolveText(value));
+    return buildContent(resolveText(value), resolveRenderMode(value));
   },
   serialize(value) {
-    return buildContent(resolveText(value));
+    return buildContent(resolveText(value), resolveRenderMode(value));
   }
 });
 
@@ -103,9 +108,11 @@ export const markdownPanelType = {
       : () => {};
 
     let lastSavedText = resolveText(safeGetContent(panelId));
+    let renderMode = resolveRenderMode(safeGetContent(panelId) ?? panelState.content);
     let historyPending = false;
     let restoreFocusOnSave = false;
     let selectionSnapshot = null;
+    let lastMarkdownMode = 'split';
 
     const applyMode = (mode) => {
       const allowedModes = new Set(['edit', 'preview', 'split', 'split-h']);
@@ -116,6 +123,41 @@ export const markdownPanelType = {
       }
     };
 
+    const stripMathDelimiters = (value = '') => value
+      .replace(/\$\$([\s\S]+?)\$\$/g, '$1')
+      .replace(/\$([^\n]+?)\$/g, '$1');
+
+    const renderPlainText = (text) => {
+      if (typeof document === 'undefined') return text || '';
+      const cleaned = stripMathDelimiters(text || '');
+      const temp = document.createElement('div');
+      temp.innerHTML = renderMarkdown(cleaned);
+      return temp.innerText || temp.textContent || '';
+    };
+
+    const updateRenderMode = (nextMode, { normalizeText = false, pushHistory = true } = {}) => {
+      const resolved = nextMode === 'plain' ? 'plain' : 'markdown';
+      if (resolved === renderMode && !normalizeText) return;
+      renderMode = resolved;
+      wrapper.dataset.render = renderMode;
+      let nextText = editor.value;
+      if (renderMode === 'plain') {
+        lastMarkdownMode = wrapper.dataset.mode || lastMarkdownMode;
+        applyMode('edit');
+        if (normalizeText) {
+          nextText = renderPlainText(nextText);
+          editor.value = nextText;
+        }
+      } else if (lastMarkdownMode) {
+        applyMode(lastMarkdownMode);
+      }
+      lastSavedText = nextText;
+      historyPending = false;
+      updatePreview(nextText);
+      safeSetContent(panelId, buildContent(nextText, renderMode), {
+        pushHistory
+      });
+    };
 
     const scheduleMathTypeset = createDebounce(() => {
       if (typeof window === 'undefined') return;
@@ -130,9 +172,16 @@ export const markdownPanelType = {
       }
     }, 500);
     const updatePreview = (text) => {
+      const trimmed = text.trim();
+      preview.classList.toggle('is-empty', !trimmed);
+      if (renderMode === 'plain') {
+        preview.textContent = text;
+        preview.classList.add('is-plain');
+        return;
+      }
+      preview.classList.remove('is-plain');
       preview.innerHTML = renderMarkdown(text);
-      preview.classList.toggle('is-empty', !text.trim());
-      if (text.includes('$') || text.includes('\\(') || text.includes('\\[')) {
+      if (trimmed && (text.includes('$') || text.includes('\\(') || text.includes('\\['))) {
         scheduleMathTypeset();
       }
     };
@@ -148,7 +197,7 @@ export const markdownPanelType = {
       selectionSnapshot = null;
       const shouldPush = historyPending;
       historyPending = false;
-      safeSetContent(panelId, buildContent(nextText), {
+      safeSetContent(panelId, buildContent(nextText, renderMode), {
         pushHistory: shouldPush
       });
       lastSavedText = nextText;
@@ -266,6 +315,9 @@ export const markdownPanelType = {
 
     const refreshContent = (content) => {
       const text = resolveText(content);
+      const nextRenderMode = resolveRenderMode(content);
+      renderMode = nextRenderMode;
+      wrapper.dataset.render = renderMode;
       lastSavedText = text;
       historyPending = false;
       if (editor.value !== text) {
@@ -282,6 +334,9 @@ export const markdownPanelType = {
         }
       }
       updatePreview(text);
+      if (renderMode === 'plain') {
+        applyMode('edit');
+      }
       if (wrapper.dataset.mode === 'edit' && document.activeElement !== editor) {
         editor.focus();
       }
@@ -290,13 +345,26 @@ export const markdownPanelType = {
     const initialContent = safeGetContent(panelId) ?? panelState.content;
     refreshContent(initialContent);
 
-    applyMode('split');
+    wrapper.dataset.render = renderMode;
+    if (renderMode === 'plain') {
+      applyMode('edit');
+    } else {
+      applyMode('split');
+    }
 
     return {
       plotEl: null,
       refreshContent,
       getMode: () => wrapper.dataset.mode,
-      setMode: (mode) => applyMode(mode)
+      setMode: (mode) => {
+        if (renderMode === 'plain') {
+          applyMode('edit');
+          return;
+        }
+        applyMode(mode);
+      },
+      getRenderMode: () => renderMode,
+      setRenderMode: (mode, options) => updateRenderMode(mode, options)
     };
   }
 };

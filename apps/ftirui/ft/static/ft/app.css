@@ -2109,6 +2109,19 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-panel.workspace-panel--markdown .workspace-panel-actions{
   gap: .5rem;
 }
+.workspace-markdown-render-toggle{
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: none;
+  padding: 0 .55rem;
+  min-width: 2.2rem;
+}
+.workspace-markdown-render-toggle-label{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+}
 .workspace-markdown-preview-toggle{
   display: inline-flex;
   align-items: center;
@@ -2592,6 +2605,10 @@ body.workspace-panel-fullscreen .header-actions{
   border: 1px dashed color-mix(in srgb, var(--bs-border-color) 60%, transparent);
   background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.05) 6%);
   overflow-y: auto;
+}
+.workspace-markdown-preview.is-plain{
+  white-space: pre-wrap;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
 }
 .workspace-markdown-panel[data-mode="edit"] .workspace-markdown-preview{
   display: none;
