@@ -5140,7 +5140,8 @@ const isPanelPinned = (panelId) =>
     updateHistoryButtons,
     persist,
     panelSupportsPlot,
-    showToast
+    showToast,
+    allowNonPlot: true
   });
 
   panelTagController = createPanelTagController({

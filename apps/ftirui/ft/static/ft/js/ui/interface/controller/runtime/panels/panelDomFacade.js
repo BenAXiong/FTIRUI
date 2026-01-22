@@ -74,10 +74,18 @@ export function createPanelDomFacade({
   const safePanelVisibilityToggle = typeof onPanelVisibilityToggle === 'function'
     ? onPanelVisibilityToggle
     : () => {};
-    const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
-    const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
-    const safeListPlotPanels = typeof listPlotPanels === 'function' ? listPlotPanels : (() => []);
+  const safeGetPanelFigure = typeof getPanelFigure === 'function' ? getPanelFigure : (() => ({ data: [], layout: {} }));
+  const safeGetPanelContent = typeof getPanelContent === 'function' ? getPanelContent : (() => null);
+  const safeListPlotPanels = typeof listPlotPanels === 'function' ? listPlotPanels : (() => []);
   const safeSetPanelContent = typeof setPanelContent === 'function' ? setPanelContent : () => {};
+  const readPanelLockState = (panelId) => {
+    const meta = safeGetPanelFigure(panelId)?.layout?.meta;
+    const panelMeta = meta && typeof meta === 'object' ? meta.workspacePanel : null;
+    return {
+      editLocked: panelMeta?.editLocked === true,
+      pinned: panelMeta?.pinned === true
+    };
+  };
   const getUIPortal = () => {
     if (typeof document === 'undefined') return null;
     let portal = document.querySelector('.ui-portal');
@@ -398,15 +406,6 @@ export function createPanelDomFacade({
               closeFn();
             }
           });
-        };
-
-        const readPanelLockState = () => {
-          const meta = safeGetPanelFigure(panelId)?.layout?.meta;
-          const panelMeta = meta && typeof meta === 'object' ? meta.workspacePanel : null;
-          return {
-            editLocked: panelMeta?.editLocked === true,
-            pinned: panelMeta?.pinned === true
-          };
         };
 
         const controlsWrapper = document.createElement('div');
@@ -2304,7 +2303,7 @@ export function createPanelDomFacade({
         };
         appendPopoverControl(templatesBtn, templatesPopover, { openOnHover: true, suppressClickToggle: true });
 
-        panelLockState = readPanelLockState();
+        panelLockState = readPanelLockState(panelId);
         lockBtn = createToggleButton({
           icon: 'bi-lock',
           title: 'Lock graph',
@@ -2987,6 +2986,25 @@ export function createPanelDomFacade({
           });
           updateNonPlotFullscreenBtn();
 
+          panelLockState = readPanelLockState(panelId);
+          lockBtn = createToggleButton({
+            icon: 'bi-lock',
+            title: 'Lock panel',
+            pressed: panelLockState.editLocked,
+            onClick: (isOn) => safePanelLockToggle(panelId, { on: isOn })
+          });
+          lockBtn.dataset.panelAction = 'lock';
+          lockBtn.classList.add('workspace-panel-action-btn--lock');
+
+          pinBtn = createToggleButton({
+            icon: 'bi-pin-angle',
+            title: 'Pin position',
+            pressed: panelLockState.pinned,
+            onClick: (isOn) => safePanelPinToggle(panelId, { on: isOn })
+          });
+          pinBtn.dataset.panelAction = 'pin';
+          pinBtn.classList.add('workspace-panel-action-btn--visibility');
+
           if (isSpreadsheetPanel) {
             const controlsWrapper = document.createElement('div');
             controlsWrapper.className = 'workspace-panel-actions-collection';
@@ -3079,6 +3097,23 @@ export function createPanelDomFacade({
             appendActionItem(freezeBtn);
             contentHandles?.setFreeze?.(freezeEnabled);
 
+            const plotBtn = document.createElement('button');
+            plotBtn.type = 'button';
+            plotBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+            plotBtn.innerHTML = '<i class="bi bi-graph-up"></i>';
+            plotBtn.title = 'Plot options';
+            plotBtn.setAttribute('aria-expanded', 'false');
+
+            const plotPopover = document.createElement('div');
+            plotPopover.className = 'workspace-panel-popover workspace-panel-popover--plot';
+            plotPopover.onOpen = () => {
+              const plotContent = contentHandles?.getPlotPopoverContent?.();
+              if (plotContent && !plotPopover.contains(plotContent)) {
+                plotPopover.appendChild(plotContent);
+              }
+            };
+            appendPopoverControl(plotBtn, plotPopover, { openOnHover: true, suppressClickToggle: true });
+
             const duplicateBtn = document.createElement('button');
             duplicateBtn.type = 'button';
             duplicateBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
@@ -3135,15 +3170,12 @@ export function createPanelDomFacade({
               safeUpdateToolbarMetrics();
             });
 
-            panelLockState = { editLocked: false, pinned: false };
+            panelLockState = readPanelLockState(panelId);
             lockBtn = createToggleButton({
               icon: 'bi-lock',
               title: 'Lock panel',
               pressed: panelLockState.editLocked,
-              onClick: (isOn) => {
-                panelLockState = { ...panelLockState, editLocked: isOn };
-                applyHeaderLockState(panelLockState);
-              }
+              onClick: (isOn) => safePanelLockToggle(panelId, { on: isOn })
             });
             lockBtn.dataset.panelAction = 'lock';
             lockBtn.classList.add('workspace-panel-action-btn--lock');
@@ -3152,10 +3184,7 @@ export function createPanelDomFacade({
               icon: 'bi-pin-angle',
               title: 'Pin position',
               pressed: panelLockState.pinned,
-              onClick: (isOn) => {
-                panelLockState = { ...panelLockState, pinned: isOn };
-                applyHeaderLockState(panelLockState);
-              }
+              onClick: (isOn) => safePanelPinToggle(panelId, { on: isOn })
             });
             pinBtn.dataset.panelAction = 'pin';
             pinBtn.classList.add('workspace-panel-action-btn--visibility');
@@ -3332,13 +3361,6 @@ export function createPanelDomFacade({
             actionsCenter.appendChild(controlsWrapper);
             actionsCenter.appendChild(overflowBtn);
             actionsRight.appendChild(settingsBtn);
-            if (pinBtn) {
-              actionsRight.appendChild(pinBtn);
-            }
-            if (lockBtn) {
-              actionsRight.appendChild(lockBtn);
-            }
-            applyHeaderLockState(panelLockState);
           }
 
           if (isMarkdownPanel) {
@@ -3589,12 +3611,19 @@ export function createPanelDomFacade({
           closeBtn.addEventListener('click', () => {
             safeRemovePanel(panelState.id);
           });
+          if (pinBtn) {
+            actionsRight.appendChild(pinBtn);
+          }
+          if (lockBtn) {
+            actionsRight.appendChild(lockBtn);
+          }
           actionsRight.appendChild(closeBtn);
           actions.appendChild(actionsCenter);
           if (spreadsheetOverflowPanel) {
             actions.appendChild(spreadsheetOverflowPanel);
           }
           actions.appendChild(actionsRight);
+          applyHeaderLockState(panelLockState);
         }
         if (headerTagBadge) {
           header.appendChild(headerTagBadge);

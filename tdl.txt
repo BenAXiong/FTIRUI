@@ -54,13 +54,13 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] Multi-cell selection + fill-handle for quick series.
             - [-] hb2: “Freeze first row/column” toggle.
             - [x] Add XYZ toggle to column headers
-        - [ ] Rework "Add to graph section"
-            - [ ] Move to hb 
-            - [ ] Workflow:
-            - [ ] On hb click: create graph(s) from selection (warn if no or several graphs)
-            - [ ] Popup: Add toggle -  use columns settings (default) vs custom
-            - [ ] Popup: 3 rows - mode, source, target
-            - [ ] Popup: 
+        - [-] Rework "Add to graph section"
+            - [-] Move to hb 
+            - [-] Workflow:
+            - [-] On hb click: create graph(s) from selection (warn if no or several graphs)
+            - [-] Popup: Add toggle -  use columns settings (default) vs custom
+            - [-] Popup: 3 rows - mode, source, target
+            - [ ] Popup: 27%
         - [ ] 
         - [ ] Doc
     - [ ] .opju

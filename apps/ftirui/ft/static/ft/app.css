@@ -2230,15 +2230,24 @@ body.workspace-panel-fullscreen .header-actions{
   position: absolute;
   top: .4rem;
   right: .5rem;
-  font-size: .68rem;
+  font-size: .7rem;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.25) 25%);
-  background: color-mix(in srgb, var(--bs-body-bg) 85%, rgba(15,23,42,.1) 15%);
-  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
-  padding: .1rem .4rem;
+  color: color-mix(in srgb, var(--bs-primary) 85%, rgba(15,23,42,.2) 15%);
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 75%, rgba(15,23,42,.1) 25%);
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 45%, transparent);
+  padding: .12rem .45rem;
   border-radius: .6rem;
   pointer-events: none;
+  z-index: 4;
+}
+.workspace-spreadsheet-panel[data-freeze='true'] .workspace-spreadsheet-grid thead th{
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--bs-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 88%, rgba(15,23,42,.05) 12%);
+}
+.workspace-spreadsheet-panel[data-freeze='true'] .workspace-spreadsheet-grid tbody th{
+  box-shadow: inset -2px 0 0 color-mix(in srgb, var(--bs-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 88%, rgba(15,23,42,.05) 12%);
 }
 .workspace-spreadsheet-grid{
   width: 100%;
@@ -2583,6 +2592,93 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-plot-btn--wide{
   flex: 1 1 0;
   min-width: 0;
+}
+.workspace-spreadsheet-plot-popover{
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+  min-width: 320px;
+}
+.workspace-spreadsheet-plot-section{
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.workspace-spreadsheet-plot-label{
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
+}
+.workspace-spreadsheet-plot-toggle{
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.workspace-spreadsheet-plot-toggle-btn{
+  flex: 1 1 0;
+}
+.workspace-spreadsheet-plot-toggle-btn.is-active{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 70%, transparent);
+  border-color: color-mix(in srgb, var(--bs-primary) 55%, transparent);
+  color: var(--bs-primary);
+}
+.workspace-spreadsheet-plot-body{
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.workspace-spreadsheet-plot-source-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.workspace-spreadsheet-plot-row{
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.workspace-spreadsheet-plot-row-label{
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
+  min-width: 1.2rem;
+}
+.workspace-spreadsheet-plot-row-buttons{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+}
+.workspace-spreadsheet-plot-chip{
+  padding: .15rem .5rem;
+  font-size: .75rem;
+}
+.workspace-spreadsheet-plot-chip.is-active{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 70%, transparent);
+  border-color: color-mix(in srgb, var(--bs-primary) 55%, transparent);
+  color: var(--bs-primary);
+}
+.workspace-spreadsheet-plot-empty{
+  font-size: .78rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+}
+.workspace-spreadsheet-target-dropdown{
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  border-radius: .6rem;
+  padding: .35rem .45rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.03) 4%);
+}
+.workspace-spreadsheet-target-summary{
+  cursor: pointer;
+  list-style: none;
+  font-size: .78rem;
+  color: var(--bs-body-color);
+}
+.workspace-spreadsheet-target-summary::-webkit-details-marker{
+  display: none;
 }
 .workspace-panel.workspace-panel--image .workspace-panel-plot{
   padding: 0;
@@ -3310,7 +3406,9 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   position: absolute;
   left: 50%;
   bottom: calc(100% + .45rem);
-  width: clamp(200px, 30vw, 280px);
+  width: max-content;
+  min-width: 200px;
+  max-width: 90vw;
   padding: .75rem;
   background: var(--bs-body-bg);
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent 20%);

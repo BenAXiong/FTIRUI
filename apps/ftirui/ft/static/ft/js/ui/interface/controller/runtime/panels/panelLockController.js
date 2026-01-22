@@ -39,14 +39,14 @@ const mergeLockState = (figure, patch = {}) => {
   return { figure: nextFigure, state: next, changed: true };
 };
 
-const buildHistoryLabel = (prevState, nextState) => {
+const buildHistoryLabel = (prevState, nextState, noun = 'graph') => {
   if (prevState.editLocked !== nextState.editLocked) {
-    return nextState.editLocked ? 'Lock graph' : 'Unlock graph';
+    return nextState.editLocked ? `Lock ${noun}` : `Unlock ${noun}`;
   }
   if (prevState.pinned !== nextState.pinned) {
-    return nextState.pinned ? 'Pin graph' : 'Unpin graph';
+    return nextState.pinned ? `Pin ${noun}` : `Unpin ${noun}`;
   }
-  return 'Update graph lock';
+  return `Update ${noun} lock`;
 };
 
 export function createPanelLockController({
@@ -58,7 +58,8 @@ export function createPanelLockController({
   updateHistoryButtons = () => {},
   persist = () => {},
   panelSupportsPlot = () => true,
-  showToast = () => {}
+  showToast = () => {},
+  allowNonPlot = false
 } = {}) {
   const disableButtonForLock = (btn) => {
     if (!btn) return;
@@ -99,7 +100,8 @@ export function createPanelLockController({
 
   const setLockState = (panelId, patch, { render = true } = {}) => {
     if (!panelId) return false;
-    if (typeof panelSupportsPlot === 'function' && !panelSupportsPlot(panelId)) {
+    const supportsPlot = typeof panelSupportsPlot === 'function' ? panelSupportsPlot(panelId) : true;
+    if (!supportsPlot && !allowNonPlot) {
       showToast('Locking is only available for plot panels.', 'info');
       return false;
     }
@@ -110,7 +112,7 @@ export function createPanelLockController({
     if (!changed) return false;
 
     pushHistory({
-      label: buildHistoryLabel(current, state),
+      label: buildHistoryLabel(current, state, supportsPlot ? 'graph' : 'panel'),
       meta: {
         action: 'panel-lock',
         value: state
@@ -118,7 +120,7 @@ export function createPanelLockController({
     });
     updatePanelFigure(panelId, nextFigure, { source: 'panel-lock', skipTemplateDirty: true });
     syncPanelDomState(panelId, state);
-    if (render) {
+    if (render && supportsPlot) {
       renderPlot(panelId);
     }
     persist();

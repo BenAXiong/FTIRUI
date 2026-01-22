@@ -224,41 +224,65 @@ export const spreadsheetPanelType = {
     gridScroll.appendChild(table);
 
     const plotControls = document.createElement('div');
-    plotControls.className = 'workspace-spreadsheet-plot-controls';
+    plotControls.className = 'workspace-spreadsheet-plot-popover';
 
-    const axisControls = document.createElement('div');
-    axisControls.className = 'workspace-spreadsheet-axis-controls';
+    const modeSection = document.createElement('div');
+    modeSection.className = 'workspace-spreadsheet-plot-section';
+    const modeLabel = document.createElement('div');
+    modeLabel.className = 'workspace-spreadsheet-plot-label';
+    modeLabel.textContent = 'Mode';
+    const modeToggle = document.createElement('div');
+    modeToggle.className = 'workspace-spreadsheet-plot-toggle';
+    const modeDefaultBtn = document.createElement('button');
+    modeDefaultBtn.type = 'button';
+    modeDefaultBtn.className = 'btn btn-outline-secondary workspace-spreadsheet-plot-toggle-btn is-active';
+    modeDefaultBtn.textContent = 'Use column settings';
+    const modeCustomBtn = document.createElement('button');
+    modeCustomBtn.type = 'button';
+    modeCustomBtn.className = 'btn btn-outline-secondary workspace-spreadsheet-plot-toggle-btn';
+    modeCustomBtn.textContent = 'Custom override';
+    modeToggle.appendChild(modeDefaultBtn);
+    modeToggle.appendChild(modeCustomBtn);
+    modeSection.appendChild(modeLabel);
+    modeSection.appendChild(modeToggle);
 
-    const xGroup = document.createElement('div');
-    xGroup.className = 'workspace-spreadsheet-axis-group';
-    const xLabel = document.createElement('div');
-    xLabel.className = 'workspace-spreadsheet-axis-label';
-    xLabel.textContent = 'X axis';
-    const xSelect = document.createElement('select');
-    xSelect.className = 'form-select form-select-sm workspace-spreadsheet-axis-select';
-    xGroup.appendChild(xLabel);
-    xGroup.appendChild(xSelect);
+    const sourceSection = document.createElement('div');
+    sourceSection.className = 'workspace-spreadsheet-plot-section';
+    const sourceLabel = document.createElement('div');
+    sourceLabel.className = 'workspace-spreadsheet-plot-label';
+    sourceLabel.textContent = 'Source';
+    const sourceBody = document.createElement('div');
+    sourceBody.className = 'workspace-spreadsheet-plot-body';
+    sourceSection.appendChild(sourceLabel);
+    sourceSection.appendChild(sourceBody);
 
-    const yGroup = document.createElement('div');
-    yGroup.className = 'workspace-spreadsheet-axis-group';
-    const yLabel = document.createElement('div');
-    yLabel.className = 'workspace-spreadsheet-axis-label';
-    yLabel.textContent = 'Y series';
-    const yList = document.createElement('div');
-    yList.className = 'workspace-spreadsheet-y-list';
-    yGroup.appendChild(yLabel);
-    yGroup.appendChild(yList);
-
-    axisControls.appendChild(xGroup);
-    axisControls.appendChild(yGroup);
-
-    const targetControls = document.createElement('div');
-    targetControls.className = 'workspace-spreadsheet-target-controls';
+    const targetSection = document.createElement('div');
+    targetSection.className = 'workspace-spreadsheet-plot-section';
     const targetLabel = document.createElement('div');
-    targetLabel.className = 'workspace-spreadsheet-axis-label';
-    targetLabel.textContent = 'Add data to';
+    targetLabel.className = 'workspace-spreadsheet-plot-label';
+    targetLabel.textContent = 'Target';
+    const targetBody = document.createElement('div');
+    targetBody.className = 'workspace-spreadsheet-plot-body';
+    const targetDropdown = document.createElement('details');
+    targetDropdown.className = 'workspace-spreadsheet-target-dropdown';
+    const targetSummary = document.createElement('summary');
+    targetSummary.className = 'workspace-spreadsheet-target-summary';
+    targetSummary.textContent = 'Select graph(s)';
     const graphTargets = document.createElement('div');
     graphTargets.className = 'workspace-spreadsheet-target-list';
+    targetDropdown.appendChild(targetSummary);
+    targetDropdown.appendChild(graphTargets);
+    targetBody.appendChild(targetDropdown);
+    targetSection.appendChild(targetLabel);
+    targetSection.appendChild(targetBody);
+
+    const actionsSection = document.createElement('div');
+    actionsSection.className = 'workspace-spreadsheet-plot-section';
+    const actionsLabel = document.createElement('div');
+    actionsLabel.className = 'workspace-spreadsheet-plot-label';
+    actionsLabel.textContent = 'Actions';
+    const actionsBody = document.createElement('div');
+    actionsBody.className = 'workspace-spreadsheet-plot-body';
     const actionsRow = document.createElement('div');
     actionsRow.className = 'workspace-spreadsheet-action-row';
     const plotExistingBtn = document.createElement('button');
@@ -276,16 +300,18 @@ export const spreadsheetPanelType = {
     actionsRow.appendChild(plotExistingBtn);
     actionsRow.appendChild(copySelectionBtn);
     actionsRow.appendChild(exportSelectionBtn);
-    targetControls.appendChild(targetLabel);
-    targetControls.appendChild(graphTargets);
-    targetControls.appendChild(actionsRow);
+    actionsBody.appendChild(actionsRow);
+    actionsSection.appendChild(actionsLabel);
+    actionsSection.appendChild(actionsBody);
 
-    plotControls.appendChild(axisControls);
-    plotControls.appendChild(targetControls);
+    plotControls.appendChild(modeSection);
+    plotControls.appendChild(sourceSection);
+    plotControls.appendChild(targetSection);
+    plotControls.appendChild(actionsSection);
 
     wrapper.appendChild(gridScroll);
-    wrapper.appendChild(plotControls);
     hostEl.appendChild(wrapper);
+
 
     const parseClipboardMatrix = (text = '') => {
       if (!text) return [];
@@ -325,6 +351,7 @@ export const spreadsheetPanelType = {
         .slice(0, 1)
         .map((column) => column.id)
     );
+    let plotMode = 'default';
     let targetGraphSelections = new Set();
     let formulaErrors = {};
     let evaluatedRows = sheetState.rows.map((row) => ({ ...row }));
@@ -389,32 +416,28 @@ const formatDisplayValue = (value) => {
         selectedYColumnIds.clear();
         return;
       }
-      if (!selectedXColumnId || !columnIds.includes(selectedXColumnId)) {
-        selectedXColumnId = columnIds[0];
-      }
       selectedXColumnIds = new Set(
         [...selectedXColumnIds].filter((columnId) => columnIds.includes(columnId))
       );
-      if (selectedXColumnId) {
-        selectedXColumnIds.add(selectedXColumnId);
-      }
-      if (!selectedXColumnIds.size && selectedXColumnId) {
-        selectedXColumnIds.add(selectedXColumnId);
-      }
-      const nextY = new Set(
-        [...selectedYColumnIds]
-          .filter((columnId) => !selectedXColumnIds.has(columnId) && columnIds.includes(columnId))
+      selectedYColumnIds = new Set(
+        [...selectedYColumnIds].filter((columnId) => columnIds.includes(columnId))
       );
-      if (!nextY.size) {
+
+      if (!selectedXColumnIds.size) {
+        selectedXColumnId = columnIds[0];
+        selectedXColumnIds.add(selectedXColumnId);
+      } else if (!selectedXColumnId || !selectedXColumnIds.has(selectedXColumnId)) {
+        selectedXColumnId = [...selectedXColumnIds][0];
+      }
+
+      selectedYColumnIds = new Set(
+        [...selectedYColumnIds].filter((columnId) => !selectedXColumnIds.has(columnId))
+      );
+      if (!selectedYColumnIds.size) {
         const fallback = sheetState.columns.find((column) => !selectedXColumnIds.has(column.id));
         if (fallback) {
-          nextY.add(fallback.id);
+          selectedYColumnIds.add(fallback.id);
         }
-      }
-      selectedYColumnIds = nextY;
-      if (!selectedXColumnId || !selectedXColumnIds.has(selectedXColumnId)) {
-        selectedXColumnId = [...selectedXColumnIds][0] || columnIds[0];
-        selectedXColumnIds.add(selectedXColumnId);
       }
     };
 
@@ -554,38 +577,43 @@ const formatDisplayValue = (value) => {
     recalculateFormulas();
 
     const buildTracePayloads = () => {
-      const xColumn = getColumnById(selectedXColumnId);
-      if (!xColumn) return [];
+      const xColumns = sheetState.columns.filter((column) => selectedXColumnIds.has(column.id));
+      if (!xColumns.length) return [];
       const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id));
       if (!yColumns.length) return [];
-      const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
-      return yColumns.map((column) => {
-        const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
-        const hasData = yValues.some((value) => value !== null && value !== '');
-        if (!hasData) return null;
-        return {
-          name: column.label || column.id,
-          x: xValues,
-          y: yValues,
-          meta: {
-            sourcePanelId: panelId,
-            columnId: column.id,
-            columnLabel: column.label || '',
-            xLabel: xColumn.label || ''
-          }
-        };
-      }).filter(Boolean);
+      const traces = [];
+      xColumns.forEach((xColumn) => {
+        const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
+        yColumns.forEach((column) => {
+          const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
+          const hasData = yValues.some((value) => value !== null && value !== '');
+          if (!hasData) return;
+          traces.push({
+            name: column.label || column.id,
+            x: xValues,
+            y: yValues,
+            meta: {
+              sourcePanelId: panelId,
+              columnId: column.id,
+              columnLabel: column.label || '',
+              xColumnId: xColumn.id,
+              xLabel: xColumn.label || ''
+            }
+          });
+        });
+      });
+      return traces;
     };
 
     const getSelectedColumns = () => {
       const columns = [];
-      const xColumn = getColumnById(selectedXColumnId);
-      if (xColumn) {
-        columns.push(xColumn);
-      }
-      selectedYColumnIds.forEach((columnId) => {
-        const column = getColumnById(columnId);
-        if (column) {
+      sheetState.columns.forEach((column) => {
+        if (selectedXColumnIds.has(column.id)) {
+          columns.push(column);
+        }
+      });
+      sheetState.columns.forEach((column) => {
+        if (selectedYColumnIds.has(column.id)) {
           columns.push(column);
         }
       });
@@ -706,65 +734,159 @@ const formatDisplayValue = (value) => {
       exportSelectionBtn.disabled = !ready;
     };
 
-    const renderYAxisOptions = () => {
-      yList.innerHTML = '';
-      let rendered = 0;
-      sheetState.columns.forEach((column, columnIndex) => {
-        if (column.id === selectedXColumnId) return;
-        const option = document.createElement('label');
-        option.className = 'workspace-spreadsheet-y-option';
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'form-check-input';
-        checkbox.value = column.id;
-        checkbox.checked = selectedYColumnIds.has(column.id);
-        checkbox.addEventListener('change', () => {
-          if (checkbox.checked) {
-            selectedYColumnIds.add(column.id);
-          } else if (selectedYColumnIds.size > 1) {
-            selectedYColumnIds.delete(column.id);
-          } else {
-            checkbox.checked = true;
-            return;
-          }
-          renderYAxisOptions();
-          updateActionButtons();
-        });
-        const label = document.createElement('span');
-        label.textContent = column.label || toColumnLabel(columnIndex);
-        option.appendChild(checkbox);
-        option.appendChild(label);
-        yList.appendChild(option);
-        rendered += 1;
-      });
-      if (!rendered) {
-        const empty = document.createElement('div');
-        empty.className = 'workspace-spreadsheet-y-empty';
-        empty.textContent = 'Add another column to plot Y data.';
-        yList.appendChild(empty);
-      }
+    const setPlotMode = (nextMode) => {
+      const resolved = nextMode === 'custom' ? 'custom' : 'default';
+      if (plotMode === resolved) return;
+      plotMode = resolved;
+      renderPlotModeControls();
+      renderPlotSourceControls();
     };
 
-    const renderAxisControls = () => {
-      ensureSelectionIntegrity();
-      xSelect.innerHTML = '';
-      sheetState.columns.forEach((column, columnIndex) => {
-        const option = document.createElement('option');
-        option.value = column.id;
-        option.textContent = column.label || toColumnLabel(columnIndex);
-        xSelect.appendChild(option);
-      });
-      if (selectedXColumnId) {
-        xSelect.value = selectedXColumnId;
+    const renderPlotModeControls = () => {
+      const isDefault = plotMode === 'default';
+      modeDefaultBtn.classList.toggle('is-active', isDefault);
+      modeCustomBtn.classList.toggle('is-active', !isDefault);
+    };
+
+    const buildPlotToggle = (label, title, active) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `btn btn-outline-secondary workspace-spreadsheet-plot-chip${active ? ' is-active' : ''}`;
+      btn.textContent = label;
+      if (title) {
+        btn.title = title;
       }
-      renderYAxisOptions();
+      return btn;
+    };
+
+    const renderPlotSourceControls = () => {
+      sourceBody.innerHTML = '';
+      ensureSelectionIntegrity();
+      if (plotMode === 'default') {
+        const list = document.createElement('div');
+        list.className = 'workspace-spreadsheet-plot-source-list';
+        const xColumns = sheetState.columns.filter((column) => selectedXColumnIds.has(column.id));
+        const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id));
+        const yLabel = yColumns.map((col, idx) => toColumnShortLabel(sheetState.columns.indexOf(col))).join(', ');
+        const yName = yColumns.map((col) => col.label || col.id).join(', ');
+        if (!xColumns.length) {
+          const empty = document.createElement('div');
+          empty.className = 'workspace-spreadsheet-plot-empty';
+          empty.textContent = 'Pick X and Y columns to plot.';
+          list.appendChild(empty);
+        } else {
+          xColumns.forEach((xColumn) => {
+            const xIndex = sheetState.columns.findIndex((col) => col.id === xColumn.id);
+            const xLabel = toColumnShortLabel(xIndex);
+            const toggleLabel = yLabel ? `${xLabel} -> ${yLabel}` : `${xLabel} -> -`;
+            const title = yName
+              ? `${xLabel} (${xColumn.label || xColumn.id}) -> ${yName}`
+              : `${xLabel} (${xColumn.label || xColumn.id})`;
+            const active = selectedXColumnIds.has(xColumn.id);
+            const btn = buildPlotToggle(toggleLabel, title, active);
+            btn.addEventListener('click', () => {
+              if (selectedXColumnIds.has(xColumn.id)) {
+                if (selectedXColumnIds.size > 1) {
+                  selectedXColumnIds.delete(xColumn.id);
+                }
+              } else {
+                selectedXColumnIds.add(xColumn.id);
+                selectedXColumnId = xColumn.id;
+              }
+              ensureSelectionIntegrity();
+              renderPlotSourceControls();
+              updateActionButtons();
+            });
+            list.appendChild(btn);
+          });
+        }
+        sourceBody.appendChild(list);
+        return;
+      }
+
+      const xRow = document.createElement('div');
+      xRow.className = 'workspace-spreadsheet-plot-row';
+      const xLabel = document.createElement('div');
+      xLabel.className = 'workspace-spreadsheet-plot-row-label';
+      xLabel.textContent = 'X';
+      const xButtons = document.createElement('div');
+      xButtons.className = 'workspace-spreadsheet-plot-row-buttons';
+
+      sheetState.columns.forEach((column, columnIndex) => {
+        const label = toColumnShortLabel(columnIndex);
+        const title = column.label || column.id;
+        const active = selectedXColumnIds.has(column.id);
+        const btn = buildPlotToggle(label, title, active);
+        btn.addEventListener('click', () => {
+          if (selectedXColumnIds.has(column.id)) {
+            if (selectedXColumnIds.size > 1) {
+              selectedXColumnIds.delete(column.id);
+            }
+          } else {
+            selectedXColumnIds.add(column.id);
+            selectedYColumnIds.delete(column.id);
+            selectedXColumnId = column.id;
+          }
+          ensureSelectionIntegrity();
+          renderPlotSourceControls();
+          updateActionButtons();
+        });
+        xButtons.appendChild(btn);
+      });
+
+      xRow.appendChild(xLabel);
+      xRow.appendChild(xButtons);
+
+      const yRow = document.createElement('div');
+      yRow.className = 'workspace-spreadsheet-plot-row';
+      const yLabel = document.createElement('div');
+      yLabel.className = 'workspace-spreadsheet-plot-row-label';
+      yLabel.textContent = 'Y';
+      const yButtons = document.createElement('div');
+      yButtons.className = 'workspace-spreadsheet-plot-row-buttons';
+
+      sheetState.columns.forEach((column, columnIndex) => {
+        const label = toColumnShortLabel(columnIndex);
+        const title = column.label || column.id;
+        const active = selectedYColumnIds.has(column.id);
+        const btn = buildPlotToggle(label, title, active);
+        btn.addEventListener('click', () => {
+          if (selectedYColumnIds.has(column.id)) {
+            if (selectedYColumnIds.size > 1) {
+              selectedYColumnIds.delete(column.id);
+            }
+          } else {
+            selectedYColumnIds.add(column.id);
+            selectedXColumnIds.delete(column.id);
+          }
+          ensureSelectionIntegrity();
+          renderPlotSourceControls();
+          updateActionButtons();
+        });
+        yButtons.appendChild(btn);
+      });
+
+      yRow.appendChild(yLabel);
+      yRow.appendChild(yButtons);
+      sourceBody.appendChild(xRow);
+      sourceBody.appendChild(yRow);
     };
 
     const refreshPlotControls = () => {
-      renderAxisControls();
+      renderPlotModeControls();
+      renderPlotSourceControls();
       updateActionButtons();
     };
 
+    const updateTargetSummary = () => {
+      const count = targetGraphSelections.size;
+      targetSummary.textContent = count
+        ? `${count} target${count === 1 ? '' : 's'}`
+        : 'Select graph(s)';
+    };
+
+    modeDefaultBtn.addEventListener('click', () => setPlotMode('default'));
+    modeCustomBtn.addEventListener('click', () => setPlotMode('custom'));
     const refreshGraphOptions = () => {
       const graphs = safeListPlotPanels()
         .filter((graph) => graph && graph.id && graph.id !== panelId);
@@ -786,6 +908,7 @@ const formatDisplayValue = (value) => {
           } else {
             targetGraphSelections.delete(value);
           }
+          updateTargetSummary();
           updateActionButtons();
         });
         const text = document.createElement('span');
@@ -826,7 +949,14 @@ const formatDisplayValue = (value) => {
       }
 
       targetGraphSelections = nextValues;
+      updateTargetSummary();
       updateActionButtons();
+    };
+
+    const getPlotPopoverContent = () => {
+      refreshGraphOptions();
+      refreshPlotControls();
+      return plotControls;
     };
 
     const focusCell = (rowIndex, columnIndex, { selectAll = false } = {}) => {
@@ -871,6 +1001,16 @@ const formatDisplayValue = (value) => {
       const columnIndex = Number(input.dataset.colIndex);
       if (!Number.isInteger(rowIndex) || !Number.isInteger(columnIndex)) return null;
       return { rowIndex, columnIndex };
+    };
+
+    const getHeaderColumnFromPoint = (clientX, clientY) => {
+      if (typeof document === 'undefined') return null;
+      const element = document.elementFromPoint(clientX, clientY);
+      const header = element?.closest?.('.workspace-spreadsheet-column-header--col');
+      if (!header) return null;
+      const columnIndex = Number(header.dataset.columnIndex);
+      if (!Number.isInteger(columnIndex)) return null;
+      return columnIndex;
     };
 
     const updateSelectionStyles = () => {
@@ -920,6 +1060,25 @@ const formatDisplayValue = (value) => {
       isSelecting = false;
       document.removeEventListener('mousemove', handleSelectionMove);
       document.removeEventListener('mouseup', handleSelectionEnd);
+    };
+
+    const setColumnSelectionRange = (startCol, endCol) => {
+      const lastRowIndex = Math.max(0, sheetState.rows.length - 1);
+      setSelectionRange(
+        { rowIndex: 0, columnIndex: startCol },
+        { rowIndex: lastRowIndex, columnIndex: endCol }
+      );
+    };
+
+    const handleHeaderSelectionMove = (event) => {
+      const columnIndex = getHeaderColumnFromPoint(event.clientX, event.clientY);
+      if (!Number.isInteger(columnIndex) || !selectionAnchor) return;
+      setColumnSelectionRange(selectionAnchor.columnIndex, columnIndex);
+    };
+
+    const handleHeaderSelectionEnd = () => {
+      document.removeEventListener('mousemove', handleHeaderSelectionMove);
+      document.removeEventListener('mouseup', handleHeaderSelectionEnd);
     };
 
     const applyFillFromSelection = (range, target) => {
@@ -1236,11 +1395,15 @@ const formatDisplayValue = (value) => {
               if (role === 'x') {
                 selectedXColumnIds.delete(column.id);
                 selectedYColumnIds.add(column.id);
+                if (selectedXColumnId === column.id) {
+                  selectedXColumnId = null;
+                }
               } else if (role === 'y') {
                 selectedYColumnIds.delete(column.id);
               } else {
                 selectedXColumnIds.add(column.id);
                 selectedYColumnIds.delete(column.id);
+                selectedXColumnId = column.id;
               }
               ensureSelectionIntegrity();
               refreshPlotControls();
@@ -1666,15 +1829,6 @@ const formatDisplayValue = (value) => {
       renderGrid();
     };
 
-    xSelect.addEventListener('change', () => {
-      selectedXColumnId = xSelect.value || null;
-      if (selectedXColumnId) {
-        selectedXColumnIds.add(selectedXColumnId);
-        selectedYColumnIds.delete(selectedXColumnId);
-      }
-      ensureSelectionIntegrity();
-      refreshPlotControls();
-    });
     plotExistingBtn.addEventListener('click', () => handlePlotRequest());
     copySelectionBtn.addEventListener('click', () => copySelectionToClipboard());
     exportSelectionBtn.addEventListener('click', () => exportSelectionAsCsv());
@@ -1688,6 +1842,7 @@ const formatDisplayValue = (value) => {
       plotEl: null,
       addColumn: handleAddColumn,
       setFreeze: setFreezeEnabled,
+      getPlotPopoverContent,
       getQuickTipsMarkup: () => tipsMarkup,
       refreshContent(nextContent) {
         if (!nextContent || typeof nextContent !== 'object') return;
