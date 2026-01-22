@@ -139,16 +139,36 @@ const normalizeFormulas = (formulas, columns) => {
   return normalized;
 };
 
+const normalizePlotSelection = (plot, columns) => {
+  const columnIds = columns.map((column) => column.id);
+  const incomingX = Array.isArray(plot?.x) ? plot.x : [];
+  const incomingY = Array.isArray(plot?.y) ? plot.y : [];
+  const x = incomingX.filter((id) => columnIds.includes(id));
+  const y = incomingY.filter((id) => columnIds.includes(id) && !x.includes(id));
+  if (!x.length && columnIds.length) {
+    x.push(columnIds[0]);
+  }
+  if (!y.length) {
+    const fallback = columnIds.find((id) => !x.includes(id));
+    if (fallback) {
+      y.push(fallback);
+    }
+  }
+  return { x, y };
+};
+
 const normalizeSpreadsheet = (value = {}) => {
   const columns = normalizeColumns(value?.columns);
   const rows = normalizeRows(value?.rows, columns);
   const formulas = normalizeFormulas(value?.formulas, columns);
+  const plot = normalizePlotSelection(value?.plot, columns);
   return {
     kind: SHEET_KIND,
     version: CURRENT_VERSION,
     columns,
     rows,
-    formulas
+    formulas,
+    plot
   };
 };
 
@@ -343,14 +363,10 @@ export const spreadsheetPanelType = {
     let isSelecting = false;
     let isFilling = false;
     let pendingFillTarget = null;
-    let selectedXColumnId = sheetState.columns[0]?.id || null;
-    let selectedXColumnIds = new Set(selectedXColumnId ? [selectedXColumnId] : []);
-    let selectedYColumnIds = new Set(
-      sheetState.columns
-        .filter((column) => column.id !== selectedXColumnId)
-        .slice(0, 1)
-        .map((column) => column.id)
-    );
+    const initialPlotSelection = sheetState.plot || { x: [], y: [] };
+    let selectedXColumnId = initialPlotSelection.x?.[0] || sheetState.columns[0]?.id || null;
+    let selectedXColumnIds = new Set(initialPlotSelection.x || []);
+    let selectedYColumnIds = new Set(initialPlotSelection.y || []);
     let plotMode = 'default';
     let targetGraphSelections = new Set();
     let formulaErrors = {};
@@ -372,7 +388,21 @@ export const spreadsheetPanelType = {
       window.removeEventListener('beforeunload', flushPendingChanges);
     };
 
+    const syncPlotSelectionState = ({ persist = false } = {}) => {
+      sheetState = {
+        ...sheetState,
+        plot: {
+          x: [...selectedXColumnIds],
+          y: [...selectedYColumnIds]
+        }
+      };
+      if (persist) {
+        schedulePersist();
+      }
+    };
+
     const markDirty = () => {
+      syncPlotSelectionState();
       historyPending = true;
       schedulePersist();
     };
@@ -408,6 +438,67 @@ const formatDisplayValue = (value) => {
   return String(value);
 };
 
+const createSparklineSvg = (xValues = [], yValues = []) => {
+  const pairs = [];
+  for (let i = 0; i < xValues.length; i += 1) {
+    const x = xValues[i];
+    const y = yValues[i];
+    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) {
+      pairs.push({ x, y });
+    }
+  }
+  if (pairs.length < 2) return null;
+
+  const maxPoints = 60;
+  if (pairs.length > maxPoints) {
+    const step = Math.ceil(pairs.length / maxPoints);
+    const sampled = [];
+    for (let i = 0; i < pairs.length; i += step) {
+      sampled.push(pairs[i]);
+    }
+    pairs.length = 0;
+    pairs.push(...sampled);
+  }
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  pairs.forEach(({ x, y }) => {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  });
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+
+  const width = 100;
+  const height = 30;
+  const padding = 2;
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+
+  const points = pairs.map(({ x, y }) => {
+    const px = padding + ((x - minX) / rangeX) * plotWidth;
+    const py = height - padding - ((y - minY) / rangeY) * plotHeight;
+    return `${px.toFixed(1)},${py.toFixed(1)}`;
+  }).join(' ');
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('aria-hidden', 'true');
+  const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  polyline.setAttribute('points', points);
+  polyline.setAttribute('fill', 'none');
+  polyline.setAttribute('stroke', 'currentColor');
+  polyline.setAttribute('stroke-width', '1.3');
+  polyline.setAttribute('stroke-linejoin', 'round');
+  polyline.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(polyline);
+  return svg;
+};
+
     const ensureSelectionIntegrity = () => {
       const columnIds = sheetState.columns.map((column) => column.id);
       if (!columnIds.length) {
@@ -439,6 +530,38 @@ const formatDisplayValue = (value) => {
           selectedYColumnIds.add(fallback.id);
         }
       }
+    };
+
+    const getNearestXColumnIndex = (columnIndex) => {
+      for (let idx = columnIndex - 1; idx >= 0; idx -= 1) {
+        const column = sheetState.columns[idx];
+        if (column && selectedXColumnIds.has(column.id)) {
+          return idx;
+        }
+      }
+      const fallbackIndex = sheetState.columns.findIndex((column) => selectedXColumnIds.has(column.id));
+      return fallbackIndex >= 0 ? fallbackIndex : null;
+    };
+
+    const buildDefaultPlotMapping = () => {
+      const mapping = new Map();
+      sheetState.columns.forEach((column) => {
+        if (selectedXColumnIds.has(column.id)) {
+          mapping.set(column.id, []);
+        }
+      });
+      sheetState.columns.forEach((column, columnIndex) => {
+        if (!selectedYColumnIds.has(column.id)) return;
+        const xIndex = getNearestXColumnIndex(columnIndex);
+        if (!Number.isInteger(xIndex)) return;
+        const xColumn = sheetState.columns[xIndex];
+        if (!xColumn) return;
+        if (!mapping.has(xColumn.id)) {
+          mapping.set(xColumn.id, []);
+        }
+        mapping.get(xColumn.id).push(column);
+      });
+      return mapping;
     };
 
     const canPlot = () => Boolean(selectedXColumnId && selectedYColumnIds.size && evaluatedRows.length);
@@ -577,11 +700,40 @@ const formatDisplayValue = (value) => {
     recalculateFormulas();
 
     const buildTracePayloads = () => {
+      ensureSelectionIntegrity();
+      const traces = [];
+      if (plotMode === 'default') {
+        const mapping = buildDefaultPlotMapping();
+        mapping.forEach((yColumns, xColumnId) => {
+          const xColumn = getColumnById(xColumnId);
+          if (!xColumn) return;
+          if (!yColumns.length) return;
+          const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
+          yColumns.forEach((column) => {
+            const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
+            const hasData = yValues.some((value) => value !== null && value !== '');
+            if (!hasData) return;
+            traces.push({
+              name: column.label || column.id,
+              x: xValues,
+              y: yValues,
+              meta: {
+                sourcePanelId: panelId,
+                columnId: column.id,
+                columnLabel: column.label || '',
+                xColumnId: xColumn.id,
+                xLabel: xColumn.label || ''
+              }
+            });
+          });
+        });
+        return traces;
+      }
+
       const xColumns = sheetState.columns.filter((column) => selectedXColumnIds.has(column.id));
       if (!xColumns.length) return [];
       const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id));
       if (!yColumns.length) return [];
-      const traces = [];
       xColumns.forEach((xColumn) => {
         const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
         yColumns.forEach((column) => {
@@ -726,6 +878,25 @@ const formatDisplayValue = (value) => {
       });
     };
 
+    const triggerPlotFromHeader = () => {
+      ensureSelectionIntegrity();
+      if (plotMode === 'default') {
+        const xCount = selectedXColumnIds.size;
+        const yCount = selectedYColumnIds.size;
+        if (!xCount || !yCount) {
+          window.alert('Select at least one X and Y column before plotting.');
+          return;
+        }
+        if (xCount > 1) {
+          const proceed = window.confirm('Multiple X columns are selected. Create plots for each X?');
+          if (!proceed) {
+            return;
+          }
+        }
+      }
+      handlePlotRequest();
+    };
+
     const updateActionButtons = () => {
       const ready = canPlot();
       const hasTarget = targetGraphSelections.size > 0;
@@ -766,18 +937,19 @@ const formatDisplayValue = (value) => {
         const list = document.createElement('div');
         list.className = 'workspace-spreadsheet-plot-source-list';
         const xColumns = sheetState.columns.filter((column) => selectedXColumnIds.has(column.id));
-        const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id));
-        const yLabel = yColumns.map((col, idx) => toColumnShortLabel(sheetState.columns.indexOf(col))).join(', ');
-        const yName = yColumns.map((col) => col.label || col.id).join(', ');
         if (!xColumns.length) {
           const empty = document.createElement('div');
           empty.className = 'workspace-spreadsheet-plot-empty';
           empty.textContent = 'Pick X and Y columns to plot.';
           list.appendChild(empty);
         } else {
+          const mapping = buildDefaultPlotMapping();
           xColumns.forEach((xColumn) => {
             const xIndex = sheetState.columns.findIndex((col) => col.id === xColumn.id);
             const xLabel = toColumnShortLabel(xIndex);
+            const mapped = mapping.get(xColumn.id) || [];
+            const yLabel = mapped.map((col) => toColumnShortLabel(sheetState.columns.indexOf(col))).join(', ');
+            const yName = mapped.map((col) => col.label || col.id).join(', ');
             const toggleLabel = yLabel ? `${xLabel} -> ${yLabel}` : `${xLabel} -> -`;
             const title = yName
               ? `${xLabel} (${xColumn.label || xColumn.id}) -> ${yName}`
@@ -794,6 +966,7 @@ const formatDisplayValue = (value) => {
                 selectedXColumnId = xColumn.id;
               }
               ensureSelectionIntegrity();
+              syncPlotSelectionState({ persist: true });
               renderPlotSourceControls();
               updateActionButtons();
             });
@@ -828,6 +1001,7 @@ const formatDisplayValue = (value) => {
             selectedXColumnId = column.id;
           }
           ensureSelectionIntegrity();
+          syncPlotSelectionState({ persist: true });
           renderPlotSourceControls();
           updateActionButtons();
         });
@@ -860,6 +1034,7 @@ const formatDisplayValue = (value) => {
             selectedXColumnIds.delete(column.id);
           }
           ensureSelectionIntegrity();
+          syncPlotSelectionState({ persist: true });
           renderPlotSourceControls();
           updateActionButtons();
         });
@@ -1406,6 +1581,7 @@ const formatDisplayValue = (value) => {
                 selectedXColumnId = column.id;
               }
               ensureSelectionIntegrity();
+              syncPlotSelectionState({ persist: true });
               refreshPlotControls();
               renderGrid();
             });
@@ -1425,6 +1601,18 @@ const formatDisplayValue = (value) => {
             header.appendChild(resizer);
             th.appendChild(header);
             th.addEventListener('click', () => handleHeaderClick(columnIndex));
+            th.addEventListener('mousedown', (event) => {
+              if (event.button !== 0) return;
+              if (event.target.closest('.workspace-spreadsheet-col-handle')) return;
+              if (event.target.closest('.workspace-spreadsheet-col-actions')) return;
+              if (event.target.closest('.workspace-spreadsheet-col-role-toggle')) return;
+              if (event.target.closest('.workspace-spreadsheet-col-resizer')) return;
+              event.preventDefault();
+              selectionAnchor = { rowIndex: 0, columnIndex };
+              setColumnSelectionRange(columnIndex, columnIndex);
+              document.addEventListener('mousemove', handleHeaderSelectionMove);
+              document.addEventListener('mouseup', handleHeaderSelectionEnd);
+            });
             th.addEventListener('dragover', (event) => {
               if (!Number.isInteger(draggedColumnIndex)) return;
               event.preventDefault();
@@ -1554,6 +1742,34 @@ const formatDisplayValue = (value) => {
               hint.textContent = errorMessage;
               th.appendChild(hint);
             }
+          }
+        },
+        {
+          key: 'spark',
+          label: '',
+          className: 'workspace-spreadsheet-column-header--spark',
+          buildCell: (th, columnIndex, column) => {
+            const cell = document.createElement('div');
+            cell.className = 'workspace-spreadsheet-sparkline-cell';
+            if (!selectedXColumnIds.has(column.id)) {
+              const xIndex = getNearestXColumnIndex(columnIndex);
+              if (Number.isInteger(xIndex)) {
+                const xColumn = sheetState.columns[xIndex];
+                const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
+                const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
+                const spark = createSparklineSvg(xValues, yValues);
+                if (spark) {
+                  cell.appendChild(spark);
+                } else {
+                  cell.classList.add('is-empty');
+                }
+              } else {
+                cell.classList.add('is-empty');
+              }
+            } else {
+              cell.classList.add('is-empty');
+            }
+            th.appendChild(cell);
           }
         }
       ];
@@ -1731,6 +1947,7 @@ const formatDisplayValue = (value) => {
       delete nextFormulas[column.id];
       sheetState = { ...sheetState, columns: nextColumns, rows: nextRows, formulas: nextFormulas };
       activeColumnIndex = Math.min(safeIndex, nextColumns.length - 1);
+      ensureSelectionIntegrity();
       recalculateFormulas();
       markDirty();
       renderGrid();
@@ -1843,10 +2060,17 @@ const formatDisplayValue = (value) => {
       addColumn: handleAddColumn,
       setFreeze: setFreezeEnabled,
       getPlotPopoverContent,
+      triggerPlotFromHeader,
       getQuickTipsMarkup: () => tipsMarkup,
       refreshContent(nextContent) {
         if (!nextContent || typeof nextContent !== 'object') return;
         sheetState = buildContent(nextContent);
+        const plotSelection = sheetState.plot || { x: [], y: [] };
+        selectedXColumnIds = new Set(plotSelection.x || []);
+        selectedYColumnIds = new Set(plotSelection.y || []);
+        selectedXColumnId = plotSelection.x?.[0] || null;
+        ensureSelectionIntegrity();
+        syncPlotSelectionState();
         historyPending = false;
         flushPendingChanges();
         recalculateFormulas();

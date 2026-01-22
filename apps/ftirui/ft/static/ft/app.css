@@ -2304,6 +2304,24 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-column-header--formula{
   min-width: 9rem;
 }
+.workspace-spreadsheet-column-header--spark{
+  padding: .1rem .35rem;
+}
+.workspace-spreadsheet-sparkline-cell{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--bs-secondary-color) 70%, rgba(15,23,42,.35) 30%);
+}
+.workspace-spreadsheet-sparkline-cell svg{
+  width: 100%;
+  height: 100%;
+}
+.workspace-spreadsheet-sparkline-cell.is-empty{
+  opacity: .35;
+}
 .workspace-spreadsheet-col-header{
   position: relative;
   display: flex;
@@ -2477,6 +2495,9 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-cell.is-selected{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 70%, rgba(15,23,42,.08) 30%);
+}
+.workspace-spreadsheet-cell.is-derived.is-selected{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 65%, rgba(15,23,42,.12) 35%);
 }
 .workspace-spreadsheet-fill-handle{
   position: absolute;

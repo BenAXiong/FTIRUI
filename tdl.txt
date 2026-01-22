@@ -55,12 +55,17 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [-] hb2: “Freeze first row/column” toggle.
             - [x] Add XYZ toggle to column headers
         - [-] Rework "Add to graph section"
-            - [-] Move to hb 
-            - [-] Workflow:
+            - [x] Move to hb 
+            - [x] Workflow: select mode, source, target, action
+            - [x] Popup: Add toggle -  use columns settings (default) vs custom
+            - [x] Popup: 3 rows - mode, source, target
+            - [x] Make columns multi-selectable by mouse
+            - [-] Enable column risizing + autofit with double click
             - [-] On hb click: create graph(s) from selection (warn if no or several graphs)
-            - [-] Popup: Add toggle -  use columns settings (default) vs custom
-            - [-] Popup: 3 rows - mode, source, target
-            - [ ] Popup: 27%
+            - [-] Popup UI: remove input coutours for name and unit, 
+            - [-] Plot preview live + toggle hide preview
+            - [ ] Multi-column select with ctrl+click and shift+click & mutli resize with mouse
+            - [ ] 
         - [ ] 
         - [ ] Doc
     - [ ] .opju

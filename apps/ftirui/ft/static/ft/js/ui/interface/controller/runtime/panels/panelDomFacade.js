@@ -3097,23 +3097,6 @@ export function createPanelDomFacade({
             appendActionItem(freezeBtn);
             contentHandles?.setFreeze?.(freezeEnabled);
 
-            const plotBtn = document.createElement('button');
-            plotBtn.type = 'button';
-            plotBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
-            plotBtn.innerHTML = '<i class="bi bi-graph-up"></i>';
-            plotBtn.title = 'Plot options';
-            plotBtn.setAttribute('aria-expanded', 'false');
-
-            const plotPopover = document.createElement('div');
-            plotPopover.className = 'workspace-panel-popover workspace-panel-popover--plot';
-            plotPopover.onOpen = () => {
-              const plotContent = contentHandles?.getPlotPopoverContent?.();
-              if (plotContent && !plotPopover.contains(plotContent)) {
-                plotPopover.appendChild(plotContent);
-              }
-            };
-            appendPopoverControl(plotBtn, plotPopover, { openOnHover: true, suppressClickToggle: true });
-
             const duplicateBtn = document.createElement('button');
             duplicateBtn.type = 'button';
             duplicateBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
@@ -3145,6 +3128,27 @@ export function createPanelDomFacade({
             tipsPopover.onOpen = () => ensureTipsContent();
             ensureTipsContent();
             appendPopoverControl(tipsBtn, tipsPopover, { openOnHover: true, suppressClickToggle: true });
+
+            const plotBtn = document.createElement('button');
+            plotBtn.type = 'button';
+            plotBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+            plotBtn.innerHTML = '<i class="bi bi-graph-up"></i>';
+            plotBtn.title = 'Plot options';
+            plotBtn.setAttribute('aria-expanded', 'false');
+            plotBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              contentHandles?.triggerPlotFromHeader?.();
+            });
+
+            const plotPopover = document.createElement('div');
+            plotPopover.className = 'workspace-panel-popover workspace-panel-popover--plot';
+            plotPopover.onOpen = () => {
+              const plotContent = contentHandles?.getPlotPopoverContent?.();
+              if (plotContent && !plotPopover.contains(plotContent)) {
+                plotPopover.appendChild(plotContent);
+              }
+            };
+            appendPopoverControl(plotBtn, plotPopover, { openOnHover: true, suppressClickToggle: true });
 
             const settingsBtn = document.createElement('button');
             settingsBtn.type = 'button';
