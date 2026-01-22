@@ -81,9 +81,10 @@ export function createPanelDomFacade({
   const readPanelLockState = (panelId) => {
     const meta = safeGetPanelFigure(panelId)?.layout?.meta;
     const panelMeta = meta && typeof meta === 'object' ? meta.workspacePanel : null;
+    const contentMeta = safeGetPanelContent(panelId)?.meta?.workspacePanel;
     return {
-      editLocked: panelMeta?.editLocked === true,
-      pinned: panelMeta?.pinned === true
+      editLocked: panelMeta?.editLocked === true || contentMeta?.editLocked === true,
+      pinned: panelMeta?.pinned === true || contentMeta?.pinned === true
     };
   };
   const getUIPortal = () => {
@@ -2834,13 +2835,13 @@ export function createPanelDomFacade({
         const settingsBtn = document.createElement('button');
         settingsBtn.type = 'button';
         settingsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-toggle workspace-panel-action-btn--settings';
-        settingsBtn.innerHTML = '<i class="bi bi-gear-wide"></i>';
+        settingsBtn.innerHTML = '<i class="bi bi-wrench"></i>';
         settingsBtn.title = 'Hide graph tools';
         settingsBtn.setAttribute('aria-pressed', 'false');
 
         const updateSettingsToggle = (collapsed) => {
           settingsBtn.setAttribute('aria-pressed', String(collapsed));
-          settingsBtn.innerHTML = collapsed ? '<i class="bi bi-gear-fill"></i>' : '<i class="bi bi-gear-wide"></i>';
+          settingsBtn.innerHTML = collapsed ? '<i class="bi bi-wrench-adjustable"></i>' : '<i class="bi bi-wrench"></i>';
           settingsBtn.title = collapsed ? 'Show graph tools' : 'Hide graph tools';
         };
 
@@ -3127,7 +3128,11 @@ export function createPanelDomFacade({
             };
             tipsPopover.onOpen = () => ensureTipsContent();
             ensureTipsContent();
-            appendPopoverControl(tipsBtn, tipsPopover, { openOnHover: true, suppressClickToggle: true });
+            const tipsWrapper = document.createElement('div');
+            tipsWrapper.className = 'workspace-panel-action-wrapper';
+            tipsWrapper.appendChild(tipsBtn);
+            tipsWrapper.appendChild(tipsPopover);
+            registerPopoverButton(tipsBtn, tipsPopover, { openOnHover: true, suppressClickToggle: true });
 
             const plotBtn = document.createElement('button');
             plotBtn.type = 'button';
@@ -3153,13 +3158,13 @@ export function createPanelDomFacade({
             const settingsBtn = document.createElement('button');
             settingsBtn.type = 'button';
             settingsBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-actions-toggle workspace-panel-action-btn--settings';
-            settingsBtn.innerHTML = '<i class="bi bi-gear-wide"></i>';
+            settingsBtn.innerHTML = '<i class="bi bi-wrench"></i>';
             settingsBtn.title = 'Hide tools';
             settingsBtn.setAttribute('aria-pressed', 'false');
 
             const updateSettingsToggle = (collapsed) => {
               settingsBtn.setAttribute('aria-pressed', String(collapsed));
-              settingsBtn.innerHTML = collapsed ? '<i class="bi bi-gear-fill"></i>' : '<i class="bi bi-gear-wide"></i>';
+              settingsBtn.innerHTML = collapsed ? '<i class="bi bi-wrench-adjustable"></i>' : '<i class="bi bi-wrench"></i>';
               settingsBtn.title = collapsed ? 'Show tools' : 'Hide tools';
             };
 
@@ -3364,6 +3369,7 @@ export function createPanelDomFacade({
 
             actionsCenter.appendChild(controlsWrapper);
             actionsCenter.appendChild(overflowBtn);
+            actionsRight.appendChild(tipsWrapper);
             actionsRight.appendChild(settingsBtn);
           }
 

@@ -1,10 +1,27 @@
 import { renderMarkdown } from '../../../../../utils/markdown.js';
 import { registerContentKind } from '../../../../../../workspace/canvas/state/contentStore.js';
 
-const buildContent = (text = '', renderMode = 'markdown') => ({
+const normalizePanelMeta = (meta) => {
+  if (!meta || typeof meta !== 'object') return {};
+  const workspacePanel = meta.workspacePanel && typeof meta.workspacePanel === 'object'
+    ? meta.workspacePanel
+    : {};
+  const nextPanel = {};
+  if (typeof workspacePanel.editLocked === 'boolean') {
+    nextPanel.editLocked = workspacePanel.editLocked;
+  }
+  if (typeof workspacePanel.pinned === 'boolean') {
+    nextPanel.pinned = workspacePanel.pinned;
+  }
+  if (!Object.keys(nextPanel).length) return {};
+  return { workspacePanel: nextPanel };
+};
+
+const buildContent = (text = '', renderMode = 'markdown', meta = {}) => ({
   kind: 'markdown',
   version: 1,
-  data: { text, renderMode }
+  data: { text, renderMode },
+  meta: normalizePanelMeta(meta)
 });
 
 const resolveText = (content) => {
@@ -53,10 +70,10 @@ const createDebounce = (fn, delay = 400) => {
 
 registerContentKind('markdown', {
   normalize(value) {
-    return buildContent(resolveText(value), resolveRenderMode(value));
+    return buildContent(resolveText(value), resolveRenderMode(value), value?.meta);
   },
   serialize(value) {
-    return buildContent(resolveText(value), resolveRenderMode(value));
+    return buildContent(resolveText(value), resolveRenderMode(value), value?.meta);
   }
 });
 
@@ -73,8 +90,9 @@ export const markdownPanelType = {
   prepareInitialState(incomingState = {}) {
     const existing = incomingState.content;
     const text = resolveText(existing) || '# Note\n\nStart typing…';
+    const meta = normalizePanelMeta(existing?.meta);
     return {
-      content: buildContent(text)
+      content: buildContent(text, resolveRenderMode(existing), meta)
     };
   },
   mountContent({ panelId, panelState = {}, rootEl, hostEl, actions = {}, selectors = {} }) {
@@ -120,6 +138,9 @@ export const markdownPanelType = {
 
     let lastSavedText = resolveText(safeGetContent(panelId));
     let renderMode = resolveRenderMode(safeGetContent(panelId) ?? panelState.content);
+    let contentMeta = normalizePanelMeta(
+      safeGetContent(panelId)?.meta ?? panelState.content?.meta
+    );
     let historyPending = false;
     let restoreFocusOnSave = false;
     let selectionSnapshot = null;
@@ -165,7 +186,7 @@ export const markdownPanelType = {
       lastSavedText = nextText;
       historyPending = false;
       updatePreview(nextText);
-      safeSetContent(panelId, buildContent(nextText, renderMode), {
+      safeSetContent(panelId, buildContent(nextText, renderMode, contentMeta), {
         pushHistory
       });
     };
@@ -208,7 +229,7 @@ export const markdownPanelType = {
       selectionSnapshot = null;
       const shouldPush = historyPending;
       historyPending = false;
-      safeSetContent(panelId, buildContent(nextText, renderMode), {
+      safeSetContent(panelId, buildContent(nextText, renderMode, contentMeta), {
         pushHistory: shouldPush
       });
       lastSavedText = nextText;
@@ -522,6 +543,7 @@ export const markdownPanelType = {
     const refreshContent = (content) => {
       const text = resolveText(content);
       const nextRenderMode = resolveRenderMode(content);
+      contentMeta = normalizePanelMeta(content?.meta);
       renderMode = nextRenderMode;
       wrapper.dataset.render = renderMode;
       lastSavedText = text;

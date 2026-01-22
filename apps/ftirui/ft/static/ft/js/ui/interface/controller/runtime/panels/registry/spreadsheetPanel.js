@@ -7,6 +7,8 @@ const DEFAULT_ROW_COUNT = 8;
 const FOCUS_DELAY = 20;
 const MAX_DECIMAL_PLACES = 5;
 const HEADER_ROW_HEIGHT = 30;
+const MIN_COLUMN_WIDTH = 60;
+const CORNER_COL_WIDTH_REM = 2.2;
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const toColumnLabel = (index = 0) => {
@@ -98,12 +100,17 @@ const normalizeColumns = (value) => {
       ? `${normalizedId}-${index + 1}`
       : normalizedId;
     seenIds.add(uniqueId);
+    const type = column?.type === 'text' || column?.type === 'date' || column?.type === 'number'
+      ? column.type
+      : (column?.type === 'text' ? 'text' : 'number');
     return {
       id: uniqueId,
       label: sanitizeString(column?.label, toColumnLabel(index)),
       units: sanitizeString(column?.units ?? '', ''),
-      width: Number.isFinite(Number(column?.width)) ? Math.max(80, Math.round(Number(column?.width))) : null,
-      type: column?.type === 'text' ? 'text' : 'number',
+      width: Number.isFinite(Number(column?.width))
+        ? Math.max(MIN_COLUMN_WIDTH, Math.round(Number(column?.width)))
+        : null,
+      type,
       formula: sanitizeString(column?.formula ?? '', '')
     };
   });
@@ -139,6 +146,22 @@ const normalizeFormulas = (formulas, columns) => {
   return normalized;
 };
 
+const normalizePanelMeta = (meta) => {
+  if (!meta || typeof meta !== 'object') return {};
+  const workspacePanel = meta.workspacePanel && typeof meta.workspacePanel === 'object'
+    ? meta.workspacePanel
+    : {};
+  const nextPanel = {};
+  if (typeof workspacePanel.editLocked === 'boolean') {
+    nextPanel.editLocked = workspacePanel.editLocked;
+  }
+  if (typeof workspacePanel.pinned === 'boolean') {
+    nextPanel.pinned = workspacePanel.pinned;
+  }
+  if (!Object.keys(nextPanel).length) return {};
+  return { workspacePanel: nextPanel };
+};
+
 const normalizePlotSelection = (plot, columns) => {
   const columnIds = columns.map((column) => column.id);
   const incomingX = Array.isArray(plot?.x) ? plot.x : [];
@@ -162,13 +185,23 @@ const normalizeSpreadsheet = (value = {}) => {
   const rows = normalizeRows(value?.rows, columns);
   const formulas = normalizeFormulas(value?.formulas, columns);
   const plot = normalizePlotSelection(value?.plot, columns);
+  const plotMode = value?.plotMode === 'custom' ? 'custom' : 'default';
+  const plotTargets = Array.isArray(value?.plotTargets)
+    ? value.plotTargets.filter((entry) => typeof entry === 'string' && entry.trim())
+    : [];
+  const plotPreviewHidden = value?.plotPreviewHidden === true;
+  const meta = normalizePanelMeta(value?.meta);
   return {
     kind: SHEET_KIND,
     version: CURRENT_VERSION,
     columns,
     rows,
     formulas,
-    plot
+    plot,
+    plotMode,
+    plotTargets,
+    plotPreviewHidden,
+    meta
   };
 };
 
@@ -199,7 +232,7 @@ export const spreadsheetPanelType = {
       content: buildContent(existing)
     };
   },
-  mountContent({ panelId, panelState = {}, hostEl, actions = {}, selectors = {} }) {
+  mountContent({ panelId, panelState = {}, rootEl, hostEl, actions = {}, selectors = {} }) {
     if (!hostEl) return { plotEl: null };
     hostEl.classList.add('workspace-panel-plot--spreadsheet');
     hostEl.innerHTML = '';
@@ -245,6 +278,35 @@ export const spreadsheetPanelType = {
 
     const plotControls = document.createElement('div');
     plotControls.className = 'workspace-spreadsheet-plot-popover';
+    const plotLayout = document.createElement('div');
+    plotLayout.className = 'workspace-spreadsheet-plot-layout';
+    const plotMain = document.createElement('div');
+    plotMain.className = 'workspace-spreadsheet-plot-main';
+    const plotPreview = document.createElement('div');
+    plotPreview.className = 'workspace-spreadsheet-plot-preview';
+    const plotPreviewHeader = document.createElement('div');
+    plotPreviewHeader.className = 'workspace-spreadsheet-plot-preview-header';
+    const plotPreviewLabel = document.createElement('div');
+    plotPreviewLabel.className = 'workspace-spreadsheet-plot-label';
+    plotPreviewLabel.textContent = 'Preview';
+    const plotPreviewToggle = document.createElement('label');
+    plotPreviewToggle.className = 'workspace-spreadsheet-plot-preview-toggle';
+    const plotPreviewToggleInput = document.createElement('input');
+    plotPreviewToggleInput.type = 'checkbox';
+    plotPreviewToggleInput.className = 'form-check-input';
+    const plotPreviewToggleText = document.createElement('span');
+    plotPreviewToggleText.textContent = 'Hide preview';
+    plotPreviewToggle.appendChild(plotPreviewToggleInput);
+    plotPreviewToggle.appendChild(plotPreviewToggleText);
+    plotPreviewHeader.appendChild(plotPreviewLabel);
+    plotPreviewHeader.appendChild(plotPreviewToggle);
+    const plotPreviewBody = document.createElement('div');
+    plotPreviewBody.className = 'workspace-spreadsheet-plot-preview-body';
+    plotPreview.appendChild(plotPreviewHeader);
+    plotPreview.appendChild(plotPreviewBody);
+    plotLayout.appendChild(plotMain);
+    plotLayout.appendChild(plotPreview);
+    plotControls.appendChild(plotLayout);
 
     const modeSection = document.createElement('div');
     modeSection.className = 'workspace-spreadsheet-plot-section';
@@ -256,7 +318,7 @@ export const spreadsheetPanelType = {
     const modeDefaultBtn = document.createElement('button');
     modeDefaultBtn.type = 'button';
     modeDefaultBtn.className = 'btn btn-outline-secondary workspace-spreadsheet-plot-toggle-btn is-active';
-    modeDefaultBtn.textContent = 'Use column settings';
+    modeDefaultBtn.textContent = 'Use selection';
     const modeCustomBtn = document.createElement('button');
     modeCustomBtn.type = 'button';
     modeCustomBtn.className = 'btn btn-outline-secondary workspace-spreadsheet-plot-toggle-btn';
@@ -308,15 +370,15 @@ export const spreadsheetPanelType = {
     const plotExistingBtn = document.createElement('button');
     plotExistingBtn.type = 'button';
     plotExistingBtn.className = 'btn btn-primary btn-sm workspace-spreadsheet-plot-btn workspace-spreadsheet-plot-btn--wide';
-    plotExistingBtn.textContent = 'Add to graph(s)';
+    plotExistingBtn.textContent = 'Plot';
     const copySelectionBtn = document.createElement('button');
     copySelectionBtn.type = 'button';
     copySelectionBtn.className = 'btn btn-outline-secondary btn-sm workspace-spreadsheet-plot-btn workspace-spreadsheet-plot-btn--wide';
-    copySelectionBtn.textContent = 'Copy selection';
+    copySelectionBtn.textContent = 'Copy all';
     const exportSelectionBtn = document.createElement('button');
     exportSelectionBtn.type = 'button';
     exportSelectionBtn.className = 'btn btn-outline-secondary btn-sm workspace-spreadsheet-plot-btn workspace-spreadsheet-plot-btn--wide';
-    exportSelectionBtn.textContent = 'Export CSV';
+    exportSelectionBtn.textContent = 'Export';
     actionsRow.appendChild(plotExistingBtn);
     actionsRow.appendChild(copySelectionBtn);
     actionsRow.appendChild(exportSelectionBtn);
@@ -324,10 +386,10 @@ export const spreadsheetPanelType = {
     actionsSection.appendChild(actionsLabel);
     actionsSection.appendChild(actionsBody);
 
-    plotControls.appendChild(modeSection);
-    plotControls.appendChild(sourceSection);
-    plotControls.appendChild(targetSection);
-    plotControls.appendChild(actionsSection);
+    plotMain.appendChild(modeSection);
+    plotMain.appendChild(sourceSection);
+    plotMain.appendChild(targetSection);
+    plotMain.appendChild(actionsSection);
 
     wrapper.appendChild(gridScroll);
     hostEl.appendChild(wrapper);
@@ -367,10 +429,16 @@ export const spreadsheetPanelType = {
     let selectedXColumnId = initialPlotSelection.x?.[0] || sheetState.columns[0]?.id || null;
     let selectedXColumnIds = new Set(initialPlotSelection.x || []);
     let selectedYColumnIds = new Set(initialPlotSelection.y || []);
-    let plotMode = 'default';
-    let targetGraphSelections = new Set();
+        let plotMode = sheetState.plotMode === 'custom' ? 'custom' : 'default';
+        let targetGraphSelections = new Set(sheetState.plotTargets || []);
     let formulaErrors = {};
     let evaluatedRows = sheetState.rows.map((row) => ({ ...row }));
+    let plotPreviewHidden = sheetState.plotPreviewHidden === true;
+    let selectionRanges = [];
+    let selectedColumnIndices = new Set();
+    let columnSelectionAnchor = null;
+    let isEditLocked = false;
+    let lockObserver = null;
 
     const schedulePersist = createDebounce(() => {
       const payload = buildContent(sheetState);
@@ -388,13 +456,33 @@ export const spreadsheetPanelType = {
       window.removeEventListener('beforeunload', flushPendingChanges);
     };
 
+    const updatePreviewVisibility = () => {
+      plotLayout.classList.toggle('is-preview-hidden', plotPreviewHidden);
+      plotPreviewToggleInput.checked = plotPreviewHidden;
+    };
+
+    plotPreviewToggleInput.addEventListener('change', () => {
+      plotPreviewHidden = plotPreviewToggleInput.checked;
+      updatePreviewVisibility();
+      syncPlotSelectionState({ persist: true });
+    });
+
+    if (rootEl && typeof MutationObserver !== 'undefined') {
+      lockObserver = new MutationObserver(syncEditLockState);
+      lockObserver.observe(rootEl, { attributes: true, attributeFilter: ['class'] });
+    }
+    syncEditLockState();
+
     const syncPlotSelectionState = ({ persist = false } = {}) => {
       sheetState = {
         ...sheetState,
         plot: {
           x: [...selectedXColumnIds],
           y: [...selectedYColumnIds]
-        }
+        },
+        plotMode,
+        plotTargets: Array.from(targetGraphSelections),
+        plotPreviewHidden
       };
       if (persist) {
         schedulePersist();
@@ -406,6 +494,55 @@ export const spreadsheetPanelType = {
       historyPending = true;
       schedulePersist();
     };
+
+    const toggleLockDisabled = (node, locked) => {
+      if (!node) return;
+      if (locked) {
+        if (!node.disabled) {
+          node.dataset.lockDisabled = '1';
+        }
+        node.disabled = true;
+      } else if (node.dataset.lockDisabled === '1') {
+        node.disabled = false;
+        delete node.dataset.lockDisabled;
+      }
+    };
+
+    const toggleLockReadonly = (input, locked) => {
+      if (!input) return;
+      if (locked) {
+        if (!input.readOnly) {
+          input.dataset.lockReadonly = '1';
+          input.readOnly = true;
+        }
+      } else if (input.dataset.lockReadonly === '1') {
+        input.readOnly = false;
+        delete input.dataset.lockReadonly;
+      }
+    };
+
+    function applyEditLockState(locked) {
+      isEditLocked = locked;
+      wrapper.dataset.editLocked = locked ? 'true' : 'false';
+      wrapper.querySelectorAll('.workspace-spreadsheet-cell').forEach((input) => {
+        toggleLockReadonly(input, locked);
+      });
+      wrapper.querySelectorAll('.workspace-spreadsheet-header-input, .workspace-spreadsheet-formula-input')
+        .forEach((input) => {
+          toggleLockReadonly(input, locked);
+        });
+      wrapper.querySelectorAll('button').forEach((btn) => {
+        toggleLockDisabled(btn, locked);
+      });
+      wrapper.querySelectorAll('.workspace-spreadsheet-col-handle').forEach((handle) => {
+        handle.draggable = !locked;
+      });
+    }
+
+    function syncEditLockState() {
+      if (!rootEl) return;
+      applyEditLockState(rootEl.classList.contains('is-edit-locked'));
+    }
 
     const getColumnById = (columnId) => sheetState.columns.find((column) => column.id === columnId) || null;
 const sanitizeCellValue = (value) => {
@@ -501,6 +638,10 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
 
     const ensureSelectionIntegrity = () => {
       const columnIds = sheetState.columns.map((column) => column.id);
+      const numericColumnIds = new Set(
+        sheetState.columns.filter((column) => column.type !== 'text' && column.type !== 'date')
+          .map((column) => column.id)
+      );
       if (!columnIds.length) {
         selectedXColumnId = null;
         selectedXColumnIds.clear();
@@ -508,15 +649,18 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         return;
       }
       selectedXColumnIds = new Set(
-        [...selectedXColumnIds].filter((columnId) => columnIds.includes(columnId))
+        [...selectedXColumnIds].filter((columnId) => columnIds.includes(columnId) && numericColumnIds.has(columnId))
       );
       selectedYColumnIds = new Set(
-        [...selectedYColumnIds].filter((columnId) => columnIds.includes(columnId))
+        [...selectedYColumnIds].filter((columnId) => columnIds.includes(columnId) && numericColumnIds.has(columnId))
       );
 
       if (!selectedXColumnIds.size) {
-        selectedXColumnId = columnIds[0];
-        selectedXColumnIds.add(selectedXColumnId);
+        const fallback = sheetState.columns.find((column) => numericColumnIds.has(column.id));
+        selectedXColumnId = fallback?.id || null;
+        if (selectedXColumnId) {
+          selectedXColumnIds.add(selectedXColumnId);
+        }
       } else if (!selectedXColumnId || !selectedXColumnIds.has(selectedXColumnId)) {
         selectedXColumnId = [...selectedXColumnIds][0];
       }
@@ -525,7 +669,8 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         [...selectedYColumnIds].filter((columnId) => !selectedXColumnIds.has(columnId))
       );
       if (!selectedYColumnIds.size) {
-        const fallback = sheetState.columns.find((column) => !selectedXColumnIds.has(column.id));
+        const fallback = sheetState.columns.find((column) => numericColumnIds.has(column.id)
+          && !selectedXColumnIds.has(column.id));
         if (fallback) {
           selectedYColumnIds.add(fallback.id);
         }
@@ -546,11 +691,12 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     const buildDefaultPlotMapping = () => {
       const mapping = new Map();
       sheetState.columns.forEach((column) => {
-        if (selectedXColumnIds.has(column.id)) {
+        if (column.type !== 'text' && column.type !== 'date' && selectedXColumnIds.has(column.id)) {
           mapping.set(column.id, []);
         }
       });
       sheetState.columns.forEach((column, columnIndex) => {
+        if (column.type === 'text' || column.type === 'date') return;
         if (!selectedYColumnIds.has(column.id)) return;
         const xIndex = getNearestXColumnIndex(columnIndex);
         if (!Number.isInteger(xIndex)) return;
@@ -640,6 +786,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     const recalculateFormulas = () => {
       const definitions = sheetState.columns
         .map((column) => {
+          if (column.type === 'text' || column.type === 'date') return null;
           const expr = sheetState.formulas[column.id]?.trim();
           if (!expr) return null;
           try {
@@ -689,6 +836,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const applyFormulaValue = (columnId, value) => {
+      if (isEditLocked) return;
       const trimmed = typeof value === 'string' ? value.trim() : '';
       const formulas = { ...sheetState.formulas, [columnId]: trimmed };
       sheetState = { ...sheetState, formulas };
@@ -793,8 +941,32 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       return { columns, header, rows, hasData };
     };
 
+    const buildSelectionRangeMatrix = () => {
+      const ranges = getActiveSelectionRanges();
+      if (!ranges.length) return null;
+      const startRow = Math.max(0, Math.min(...ranges.map((range) => range.startRow)));
+      const endRow = Math.min(
+        evaluatedRows.length - 1,
+        Math.max(...ranges.map((range) => range.endRow))
+      );
+      const startCol = Math.max(0, Math.min(...ranges.map((range) => range.startCol)));
+      const endCol = Math.min(
+        sheetState.columns.length - 1,
+        Math.max(...ranges.map((range) => range.endCol))
+      );
+      if (endRow < startRow || endCol < startCol) return null;
+      const columns = sheetState.columns.slice(startCol, endCol + 1);
+      const header = columns.map((column) => column.label || column.id);
+      const rows = evaluatedRows.slice(startRow, endRow + 1)
+        .map((row) => columns.map((column) => serializeCellForExport(row?.[column.id])));
+      const hasData = rows.some((row) => row.some((cell) => cell !== ''));
+      return { columns, header, rows, hasData };
+    };
+
     const copySelectionToClipboard = async () => {
-      const matrix = buildSelectionMatrix();
+      const matrix = getActiveSelectionRanges().length
+        ? buildSelectionRangeMatrix()
+        : buildSelectionMatrix();
       if (!matrix || !matrix.hasData) {
         notify?.('No selection data to copy.');
         return;
@@ -911,6 +1083,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       plotMode = resolved;
       renderPlotModeControls();
       renderPlotSourceControls();
+      syncPlotSelectionState({ persist: true });
     };
 
     const renderPlotModeControls = () => {
@@ -990,7 +1163,12 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         const title = column.label || column.id;
         const active = selectedXColumnIds.has(column.id);
         const btn = buildPlotToggle(label, title, active);
+        if (column.type === 'text' || column.type === 'date') {
+          btn.disabled = true;
+          btn.classList.add('is-disabled');
+        }
         btn.addEventListener('click', () => {
+          if (column.type === 'text' || column.type === 'date') return;
           if (selectedXColumnIds.has(column.id)) {
             if (selectedXColumnIds.size > 1) {
               selectedXColumnIds.delete(column.id);
@@ -1024,7 +1202,12 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         const title = column.label || column.id;
         const active = selectedYColumnIds.has(column.id);
         const btn = buildPlotToggle(label, title, active);
+        if (column.type === 'text' || column.type === 'date') {
+          btn.disabled = true;
+          btn.classList.add('is-disabled');
+        }
         btn.addEventListener('click', () => {
+          if (column.type === 'text' || column.type === 'date') return;
           if (selectedYColumnIds.has(column.id)) {
             if (selectedYColumnIds.size > 1) {
               selectedYColumnIds.delete(column.id);
@@ -1047,9 +1230,73 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       sourceBody.appendChild(yRow);
     };
 
+    const renderPlotPreview = () => {
+      plotPreviewBody.innerHTML = '';
+      if (plotPreviewHidden) {
+        return;
+      }
+      const previews = [];
+      if (plotMode === 'default') {
+        const mapping = buildDefaultPlotMapping();
+        mapping.forEach((yColumns, xColumnId) => {
+          const xColumn = getColumnById(xColumnId);
+          if (!xColumn) return;
+          const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
+          yColumns.forEach((column) => {
+            previews.push({
+              label: `${xColumn.label || xColumn.id} \u2192 ${column.label || column.id}`,
+              xValues,
+              yValues: evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]))
+            });
+          });
+        });
+      } else {
+        const xColumns = sheetState.columns.filter((column) => selectedXColumnIds.has(column.id)
+          && column.type !== 'text'
+          && column.type !== 'date');
+        const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id)
+          && column.type !== 'text'
+          && column.type !== 'date');
+        xColumns.forEach((xColumn) => {
+          const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
+          yColumns.forEach((column) => {
+            previews.push({
+              label: `${xColumn.label || xColumn.id} \u2192 ${column.label || column.id}`,
+              xValues,
+              yValues: evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]))
+            });
+          });
+        });
+      }
+
+      if (!previews.length) {
+        const empty = document.createElement('div');
+        empty.className = 'workspace-spreadsheet-plot-empty';
+        empty.textContent = 'No preview available.';
+        plotPreviewBody.appendChild(empty);
+        return;
+      }
+
+      previews.slice(0, 6).forEach((preview) => {
+        const item = document.createElement('div');
+        item.className = 'workspace-spreadsheet-plot-preview-item';
+        const label = document.createElement('div');
+        label.className = 'workspace-spreadsheet-plot-preview-label';
+        label.textContent = preview.label;
+        const spark = createSparklineSvg(preview.xValues, preview.yValues);
+        if (spark) {
+          item.appendChild(spark);
+        }
+        item.appendChild(label);
+        plotPreviewBody.appendChild(item);
+      });
+    };
+
     const refreshPlotControls = () => {
+      updatePreviewVisibility();
       renderPlotModeControls();
       renderPlotSourceControls();
+      renderPlotPreview();
       updateActionButtons();
     };
 
@@ -1084,6 +1331,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
             targetGraphSelections.delete(value);
           }
           updateTargetSummary();
+          syncPlotSelectionState({ persist: true });
           updateActionButtons();
         });
         const text = document.createElement('span');
@@ -1167,6 +1415,73 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       return { startRow, endRow, startCol, endCol };
     };
 
+    const clearColumnSelection = () => {
+      selectedColumnIndices.clear();
+      columnSelectionAnchor = null;
+    };
+
+    const getActiveSelectionRanges = () => {
+      if (selectionRanges.length) return selectionRanges;
+      if (selectionRange) return [selectionRange];
+      return [];
+    };
+
+    const setSelectionRanges = (ranges, { primary } = {}) => {
+      selectionRanges = Array.isArray(ranges) ? ranges : [];
+      selectionRange = primary || selectionRanges[0] || null;
+      updateSelectionStyles();
+    };
+
+    const buildColumnSelectionRanges = (indices) => {
+      const sorted = Array.from(indices).filter(Number.isInteger).sort((a, b) => a - b);
+      if (!sorted.length) return [];
+      const lastRowIndex = Math.max(0, sheetState.rows.length - 1);
+      const ranges = [];
+      let start = sorted[0];
+      let prev = sorted[0];
+      for (let i = 1; i < sorted.length; i += 1) {
+        const current = sorted[i];
+        if (current === prev + 1) {
+          prev = current;
+          continue;
+        }
+        ranges.push({ startRow: 0, endRow: lastRowIndex, startCol: start, endCol: prev });
+        start = current;
+        prev = current;
+      }
+      ranges.push({ startRow: 0, endRow: lastRowIndex, startCol: start, endCol: prev });
+      return ranges;
+    };
+
+    const setColumnSelectionFromIndices = (indices, primaryIndex = null) => {
+      const ranges = buildColumnSelectionRanges(indices);
+      if (!ranges.length) {
+        selectionRanges = [];
+        selectionRange = null;
+        updateSelectionStyles();
+        return;
+      }
+      let primary = ranges[0];
+      if (Number.isInteger(primaryIndex)) {
+        const match = ranges.find((range) =>
+          primaryIndex >= range.startCol && primaryIndex <= range.endCol
+        );
+        if (match) primary = match;
+      }
+      setSelectionRanges(ranges, { primary });
+    };
+
+    const toggleColumnSelection = (columnIndex) => {
+      const next = new Set(selectedColumnIndices);
+      if (next.has(columnIndex)) {
+        next.delete(columnIndex);
+      } else {
+        next.add(columnIndex);
+      }
+      selectedColumnIndices = next;
+      setColumnSelectionFromIndices(next, columnIndex);
+    };
+
     const getCellFromPoint = (clientX, clientY) => {
       if (typeof document === 'undefined') return null;
       const element = document.elementFromPoint(clientX, clientY);
@@ -1189,37 +1504,43 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const updateSelectionStyles = () => {
-      const range = selectionRange;
+      const ranges = getActiveSelectionRanges();
       table.querySelectorAll('.workspace-spreadsheet-cell').forEach((input) => {
-        if (!range) {
+        if (!ranges.length) {
           input.classList.remove('is-selected');
           return;
         }
         const rowIndex = Number(input.dataset.rowIndex);
         const columnIndex = Number(input.dataset.colIndex);
-        const isSelected = rowIndex >= range.startRow
+        const isSelected = ranges.some((range) =>
+          rowIndex >= range.startRow
           && rowIndex <= range.endRow
           && columnIndex >= range.startCol
-          && columnIndex <= range.endCol;
+          && columnIndex <= range.endCol
+        );
         input.classList.toggle('is-selected', isSelected);
       });
       table.querySelectorAll('.workspace-spreadsheet-fill-handle').forEach((handle) => handle.remove());
-      if (!range) return;
+      if (!selectionRange) return;
       const handleHost = table.querySelector(
-        `[data-row-index="${range.endRow}"][data-col-index="${range.endCol}"]`
+        `[data-row-index="${selectionRange.endRow}"][data-col-index="${selectionRange.endCol}"]`
       );
       if (!handleHost) return;
       const handle = document.createElement('div');
       handle.className = 'workspace-spreadsheet-fill-handle';
       handle.title = 'Drag to fill';
-      handle.addEventListener('mousedown', (event) => startFillDrag(event, range));
+      handle.addEventListener('mousedown', (event) => startFillDrag(event, selectionRange));
       handleHost.parentElement?.appendChild(handle);
     };
 
-    const setSelectionRange = (start, end) => {
+    const setSelectionRange = (start, end, { clearColumnSelection: shouldClearColumnSelection = true } = {}) => {
       const normalized = normalizeSelectionRange(start, end);
       if (!normalized) return;
       selectionRange = normalized;
+      selectionRanges = [normalized];
+      if (shouldClearColumnSelection) {
+        clearColumnSelection();
+      }
       updateSelectionStyles();
     };
 
@@ -1237,18 +1558,21 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       document.removeEventListener('mouseup', handleSelectionEnd);
     };
 
-    const setColumnSelectionRange = (startCol, endCol) => {
-      const lastRowIndex = Math.max(0, sheetState.rows.length - 1);
-      setSelectionRange(
-        { rowIndex: 0, columnIndex: startCol },
-        { rowIndex: lastRowIndex, columnIndex: endCol }
-      );
+    const setColumnSelectionRange = (startCol, endCol, { additive = false } = {}) => {
+      const safeStart = Math.max(0, Math.min(startCol, endCol));
+      const safeEnd = Math.max(startCol, endCol);
+      const next = additive ? new Set(selectedColumnIndices) : new Set();
+      for (let idx = safeStart; idx <= safeEnd; idx += 1) {
+        next.add(idx);
+      }
+      selectedColumnIndices = next;
+      setColumnSelectionFromIndices(next, safeEnd);
     };
 
     const handleHeaderSelectionMove = (event) => {
       const columnIndex = getHeaderColumnFromPoint(event.clientX, event.clientY);
-      if (!Number.isInteger(columnIndex) || !selectionAnchor) return;
-      setColumnSelectionRange(selectionAnchor.columnIndex, columnIndex);
+      if (!Number.isInteger(columnIndex) || !Number.isInteger(columnSelectionAnchor)) return;
+      setColumnSelectionRange(columnSelectionAnchor, columnIndex);
     };
 
     const handleHeaderSelectionEnd = () => {
@@ -1378,23 +1702,39 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       document.addEventListener('mouseup', handleFillEnd);
     };
 
-    const startColumnResize = (event, columnIndex, colEl) => {
+    const startColumnResize = (event, columnIndex, colEl, headerCell) => {
       if (!colEl) return;
+      if (isEditLocked) return;
       event.preventDefault();
       event.stopPropagation();
       const startX = event.clientX;
-      const startWidth = colEl.getBoundingClientRect().width;
-      const minWidth = 90;
+      const startWidth = headerCell?.getBoundingClientRect?.().width
+        || colEl.getBoundingClientRect().width
+        || sheetState.columns[columnIndex]?.width
+        || MIN_COLUMN_WIDTH;
+      const minWidth = MIN_COLUMN_WIDTH;
+      const targetIndices = selectedColumnIndices.has(columnIndex)
+        ? Array.from(selectedColumnIndices)
+        : [columnIndex];
+      const applyWidth = (nextWidth) => {
+        targetIndices.forEach((idx) => {
+          const target = colEls[idx];
+          if (target) {
+            target.style.width = `${Math.round(nextWidth)}px`;
+          }
+        });
+      };
       const handleMove = (moveEvent) => {
         const delta = moveEvent.clientX - startX;
         const nextWidth = Math.max(minWidth, startWidth + delta);
-        colEl.style.width = `${Math.round(nextWidth)}px`;
+        applyWidth(nextWidth);
       };
       const handleUp = () => {
         document.removeEventListener('mousemove', handleMove);
         document.removeEventListener('mouseup', handleUp);
         document.body.style.cursor = '';
-        updateColumnWidth(columnIndex, Number.parseFloat(colEl.style.width) || startWidth);
+        const finalWidth = Number.parseFloat(colEl.style.width) || startWidth;
+        targetIndices.forEach((idx) => updateColumnWidth(idx, finalWidth));
       };
       document.body.style.cursor = 'col-resize';
       document.addEventListener('mousemove', handleMove);
@@ -1402,6 +1742,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const handleCellInput = (event) => {
+      if (isEditLocked) return;
       const input = event.currentTarget;
       const rowIndex = Number(input.dataset.rowIndex);
       const columnId = input.dataset.colId;
@@ -1426,6 +1767,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const handleCellPaste = (event, rowIndex, columnIndex) => {
+      if (isEditLocked) return;
       const clipboardText = event.clipboardData?.getData('text/plain');
       if (!clipboardText || (!clipboardText.includes('\t') && !clipboardText.includes('\n'))) {
         return;
@@ -1461,6 +1803,21 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const handleCellKeydown = (event, rowIndex, columnIndex) => {
+      if ((event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === 'c') {
+        const target = event.target;
+        if (target instanceof HTMLInputElement) {
+          if (Number.isInteger(target.selectionStart)
+            && Number.isInteger(target.selectionEnd)
+            && target.selectionStart !== target.selectionEnd) {
+            return;
+          }
+        }
+        if (getActiveSelectionRanges().length) {
+          event.preventDefault();
+          copySelectionToClipboard();
+          return;
+        }
+      }
       if (event.key === 'Enter') {
         event.preventDefault();
         moveFocus(rowIndex + (event.shiftKey ? -1 : 1), columnIndex);
@@ -1483,7 +1840,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       const thead = document.createElement('thead');
       const colgroup = document.createElement('colgroup');
       const cornerCol = document.createElement('col');
-      cornerCol.style.width = '3rem';
+      cornerCol.style.width = `${CORNER_COL_WIDTH_REM}rem`;
       colgroup.appendChild(cornerCol);
       const colEls = sheetState.columns.map((column) => {
         const col = document.createElement('col');
@@ -1497,7 +1854,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       const headerRows = [
         {
           key: 'col',
-          label: 'Col',
+          label: '',
           className: 'workspace-spreadsheet-column-header--col',
           buildCell: (th, columnIndex, column) => {
             const header = document.createElement('div');
@@ -1507,7 +1864,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
             handle.type = 'button';
             handle.className = 'workspace-spreadsheet-col-handle';
             handle.title = 'Drag to reorder column';
-            handle.innerHTML = '<i class="bi bi-grip-vertical"></i>';
+            handle.innerHTML = '<i class="bi bi-grip-horizontal"></i>';
             handle.draggable = true;
             handle.addEventListener('dragstart', (event) => {
               draggedColumnIndex = columnIndex;
@@ -1586,30 +1943,65 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
               renderGrid();
             });
 
+            const typeValue = column.type === 'text' || column.type === 'date' ? column.type : 'number';
+            const typeBtn = document.createElement('button');
+            typeBtn.type = 'button';
+            typeBtn.className = `workspace-spreadsheet-col-type-toggle is-${typeValue}`;
+            typeBtn.textContent = typeValue === 'text' ? 'T' : (typeValue === 'date' ? 'D' : 'N');
+            typeBtn.title = typeValue === 'text'
+              ? 'Text column'
+              : (typeValue === 'date' ? 'Date column' : 'Number column');
+            typeBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              const next = typeValue === 'number'
+                ? 'text'
+                : (typeValue === 'text' ? 'date' : 'number');
+              updateColumnType(columnIndex, next);
+            });
+
             actions.appendChild(duplicateBtn);
             actions.appendChild(clearBtn);
             actions.appendChild(deleteBtn);
             header.appendChild(handle);
             header.appendChild(roleBtn);
+            header.appendChild(typeBtn);
             header.appendChild(token);
             header.appendChild(actions);
             const resizer = document.createElement('div');
             resizer.className = 'workspace-spreadsheet-col-resizer';
             resizer.addEventListener('mousedown', (event) => {
-              startColumnResize(event, columnIndex, colEls[columnIndex]);
+              startColumnResize(event, columnIndex, colEls[columnIndex], th);
+            });
+            resizer.addEventListener('dblclick', (event) => {
+              event.stopPropagation();
+              const nextWidth = getAutoFitWidth(columnIndex);
+              updateColumnWidth(columnIndex, nextWidth);
+              renderGrid();
             });
             header.appendChild(resizer);
             th.appendChild(header);
             th.addEventListener('click', () => handleHeaderClick(columnIndex));
             th.addEventListener('mousedown', (event) => {
               if (event.button !== 0) return;
+              if (isEditLocked) return;
               if (event.target.closest('.workspace-spreadsheet-col-handle')) return;
               if (event.target.closest('.workspace-spreadsheet-col-actions')) return;
               if (event.target.closest('.workspace-spreadsheet-col-role-toggle')) return;
+              if (event.target.closest('.workspace-spreadsheet-col-type-toggle')) return;
               if (event.target.closest('.workspace-spreadsheet-col-resizer')) return;
               event.preventDefault();
+              const isCtrl = event.ctrlKey || event.metaKey;
+              const isShift = event.shiftKey;
+              if (isShift && Number.isInteger(columnSelectionAnchor)) {
+                setColumnSelectionRange(columnSelectionAnchor, columnIndex, { additive: isCtrl });
+              } else if (isCtrl) {
+                toggleColumnSelection(columnIndex);
+                columnSelectionAnchor = columnIndex;
+              } else {
+                columnSelectionAnchor = columnIndex;
+                setColumnSelectionRange(columnIndex, columnIndex);
+              }
               selectionAnchor = { rowIndex: 0, columnIndex };
-              setColumnSelectionRange(columnIndex, columnIndex);
               document.addEventListener('mousemove', handleHeaderSelectionMove);
               document.addEventListener('mouseup', handleHeaderSelectionEnd);
             });
@@ -1631,7 +2023,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         },
         {
           key: 'name',
-          label: 'Name',
+          label: '',
           className: 'workspace-spreadsheet-column-header--name',
           buildCell: (th, columnIndex, column) => {
             const input = document.createElement('input');
@@ -1663,7 +2055,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         },
         {
           key: 'units',
-          label: 'Units',
+          label: '',
           className: 'workspace-spreadsheet-column-header--units',
           buildCell: (th, columnIndex, column) => {
             const input = document.createElement('input');
@@ -1695,7 +2087,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         },
         {
           key: 'formula',
-          label: 'f',
+          label: '',
           className: 'workspace-spreadsheet-column-header--formula',
           buildCell: (th, columnIndex, column) => {
             const input = document.createElement('input');
@@ -1881,6 +2273,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       table.appendChild(thead);
       table.appendChild(tbody);
 
+      applyEditLockState(isEditLocked);
       refreshPlotControls();
       requestAnimationFrame(() => {
         syncActiveHighlights();
@@ -1898,6 +2291,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const updateColumnLabel = (columnIndex, value) => {
+      if (isEditLocked) return;
       const column = sheetState.columns[columnIndex];
       if (!column) return;
       const nextLabel = sanitizeString(value, column.label || toColumnLabel(columnIndex));
@@ -1910,6 +2304,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const updateColumnUnits = (columnIndex, value) => {
+      if (isEditLocked) return;
       const column = sheetState.columns[columnIndex];
       if (!column) return;
       const nextUnits = typeof value === 'string' ? value.trim() : '';
@@ -1920,11 +2315,38 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       markDirty();
     };
 
+    const updateColumnType = (columnIndex, nextType) => {
+      if (isEditLocked) return;
+      const column = sheetState.columns[columnIndex];
+      if (!column) return;
+      const normalized = nextType === 'text' || nextType === 'date' || nextType === 'number'
+        ? nextType
+        : 'number';
+      if (normalized === column.type) return;
+      const nextColumns = sheetState.columns.slice();
+      nextColumns[columnIndex] = { ...column, type: normalized };
+      sheetState = { ...sheetState, columns: nextColumns };
+      if (normalized !== 'number') {
+        selectedXColumnIds.delete(column.id);
+        selectedYColumnIds.delete(column.id);
+        if (selectedXColumnId === column.id) {
+          selectedXColumnId = null;
+        }
+      }
+      ensureSelectionIntegrity();
+      syncPlotSelectionState({ persist: true });
+      recalculateFormulas();
+      markDirty();
+      renderGrid();
+      refreshPlotControls();
+    };
+
     const updateColumnWidth = (columnIndex, width) => {
+      if (isEditLocked) return;
       const column = sheetState.columns[columnIndex];
       if (!column) return;
       const numeric = Number(width);
-      const nextWidth = Number.isFinite(numeric) ? Math.max(80, Math.round(numeric)) : null;
+      const nextWidth = Number.isFinite(numeric) ? Math.max(MIN_COLUMN_WIDTH, Math.round(numeric)) : null;
       if ((column.width ?? null) === nextWidth) return;
       const nextColumns = sheetState.columns.slice();
       nextColumns[columnIndex] = { ...column, width: nextWidth };
@@ -1932,7 +2354,25 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       markDirty();
     };
 
+    const getAutoFitWidth = (columnIndex) => {
+      let maxWidth = 80;
+      const headerCells = table.querySelectorAll(`thead [data-column-index="${columnIndex}"]`);
+      headerCells.forEach((cell) => {
+        maxWidth = Math.max(maxWidth, cell.scrollWidth);
+        const input = cell.querySelector('input');
+        if (input) {
+          maxWidth = Math.max(maxWidth, input.scrollWidth + 16);
+        }
+      });
+      const dataCells = table.querySelectorAll(`tbody .workspace-spreadsheet-cell[data-col-index="${columnIndex}"]`);
+      dataCells.forEach((input) => {
+        maxWidth = Math.max(maxWidth, input.scrollWidth + 16);
+      });
+      return Math.min(Math.ceil(maxWidth), 420);
+    };
+
     const removeColumnAt = (targetIndex) => {
+      if (isEditLocked) return;
       if (sheetState.columns.length <= 1) return;
       if (!Number.isInteger(targetIndex)) return;
       const safeIndex = Math.max(0, Math.min(targetIndex, sheetState.columns.length - 1));
@@ -1954,6 +2394,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const removeRowAt = (targetIndex) => {
+      if (isEditLocked) return;
       if (sheetState.rows.length <= 1) return;
       if (!Number.isInteger(targetIndex)) return;
       const safeIndex = Math.max(0, Math.min(targetIndex, sheetState.rows.length - 1));
@@ -1966,6 +2407,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const handleAddColumn = () => {
+      if (isEditLocked) return;
       const insertIndex = Number.isInteger(activeColumnIndex)
         ? activeColumnIndex + 1
         : sheetState.columns.length;
@@ -1993,6 +2435,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const duplicateColumnAt = (index) => {
+      if (isEditLocked) return;
       const column = sheetState.columns[index];
       if (!column) return;
       const insertIndex = Math.min(index + 1, sheetState.columns.length);
@@ -2019,6 +2462,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const clearColumnAt = (index) => {
+      if (isEditLocked) return;
       const column = sheetState.columns[index];
       if (!column) return;
       const nextRows = sheetState.rows.map((row) => ({
@@ -2032,6 +2476,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     };
 
     const moveColumn = (fromIndex, toIndex) => {
+      if (isEditLocked) return;
       if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return;
       if (fromIndex === toIndex) return;
       const nextColumns = sheetState.columns.slice();
@@ -2069,12 +2514,16 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         selectedXColumnIds = new Set(plotSelection.x || []);
         selectedYColumnIds = new Set(plotSelection.y || []);
         selectedXColumnId = plotSelection.x?.[0] || null;
+        plotMode = sheetState.plotMode === 'custom' ? 'custom' : 'default';
+        targetGraphSelections = new Set(sheetState.plotTargets || []);
+        plotPreviewHidden = sheetState.plotPreviewHidden === true;
         ensureSelectionIntegrity();
         syncPlotSelectionState();
         historyPending = false;
         flushPendingChanges();
         recalculateFormulas();
         renderGrid();
+        updatePreviewVisibility();
         refreshGraphOptions();
         updateActionButtons();
       },

@@ -5134,7 +5134,9 @@ const isPanelPinned = (panelId) =>
   panelLockController = createPanelLockController({
     getPanelDom,
     getPanelFigure,
+    getPanelContent,
     updatePanelFigure,
+    updatePanelContent: (panelId, content) => panelsModel.updatePanelContent(panelId, content),
     renderPlot,
     pushHistory,
     updateHistoryButtons,

@@ -68,6 +68,8 @@ export function createPanelInteractions({
     if (!rootEl) return;
     const runtime = ensurePanelRuntime(panelId);
 
+    const isPinned = () => isPanelPinned(panelId) || rootEl.classList.contains('is-panel-pinned');
+
     const beginInteraction = (mode) => {
       bringPanelToFront(panelId, { persistChange: false });
       let operationId = runtime?.dragSnapshot?.operationId ?? null;
@@ -173,11 +175,11 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
-            if (rootEl.classList.contains('is-fullscreen') || isPanelPinned(panelId)) return;
+            if (rootEl.classList.contains('is-fullscreen') || isPinned()) return;
             beginInteraction('drag');
           },
           move: (event) => {
-            if (isPanelPinned(panelId)) return;
+            if (isPinned()) return;
             if (!runtime?.dragSnapshot) return;
             const snapshot = runtime.dragSnapshot;
             const previous = snapshot.current || snapshot.initial;
@@ -191,7 +193,7 @@ export function createPanelInteractions({
             dom?.runtime?.refreshActionOverflow?.();
           },
           end: () => {
-            if (isPanelPinned(panelId)) return;
+            if (isPinned()) return;
             finalizeInteraction('drag');
           }
         }
@@ -211,11 +213,11 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
-            if (rootEl.classList.contains('is-fullscreen') || isPanelPinned(panelId)) return;
+            if (rootEl.classList.contains('is-fullscreen') || isPinned()) return;
             beginInteraction('resize');
           },
           move: (event) => {
-            if (isPanelPinned(panelId)) return;
+            if (isPinned()) return;
             if (!runtime?.dragSnapshot) return;
             const snapshot = runtime.dragSnapshot;
             const previous = snapshot.current || snapshot.initial;
@@ -233,7 +235,7 @@ export function createPanelInteractions({
             }
           },
           end: () => {
-            if (isPanelPinned(panelId)) return;
+            if (isPinned()) return;
             finalizeInteraction('resize');
           }
         }

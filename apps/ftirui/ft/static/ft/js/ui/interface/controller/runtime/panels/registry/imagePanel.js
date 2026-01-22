@@ -3,16 +3,34 @@ import { registerContentKind } from '../../../../../../workspace/canvas/state/co
 const IMAGE_KIND = 'image';
 const CURRENT_VERSION = 1;
 
+const normalizePanelMeta = (meta) => {
+  if (!meta || typeof meta !== 'object') return {};
+  const workspacePanel = meta.workspacePanel && typeof meta.workspacePanel === 'object'
+    ? meta.workspacePanel
+    : {};
+  const nextPanel = {};
+  if (typeof workspacePanel.editLocked === 'boolean') {
+    nextPanel.editLocked = workspacePanel.editLocked;
+  }
+  if (typeof workspacePanel.pinned === 'boolean') {
+    nextPanel.pinned = workspacePanel.pinned;
+  }
+  if (!Object.keys(nextPanel).length) return {};
+  return { workspacePanel: nextPanel };
+};
+
 const normalizeImageContent = (value = {}) => {
   const name = typeof value?.name === 'string' && value.name.trim() ? value.name.trim() : 'Image';
   const dataUrl = typeof value?.dataUrl === 'string' ? value.dataUrl : '';
   const description = typeof value?.description === 'string' ? value.description.trim() : '';
+  const meta = normalizePanelMeta(value?.meta);
   return {
     kind: IMAGE_KIND,
     version: CURRENT_VERSION,
     name,
     dataUrl,
-    description
+    description,
+    meta
   };
 };
 

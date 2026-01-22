@@ -2282,27 +2282,27 @@ body.workspace-panel-fullscreen .header-actions{
   margin-top: .2rem;
 }
 .workspace-spreadsheet-corner{
-  width: 3rem;
+  width: 2.2rem;
   text-align: center;
   color: var(--bs-secondary-color);
-  font-size: .78rem;
+  font-size: .7rem;
 }
 .workspace-spreadsheet-column-header{
-  min-width: 8rem;
+  min-width: 4rem;
   border-right: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
 }
 .workspace-spreadsheet-column-header.is-active{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, rgba(15,23,42,.08) 15%);
 }
 .workspace-spreadsheet-column-header--col{
-  min-width: 6.5rem;
+  min-width: 3.25rem;
 }
 .workspace-spreadsheet-column-header--name,
 .workspace-spreadsheet-column-header--units{
-  min-width: 9.5rem;
+  min-width: 4.75rem;
 }
 .workspace-spreadsheet-column-header--formula{
-  min-width: 9rem;
+  min-width: 4.5rem;
 }
 .workspace-spreadsheet-column-header--spark{
   padding: .1rem .35rem;
@@ -2327,6 +2327,9 @@ body.workspace-panel-fullscreen .header-actions{
   display: flex;
   align-items: center;
   gap: .35rem;
+  padding-top: .2rem;
+  padding-left: .55rem;
+  overflow: visible;
 }
 .workspace-spreadsheet-col-role-toggle{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
@@ -2352,6 +2355,30 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-col-role-toggle.is-z{
   opacity: .5;
 }
+.workspace-spreadsheet-col-type-toggle{
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.2) 20%);
+  border-radius: .35rem;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: .05rem .3rem;
+  line-height: 1;
+}
+.workspace-spreadsheet-col-type-toggle.is-number{
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.2) 20%);
+}
+.workspace-spreadsheet-col-type-toggle.is-text{
+  color: color-mix(in srgb, var(--bs-info) 80%, rgba(15,23,42,.2) 20%);
+  border-color: color-mix(in srgb, var(--bs-info) 55%, transparent);
+  background: color-mix(in srgb, var(--bs-info-bg-subtle, rgba(13,110,253,.12)) 70%, transparent);
+}
+.workspace-spreadsheet-col-type-toggle.is-date{
+  color: color-mix(in srgb, var(--bs-warning) 80%, rgba(15,23,42,.2) 20%);
+  border-color: color-mix(in srgb, var(--bs-warning) 55%, transparent);
+  background: color-mix(in srgb, var(--bs-warning-bg-subtle, rgba(255,193,7,.12)) 70%, transparent);
+}
 .workspace-spreadsheet-col-token{
   font-size: .72rem;
   letter-spacing: .12em;
@@ -2370,6 +2397,13 @@ body.workspace-panel-fullscreen .header-actions{
   display: inline-flex;
   align-items: center;
   cursor: grab;
+  position: absolute;
+  top: 0;
+  left: .2rem;
+  transform: translateY(-45%);
+  font-size: .7rem;
+  line-height: 1;
+  z-index: 2;
 }
 .workspace-spreadsheet-col-handle:active{
   cursor: grabbing;
@@ -2405,13 +2439,22 @@ body.workspace-panel-fullscreen .header-actions{
   width: 6px;
   height: 100%;
   cursor: col-resize;
+  z-index: 3;
 }
 .workspace-spreadsheet-header-input{
   width: 100%;
   font-size: .78rem;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: .2rem 0;
 }
 .workspace-spreadsheet-name-input{
   text-transform: none;
+}
+.workspace-spreadsheet-header-input:focus{
+  outline: none;
+  box-shadow: none;
 }
 .workspace-spreadsheet-column-header--formula{
   position: relative;
@@ -2620,6 +2663,70 @@ body.workspace-panel-fullscreen .header-actions{
   gap: .65rem;
   min-width: 320px;
 }
+.workspace-spreadsheet-plot-layout{
+  display: flex;
+  align-items: flex-start;
+  gap: .9rem;
+}
+.workspace-spreadsheet-plot-layout.is-preview-hidden{
+  gap: 0;
+}
+.workspace-spreadsheet-plot-layout.is-preview-hidden .workspace-spreadsheet-plot-preview{
+  display: none;
+}
+.workspace-spreadsheet-plot-main{
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+}
+.workspace-spreadsheet-plot-preview{
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  min-width: 160px;
+  max-width: 220px;
+}
+.workspace-spreadsheet-plot-preview-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .45rem;
+}
+.workspace-spreadsheet-plot-preview-toggle{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .65rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.3) 25%);
+}
+.workspace-spreadsheet-plot-preview-toggle .form-check-input{
+  margin: 0;
+}
+.workspace-spreadsheet-plot-preview-body{
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+.workspace-spreadsheet-plot-preview-item{
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  padding: .35rem .45rem;
+  border-radius: .5rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.04) 4%);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+}
+.workspace-spreadsheet-plot-preview-item svg{
+  width: 100%;
+  height: 36px;
+}
+.workspace-spreadsheet-plot-preview-label{
+  font-size: .65rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 80%, rgba(15,23,42,.3) 20%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .workspace-spreadsheet-plot-section{
   display: flex;
   flex-direction: column;
@@ -2681,6 +2788,10 @@ body.workspace-panel-fullscreen .header-actions{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 70%, transparent);
   border-color: color-mix(in srgb, var(--bs-primary) 55%, transparent);
   color: var(--bs-primary);
+}
+.workspace-spreadsheet-plot-chip.is-disabled{
+  opacity: .45;
+  pointer-events: none;
 }
 .workspace-spreadsheet-plot-empty{
   font-size: .78rem;
