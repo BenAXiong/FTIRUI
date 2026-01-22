@@ -282,13 +282,9 @@ export const spreadsheetPanelType = {
     plotLayout.className = 'workspace-spreadsheet-plot-layout';
     const plotMain = document.createElement('div');
     plotMain.className = 'workspace-spreadsheet-plot-main';
-    const plotPreview = document.createElement('div');
-    plotPreview.className = 'workspace-spreadsheet-plot-preview';
-    const plotPreviewHeader = document.createElement('div');
-    plotPreviewHeader.className = 'workspace-spreadsheet-plot-preview-header';
-    const plotPreviewLabel = document.createElement('div');
-    plotPreviewLabel.className = 'workspace-spreadsheet-plot-label';
-    plotPreviewLabel.textContent = 'Preview';
+    plotLayout.appendChild(plotMain);
+    plotControls.appendChild(plotLayout);
+
     const plotPreviewToggle = document.createElement('label');
     plotPreviewToggle.className = 'workspace-spreadsheet-plot-preview-toggle';
     const plotPreviewToggleInput = document.createElement('input');
@@ -298,34 +294,42 @@ export const spreadsheetPanelType = {
     plotPreviewToggleText.textContent = 'Hide preview';
     plotPreviewToggle.appendChild(plotPreviewToggleInput);
     plotPreviewToggle.appendChild(plotPreviewToggleText);
+
+    const plotPreview = document.createElement('div');
+    plotPreview.className = 'workspace-spreadsheet-plot-preview';
+    const plotPreviewHeader = document.createElement('div');
+    plotPreviewHeader.className = 'workspace-spreadsheet-plot-preview-header';
+    const plotPreviewLabel = document.createElement('div');
+    plotPreviewLabel.className = 'workspace-spreadsheet-plot-label';
+    plotPreviewLabel.textContent = 'Preview';
     plotPreviewHeader.appendChild(plotPreviewLabel);
-    plotPreviewHeader.appendChild(plotPreviewToggle);
     const plotPreviewBody = document.createElement('div');
     plotPreviewBody.className = 'workspace-spreadsheet-plot-preview-body';
     plotPreview.appendChild(plotPreviewHeader);
     plotPreview.appendChild(plotPreviewBody);
-    plotLayout.appendChild(plotMain);
-    plotLayout.appendChild(plotPreview);
-    plotControls.appendChild(plotLayout);
 
     const modeSection = document.createElement('div');
     modeSection.className = 'workspace-spreadsheet-plot-section';
     const modeLabel = document.createElement('div');
     modeLabel.className = 'workspace-spreadsheet-plot-label';
     modeLabel.textContent = 'Mode';
+    const modeHeader = document.createElement('div');
+    modeHeader.className = 'workspace-spreadsheet-plot-label-row';
+    modeHeader.appendChild(modeLabel);
+    modeHeader.appendChild(plotPreviewToggle);
     const modeToggle = document.createElement('div');
     modeToggle.className = 'workspace-spreadsheet-plot-toggle';
     const modeDefaultBtn = document.createElement('button');
     modeDefaultBtn.type = 'button';
     modeDefaultBtn.className = 'btn btn-outline-secondary workspace-spreadsheet-plot-toggle-btn is-active';
-    modeDefaultBtn.textContent = 'Use selection';
+    modeDefaultBtn.textContent = 'Selection';
     const modeCustomBtn = document.createElement('button');
     modeCustomBtn.type = 'button';
     modeCustomBtn.className = 'btn btn-outline-secondary workspace-spreadsheet-plot-toggle-btn';
-    modeCustomBtn.textContent = 'Custom override';
+    modeCustomBtn.textContent = 'Custom';
     modeToggle.appendChild(modeDefaultBtn);
     modeToggle.appendChild(modeCustomBtn);
-    modeSection.appendChild(modeLabel);
+    modeSection.appendChild(modeHeader);
     modeSection.appendChild(modeToggle);
 
     const sourceSection = document.createElement('div');
@@ -457,7 +461,7 @@ export const spreadsheetPanelType = {
     };
 
     const updatePreviewVisibility = () => {
-      plotLayout.classList.toggle('is-preview-hidden', plotPreviewHidden);
+      plotPreview.classList.toggle('is-preview-hidden', plotPreviewHidden);
       plotPreviewToggleInput.checked = plotPreviewHidden;
     };
 
@@ -1469,6 +1473,8 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         if (match) primary = match;
       }
       setSelectionRanges(ranges, { primary });
+      activeColumnIndex = null;
+      syncActiveHighlights();
     };
 
     const toggleColumnSelection = (columnIndex) => {
@@ -1505,6 +1511,12 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
 
     const updateSelectionStyles = () => {
       const ranges = getActiveSelectionRanges();
+      const selectedColumns = new Set();
+      ranges.forEach((range) => {
+        for (let col = range.startCol; col <= range.endCol; col += 1) {
+          selectedColumns.add(col);
+        }
+      });
       table.querySelectorAll('.workspace-spreadsheet-cell').forEach((input) => {
         if (!ranges.length) {
           input.classList.remove('is-selected');
@@ -1519,6 +1531,10 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           && columnIndex <= range.endCol
         );
         input.classList.toggle('is-selected', isSelected);
+      });
+      table.querySelectorAll('.workspace-spreadsheet-column-header').forEach((header) => {
+        const columnIndex = Number(header.dataset.columnIndex);
+        header.classList.toggle('is-selected', selectedColumns.has(columnIndex));
       });
       table.querySelectorAll('.workspace-spreadsheet-fill-handle').forEach((handle) => handle.remove());
       if (!selectionRange) return;
@@ -1707,18 +1723,25 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       if (isEditLocked) return;
       event.preventDefault();
       event.stopPropagation();
+      isSelecting = false;
+      selectionAnchor = null;
+      document.removeEventListener('mousemove', handleSelectionMove);
+      document.removeEventListener('mouseup', handleSelectionEnd);
+      document.removeEventListener('mousemove', handleHeaderSelectionMove);
+      document.removeEventListener('mouseup', handleHeaderSelectionEnd);
       const startX = event.clientX;
       const startWidth = headerCell?.getBoundingClientRect?.().width
         || colEl.getBoundingClientRect().width
         || sheetState.columns[columnIndex]?.width
         || MIN_COLUMN_WIDTH;
       const minWidth = MIN_COLUMN_WIDTH;
+      const columnEls = Array.from(table.querySelectorAll('colgroup col')).slice(1);
       const targetIndices = selectedColumnIndices.has(columnIndex)
         ? Array.from(selectedColumnIndices)
         : [columnIndex];
       const applyWidth = (nextWidth) => {
         targetIndices.forEach((idx) => {
-          const target = colEls[idx];
+          const target = columnEls[idx];
           if (target) {
             target.style.width = `${Math.round(nextWidth)}px`;
           }
@@ -1852,6 +1875,51 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       });
       table.appendChild(colgroup);
       const headerRows = [
+        {
+          key: 'ghost',
+          label: '',
+          height: 28,
+          className: 'workspace-spreadsheet-column-header--ghost',
+          buildCell: (th, columnIndex) => {
+            const actions = document.createElement('div');
+            actions.className = 'workspace-spreadsheet-col-actions workspace-spreadsheet-col-actions--ghost';
+
+            const duplicateBtn = document.createElement('button');
+            duplicateBtn.type = 'button';
+            duplicateBtn.className = 'workspace-spreadsheet-col-action';
+            duplicateBtn.title = 'Duplicate column';
+            duplicateBtn.innerHTML = '<i class="bi bi-files"></i>';
+            duplicateBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              duplicateColumnAt(columnIndex);
+            });
+
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'workspace-spreadsheet-col-action';
+            clearBtn.title = 'Clear column';
+            clearBtn.innerHTML = '<i class="bi bi-eraser"></i>';
+            clearBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              clearColumnAt(columnIndex);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'workspace-spreadsheet-col-action workspace-spreadsheet-col-action--danger';
+            deleteBtn.title = 'Delete column';
+            deleteBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+            deleteBtn.addEventListener('click', (event) => {
+              event.stopPropagation();
+              removeColumnAt(columnIndex);
+            });
+
+            actions.appendChild(duplicateBtn);
+            actions.appendChild(clearBtn);
+            actions.appendChild(deleteBtn);
+            th.appendChild(actions);
+          }
+        },
         {
           key: 'col',
           label: '',
@@ -2166,28 +2234,31 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         }
       ];
 
+      let headerOffset = 0;
       headerRows.forEach((rowConfig, rowIndex) => {
+        const rowHeight = Number.isFinite(rowConfig.height) ? rowConfig.height : HEADER_ROW_HEIGHT;
         const row = document.createElement('tr');
         row.className = `workspace-spreadsheet-head-row workspace-spreadsheet-head-row--${rowConfig.key}`;
 
         const corner = document.createElement('th');
         corner.className = 'workspace-spreadsheet-corner workspace-spreadsheet-header-corner';
         corner.textContent = rowConfig.label;
-        corner.style.top = `${rowIndex * HEADER_ROW_HEIGHT}px`;
-        corner.style.height = `${HEADER_ROW_HEIGHT}px`;
+        corner.style.top = `${headerOffset}px`;
+        corner.style.height = `${rowHeight}px`;
         row.appendChild(corner);
 
         sheetState.columns.forEach((column, columnIndex) => {
           const th = document.createElement('th');
           th.className = `workspace-spreadsheet-column-header ${rowConfig.className}`;
           th.dataset.columnIndex = String(columnIndex);
-          th.style.top = `${rowIndex * HEADER_ROW_HEIGHT}px`;
-          th.style.height = `${HEADER_ROW_HEIGHT}px`;
+          th.style.top = `${headerOffset}px`;
+          th.style.height = `${rowHeight}px`;
           rowConfig.buildCell(th, columnIndex, column);
           row.appendChild(th);
         });
 
         thead.appendChild(row);
+        headerOffset += rowHeight;
       });
 
       const tbody = document.createElement('tbody');
@@ -2354,19 +2425,45 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       markDirty();
     };
 
+    const measureTextWidth = (() => {
+      if (typeof document === 'undefined') return () => 0;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return () => 0;
+      return (text, element) => {
+        if (!text || !element) return 0;
+        const style = window.getComputedStyle(element);
+        const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        ctx.font = font;
+        return ctx.measureText(text).width;
+      };
+    })();
+
     const getAutoFitWidth = (columnIndex) => {
       let maxWidth = 80;
       const headerCells = table.querySelectorAll(`thead [data-column-index="${columnIndex}"]`);
       headerCells.forEach((cell) => {
-        maxWidth = Math.max(maxWidth, cell.scrollWidth);
+        if (cell.classList.contains('workspace-spreadsheet-column-header--spark')) {
+          return;
+        }
         const input = cell.querySelector('input');
         if (input) {
-          maxWidth = Math.max(maxWidth, input.scrollWidth + 16);
+          const textValue = input.value || '';
+          if (textValue) {
+            maxWidth = Math.max(maxWidth, Math.ceil(measureTextWidth(textValue, input)) + 24);
+          }
+        }
+        const token = cell.querySelector('.workspace-spreadsheet-col-token');
+        if (token?.textContent) {
+          maxWidth = Math.max(maxWidth, Math.ceil(measureTextWidth(token.textContent, token)) + 24);
         }
       });
       const dataCells = table.querySelectorAll(`tbody .workspace-spreadsheet-cell[data-col-index="${columnIndex}"]`);
       dataCells.forEach((input) => {
-        maxWidth = Math.max(maxWidth, input.scrollWidth + 16);
+        const textValue = input.value || '';
+        if (textValue) {
+          maxWidth = Math.max(maxWidth, Math.ceil(measureTextWidth(textValue, input)) + 18);
+        }
       });
       return Math.min(Math.ceil(maxWidth), 420);
     };
@@ -2505,6 +2602,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       addColumn: handleAddColumn,
       setFreeze: setFreezeEnabled,
       getPlotPopoverContent,
+      getPlotPreviewContent: () => plotPreview,
       triggerPlotFromHeader,
       getQuickTipsMarkup: () => tipsMarkup,
       refreshContent(nextContent) {

@@ -38,13 +38,13 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Add ctrl+alt+drag duplication
         - [.] (postponed) Wire ctrl+click multiselect
     - [-] Spreadsheets
-        - [-] Review necessary improvement for MVP and demo
-        - [-] Header buttons
+        - [x] Review necessary improvement for MVP and demo
+        - [x] Header buttons
             - [x] Add right 3, add column, duplicate, tips
-            - [-] Solve pin & lock issues
+            - [x] Solve pin & lock issues
         - [x] Remove top band (feature already implemented above)
         - [x] Switch bubble UI to streamlined
-        - [-] Rework Table
+        - [x] Rework Table
             - [x] Add cross icons to delete columns & rows, onHover, ensure unredo
             - [x] Make and style a header with Cols, Name, Units and f
             - [x] Rename columns on double click
@@ -52,27 +52,34 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] Add duplicate column and clear buttons
             - [x] Column resize handles (with per-column width persistence).
             - [x] Multi-cell selection + fill-handle for quick series.
-            - [-] hb2: “Freeze first row/column” toggle.
+            - [x] hb2: “Freeze first row/column” toggle + UI hints
             - [x] Add XYZ toggle to column headers
-        - [-] Rework "Add to graph section"
+        - [x] Rework "Add to graph section"
             - [x] Move to hb 
             - [x] Workflow: select mode, source, target, action
             - [x] Popup: Add toggle -  use columns settings (default) vs custom
             - [x] Popup: 3 rows - mode, source, target
             - [x] Make columns multi-selectable by mouse
-            - [-] Enable column risizing + autofit with double click
+            - [x] Enable column risizing + autofit with double click
             - [x] On hb click: create graph(s) from selection (warn if no or several graphs)
             - [x] Popup UI: remove row names, input coutours for name and unit, grab handle on top
-            - [-] Plot preview live + toggle hide preview
-            - [-] Multi-column select with ctrl+click and shift+click & multi resize with mouse
-            - [-] Enable copying data from selected cells and columns
-            - [ ] hb extra option: "view" toggles for each header row, col & row sizes, 
-
-            - [ ] UI polishing: cursors when pinned and trying to resize, cell edit when locked, ...
-            - [ ] UI refinement: darker headers, rework col toggles and buttons, shrink spark + popup
-            - [ ] UI refinement: popup text & tooltips, 
-            - [ ] 
-        - [ ] 
+            - [x] Plot preview sprak live + toggle hide preview
+            - [x] Multi-column select with ctrl+click and shift+click & multi resize with mouse
+            - [x] Enable copying data from selected cells and columns
+        - [-] Rework "Add to graph section"
+            - [ ] Fix col dup: data, toggles, f, etc
+            - [ ] Fix col width (don't fit panel width, let scroll)
+            - [ ] Fix freeze behavior
+            - [ ] Improve graph previews and layout without hurting performances
+            - [ ] Add hb for extra option: "view" toggles for each header row, col & row sizes, copy mode (toggle headers, format,...)
+        - [ ] UI refinement
+            - [ ] UI : cursors when pinned and trying to resize, cell edit when locked, ...
+            - [ ] UI : darker headers, rework col toggles and buttons, shrink spark + popup
+            - [ ] UI : popup text & tooltips, narrower left-most col, ghost row (invi? seprate?)
+            - [ ] Fix: col resize hitbox not centrered
+            - [ ] Fix: col auto-resize on db-clk
+            - [ ] Rethink XYZ & NTD toggles placement
+            - [ ] Rework graph popups
         - [ ] Doc
     - [ ] Right pane extra tabs
         - [ ] Tab 2: Data - display raw (as imported) + current ss

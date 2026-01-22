@@ -2250,8 +2250,8 @@ body.workspace-panel-fullscreen .header-actions{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 88%, rgba(15,23,42,.05) 12%);
 }
 .workspace-spreadsheet-grid{
-  width: 100%;
-  min-width: 520px;
+  width: max-content;
+  min-width: max-content;
   border-collapse: separate;
   border-spacing: 0;
   font-size: .85rem;
@@ -2259,7 +2259,7 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-grid thead th{
   position: sticky;
   top: 0;
-  background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(15,23,42,.06) 10%);
+  background: color-mix(in srgb, var(--bs-body-bg) 86%, rgba(15,23,42,.08) 14%);
   backdrop-filter: blur(6px);
   font-weight: 600;
   text-align: left;
@@ -2269,7 +2269,7 @@ body.workspace-panel-fullscreen .header-actions{
   z-index: 3;
 }
 .workspace-spreadsheet-head-row--formula th{
-  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.04) 6%);
+  background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(15,23,42,.06) 10%);
   border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 75%, transparent);
 }
 .workspace-spreadsheet-formula-input{
@@ -2291,6 +2291,9 @@ body.workspace-panel-fullscreen .header-actions{
   min-width: 4rem;
   border-right: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
 }
+.workspace-spreadsheet-column-header.is-selected{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 82%, rgba(15,23,42,.08) 18%);
+}
 .workspace-spreadsheet-column-header.is-active{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, rgba(15,23,42,.08) 15%);
 }
@@ -2306,6 +2309,39 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-column-header--spark{
   padding: .1rem .35rem;
+}
+.workspace-spreadsheet-column-header--ghost{
+  min-width: 4rem;
+  padding: 0;
+  border-bottom: none;
+}
+.workspace-spreadsheet-column-header--ghost:hover .workspace-spreadsheet-col-actions{
+  opacity: 1;
+  pointer-events: auto;
+}
+.workspace-spreadsheet-col-actions--ghost{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.workspace-spreadsheet-column-header--col .workspace-spreadsheet-col-actions{
+  display: none;
+}
+.workspace-spreadsheet-head-row--ghost th{
+  background: transparent;
+  border-bottom: none;
+  padding: 0;
+}
+.workspace-spreadsheet-head-row--ghost .workspace-spreadsheet-column-header.is-selected{
+  background: transparent;
+}
+.workspace-spreadsheet-ghost-actions{
+  height: 100%;
+  opacity: 0;
 }
 .workspace-spreadsheet-sparkline-cell{
   width: 100%;
@@ -2328,7 +2364,6 @@ body.workspace-panel-fullscreen .header-actions{
   align-items: center;
   gap: .35rem;
   padding-top: .2rem;
-  padding-left: .55rem;
   overflow: visible;
 }
 .workspace-spreadsheet-col-role-toggle{
@@ -2399,8 +2434,8 @@ body.workspace-panel-fullscreen .header-actions{
   cursor: grab;
   position: absolute;
   top: 0;
-  left: .2rem;
-  transform: translateY(-45%);
+  left: 50%;
+  transform: translate(-50%, -45%);
   font-size: .7rem;
   line-height: 1;
   z-index: 2;
@@ -2435,8 +2470,8 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-col-resizer{
   position: absolute;
   top: 0;
-  right: -2px;
-  width: 6px;
+  right: -4px;
+  width: 8px;
   height: 100%;
   cursor: col-resize;
   z-index: 3;
@@ -2668,16 +2703,16 @@ body.workspace-panel-fullscreen .header-actions{
   align-items: flex-start;
   gap: .9rem;
 }
-.workspace-spreadsheet-plot-layout.is-preview-hidden{
-  gap: 0;
-}
-.workspace-spreadsheet-plot-layout.is-preview-hidden .workspace-spreadsheet-plot-preview{
-  display: none;
-}
 .workspace-spreadsheet-plot-main{
   display: flex;
   flex-direction: column;
   gap: .65rem;
+}
+.workspace-spreadsheet-plot-label-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
 }
 .workspace-spreadsheet-plot-preview{
   display: flex;
@@ -2685,6 +2720,9 @@ body.workspace-panel-fullscreen .header-actions{
   gap: .4rem;
   min-width: 160px;
   max-width: 220px;
+}
+.workspace-spreadsheet-plot-preview.is-preview-hidden{
+  display: none;
 }
 .workspace-spreadsheet-plot-preview-header{
   display: flex;
@@ -2701,6 +2739,9 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-plot-preview-toggle .form-check-input{
   margin: 0;
+}
+.workspace-panel-popover--plot-preview{
+  border-radius: 0;
 }
 .workspace-spreadsheet-plot-preview-body{
   display: flex;
