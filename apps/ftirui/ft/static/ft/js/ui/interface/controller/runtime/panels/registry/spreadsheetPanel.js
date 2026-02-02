@@ -9,6 +9,14 @@ const MAX_DECIMAL_PLACES = 5;
 const HEADER_ROW_HEIGHT = 30;
 const MIN_COLUMN_WIDTH = 60;
 const CORNER_COL_WIDTH_REM = 2.2;
+const DEFAULT_HEADER_VISIBILITY = {
+  ghost: true,
+  col: true,
+  name: true,
+  units: true,
+  formula: true,
+  spark: true
+};
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const toColumnLabel = (index = 0) => {
@@ -146,6 +154,35 @@ const normalizeFormulas = (formulas, columns) => {
   return normalized;
 };
 
+const normalizeSpreadsheetUi = (value = {}) => {
+  const raw = value && typeof value === 'object' ? value : {};
+  const headerVisibility = raw.headerVisibility && typeof raw.headerVisibility === 'object'
+    ? { ...DEFAULT_HEADER_VISIBILITY, ...raw.headerVisibility }
+    : { ...DEFAULT_HEADER_VISIBILITY };
+  const rowHeight = Number.isFinite(Number(raw.rowHeight))
+    ? Math.max(18, Math.round(Number(raw.rowHeight)))
+    : null;
+  const defaultColWidth = Number.isFinite(Number(raw.defaultColWidth))
+    ? Math.max(MIN_COLUMN_WIDTH, Math.round(Number(raw.defaultColWidth)))
+    : null;
+  const copyMode = raw.copyMode && typeof raw.copyMode === 'object'
+    ? {
+        includeHeaders: raw.copyMode.includeHeaders !== false,
+        formatted: raw.copyMode.formatted === true
+      }
+    : { includeHeaders: true, formatted: false };
+  const buttonDisplay = raw.buttonDisplay === 'always' ? 'always' : 'hover';
+  const previewMode = raw.previewMode === 'hq' ? 'hq' : 'light';
+  return {
+    headerVisibility,
+    rowHeight,
+    defaultColWidth,
+    copyMode,
+    buttonDisplay,
+    previewMode
+  };
+};
+
 const normalizePanelMeta = (meta) => {
   if (!meta || typeof meta !== 'object') return {};
   const workspacePanel = meta.workspacePanel && typeof meta.workspacePanel === 'object'
@@ -190,6 +227,7 @@ const normalizeSpreadsheet = (value = {}) => {
     ? value.plotTargets.filter((entry) => typeof entry === 'string' && entry.trim())
     : [];
   const plotPreviewHidden = value?.plotPreviewHidden === true;
+  const ui = normalizeSpreadsheetUi(value?.ui);
   const meta = normalizePanelMeta(value?.meta);
   return {
     kind: SHEET_KIND,
@@ -201,6 +239,7 @@ const normalizeSpreadsheet = (value = {}) => {
     plotMode,
     plotTargets,
     plotPreviewHidden,
+    ui,
     meta
   };
 };
@@ -282,7 +321,13 @@ export const spreadsheetPanelType = {
     plotLayout.className = 'workspace-spreadsheet-plot-layout';
     const plotMain = document.createElement('div');
     plotMain.className = 'workspace-spreadsheet-plot-main';
+    const plotDivider = document.createElement('div');
+    plotDivider.className = 'workspace-spreadsheet-plot-divider';
+    const plotPreviewColumns = document.createElement('div');
+    plotPreviewColumns.className = 'workspace-spreadsheet-plot-preview-columns';
     plotLayout.appendChild(plotMain);
+    plotLayout.appendChild(plotDivider);
+    plotLayout.appendChild(plotPreviewColumns);
     plotControls.appendChild(plotLayout);
 
     const plotPreviewToggle = document.createElement('label');
@@ -295,18 +340,6 @@ export const spreadsheetPanelType = {
     plotPreviewToggle.appendChild(plotPreviewToggleInput);
     plotPreviewToggle.appendChild(plotPreviewToggleText);
 
-    const plotPreview = document.createElement('div');
-    plotPreview.className = 'workspace-spreadsheet-plot-preview';
-    const plotPreviewHeader = document.createElement('div');
-    plotPreviewHeader.className = 'workspace-spreadsheet-plot-preview-header';
-    const plotPreviewLabel = document.createElement('div');
-    plotPreviewLabel.className = 'workspace-spreadsheet-plot-label';
-    plotPreviewLabel.textContent = 'Preview';
-    plotPreviewHeader.appendChild(plotPreviewLabel);
-    const plotPreviewBody = document.createElement('div');
-    plotPreviewBody.className = 'workspace-spreadsheet-plot-preview-body';
-    plotPreview.appendChild(plotPreviewHeader);
-    plotPreview.appendChild(plotPreviewBody);
 
     const modeSection = document.createElement('div');
     modeSection.className = 'workspace-spreadsheet-plot-section';
@@ -349,16 +382,9 @@ export const spreadsheetPanelType = {
     targetLabel.textContent = 'Target';
     const targetBody = document.createElement('div');
     targetBody.className = 'workspace-spreadsheet-plot-body';
-    const targetDropdown = document.createElement('details');
-    targetDropdown.className = 'workspace-spreadsheet-target-dropdown';
-    const targetSummary = document.createElement('summary');
-    targetSummary.className = 'workspace-spreadsheet-target-summary';
-    targetSummary.textContent = 'Select graph(s)';
     const graphTargets = document.createElement('div');
     graphTargets.className = 'workspace-spreadsheet-target-list';
-    targetDropdown.appendChild(targetSummary);
-    targetDropdown.appendChild(graphTargets);
-    targetBody.appendChild(targetDropdown);
+    targetBody.appendChild(graphTargets);
     targetSection.appendChild(targetLabel);
     targetSection.appendChild(targetBody);
 
@@ -394,6 +420,196 @@ export const spreadsheetPanelType = {
     plotMain.appendChild(sourceSection);
     plotMain.appendChild(targetSection);
     plotMain.appendChild(actionsSection);
+
+    const extraControls = document.createElement('div');
+    extraControls.className = 'workspace-spreadsheet-extra-popover';
+
+    const buildExtraSection = (label) => {
+      const section = document.createElement('div');
+      section.className = 'workspace-spreadsheet-extra-section';
+      const title = document.createElement('div');
+      title.className = 'workspace-spreadsheet-extra-label';
+      title.textContent = label;
+      const body = document.createElement('div');
+      body.className = 'workspace-spreadsheet-extra-body';
+      section.appendChild(title);
+      section.appendChild(body);
+      return { section, body };
+    };
+
+    const viewSection = buildExtraSection('View');
+    const viewButtons = {};
+    const viewItems = document.createElement('div');
+    viewItems.className = 'workspace-spreadsheet-extra-items';
+    const viewConfig = [
+      ['ghost', 'Actions'],
+      ['col', 'Columns'],
+      ['name', 'Name'],
+      ['units', 'Units'],
+      ['formula', 'Formula'],
+      ['spark', 'Preview']
+    ];
+    viewConfig.forEach(([key, label]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline-secondary workspace-spreadsheet-extra-toggle';
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        const uiState = sheetState.ui || normalizeSpreadsheetUi();
+        const nextVisibility = {
+          ...uiState.headerVisibility,
+          [key]: !uiState.headerVisibility[key]
+        };
+        sheetState = { ...sheetState, ui: { ...uiState, headerVisibility: nextVisibility } };
+        schedulePersist();
+        renderGrid();
+        syncExtraOptionsState();
+      });
+      viewButtons[key] = btn;
+      viewItems.appendChild(btn);
+    });
+    viewSection.body.appendChild(viewItems);
+    extraControls.appendChild(viewSection.section);
+
+    const sizeSection = buildExtraSection('Row & column size');
+    const sizeRow = document.createElement('div');
+    sizeRow.className = 'workspace-spreadsheet-extra-row';
+    const rowLabel = document.createElement('span');
+    rowLabel.textContent = 'Row height';
+    const rowInput = document.createElement('input');
+    rowInput.type = 'number';
+    rowInput.min = '18';
+    rowInput.className = 'form-control form-control-sm workspace-spreadsheet-extra-input';
+    rowInput.placeholder = 'Auto';
+    rowInput.addEventListener('change', () => {
+      const raw = rowInput.value.trim();
+      const value = Number(raw);
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      const next = raw && Number.isFinite(value) ? Math.max(18, Math.round(value)) : null;
+      sheetState = { ...sheetState, ui: { ...uiState, rowHeight: next } };
+      schedulePersist();
+      renderGrid();
+      syncExtraOptionsState();
+    });
+    sizeRow.appendChild(rowLabel);
+    sizeRow.appendChild(rowInput);
+
+    const colRow = document.createElement('div');
+    colRow.className = 'workspace-spreadsheet-extra-row';
+    const colLabel = document.createElement('span');
+    colLabel.textContent = 'Column width';
+    const colInput = document.createElement('input');
+    colInput.type = 'number';
+    colInput.min = String(MIN_COLUMN_WIDTH);
+    colInput.className = 'form-control form-control-sm workspace-spreadsheet-extra-input';
+    colInput.placeholder = 'Auto';
+    colInput.addEventListener('change', () => {
+      const raw = colInput.value.trim();
+      const value = Number(raw);
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      const next = raw && Number.isFinite(value) ? Math.max(MIN_COLUMN_WIDTH, Math.round(value)) : null;
+      sheetState = { ...sheetState, ui: { ...uiState, defaultColWidth: next } };
+      schedulePersist();
+      renderGrid();
+      syncExtraOptionsState();
+    });
+    colRow.appendChild(colLabel);
+    colRow.appendChild(colInput);
+    sizeSection.body.appendChild(sizeRow);
+    sizeSection.body.appendChild(colRow);
+    extraControls.appendChild(sizeSection.section);
+
+    const copySection = buildExtraSection('Copy mode');
+    const copyItems = document.createElement('div');
+    copyItems.className = 'workspace-spreadsheet-extra-items';
+    const copyHeaders = document.createElement('label');
+    copyHeaders.className = 'workspace-spreadsheet-extra-checkbox';
+    const copyHeadersInput = document.createElement('input');
+    copyHeadersInput.type = 'checkbox';
+    copyHeadersInput.className = 'form-check-input';
+    copyHeaders.appendChild(copyHeadersInput);
+    copyHeaders.appendChild(document.createTextNode('Headers'));
+    copyHeadersInput.addEventListener('change', () => {
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      const nextCopyMode = { ...uiState.copyMode, includeHeaders: copyHeadersInput.checked };
+      sheetState = { ...sheetState, ui: { ...uiState, copyMode: nextCopyMode } };
+      schedulePersist();
+    });
+    const copyFormat = document.createElement('label');
+    copyFormat.className = 'workspace-spreadsheet-extra-checkbox';
+    const copyFormatInput = document.createElement('input');
+    copyFormatInput.type = 'checkbox';
+    copyFormatInput.className = 'form-check-input';
+    copyFormat.appendChild(copyFormatInput);
+    copyFormat.appendChild(document.createTextNode('Formatted'));
+    copyFormatInput.addEventListener('change', () => {
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      const nextCopyMode = { ...uiState.copyMode, formatted: copyFormatInput.checked };
+      sheetState = { ...sheetState, ui: { ...uiState, copyMode: nextCopyMode } };
+      schedulePersist();
+    });
+    copyItems.appendChild(copyHeaders);
+    copyItems.appendChild(copyFormat);
+    copySection.body.appendChild(copyItems);
+    extraControls.appendChild(copySection.section);
+
+    const buttonSection = buildExtraSection('Button display');
+    const buttonRow = document.createElement('div');
+    buttonRow.className = 'workspace-spreadsheet-extra-toggle-group';
+    const buttonHover = document.createElement('button');
+    buttonHover.type = 'button';
+    buttonHover.className = 'btn btn-outline-secondary workspace-spreadsheet-extra-toggle';
+    buttonHover.textContent = 'Hover';
+    const buttonAlways = document.createElement('button');
+    buttonAlways.type = 'button';
+    buttonAlways.className = 'btn btn-outline-secondary workspace-spreadsheet-extra-toggle';
+    buttonAlways.textContent = 'Always';
+    buttonHover.addEventListener('click', () => {
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      sheetState = { ...sheetState, ui: { ...uiState, buttonDisplay: 'hover' } };
+      wrapper.dataset.buttonDisplay = 'hover';
+      schedulePersist();
+      syncExtraOptionsState();
+    });
+    buttonAlways.addEventListener('click', () => {
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      sheetState = { ...sheetState, ui: { ...uiState, buttonDisplay: 'always' } };
+      wrapper.dataset.buttonDisplay = 'always';
+      schedulePersist();
+      syncExtraOptionsState();
+    });
+    buttonRow.appendChild(buttonHover);
+    buttonRow.appendChild(buttonAlways);
+    buttonSection.body.appendChild(buttonRow);
+    extraControls.appendChild(buttonSection.section);
+
+    const previewSection = buildExtraSection('Preview mode');
+    const previewRow = document.createElement('div');
+    previewRow.className = 'workspace-spreadsheet-extra-toggle-group';
+    const previewLight = document.createElement('button');
+    previewLight.type = 'button';
+    previewLight.className = 'btn btn-outline-secondary workspace-spreadsheet-extra-toggle';
+    previewLight.textContent = 'Light';
+    const previewHq = document.createElement('button');
+    previewHq.type = 'button';
+    previewHq.className = 'btn btn-outline-secondary workspace-spreadsheet-extra-toggle';
+    previewHq.textContent = 'HQ';
+    previewLight.addEventListener('click', () => {
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      sheetState = { ...sheetState, ui: { ...uiState, previewMode: 'light' } };
+      schedulePersist();
+      syncExtraOptionsState();
+    });
+    previewHq.addEventListener('click', () => {
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      sheetState = { ...sheetState, ui: { ...uiState, previewMode: 'hq' } };
+      schedulePersist();
+      syncExtraOptionsState();
+    });
+    previewRow.appendChild(previewLight);
+    previewRow.appendChild(previewHq);
+    previewSection.body.appendChild(previewRow);
+    extraControls.appendChild(previewSection.section);
 
     wrapper.appendChild(gridScroll);
     hostEl.appendChild(wrapper);
@@ -438,6 +654,7 @@ export const spreadsheetPanelType = {
     let formulaErrors = {};
     let evaluatedRows = sheetState.rows.map((row) => ({ ...row }));
     let plotPreviewHidden = sheetState.plotPreviewHidden === true;
+    let previewHiddenXColumnIds = new Set();
     let selectionRanges = [];
     let selectedColumnIndices = new Set();
     let columnSelectionAnchor = null;
@@ -461,7 +678,8 @@ export const spreadsheetPanelType = {
     };
 
     const updatePreviewVisibility = () => {
-      plotPreview.classList.toggle('is-preview-hidden', plotPreviewHidden);
+      plotPreviewColumns.classList.toggle('is-preview-hidden', plotPreviewHidden);
+      plotDivider.classList.toggle('is-hidden', plotPreviewHidden);
       plotPreviewToggleInput.checked = plotPreviewHidden;
     };
 
@@ -491,6 +709,24 @@ export const spreadsheetPanelType = {
       if (persist) {
         schedulePersist();
       }
+    };
+
+    const syncExtraOptionsState = () => {
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      wrapper.dataset.buttonDisplay = uiState.buttonDisplay;
+      Object.entries(viewButtons).forEach(([key, btn]) => {
+        const isOn = uiState.headerVisibility?.[key] !== false;
+        btn.classList.toggle('is-active', isOn);
+        btn.setAttribute('aria-pressed', String(isOn));
+      });
+      rowInput.value = Number.isFinite(uiState.rowHeight) ? String(uiState.rowHeight) : '';
+      colInput.value = Number.isFinite(uiState.defaultColWidth) ? String(uiState.defaultColWidth) : '';
+      copyHeadersInput.checked = uiState.copyMode?.includeHeaders !== false;
+      copyFormatInput.checked = uiState.copyMode?.formatted === true;
+      buttonHover.classList.toggle('is-active', uiState.buttonDisplay === 'hover');
+      buttonAlways.classList.toggle('is-active', uiState.buttonDisplay === 'always');
+      previewLight.classList.toggle('is-active', uiState.previewMode === 'light');
+      previewHq.classList.toggle('is-active', uiState.previewMode === 'hq');
     };
 
     const markDirty = () => {
@@ -580,32 +816,38 @@ const formatDisplayValue = (value) => {
 };
 
 const createSparklineSvg = (xValues = [], yValues = []) => {
-  const pairs = [];
-  for (let i = 0; i < xValues.length; i += 1) {
-    const x = xValues[i];
-    const y = yValues[i];
-    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) {
-      pairs.push({ x, y });
+  const seriesList = Array.isArray(yValues?.[0]) ? yValues : [yValues];
+  const seriesPairs = seriesList.map((series) => {
+    const pairs = [];
+    for (let i = 0; i < xValues.length; i += 1) {
+      const x = xValues[i];
+      const y = series?.[i];
+      if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) {
+        pairs.push({ x, y });
+      }
     }
-  }
-  if (pairs.length < 2) return null;
+    return pairs;
+  }).filter((pairs) => pairs.length >= 2);
+  if (!seriesPairs.length) return null;
 
   const maxPoints = 60;
-  if (pairs.length > maxPoints) {
-    const step = Math.ceil(pairs.length / maxPoints);
-    const sampled = [];
-    for (let i = 0; i < pairs.length; i += step) {
-      sampled.push(pairs[i]);
+  seriesPairs.forEach((pairs) => {
+    if (pairs.length > maxPoints) {
+      const step = Math.ceil(pairs.length / maxPoints);
+      const sampled = [];
+      for (let i = 0; i < pairs.length; i += step) {
+        sampled.push(pairs[i]);
+      }
+      pairs.length = 0;
+      pairs.push(...sampled);
     }
-    pairs.length = 0;
-    pairs.push(...sampled);
-  }
+  });
 
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
-  pairs.forEach(({ x, y }) => {
+  seriesPairs.flat().forEach(({ x, y }) => {
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
     if (y < minY) minY = y;
@@ -620,23 +862,27 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
   const plotWidth = width - padding * 2;
   const plotHeight = height - padding * 2;
 
-  const points = pairs.map(({ x, y }) => {
-    const px = padding + ((x - minX) / rangeX) * plotWidth;
-    const py = height - padding - ((y - minY) / rangeY) * plotHeight;
-    return `${px.toFixed(1)},${py.toFixed(1)}`;
-  }).join(' ');
-
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('aria-hidden', 'true');
-  const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-  polyline.setAttribute('points', points);
-  polyline.setAttribute('fill', 'none');
-  polyline.setAttribute('stroke', 'currentColor');
-  polyline.setAttribute('stroke-width', '1.3');
-  polyline.setAttribute('stroke-linejoin', 'round');
-  polyline.setAttribute('stroke-linecap', 'round');
-  svg.appendChild(polyline);
+  seriesPairs.forEach((pairs, index) => {
+    const points = pairs.map(({ x, y }) => {
+      const px = padding + ((x - minX) / rangeX) * plotWidth;
+      const py = height - padding - ((y - minY) / rangeY) * plotHeight;
+      return `${px.toFixed(1)},${py.toFixed(1)}`;
+    }).join(' ');
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', points);
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', 'currentColor');
+    polyline.setAttribute('stroke-width', '0.65');
+    polyline.setAttribute('stroke-linejoin', 'round');
+    polyline.setAttribute('stroke-linecap', 'round');
+    if (index > 0) {
+      polyline.setAttribute('stroke-opacity', String(Math.max(0.35, 0.85 - index * 0.15)));
+    }
+    svg.appendChild(polyline);
+  });
   return svg;
 };
 
@@ -936,16 +1182,16 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       return String(sanitized);
     };
 
-    const buildSelectionMatrix = () => {
+    const buildSelectionMatrix = (serializer = serializeCellForExport) => {
       const columns = getSelectedColumns();
       if (!columns.length) return null;
       const header = columns.map((column) => column.label || column.id);
-      const rows = evaluatedRows.map((row) => columns.map((column) => serializeCellForExport(row?.[column.id])));
+      const rows = evaluatedRows.map((row) => columns.map((column) => serializer(row?.[column.id])));
       const hasData = rows.some((row) => row.some((cell) => cell !== ''));
       return { columns, header, rows, hasData };
     };
 
-    const buildSelectionRangeMatrix = () => {
+    const buildSelectionRangeMatrix = (serializer = serializeCellForExport) => {
       const ranges = getActiveSelectionRanges();
       if (!ranges.length) return null;
       const startRow = Math.max(0, Math.min(...ranges.map((range) => range.startRow)));
@@ -962,20 +1208,31 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       const columns = sheetState.columns.slice(startCol, endCol + 1);
       const header = columns.map((column) => column.label || column.id);
       const rows = evaluatedRows.slice(startRow, endRow + 1)
-        .map((row) => columns.map((column) => serializeCellForExport(row?.[column.id])));
+        .map((row) => columns.map((column) => serializer(row?.[column.id])));
       const hasData = rows.some((row) => row.some((cell) => cell !== ''));
       return { columns, header, rows, hasData };
     };
 
+    const columnHasData = (column) => evaluatedRows.some((row) => {
+      const value = sanitizeCellValue(row?.[column.id]);
+      return value !== null && value !== '';
+    });
+
     const copySelectionToClipboard = async () => {
+      const copyMode = sheetState.ui?.copyMode || { includeHeaders: true, formatted: false };
+      const serializer = copyMode.formatted ? formatDisplayValue : serializeCellForExport;
       const matrix = getActiveSelectionRanges().length
-        ? buildSelectionRangeMatrix()
-        : buildSelectionMatrix();
+        ? buildSelectionRangeMatrix(serializer)
+        : buildSelectionMatrix(serializer);
       if (!matrix || !matrix.hasData) {
         notify?.('No selection data to copy.');
         return;
       }
-      const lines = [matrix.header.join('\t'), ...matrix.rows.map((row) => row.join('\t'))];
+      const lines = [];
+      if (copyMode.includeHeaders) {
+        lines.push(matrix.header.join('\t'));
+      }
+      lines.push(...matrix.rows.map((row) => row.join('\t')));
       const content = lines.join('\n');
       const fallbackCopy = () => {
         const textarea = document.createElement('textarea');
@@ -1045,11 +1302,38 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         notify?.('Select at least one graph destination.');
         return;
       }
-      targets.forEach((targetId) => {
+      const wantsNew = targets.includes('__new__');
+      const existingTargets = targets.filter((targetId) => targetId !== '__new__');
+      if (wantsNew) {
+        if (plotMode === 'default') {
+          const grouped = new Map();
+          traces.forEach((trace) => {
+            const xKey = trace?.meta?.xColumnId || '__default__';
+            if (!grouped.has(xKey)) {
+              grouped.set(xKey, []);
+            }
+            grouped.get(xKey).push(trace);
+          });
+          grouped.forEach((groupTraces) => {
+            safeHandleHeaderAction(panelId, 'spreadsheet-plot-columns', {
+              traces: groupTraces,
+              mode: 'new',
+              targetPanelId: null
+            });
+          });
+        } else {
+          safeHandleHeaderAction(panelId, 'spreadsheet-plot-columns', {
+            traces,
+            mode: 'new',
+            targetPanelId: null
+          });
+        }
+      }
+      existingTargets.forEach((targetId) => {
         safeHandleHeaderAction(panelId, 'spreadsheet-plot-columns', {
           traces,
-          mode: targetId === '__new__' ? 'new' : 'existing',
-          targetPanelId: targetId === '__new__' ? null : targetId
+          mode: 'existing',
+          targetPanelId: targetId
         });
       });
     };
@@ -1110,6 +1394,9 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     const renderPlotSourceControls = () => {
       sourceBody.innerHTML = '';
       ensureSelectionIntegrity();
+      previewHiddenXColumnIds = new Set(
+        [...previewHiddenXColumnIds].filter((columnId) => sheetState.columns.some((column) => column.id === columnId))
+      );
       if (plotMode === 'default') {
         const list = document.createElement('div');
         list.className = 'workspace-spreadsheet-plot-source-list';
@@ -1124,28 +1411,24 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           xColumns.forEach((xColumn) => {
             const xIndex = sheetState.columns.findIndex((col) => col.id === xColumn.id);
             const xLabel = toColumnShortLabel(xIndex);
-            const mapped = mapping.get(xColumn.id) || [];
+            const mapped = (mapping.get(xColumn.id) || []).filter((column) => columnHasData(column));
             const yLabel = mapped.map((col) => toColumnShortLabel(sheetState.columns.indexOf(col))).join(', ');
             const yName = mapped.map((col) => col.label || col.id).join(', ');
             const toggleLabel = yLabel ? `${xLabel} -> ${yLabel}` : `${xLabel} -> -`;
             const title = yName
               ? `${xLabel} (${xColumn.label || xColumn.id}) -> ${yName}`
               : `${xLabel} (${xColumn.label || xColumn.id})`;
-            const active = selectedXColumnIds.has(xColumn.id);
-            const btn = buildPlotToggle(toggleLabel, title, active);
+            const isHidden = previewHiddenXColumnIds.has(xColumn.id);
+            const btn = buildPlotToggle(toggleLabel, title, !isHidden);
             btn.addEventListener('click', () => {
-              if (selectedXColumnIds.has(xColumn.id)) {
-                if (selectedXColumnIds.size > 1) {
-                  selectedXColumnIds.delete(xColumn.id);
-                }
+              if (previewHiddenXColumnIds.has(xColumn.id)) {
+                previewHiddenXColumnIds.delete(xColumn.id);
               } else {
-                selectedXColumnIds.add(xColumn.id);
-                selectedXColumnId = xColumn.id;
+                previewHiddenXColumnIds.add(xColumn.id);
               }
-              ensureSelectionIntegrity();
-              syncPlotSelectionState({ persist: true });
               renderPlotSourceControls();
-              updateActionButtons();
+              renderPlotPreview();
+              plotControls.dispatchEvent(new CustomEvent('spreadsheet:close-popover', { bubbles: true }));
             });
             list.appendChild(btn);
           });
@@ -1234,24 +1517,69 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       sourceBody.appendChild(yRow);
     };
 
+    const getPreviewTargetLabels = (count) => {
+      if (!count) return [];
+      const targets = Array.from(targetGraphSelections);
+      if (!targets.length) return Array(count).fill('No target');
+      const graphs = safeListPlotPanels()
+        .filter((graph) => graph && graph.id && graph.id !== panelId);
+      const graphMap = new Map(
+        graphs.map((graph) => [
+          graph.id,
+          graph.title || `Graph ${graph.index || ''}`.trim()
+        ])
+      );
+      const existingLabels = targets
+        .filter((targetId) => targetId !== '__new__')
+        .map((targetId) => graphMap.get(targetId) || 'Graph');
+      const existingCount = existingLabels.length;
+      const hasNew = targets.includes('__new__');
+      if (!hasNew) {
+        if (!existingCount) return Array(count).fill('Graph');
+        if (existingCount === 1) return Array(count).fill(existingLabels[0]);
+        return Array(count).fill(`${existingLabels[0]} + ${existingCount - 1} more`);
+      }
+      const usedIndices = graphs
+        .map((graph) => Number(graph?.index))
+        .filter((value) => Number.isFinite(value));
+      let nextIndex = usedIndices.length ? Math.max(...usedIndices) + 1 : 1;
+      const newLabels = Array.from({ length: count }, () => {
+        while (usedIndices.includes(nextIndex)) {
+          nextIndex += 1;
+        }
+        const label = `Graph ${nextIndex}`;
+        usedIndices.push(nextIndex);
+        nextIndex += 1;
+        return label;
+      });
+      if (!existingCount) return newLabels;
+      return newLabels.map((label) => `${label} + ${existingCount} more`);
+    };
+
     const renderPlotPreview = () => {
-      plotPreviewBody.innerHTML = '';
+      plotPreviewColumns.innerHTML = '';
       if (plotPreviewHidden) {
+        plotPreviewColumns.style.height = '';
         return;
       }
       const previews = [];
       if (plotMode === 'default') {
         const mapping = buildDefaultPlotMapping();
         mapping.forEach((yColumns, xColumnId) => {
+          if (previewHiddenXColumnIds.has(xColumnId)) return;
           const xColumn = getColumnById(xColumnId);
           if (!xColumn) return;
+          const usable = yColumns.filter((column) => columnHasData(column));
+          if (!usable.length) return;
           const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
-          yColumns.forEach((column) => {
-            previews.push({
-              label: `${xColumn.label || xColumn.id} \u2192 ${column.label || column.id}`,
-              xValues,
+          const yLabels = usable.map((column) => column.label || column.id);
+          previews.push({
+            label: `${xColumn.label || xColumn.id} \u2192 ${yLabels.join(', ')}`,
+            xValues,
+            series: usable.map((column) => ({
+              label: column.label || column.id,
               yValues: evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]))
-            });
+            }))
           });
         });
       } else {
@@ -1260,40 +1588,65 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           && column.type !== 'date');
         const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id)
           && column.type !== 'text'
-          && column.type !== 'date');
+          && column.type !== 'date'
+          && columnHasData(column));
         xColumns.forEach((xColumn) => {
+          if (!yColumns.length) return;
           const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
-          yColumns.forEach((column) => {
-            previews.push({
-              label: `${xColumn.label || xColumn.id} \u2192 ${column.label || column.id}`,
-              xValues,
+          const yLabels = yColumns.map((column) => column.label || column.id);
+          previews.push({
+            label: `${xColumn.label || xColumn.id} \u2192 ${yLabels.join(', ')}`,
+            xValues,
+            series: yColumns.map((column) => ({
+              label: column.label || column.id,
               yValues: evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]))
-            });
+            }))
           });
         });
       }
 
+      const targetLabels = getPreviewTargetLabels(previews.length);
       if (!previews.length) {
         const empty = document.createElement('div');
         empty.className = 'workspace-spreadsheet-plot-empty';
         empty.textContent = 'No preview available.';
-        plotPreviewBody.appendChild(empty);
+        plotPreviewColumns.appendChild(empty);
         return;
       }
 
-      previews.slice(0, 6).forEach((preview) => {
+      previews.slice(0, 8).forEach((preview, index) => {
+        if (index % 2 === 0) {
+          const column = document.createElement('div');
+          column.className = 'workspace-spreadsheet-plot-preview-column';
+          plotPreviewColumns.appendChild(column);
+        }
+        const targetColumn = plotPreviewColumns.lastElementChild;
         const item = document.createElement('div');
         item.className = 'workspace-spreadsheet-plot-preview-item';
+        const target = document.createElement('div');
+        target.className = 'workspace-spreadsheet-plot-preview-target';
+        target.textContent = targetLabels[index] || '';
+        item.appendChild(target);
         const label = document.createElement('div');
         label.className = 'workspace-spreadsheet-plot-preview-label';
         label.textContent = preview.label;
-        const spark = createSparklineSvg(preview.xValues, preview.yValues);
+        const sparkWrap = document.createElement('div');
+        sparkWrap.className = 'workspace-spreadsheet-plot-preview-graphic';
+        const spark = createSparklineSvg(preview.xValues, preview.series.map((entry) => entry.yValues));
         if (spark) {
-          item.appendChild(spark);
+          sparkWrap.appendChild(spark);
         }
+        item.appendChild(sparkWrap);
         item.appendChild(label);
-        plotPreviewBody.appendChild(item);
+        targetColumn.appendChild(item);
       });
+
+      const mainHeight = plotMain.offsetHeight;
+      if (mainHeight) {
+        plotPreviewColumns.style.height = `${mainHeight}px`;
+      } else {
+        plotPreviewColumns.style.height = '';
+      }
     };
 
     const refreshPlotControls = () => {
@@ -1302,13 +1655,6 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       renderPlotSourceControls();
       renderPlotPreview();
       updateActionButtons();
-    };
-
-    const updateTargetSummary = () => {
-      const count = targetGraphSelections.size;
-      targetSummary.textContent = count
-        ? `${count} target${count === 1 ? '' : 's'}`
-        : 'Select graph(s)';
     };
 
     modeDefaultBtn.addEventListener('click', () => setPlotMode('default'));
@@ -1337,6 +1683,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           updateTargetSummary();
           syncPlotSelectionState({ persist: true });
           updateActionButtons();
+          renderPlotPreview();
         });
         const text = document.createElement('span');
         text.textContent = label;
@@ -1345,16 +1692,10 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         return option;
       };
 
-      const autoSeedGraphs = [];
-      if (graphs.length) {
-        autoSeedGraphs.push(graphs[0].id);
-      }
-      autoSeedGraphs.push('__new__');
-
-      const resolvedSet = previous.size ? previous : new Set(autoSeedGraphs);
+      const resolvedSet = previous.size ? previous : new Set(['__new__']);
       const nextValues = new Set();
 
-      const newOption = buildTargetOption('New graph', '__new__', resolvedSet.has('__new__'));
+      const newOption = buildTargetOption('New graph(s)', '__new__', resolvedSet.has('__new__'));
       if (resolvedSet.has('__new__')) {
         nextValues.add('__new__');
       }
@@ -1376,7 +1717,6 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       }
 
       targetGraphSelections = nextValues;
-      updateTargetSummary();
       updateActionButtons();
     };
 
@@ -1384,6 +1724,11 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       refreshGraphOptions();
       refreshPlotControls();
       return plotControls;
+    };
+
+    const getExtraOptionsPopoverContent = () => {
+      syncExtraOptionsState();
+      return extraControls;
     };
 
     const focusCell = (rowIndex, columnIndex, { selectAll = false } = {}) => {
@@ -1860,6 +2205,15 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     const renderGrid = () => {
       ensureSelectionIntegrity();
       table.innerHTML = '';
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      const headerVisibility = uiState.headerVisibility || DEFAULT_HEADER_VISIBILITY;
+      const fallbackColWidth = Number.isFinite(uiState.defaultColWidth)
+        ? Math.max(MIN_COLUMN_WIDTH, Math.round(uiState.defaultColWidth))
+        : null;
+      const rowHeight = Number.isFinite(uiState.rowHeight)
+        ? Math.max(18, Math.round(uiState.rowHeight))
+        : null;
+      wrapper.dataset.buttonDisplay = uiState.buttonDisplay;
       const thead = document.createElement('thead');
       const colgroup = document.createElement('colgroup');
       const cornerCol = document.createElement('col');
@@ -1869,6 +2223,8 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         const col = document.createElement('col');
         if (Number.isFinite(column.width)) {
           col.style.width = `${column.width}px`;
+        } else if (Number.isFinite(fallbackColWidth)) {
+          col.style.width = `${fallbackColWidth}px`;
         }
         colgroup.appendChild(col);
         return col;
@@ -2232,7 +2588,15 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
             th.appendChild(cell);
           }
         }
-      ];
+      ].filter((row) => {
+        if (row.key === 'ghost') return headerVisibility.ghost !== false;
+        if (row.key === 'col') return headerVisibility.col !== false;
+        if (row.key === 'name') return headerVisibility.name !== false;
+        if (row.key === 'units') return headerVisibility.units !== false;
+        if (row.key === 'formula') return headerVisibility.formula !== false;
+        if (row.key === 'spark') return headerVisibility.spark !== false;
+        return true;
+      });
 
       let headerOffset = 0;
       headerRows.forEach((rowConfig, rowIndex) => {
@@ -2253,6 +2617,9 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           th.dataset.columnIndex = String(columnIndex);
           th.style.top = `${headerOffset}px`;
           th.style.height = `${rowHeight}px`;
+          if (selectedXColumnIds.has(column.id)) {
+            th.classList.add('is-x-column');
+          }
           rowConfig.buildCell(th, columnIndex, column);
           row.appendChild(th);
         });
@@ -2269,6 +2636,9 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         rowHeader.className = 'workspace-spreadsheet-row-header';
         rowHeader.dataset.rowHeaderIndex = String(rowIndex);
         rowHeader.title = 'Select row';
+        if (Number.isFinite(rowHeight)) {
+          rowHeader.style.height = `${rowHeight}px`;
+        }
 
         const rowHeaderContent = document.createElement('div');
         rowHeaderContent.className = 'workspace-spreadsheet-row-header-content';
@@ -2292,9 +2662,15 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         sheetState.columns.forEach((column, columnIndex) => {
           const td = document.createElement('td');
           td.className = 'workspace-spreadsheet-cell-wrapper';
+          if (selectedXColumnIds.has(column.id)) {
+            td.classList.add('is-x-column');
+          }
           const input = document.createElement('input');
           input.type = 'text';
           input.className = 'workspace-spreadsheet-cell';
+          if (Number.isFinite(rowHeight)) {
+            input.style.height = `${rowHeight}px`;
+          }
           const renderRow = evaluatedRows[rowIndex] || row;
           input.value = formatDisplayValue(renderRow?.[column.id]);
           input.dataset.rowId = row.id;
@@ -2339,6 +2715,9 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         });
 
         tbody.appendChild(tr);
+        if (Number.isFinite(rowHeight)) {
+          tr.style.height = `${rowHeight}px`;
+        }
       });
 
       table.appendChild(thead);
@@ -2536,22 +2915,31 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       const column = sheetState.columns[index];
       if (!column) return;
       const insertIndex = Math.min(index + 1, sheetState.columns.length);
+      const formula = sheetState.formulas?.[column.id] ?? column.formula ?? '';
       const nextColumn = {
         id: generateId('col'),
         label: buildCopyLabel(column.label, toColumnLabel(insertIndex)),
         units: column.units || '',
         width: Number.isFinite(column.width) ? column.width : null,
-        type: column.type === 'text' ? 'text' : 'number',
-        formula: column.formula || ''
+        type: column.type,
+        formula
       };
+      const wasX = selectedXColumnIds.has(column.id);
+      const wasY = selectedYColumnIds.has(column.id);
       const nextColumns = sheetState.columns.slice();
       nextColumns.splice(insertIndex, 0, nextColumn);
       const nextRows = sheetState.rows.map((row) => ({
         ...row,
         [nextColumn.id]: row[column.id]
       }));
-      const nextFormulas = { ...sheetState.formulas, [nextColumn.id]: nextColumn.formula || '' };
+      const nextFormulas = { ...sheetState.formulas, [nextColumn.id]: formula };
       sheetState = { ...sheetState, columns: nextColumns, rows: nextRows, formulas: nextFormulas };
+      if (wasX) {
+        selectedXColumnIds.add(nextColumn.id);
+      }
+      if (wasY) {
+        selectedYColumnIds.add(nextColumn.id);
+      }
       activeColumnIndex = insertIndex;
       recalculateFormulas();
       markDirty();
@@ -2596,13 +2984,14 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
     renderGrid();
     refreshGraphOptions();
     updateActionButtons();
+    syncExtraOptionsState();
 
     return {
       plotEl: null,
       addColumn: handleAddColumn,
       setFreeze: setFreezeEnabled,
       getPlotPopoverContent,
-      getPlotPreviewContent: () => plotPreview,
+      getExtraOptionsPopoverContent,
       triggerPlotFromHeader,
       getQuickTipsMarkup: () => tipsMarkup,
       refreshContent(nextContent) {
@@ -2615,6 +3004,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         plotMode = sheetState.plotMode === 'custom' ? 'custom' : 'default';
         targetGraphSelections = new Set(sheetState.plotTargets || []);
         plotPreviewHidden = sheetState.plotPreviewHidden === true;
+        previewHiddenXColumnIds = new Set();
         ensureSelectionIntegrity();
         syncPlotSelectionState();
         historyPending = false;
@@ -2624,6 +3014,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         updatePreviewVisibility();
         refreshGraphOptions();
         updateActionButtons();
+        syncExtraOptionsState();
       },
       persistContent: flushPendingChanges,
       getContentSnapshot: () => buildContent(sheetState),

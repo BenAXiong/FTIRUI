@@ -2225,29 +2225,17 @@ body.workspace-panel-fullscreen .header-actions{
   background: transparent;
   box-shadow: none;
 }
-.workspace-spreadsheet-panel[data-freeze='true'] .workspace-spreadsheet-grid-scroll::after{
-  content: "Frozen";
-  position: absolute;
-  top: .4rem;
-  right: .5rem;
-  font-size: .7rem;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--bs-primary) 85%, rgba(15,23,42,.2) 15%);
-  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 75%, rgba(15,23,42,.1) 25%);
-  border: 1px solid color-mix(in srgb, var(--bs-primary) 45%, transparent);
-  padding: .12rem .45rem;
-  border-radius: .6rem;
-  pointer-events: none;
-  z-index: 4;
-}
 .workspace-spreadsheet-panel[data-freeze='true'] .workspace-spreadsheet-grid thead th{
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--bs-primary) 55%, transparent);
-  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 88%, rgba(15,23,42,.05) 12%);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.04) 8%);
 }
 .workspace-spreadsheet-panel[data-freeze='true'] .workspace-spreadsheet-grid tbody th{
-  box-shadow: inset -2px 0 0 color-mix(in srgb, var(--bs-primary) 55%, transparent);
-  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 88%, rgba(15,23,42,.05) 12%);
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(15,23,42,.04) 8%);
+}
+.workspace-spreadsheet-panel[data-freeze='true'] .workspace-spreadsheet-header-corner{
+  left: 0;
+  z-index: 6;
 }
 .workspace-spreadsheet-grid{
   width: max-content;
@@ -2296,6 +2284,12 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-column-header.is-active{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, rgba(15,23,42,.08) 15%);
+}
+.workspace-spreadsheet-column-header.is-x-column:not(.is-selected):not(.is-active){
+  background: color-mix(in srgb, var(--bs-body-bg) 88%, rgba(148,163,184,.2) 12%);
+}
+.workspace-spreadsheet-cell-wrapper.is-x-column{
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(148,163,184,.16) 8%);
 }
 .workspace-spreadsheet-column-header--col{
   min-width: 3.25rem;
@@ -2414,6 +2408,23 @@ body.workspace-panel-fullscreen .header-actions{
   border-color: color-mix(in srgb, var(--bs-warning) 55%, transparent);
   background: color-mix(in srgb, var(--bs-warning-bg-subtle, rgba(255,193,7,.12)) 70%, transparent);
 }
+.workspace-spreadsheet-column-header--col .workspace-spreadsheet-col-role-toggle,
+.workspace-spreadsheet-column-header--col .workspace-spreadsheet-col-type-toggle{
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.workspace-spreadsheet-column-header--col:hover .workspace-spreadsheet-col-role-toggle,
+.workspace-spreadsheet-column-header--col:hover .workspace-spreadsheet-col-type-toggle{
+  opacity: 1;
+  pointer-events: auto;
+}
+.workspace-spreadsheet-column-header--col .workspace-spreadsheet-col-type-toggle{
+  margin-left: auto;
+}
+.workspace-spreadsheet-column-header--col .workspace-spreadsheet-col-actions{
+  margin-left: .35rem;
+}
 .workspace-spreadsheet-col-token{
   font-size: .72rem;
   letter-spacing: .12em;
@@ -2435,7 +2446,7 @@ body.workspace-panel-fullscreen .header-actions{
   position: absolute;
   top: 0;
   left: 50%;
-  transform: translate(-50%, -45%);
+  transform: translate(-50%, -50%);
   font-size: .7rem;
   line-height: 1;
   z-index: 2;
@@ -2453,6 +2464,12 @@ body.workspace-panel-fullscreen .header-actions{
   transition: opacity .15s ease;
 }
 .workspace-spreadsheet-column-header--col:hover .workspace-spreadsheet-col-actions{
+  opacity: 1;
+  pointer-events: auto;
+}
+.workspace-spreadsheet-panel[data-button-display="always"] .workspace-spreadsheet-col-actions,
+.workspace-spreadsheet-panel[data-button-display="always"] .workspace-spreadsheet-col-role-toggle,
+.workspace-spreadsheet-panel[data-button-display="always"] .workspace-spreadsheet-col-type-toggle{
   opacity: 1;
   pointer-events: auto;
 }
@@ -2557,6 +2574,9 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-grid tbody tr:nth-child(even) td{
   background: color-mix(in srgb, var(--bs-body-bg) 98%, rgba(15,23,42,.02) 2%);
+}
+.workspace-spreadsheet-grid td.workspace-spreadsheet-cell-wrapper.is-x-column{
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(148,163,184,.16) 8%);
 }
 .workspace-spreadsheet-cell-wrapper{
   padding: 0;
@@ -2696,39 +2716,51 @@ body.workspace-panel-fullscreen .header-actions{
   display: flex;
   flex-direction: column;
   gap: .65rem;
-  min-width: 320px;
+  width: max-content;
+  min-width: 0;
 }
 .workspace-spreadsheet-plot-layout{
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: .9rem;
+  width: max-content;
 }
 .workspace-spreadsheet-plot-main{
   display: flex;
   flex-direction: column;
   gap: .65rem;
+  flex: 0 0 auto;
+}
+.workspace-spreadsheet-plot-divider{
+  width: 1px;
+  background: color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  align-self: stretch;
+}
+.workspace-spreadsheet-plot-divider.is-hidden{
+  display: none;
+}
+.workspace-spreadsheet-plot-preview-columns{
+  display: flex;
+  align-items: stretch;
+  gap: .7rem;
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+.workspace-spreadsheet-plot-preview-columns.is-preview-hidden{
+  display: none;
+}
+.workspace-spreadsheet-plot-preview-column{
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  min-width: 180px;
+  height: 100%;
 }
 .workspace-spreadsheet-plot-label-row{
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: .5rem;
-}
-.workspace-spreadsheet-plot-preview{
-  display: flex;
-  flex-direction: column;
-  gap: .4rem;
-  min-width: 160px;
-  max-width: 220px;
-}
-.workspace-spreadsheet-plot-preview.is-preview-hidden{
-  display: none;
-}
-.workspace-spreadsheet-plot-preview-header{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .45rem;
 }
 .workspace-spreadsheet-plot-preview-toggle{
   display: inline-flex;
@@ -2740,26 +2772,38 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-plot-preview-toggle .form-check-input{
   margin: 0;
 }
-.workspace-panel-popover--plot-preview{
-  border-radius: 0;
-}
-.workspace-spreadsheet-plot-preview-body{
-  display: flex;
-  flex-direction: column;
-  gap: .45rem;
-}
 .workspace-spreadsheet-plot-preview-item{
   display: flex;
   flex-direction: column;
   gap: .2rem;
   padding: .35rem .45rem;
-  border-radius: .5rem;
+  border-radius: 0;
   background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.04) 4%);
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  flex: 1 1 0;
+  min-height: 0;
+}
+.workspace-spreadsheet-plot-preview-graphic{
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.workspace-spreadsheet-plot-preview-target{
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.25) 25%);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .workspace-spreadsheet-plot-preview-item svg{
   width: 100%;
-  height: 36px;
+  height: 100%;
+  flex: 1 1 auto;
 }
 .workspace-spreadsheet-plot-preview-label{
   font-size: .65rem;
@@ -2767,6 +2811,64 @@ body.workspace-panel-fullscreen .header-actions{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.workspace-spreadsheet-extra-popover{
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  min-width: 280px;
+}
+.workspace-spreadsheet-extra-section{
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.workspace-spreadsheet-extra-label{
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
+}
+.workspace-spreadsheet-extra-body{
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.workspace-spreadsheet-extra-items{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.workspace-spreadsheet-extra-toggle{
+  padding: .25rem .5rem;
+  font-size: .75rem;
+}
+.workspace-spreadsheet-extra-toggle.is-active{
+  background: color-mix(in srgb, var(--bs-primary-bg-subtle) 70%, transparent);
+  border-color: color-mix(in srgb, var(--bs-primary) 55%, transparent);
+  color: var(--bs-primary);
+}
+.workspace-spreadsheet-extra-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  font-size: .75rem;
+}
+.workspace-spreadsheet-extra-input{
+  width: 90px;
+}
+.workspace-spreadsheet-extra-checkbox{
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .75rem;
+}
+.workspace-spreadsheet-extra-toggle-group{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
 }
 .workspace-spreadsheet-plot-section{
   display: flex;

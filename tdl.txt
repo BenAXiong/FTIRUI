@@ -67,11 +67,11 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] Multi-column select with ctrl+click and shift+click & multi resize with mouse
             - [x] Enable copying data from selected cells and columns
         - [-] Rework "Add to graph section"
-            - [ ] Fix col dup: data, toggles, f, etc
-            - [ ] Fix col width (don't fit panel width, let scroll)
-            - [ ] Fix freeze behavior
-            - [ ] Improve graph previews and layout without hurting performances
-            - [ ] Add hb for extra option: "view" toggles for each header row, col & row sizes, copy mode (toggle headers, format,...)
+            - [x] Fix col dup: data, toggles, f, etc
+            - [x] Fix col width (don't fit panel width, let scroll)
+            - [x] Fix freeze behavior
+            - [x] Add hb for extra option: "view" toggles for each header row, col & row sizes, copy mode (toggle headers, format,...)
+            - [-] hb: open in side pane
         - [ ] UI refinement
             - [ ] UI : cursors when pinned and trying to resize, cell edit when locked, ...
             - [ ] UI : darker headers, rework col toggles and buttons, shrink spark + popup
@@ -117,8 +117,11 @@ Phase x – Extra details
 - [ ] *spreadsheets flow
 - [ ] *styling flow: avoid spread styling on multiple places (browser chip, hb, right pane).
         Ctrl+click on plot elements?
+- [ ] change tb2 mode toggle into a floating double arrow button just below s10
 - [ ] all icons...
 - [ ] SS name and save custom formulas in f
+- [ ] cleanup legacy content & dev mode
+- [ ] (post-MVP?) Improve graph previews and layout without hurting performances
 
 Phase x – (nondev)
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),

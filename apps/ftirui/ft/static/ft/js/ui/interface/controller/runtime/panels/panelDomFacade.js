@@ -3147,65 +3147,33 @@ export function createPanelDomFacade({
 
             const plotPopover = document.createElement('div');
             plotPopover.className = 'workspace-panel-popover workspace-panel-popover--plot';
-            const plotPreviewPopover = document.createElement('div');
-            plotPreviewPopover.className = 'workspace-panel-popover workspace-panel-popover--plot-preview';
-            const syncPlotPreviewContent = () => {
-              const previewContent = contentHandles?.getPlotPreviewContent?.();
-              if (previewContent && !plotPreviewPopover.contains(previewContent)) {
-                plotPreviewPopover.appendChild(previewContent);
-              }
-              return previewContent;
-            };
-            const closePlotPreview = () => {
-              closePortaledPopover(plotBtn, plotPreviewPopover);
-              plotPreviewPopover.style.height = '';
-            };
-            const openPlotPreview = () => {
-              const previewContent = syncPlotPreviewContent();
-              if (!previewContent || previewContent.classList.contains('is-preview-hidden')) {
-                closePlotPreview();
-                return;
-              }
-              const anchorRect = plotPopover.getBoundingClientRect();
-              plotPreviewPopover.style.height = '';
-              const previewRect = plotPreviewPopover.getBoundingClientRect();
-              const offsetY = Number.isFinite(previewRect.height)
-                ? anchorRect.height - previewRect.height
-                : 0;
-              openPortaledPopover(plotBtn, plotPreviewPopover, {
-                strategy: 'right-side',
-                align: 'start',
-                offsetX: 0,
-                offsetY,
-                getAnchorRect: () => anchorRect
-              });
-            };
             plotPopover.onOpen = () => {
               const plotContent = contentHandles?.getPlotPopoverContent?.();
               if (plotContent && !plotPopover.contains(plotContent)) {
                 plotPopover.appendChild(plotContent);
               }
-              requestAnimationFrame(() => {
-                openPlotPreview();
-              });
             };
-            plotPopover.addEventListener('change', (event) => {
-              if (!event.target?.matches?.('.workspace-spreadsheet-plot-preview-toggle input')) return;
-              if (plotBtn.getAttribute('aria-expanded') !== 'true') return;
-              if (event.target.checked) {
-                closePlotPreview();
-              } else {
-                requestAnimationFrame(() => openPlotPreview());
-              }
+            plotPopover.addEventListener('spreadsheet:close-popover', () => {
+              plotPopover.__close?.();
             });
             appendPopoverControl(plotBtn, plotPopover, { openOnHover: true, suppressClickToggle: true });
-            const originalPlotClose = plotPopover.__close;
-            plotPopover.__close = () => {
-              if (typeof originalPlotClose === 'function') {
-                originalPlotClose();
+
+            const extraBtn = document.createElement('button');
+            extraBtn.type = 'button';
+            extraBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
+            extraBtn.innerHTML = '<i class="bi bi-sliders"></i>';
+            extraBtn.title = 'Extra options';
+            extraBtn.setAttribute('aria-expanded', 'false');
+
+            const extraPopover = document.createElement('div');
+            extraPopover.className = 'workspace-panel-popover workspace-panel-popover--spreadsheet-extra';
+            extraPopover.onOpen = () => {
+              const extraContent = contentHandles?.getExtraOptionsPopoverContent?.();
+              if (extraContent && !extraPopover.contains(extraContent)) {
+                extraPopover.appendChild(extraContent);
               }
-              closePlotPreview();
             };
+            appendPopoverControl(extraBtn, extraPopover, { openOnHover: true, suppressClickToggle: true });
 
             const settingsBtn = document.createElement('button');
             settingsBtn.type = 'button';
