@@ -2830,7 +2830,64 @@ body.workspace-panel-fullscreen .header-actions{
   text-transform: uppercase;
   color: color-mix(in srgb, var(--bs-secondary-color) 85%, rgba(15,23,42,.25) 15%);
 }
+.workspace-spreadsheet-extra-label--info{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+.workspace-spreadsheet-extra-info{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.workspace-spreadsheet-extra-info-btn{
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--bs-secondary-color) 75%, rgba(15,23,42,.35) 25%);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .85rem;
+  line-height: 1;
+}
+.workspace-spreadsheet-extra-info-popover{
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: .35rem;
+  padding: .35rem .5rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 88%, rgba(15,23,42,.2) 12%);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  border-radius: .45rem;
+  font-size: .7rem;
+  letter-spacing: .02em;
+  text-transform: none;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition: opacity .12s ease, transform .12s ease;
+  z-index: 5;
+}
+.workspace-spreadsheet-extra-info:hover .workspace-spreadsheet-extra-info-popover,
+.workspace-spreadsheet-extra-info:focus-within .workspace-spreadsheet-extra-info-popover{
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
 .workspace-spreadsheet-extra-body{
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.workspace-spreadsheet-extra-size-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: .6rem;
+}
+.workspace-spreadsheet-extra-stack{
   display: flex;
   flex-direction: column;
   gap: .4rem;

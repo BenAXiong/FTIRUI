@@ -159,9 +159,15 @@ const normalizeSpreadsheetUi = (value = {}) => {
   const headerVisibility = raw.headerVisibility && typeof raw.headerVisibility === 'object'
     ? { ...DEFAULT_HEADER_VISIBILITY, ...raw.headerVisibility }
     : { ...DEFAULT_HEADER_VISIBILITY };
-  const rowHeight = Number.isFinite(Number(raw.rowHeight))
-    ? Math.max(18, Math.round(Number(raw.rowHeight)))
+  const dataFontSize = Number.isFinite(Number(raw.dataFontSize))
+    ? Math.max(10, Math.round(Number(raw.dataFontSize)))
     : null;
+  const minRowHeight = Number.isFinite(dataFontSize)
+    ? Math.max(18, dataFontSize + 8)
+    : 18;
+  const rowHeight = Number.isFinite(Number(raw.rowHeight))
+    ? Math.max(minRowHeight, Math.round(Number(raw.rowHeight)))
+    : (Number.isFinite(dataFontSize) ? minRowHeight : null);
   const defaultColWidth = Number.isFinite(Number(raw.defaultColWidth))
     ? Math.max(MIN_COLUMN_WIDTH, Math.round(Number(raw.defaultColWidth)))
     : null;
@@ -177,6 +183,7 @@ const normalizeSpreadsheetUi = (value = {}) => {
     headerVisibility,
     rowHeight,
     defaultColWidth,
+    dataFontSize,
     copyMode,
     buttonDisplay,
     previewMode
@@ -472,6 +479,11 @@ export const spreadsheetPanelType = {
     extraControls.appendChild(viewSection.section);
 
     const sizeSection = buildExtraSection('Row & column size');
+    const sizeGrid = document.createElement('div');
+    sizeGrid.className = 'workspace-spreadsheet-extra-size-grid';
+
+    const sizeLeft = document.createElement('div');
+    sizeLeft.className = 'workspace-spreadsheet-extra-stack';
     const sizeRow = document.createElement('div');
     sizeRow.className = 'workspace-spreadsheet-extra-row';
     const rowLabel = document.createElement('span');
@@ -515,11 +527,62 @@ export const spreadsheetPanelType = {
     });
     colRow.appendChild(colLabel);
     colRow.appendChild(colInput);
-    sizeSection.body.appendChild(sizeRow);
-    sizeSection.body.appendChild(colRow);
+    sizeLeft.appendChild(sizeRow);
+    sizeLeft.appendChild(colRow);
+
+    const sizeRight = document.createElement('div');
+    sizeRight.className = 'workspace-spreadsheet-extra-stack';
+    const fontRow = document.createElement('div');
+    fontRow.className = 'workspace-spreadsheet-extra-row';
+    const fontLabel = document.createElement('span');
+    fontLabel.textContent = 'Data font';
+    const fontInput = document.createElement('input');
+    fontInput.type = 'number';
+    fontInput.min = '10';
+    fontInput.className = 'form-control form-control-sm workspace-spreadsheet-extra-input';
+    fontInput.placeholder = 'Auto';
+    fontInput.addEventListener('change', () => {
+      const raw = fontInput.value.trim();
+      const value = Number(raw);
+      const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      const next = raw && Number.isFinite(value) ? Math.max(10, Math.round(value)) : null;
+      sheetState = { ...sheetState, ui: { ...uiState, dataFontSize: next } };
+      schedulePersist();
+      renderGrid();
+      syncExtraOptionsState();
+    });
+    fontRow.appendChild(fontLabel);
+    fontRow.appendChild(fontInput);
+    sizeRight.appendChild(fontRow);
+
+    sizeGrid.appendChild(sizeLeft);
+    sizeGrid.appendChild(sizeRight);
+    sizeSection.body.appendChild(sizeGrid);
     extraControls.appendChild(sizeSection.section);
 
     const copySection = buildExtraSection('Copy mode');
+    const copyLabel = copySection.section.querySelector('.workspace-spreadsheet-extra-label');
+    if (copyLabel) {
+      const copyLabelWrap = document.createElement('div');
+      copyLabelWrap.className = 'workspace-spreadsheet-extra-label workspace-spreadsheet-extra-label--info';
+      const copyLabelText = document.createElement('span');
+      copyLabelText.textContent = 'Copy mode';
+      const copyInfo = document.createElement('div');
+      copyInfo.className = 'workspace-spreadsheet-extra-info';
+      const copyInfoBtn = document.createElement('button');
+      copyInfoBtn.type = 'button';
+      copyInfoBtn.className = 'workspace-spreadsheet-extra-info-btn';
+      copyInfoBtn.setAttribute('aria-label', 'Copy mode help');
+      copyInfoBtn.innerHTML = '<i class="bi bi-info-circle" aria-hidden="true"></i>';
+      const copyInfoPopover = document.createElement('div');
+      copyInfoPopover.className = 'workspace-spreadsheet-extra-info-popover';
+      copyInfoPopover.textContent = 'Headers includes column labels. Formatted uses the displayed cell values.';
+      copyInfo.appendChild(copyInfoBtn);
+      copyInfo.appendChild(copyInfoPopover);
+      copyLabelWrap.appendChild(copyLabelText);
+      copyLabelWrap.appendChild(copyInfo);
+      copyLabel.replaceWith(copyLabelWrap);
+    }
     const copyItems = document.createElement('div');
     copyItems.className = 'workspace-spreadsheet-extra-items';
     const copyHeaders = document.createElement('label');
@@ -713,14 +776,19 @@ export const spreadsheetPanelType = {
 
     const syncExtraOptionsState = () => {
       const uiState = sheetState.ui || normalizeSpreadsheetUi();
+      const minRowHeight = Number.isFinite(uiState.dataFontSize)
+        ? Math.max(18, uiState.dataFontSize + 8)
+        : 18;
       wrapper.dataset.buttonDisplay = uiState.buttonDisplay;
       Object.entries(viewButtons).forEach(([key, btn]) => {
         const isOn = uiState.headerVisibility?.[key] !== false;
         btn.classList.toggle('is-active', isOn);
         btn.setAttribute('aria-pressed', String(isOn));
       });
+      rowInput.min = String(minRowHeight);
       rowInput.value = Number.isFinite(uiState.rowHeight) ? String(uiState.rowHeight) : '';
       colInput.value = Number.isFinite(uiState.defaultColWidth) ? String(uiState.defaultColWidth) : '';
+      fontInput.value = Number.isFinite(uiState.dataFontSize) ? String(uiState.dataFontSize) : '';
       copyHeadersInput.checked = uiState.copyMode?.includeHeaders !== false;
       copyFormatInput.checked = uiState.copyMode?.formatted === true;
       buttonHover.classList.toggle('is-active', uiState.buttonDisplay === 'hover');
@@ -1428,7 +1496,6 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
               }
               renderPlotSourceControls();
               renderPlotPreview();
-              plotControls.dispatchEvent(new CustomEvent('spreadsheet:close-popover', { bubbles: true }));
             });
             list.appendChild(btn);
           });
@@ -2210,9 +2277,15 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       const fallbackColWidth = Number.isFinite(uiState.defaultColWidth)
         ? Math.max(MIN_COLUMN_WIDTH, Math.round(uiState.defaultColWidth))
         : null;
-      const rowHeight = Number.isFinite(uiState.rowHeight)
-        ? Math.max(18, Math.round(uiState.rowHeight))
+      const dataFontSize = Number.isFinite(uiState.dataFontSize)
+        ? Math.max(10, Math.round(uiState.dataFontSize))
         : null;
+      const minRowHeight = Number.isFinite(dataFontSize)
+        ? Math.max(18, dataFontSize + 8)
+        : 18;
+      const rowHeight = Number.isFinite(uiState.rowHeight)
+        ? Math.max(minRowHeight, Math.round(uiState.rowHeight))
+        : (Number.isFinite(dataFontSize) ? minRowHeight : null);
       wrapper.dataset.buttonDisplay = uiState.buttonDisplay;
       const thead = document.createElement('thead');
       const colgroup = document.createElement('colgroup');
@@ -2670,6 +2743,9 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           input.className = 'workspace-spreadsheet-cell';
           if (Number.isFinite(rowHeight)) {
             input.style.height = `${rowHeight}px`;
+          }
+          if (Number.isFinite(dataFontSize)) {
+            input.style.fontSize = `${dataFontSize}px`;
           }
           const renderRow = evaluatedRows[rowIndex] || row;
           input.value = formatDisplayValue(renderRow?.[column.id]);
