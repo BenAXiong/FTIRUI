@@ -29,6 +29,7 @@ import { createStylePainterController } from './panels/stylePainterController.js
 import { createTemplatesController } from './panels/templatesController.js';
 import { createPanelLockController } from './panels/panelLockController.js';
 import { createPanelTagController } from './panels/panelTagController.js';
+import { createSpreadsheetDockController } from './panels/spreadsheetDockController.js';
 import { createUnitsToggleController } from './panels/unitsToggleController.js';
 import { createMultiTraceController } from './panels/multiTraceController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
@@ -3383,6 +3384,7 @@ let techToolbarSidePanelController = null;
 let techToolbarSidePanelResizeController = null;
 let techToolbarHeaderVisibilityController = null;
 let techToolbarModebarVisibilityController = null;
+let spreadsheetDockController = null;
 let tagFilterController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
@@ -4367,6 +4369,7 @@ const isPanelPinned = (panelId) =>
       const result = typeof baseRestoreSnapshot === 'function' ? baseRestoreSnapshot(...args) : null;
       const finalize = () => {
         applyThemeToAllPlotPanels({ applyPalette: true, reason: 'snapshot-restore' });
+        spreadsheetDockController?.restoreDocked?.();
       };
       if (result && typeof result.then === 'function') {
         return result.then((value) => {
@@ -5241,6 +5244,27 @@ const isPanelPinned = (panelId) =>
         }
       ]
     });
+    spreadsheetDockController = createSpreadsheetDockController({
+      dom: {
+        panel: document.querySelector('[data-tech-side-panel]'),
+        header: document.querySelector('[data-tech-side-panel-header]'),
+        actionsRow: document.querySelector('[data-tech-side-panel-actions]'),
+        openCanvasBtn: document.querySelector('[data-tech-panel-action="open-canvas"]')
+      },
+      actions: {
+        setGraphVisibility,
+        bringPanelToFront,
+        setPanelContent,
+        handleHeaderAction
+      },
+      selectors: {
+        getPanelRecord,
+        getPanelContent,
+        listPlotPanels: listAvailablePlotPanels,
+        getPanelDom
+      },
+      preferences: preferencesFacade
+    });
     techToolbarSidePanelController = createTechToolbarSidePanelController({
       dom: {
         panel: document.querySelector('[data-tech-side-panel]')
@@ -5320,6 +5344,20 @@ const isPanelPinned = (panelId) =>
           ]
         },
         {
+          id: 'data',
+          label: 'Data',
+          items: [
+            {
+              id: 'spreadsheet-data',
+              label: 'Data',
+              menu: spreadsheetDockController?.getMenu?.() || null,
+              hideHeader: true,
+              disableCollapse: true,
+              placeholder: false
+            }
+          ]
+        },
+        {
           id: 'styles',
           label: 'Styles',
           items: [
@@ -5365,6 +5403,8 @@ const isPanelPinned = (panelId) =>
       sidePanelController: techToolbarSidePanelController,
       hoverController: techToolbarHoverController
     });
+    spreadsheetDockController?.setSidePanelController?.(techToolbarSidePanelController);
+    spreadsheetDockController?.setPinController?.(techToolbarPinController);
     techToolbarHeaderVisibilityController = createTechToolbarHeaderVisibilityController({
       dom: {
         toggle: document.querySelector('[data-hide-inactive-headers-toggle]')
@@ -5416,6 +5456,7 @@ const isPanelPinned = (panelId) =>
     updateHistoryButtons,
     showToast
   });
+  spreadsheetDockController?.setDuplicatePanel?.(browserDuplicateActions?.duplicatePanel);
 
   panelDomFacade = createPanelDomFacade({
     canvas,
@@ -5437,6 +5478,7 @@ const isPanelPinned = (panelId) =>
       onTemplatesRename: templatesController?.handleRenameTemplate,
       onTemplatesDelete: templatesController?.handleDeleteTemplate,
       onTemplatesDuplicate: templatesController?.handleDuplicateTemplate,
+      onSpreadsheetDock: (panelId) => spreadsheetDockController?.dockPanel?.(panelId),
       duplicatePanel: browserDuplicateActions?.duplicatePanel,
       onPanelLockToggle: panelLockController?.handleLockToggle,
       onPanelPinToggle: panelLockController?.handlePinToggle,
@@ -7669,6 +7711,8 @@ const isPanelPinned = (panelId) =>
       techToolbarLabelController?.teardown?.();
       techToolbarHoverController?.teardown?.();
       techToolbarHoverController = null;
+      spreadsheetDockController?.teardown?.();
+      spreadsheetDockController = null;
       techToolbarSidePanelController?.teardown?.();
       techToolbarSidePanelController = null;
       techToolbarSidePanelResizeController?.teardown?.();

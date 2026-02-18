@@ -23,6 +23,7 @@ export function createPanelDomFacade({
       onTemplatesRename = () => {},
       onTemplatesDelete = () => {},
       onTemplatesDuplicate = () => {},
+      onSpreadsheetDock = () => {},
       duplicatePanel = () => {},
       onPanelLockToggle = () => {},
       onPanelPinToggle = () => {},
@@ -67,6 +68,9 @@ export function createPanelDomFacade({
     : () => {};
   const safeTemplatesDuplicate = typeof onTemplatesDuplicate === 'function'
     ? onTemplatesDuplicate
+    : () => {};
+  const safeSpreadsheetDock = typeof onSpreadsheetDock === 'function'
+    ? onSpreadsheetDock
     : () => {};
   const safeDuplicatePanel = typeof duplicatePanel === 'function' ? duplicatePanel : () => {};
   const safePanelLockToggle = typeof onPanelLockToggle === 'function' ? onPanelLockToggle : () => {};
@@ -3107,6 +3111,16 @@ export function createPanelDomFacade({
               safeDuplicatePanel(panelId);
             });
             appendActionItem(duplicateBtn);
+
+            const dockBtn = document.createElement('button');
+            dockBtn.type = 'button';
+            dockBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+            dockBtn.innerHTML = '<i class="bi bi-layout-sidebar-inset"></i>';
+            dockBtn.title = 'Open in side bar';
+            dockBtn.addEventListener('click', () => {
+              safeSpreadsheetDock(panelId);
+            });
+            appendActionItem(dockBtn);
 
             const tipsBtn = document.createElement('button');
             tipsBtn.type = 'button';

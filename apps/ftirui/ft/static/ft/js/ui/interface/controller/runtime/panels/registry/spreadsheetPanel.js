@@ -8,6 +8,7 @@ const FOCUS_DELAY = 20;
 const MAX_DECIMAL_PLACES = 5;
 const HEADER_ROW_HEIGHT = 30;
 const MIN_COLUMN_WIDTH = 60;
+const MIN_ROW_HEIGHT = 12;
 const CORNER_COL_WIDTH_REM = 2.2;
 const DEFAULT_HEADER_VISIBILITY = {
   ghost: true,
@@ -160,11 +161,11 @@ const normalizeSpreadsheetUi = (value = {}) => {
     ? { ...DEFAULT_HEADER_VISIBILITY, ...raw.headerVisibility }
     : { ...DEFAULT_HEADER_VISIBILITY };
   const dataFontSize = Number.isFinite(Number(raw.dataFontSize))
-    ? Math.max(10, Math.round(Number(raw.dataFontSize)))
+    ? Math.max(2, Math.round(Number(raw.dataFontSize)))
     : null;
   const minRowHeight = Number.isFinite(dataFontSize)
-    ? Math.max(18, dataFontSize + 8)
-    : 18;
+    ? Math.max(MIN_ROW_HEIGHT, dataFontSize + 8)
+    : MIN_ROW_HEIGHT;
   const rowHeight = Number.isFinite(Number(raw.rowHeight))
     ? Math.max(minRowHeight, Math.round(Number(raw.rowHeight)))
     : (Number.isFinite(dataFontSize) ? minRowHeight : null);
@@ -490,14 +491,17 @@ export const spreadsheetPanelType = {
     rowLabel.textContent = 'Row height';
     const rowInput = document.createElement('input');
     rowInput.type = 'number';
-    rowInput.min = '18';
+    rowInput.min = String(MIN_ROW_HEIGHT);
     rowInput.className = 'form-control form-control-sm workspace-spreadsheet-extra-input';
     rowInput.placeholder = 'Auto';
     rowInput.addEventListener('change', () => {
       const raw = rowInput.value.trim();
       const value = Number(raw);
       const uiState = sheetState.ui || normalizeSpreadsheetUi();
-      const next = raw && Number.isFinite(value) ? Math.max(18, Math.round(value)) : null;
+      const minRowHeight = Number.isFinite(uiState.dataFontSize)
+        ? Math.max(MIN_ROW_HEIGHT, uiState.dataFontSize + 8)
+        : MIN_ROW_HEIGHT;
+      const next = raw && Number.isFinite(value) ? Math.max(minRowHeight, Math.round(value)) : null;
       sheetState = { ...sheetState, ui: { ...uiState, rowHeight: next } };
       schedulePersist();
       renderGrid();
@@ -538,14 +542,14 @@ export const spreadsheetPanelType = {
     fontLabel.textContent = 'Data font';
     const fontInput = document.createElement('input');
     fontInput.type = 'number';
-    fontInput.min = '10';
+    fontInput.min = '2';
     fontInput.className = 'form-control form-control-sm workspace-spreadsheet-extra-input';
     fontInput.placeholder = 'Auto';
     fontInput.addEventListener('change', () => {
       const raw = fontInput.value.trim();
       const value = Number(raw);
       const uiState = sheetState.ui || normalizeSpreadsheetUi();
-      const next = raw && Number.isFinite(value) ? Math.max(10, Math.round(value)) : null;
+      const next = raw && Number.isFinite(value) ? Math.max(2, Math.round(value)) : null;
       sheetState = { ...sheetState, ui: { ...uiState, dataFontSize: next } };
       schedulePersist();
       renderGrid();
@@ -777,8 +781,8 @@ export const spreadsheetPanelType = {
     const syncExtraOptionsState = () => {
       const uiState = sheetState.ui || normalizeSpreadsheetUi();
       const minRowHeight = Number.isFinite(uiState.dataFontSize)
-        ? Math.max(18, uiState.dataFontSize + 8)
-        : 18;
+        ? Math.max(MIN_ROW_HEIGHT, uiState.dataFontSize + 8)
+        : MIN_ROW_HEIGHT;
       wrapper.dataset.buttonDisplay = uiState.buttonDisplay;
       Object.entries(viewButtons).forEach(([key, btn]) => {
         const isOn = uiState.headerVisibility?.[key] !== false;
@@ -1439,6 +1443,8 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
       plotMode = resolved;
       renderPlotModeControls();
       renderPlotSourceControls();
+      renderPlotPreview();
+      updateActionButtons();
       syncPlotSelectionState({ persist: true });
     };
 
@@ -1535,6 +1541,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           ensureSelectionIntegrity();
           syncPlotSelectionState({ persist: true });
           renderPlotSourceControls();
+          renderPlotPreview();
           updateActionButtons();
         });
         xButtons.appendChild(btn);
@@ -1573,6 +1580,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           ensureSelectionIntegrity();
           syncPlotSelectionState({ persist: true });
           renderPlotSourceControls();
+          renderPlotPreview();
           updateActionButtons();
         });
         yButtons.appendChild(btn);
@@ -1601,10 +1609,13 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         .map((targetId) => graphMap.get(targetId) || 'Graph');
       const existingCount = existingLabels.length;
       const hasNew = targets.includes('__new__');
+      const existingSummary = existingCount > 0
+        ? (existingCount === 1 ? existingLabels[0] : `${existingLabels[0]} + ${existingCount - 1} more`)
+        : null;
       if (!hasNew) {
         if (!existingCount) return Array(count).fill('Graph');
-        if (existingCount === 1) return Array(count).fill(existingLabels[0]);
-        return Array(count).fill(`${existingLabels[0]} + ${existingCount - 1} more`);
+        if (existingCount === 1) return Array(count).fill(`Added to: ${existingLabels[0]}`);
+        return Array.from({ length: count }, (_, index) => `Added to: ${existingLabels[index % existingCount]}`);
       }
       const usedIndices = graphs
         .map((graph) => Number(graph?.index))
@@ -1619,8 +1630,8 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         nextIndex += 1;
         return label;
       });
-      if (!existingCount) return newLabels;
-      return newLabels.map((label) => `${label} + ${existingCount} more`);
+      if (!existingSummary) return newLabels.map((label) => `New graph: ${label}`);
+      return newLabels.map((label) => `New graph: ${label} + Added to: ${existingSummary}`);
     };
 
     const renderPlotPreview = () => {
@@ -1726,6 +1737,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
 
     modeDefaultBtn.addEventListener('click', () => setPlotMode('default'));
     modeCustomBtn.addEventListener('click', () => setPlotMode('custom'));
+    const updateTargetSummary = () => {};
     const refreshGraphOptions = () => {
       const graphs = safeListPlotPanels()
         .filter((graph) => graph && graph.id && graph.id !== panelId);
@@ -1785,6 +1797,7 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
 
       targetGraphSelections = nextValues;
       updateActionButtons();
+      renderPlotPreview();
     };
 
     const getPlotPopoverContent = () => {
@@ -2278,11 +2291,11 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         ? Math.max(MIN_COLUMN_WIDTH, Math.round(uiState.defaultColWidth))
         : null;
       const dataFontSize = Number.isFinite(uiState.dataFontSize)
-        ? Math.max(10, Math.round(uiState.dataFontSize))
+        ? Math.max(2, Math.round(uiState.dataFontSize))
         : null;
       const minRowHeight = Number.isFinite(dataFontSize)
-        ? Math.max(18, dataFontSize + 8)
-        : 18;
+        ? Math.max(MIN_ROW_HEIGHT, dataFontSize + 8)
+        : MIN_ROW_HEIGHT;
       const rowHeight = Number.isFinite(uiState.rowHeight)
         ? Math.max(minRowHeight, Math.round(uiState.rowHeight))
         : (Number.isFinite(dataFontSize) ? minRowHeight : null);
@@ -2711,6 +2724,11 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         rowHeader.title = 'Select row';
         if (Number.isFinite(rowHeight)) {
           rowHeader.style.height = `${rowHeight}px`;
+          rowHeader.style.minHeight = `${rowHeight}px`;
+          rowHeader.style.maxHeight = `${rowHeight}px`;
+          rowHeader.style.lineHeight = `${Math.max(8, rowHeight - 2)}px`;
+          rowHeader.style.paddingTop = rowHeight <= 16 ? '0' : '';
+          rowHeader.style.paddingBottom = rowHeight <= 16 ? '0' : '';
         }
 
         const rowHeaderContent = document.createElement('div');
@@ -2742,7 +2760,17 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
           input.type = 'text';
           input.className = 'workspace-spreadsheet-cell';
           if (Number.isFinite(rowHeight)) {
-            input.style.height = `${rowHeight}px`;
+            td.style.height = `${rowHeight}px`;
+            td.style.minHeight = `${rowHeight}px`;
+            td.style.maxHeight = `${rowHeight}px`;
+            td.style.overflow = 'hidden';
+            input.style.height = '100%';
+            input.style.minHeight = '0';
+            input.style.maxHeight = `${rowHeight}px`;
+            input.style.boxSizing = 'border-box';
+            input.style.lineHeight = `${Math.max(8, rowHeight - 2)}px`;
+            input.style.paddingTop = rowHeight <= 16 ? '0' : '';
+            input.style.paddingBottom = rowHeight <= 16 ? '0' : '';
           }
           if (Number.isFinite(dataFontSize)) {
             input.style.fontSize = `${dataFontSize}px`;
@@ -2793,6 +2821,8 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         tbody.appendChild(tr);
         if (Number.isFinite(rowHeight)) {
           tr.style.height = `${rowHeight}px`;
+          tr.style.minHeight = `${rowHeight}px`;
+          tr.style.maxHeight = `${rowHeight}px`;
         }
       });
 

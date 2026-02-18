@@ -309,13 +309,15 @@ export function createTechToolbarSidePanelController({
   const collapseOtherSections = (tabId, keepSectionId) => {
     const entries = Array.from(sectionState.values()).filter((entry) => entry.tabId === tabId);
     entries.forEach((entry) => {
+      if (entry.disableCollapse) return;
       if (entry.sectionId === keepSectionId) return;
       applyCollapseState(entry.section, entry.tabId, entry.sectionId, true);
     });
   };
 
   const enforceSingleBehavior = (tabId) => {
-    const entries = Array.from(sectionState.values()).filter((entry) => entry.tabId === tabId);
+    const entries = Array.from(sectionState.values())
+      .filter((entry) => entry.tabId === tabId && !entry.disableCollapse);
     const expanded = entries.filter((entry) => !entry.section.classList.contains('is-collapsed'));
     if (expanded.length <= 1) return;
     const keepId = expanded[0]?.sectionId;
@@ -376,15 +378,23 @@ export function createTechToolbarSidePanelController({
         const label = resolveLabel(item, `TB2 ${index + 1}`);
         const sectionId = resolveSectionId(tab.id, item, index);
         const slot = item?.slot ? Number(item.slot) : null;
+        const hideHeader = item?.hideHeader === true;
+        const disableCollapse = item?.disableCollapse === true;
         section.className = 'workspace-tech-panel-section';
         if (item?.id === 'graph-type') {
           section.classList.add('workspace-tech-panel-section--graph-type');
+        }
+        if (hideHeader) {
+          section.classList.add('workspace-tech-panel-section--flat');
         }
         section.dataset.sectionId = sectionId;
         section.dataset.panelTab = tab.id;
         section.dataset.sectionLabel = label.toLowerCase();
         header.type = 'button';
         header.className = 'workspace-tech-panel-section-header';
+        if (hideHeader) {
+          header.classList.add('workspace-tech-panel-section-header--hidden');
+        }
         const titleWrap = documentRoot?.createElement?.('span');
         const title = documentRoot?.createElement?.('span');
         const icon = documentRoot?.createElement?.('i');
@@ -412,13 +422,20 @@ export function createTechToolbarSidePanelController({
           header.appendChild(icon);
         }
         bodyEl.className = 'workspace-tech-panel-section-body';
+        if (hideHeader) {
+          bodyEl.classList.add('workspace-tech-panel-section-body--flat');
+        }
         if (contentWrap) {
           contentWrap.className = 'workspace-tech-panel-section-content';
-          contentWrap.appendChild(header);
+          if (!hideHeader) {
+            contentWrap.appendChild(header);
+          }
           contentWrap.appendChild(bodyEl);
           section.appendChild(contentWrap);
         } else {
-          section.appendChild(header);
+          if (!hideHeader) {
+            section.appendChild(header);
+          }
           section.appendChild(bodyEl);
         }
         body.appendChild(section);
@@ -437,20 +454,23 @@ export function createTechToolbarSidePanelController({
           toggle: item?.toggle || null,
           menu: item?.menu || null,
           placeholder: item?.placeholder !== false,
-          placeholderText: item?.placeholderText || ''
+          placeholderText: item?.placeholderText || '',
+          disableCollapse
         });
         const shouldCollapse = collapseSet.has(sectionId) || defaultCollapsed;
-        applyCollapseState(section, tab.id, sectionId, shouldCollapse);
-        addListener(header, 'click', () => {
-          const isCollapsed = section.classList.contains('is-collapsed');
-          const nextCollapsed = !isCollapsed;
-          applyCollapseState(section, tab.id, sectionId, nextCollapsed);
-          if (!nextCollapsed && sectionBehavior === 'single') {
-            collapseOtherSections(tab.id, sectionId);
-          }
-          persistState();
-          updateToggleAllButton();
-        });
+        applyCollapseState(section, tab.id, sectionId, disableCollapse ? false : shouldCollapse);
+        if (!disableCollapse) {
+          addListener(header, 'click', () => {
+            const isCollapsed = section.classList.contains('is-collapsed');
+            const nextCollapsed = !isCollapsed;
+            applyCollapseState(section, tab.id, sectionId, nextCollapsed);
+            if (!nextCollapsed && sectionBehavior === 'single') {
+              collapseOtherSections(tab.id, sectionId);
+            }
+            persistState();
+            updateToggleAllButton();
+          });
+        }
         addListener(section, 'pointerdown', () => {
           if (panel.dataset.panelLayout !== 'tech_2') return;
           setFocusedSection(visibleTabId, sectionId);
@@ -502,6 +522,9 @@ export function createTechToolbarSidePanelController({
     if (!nextTab) return;
     activeTabId = nextTab.id;
     visibleTabId = nextTab.aliasOf || nextTab.id;
+    if (panel) {
+      panel.dataset.activeTab = activeTabId;
+    }
     applyPanelLayout();
     const buttons = Array.from(tabsRow?.querySelectorAll?.('[data-tech-panel-tab]') || []);
     buttons.forEach((button) => {
@@ -551,7 +574,8 @@ export function createTechToolbarSidePanelController({
 
   const updateToggleAllButton = () => {
     if (!toggleAllBtn) return;
-    const sections = Array.from(sectionState.values()).filter((entry) => entry.tabId === visibleTabId);
+    const sections = Array.from(sectionState.values())
+      .filter((entry) => entry.tabId === visibleTabId && !entry.disableCollapse);
     if (!sections.length) return;
     const allCollapsed = sections.every(({ section }) => section.classList.contains('is-collapsed'));
     toggleAllBtn.setAttribute('title', allCollapsed ? 'Expand all' : 'Collapse all');
@@ -563,7 +587,8 @@ export function createTechToolbarSidePanelController({
   };
 
   const toggleAllSections = () => {
-    const entries = Array.from(sectionState.values()).filter((entry) => entry.tabId === visibleTabId);
+    const entries = Array.from(sectionState.values())
+      .filter((entry) => entry.tabId === visibleTabId && !entry.disableCollapse);
     if (!entries.length) return;
     const shouldExpand = entries.every(({ section }) => section.classList.contains('is-collapsed'));
     entries.forEach(({ section, tabId, sectionId }) => {
@@ -736,6 +761,7 @@ export function createTechToolbarSidePanelController({
     setMode,
     setBaseVisibility,
     getReservedWidth,
+    setActiveTab,
     teardown() {
       restoreMenus();
       iconObservers.forEach((observer) => {

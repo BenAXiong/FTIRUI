@@ -110,6 +110,7 @@ Bugs
 - plot behavior on click: sometimes reverses axis
 - header button 1 (toggle crosshair cursor) only activates after extra click
 - tb2 pane mode: section contents not padded despite several trials and css additions
+- ss col name edit on double clck auto exits
 
 ___________________________________________________________
 Peak marking follow-ups (tb2 s3)

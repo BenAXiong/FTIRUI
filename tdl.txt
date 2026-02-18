@@ -71,18 +71,20 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] Fix col width (don't fit panel width, let scroll)
             - [x] Fix freeze behavior
             - [x] Add hb for extra option: "view" toggles for each header row, col & row sizes, copy mode (toggle headers, format,...)
-            - [-] hb: open in side pane
-        - [ ] UI refinement
+            - [x] hb: open in side pane
+            - [x] hb: preview fix graphs names according to target
+            - [-] hb: preview side panel - place hearder buttons popovers on left
+        - [-] UI refinement
             - [ ] UI : cursors when pinned and trying to resize, cell edit when locked, ...
             - [ ] UI : darker headers, rework col toggles and buttons, shrink spark + popup
             - [ ] UI : popup text & tooltips, narrower left-most col, ghost row (invi? seprate?)
             - [ ] Fix: col resize hitbox not centrered
             - [ ] Fix: col auto-resize on db-clk
-            - [ ] Rethink XYZ & NTD toggles placement
-            - [ ] Rework graph popups
+            - [x] Rethink XYZ & NTD toggles placement
+            - [-] Rework graph popups
         - [ ] Doc
-    - [ ] Right pane extra tabs
-        - [ ] Tab 2: Data - display raw (as imported) + current ss
+    - [-] Right pane extra tabs
+        - [-] Tab 2: Data - display raw (as imported) + current ss
         - [ ] Tab 3: Notes - displays per graph metadata and notes (Md render) 
         - [ ] 
     - [ ] .opju
@@ -107,6 +109,7 @@ Phase x – Bugs & technical debt
 - [ ] Header buttons overlap with side elements
 - [ ] New dark theme : main ( #17212B or #191919), sidebar/code dark grays (e.g., #1E262F, #212B36), newer deeper blacks, with gray (#252525), brown (#2E2724), or blue (#1F282D). 
 - [ ] Md notes: cursor and selection reset on rendering
+- [ ] SS fix formulas not updating when moving col
 - [ ] see full list
 
 Phase x – Extra details

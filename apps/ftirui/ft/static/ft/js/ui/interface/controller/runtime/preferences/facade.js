@@ -16,6 +16,7 @@ export function createUiPreferencesFacade({
   techToolbarPanelWidthKey = 'ftir.workspace.tb2.panelWidth.v1',
   techToolbarHideHeadersKey = 'ftir.workspace.tb2.hideHeaders.v1',
   techToolbarHideModebarKey = 'ftir.workspace.tb2.hideModebar.v1',
+  spreadsheetDockKey = 'ftir.workspace.spreadsheet.dock.v1',
   projectTreeCollapseKey = 'ftir.workspace.projectTreeCollapsed.v1',
   sessionStorage: session = typeof globalThis !== 'undefined' ? globalThis.sessionStorage : undefined,
   localStorage: local = typeof globalThis !== 'undefined' ? globalThis.localStorage : undefined
@@ -248,6 +249,31 @@ export function createUiPreferencesFacade({
     }
   };
 
+  const readSpreadsheetDock = (fallback = null) => {
+    if (!localStore) return fallback;
+    try {
+      const stored = localStore.getItem(spreadsheetDockKey);
+      if (stored === null) return fallback;
+      const trimmed = stored.trim();
+      return trimmed ? trimmed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeSpreadsheetDock = (panelId) => {
+    if (!localStore) return;
+    try {
+      if (!panelId) {
+        localStore.removeItem(spreadsheetDockKey);
+      } else {
+        localStore.setItem(spreadsheetDockKey, String(panelId));
+      }
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
   const readProjectTreeCollapse = (fallback = { sections: [], folders: [] }) => {
     if (!localStore) return fallback;
     try {
@@ -299,6 +325,8 @@ export function createUiPreferencesFacade({
     writeTechToolbarHideHeaders,
     readTechToolbarHideModebar,
     writeTechToolbarHideModebar,
+    readSpreadsheetDock,
+    writeSpreadsheetDock,
     readProjectTreeCollapse,
     writeProjectTreeCollapse,
     teardown

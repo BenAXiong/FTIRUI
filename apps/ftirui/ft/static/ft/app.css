@@ -5788,10 +5788,40 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   align-items: center;
   gap: .35rem;
 }
+.workspace-tech-panel-data-title{
+  display: none;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: color-mix(in srgb, var(--bs-body-color) 85%, transparent);
+}
+.workspace-tech-panel-data-actions{
+  display: none;
+  align-items: center;
+  gap: .35rem;
+  margin-right: auto;
+}
 .workspace-tech-panel-action{
   padding: .25rem .45rem;
   min-width: 0;
   border-radius: .6rem;
+}
+.workspace-tech-panel-action--canvas{
+  display: none;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-panel-action--canvas{
+  display: inline-flex;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-title{
+  display: block;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-actions{
+  display: flex;
+}
+.workspace-tech-side-panel[data-active-tab="data"] [data-tech-panel-action="toggle-all"],
+.workspace-tech-side-panel[data-active-tab="data"] [data-tech-panel-action="toggle-behavior"],
+.workspace-tech-side-panel[data-active-tab="data"] .workspace-tech-panel-search{
+  display: none;
 }
 .workspace-tech-panel-action.is-active,
 .workspace-tech-panel-action[aria-pressed="true"]{
@@ -5842,6 +5872,11 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   align-self: stretch;
   flex: 0 0 auto;
 }
+.workspace-tech-panel-section--flat{
+  border: none;
+  background: transparent;
+  padding: 0;
+}
 .workspace-tech-panel-section-content{
   display: flex;
   flex-direction: column;
@@ -5861,6 +5896,9 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   color: var(--bs-body-color);
   text-align: left;
   min-height: 2.1rem;
+}
+.workspace-tech-panel-section-header--hidden{
+  display: none;
 }
 .workspace-tech-panel-section-title{
   display: inline-flex;
@@ -5896,6 +5934,35 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   padding: .65rem;
   display: block;
   height: auto;
+}
+.workspace-tech-panel-section-body--flat{
+  border-top: none;
+  padding: 0;
+}
+.workspace-tech-panel-data-menu{
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  min-height: 0;
+}
+.workspace-tech-panel-data-empty{
+  color: var(--bs-secondary-color);
+  font-size: .8rem;
+}
+.workspace-tech-panel-data-host{
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.workspace-tech-panel-data-root{
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+.workspace-tech-panel-data-content{
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .workspace-tech-side-panel[data-panel-layout="tech_2"] .workspace-tech-panel-section-body{
   border-top: none;
