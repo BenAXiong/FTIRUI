@@ -1630,8 +1630,8 @@ const createSparklineSvg = (xValues = [], yValues = []) => {
         nextIndex += 1;
         return label;
       });
-      if (!existingSummary) return newLabels.map((label) => `New graph: ${label}`);
-      return newLabels.map((label) => `New graph: ${label} + Added to: ${existingSummary}`);
+      if (!existingSummary) return newLabels.map(() => 'Added to: new graph');
+      return newLabels.map(() => `Added to: new graph + Added to: ${existingSummary}`);
     };
 
     const renderPlotPreview = () => {

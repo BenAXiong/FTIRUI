@@ -1,4 +1,6 @@
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const MAX_PANEL_VIEWPORT_RATIO = 0.8;
+const MAX_PANEL_WIDTH_PX = 854;
 
 export function createTechToolbarSidePanelResizeController({
   panel,
@@ -28,10 +30,16 @@ export function createTechToolbarSidePanelResizeController({
   const getBounds = () => {
     const container = getContainer?.();
     const containerRect = container?.getBoundingClientRect?.() || { width: 0 };
-    const maxWidth = containerRect.width ? Math.max(260, containerRect.width - 240) : 520;
+    const viewportMax = window?.innerWidth
+      ? window.innerWidth * MAX_PANEL_VIEWPORT_RATIO
+      : MAX_PANEL_WIDTH_PX;
+    const containerMax = containerRect.width
+      ? Math.max(260, containerRect.width - 240)
+      : MAX_PANEL_WIDTH_PX;
+    const maxWidth = Math.min(MAX_PANEL_WIDTH_PX, viewportMax, containerMax);
     return {
       minWidth: 220,
-      maxWidth: Math.min(520, maxWidth)
+      maxWidth: Math.max(220, maxWidth)
     };
   };
 
@@ -79,8 +87,10 @@ export function createTechToolbarSidePanelResizeController({
 
   const storedWidth = preferences?.readTechToolbarPanelWidth?.(null);
   if (Number.isFinite(storedWidth)) {
-    panel.style.width = `${Math.round(storedWidth)}px`;
-    onResize?.(storedWidth);
+    const { minWidth, maxWidth } = getBounds();
+    const nextWidth = clamp(storedWidth, minWidth, maxWidth);
+    panel.style.width = `${Math.round(nextWidth)}px`;
+    onResize?.(nextWidth);
   }
 
   return {

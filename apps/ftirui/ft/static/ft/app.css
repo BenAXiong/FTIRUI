@@ -5688,6 +5688,7 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   position: absolute;
   inset: 0 0 0 auto;
   width: clamp(240px, 24vw, 320px);
+  max-width: min(80vw, 854px);
   display: flex;
   flex-direction: column;
   padding: .85rem var(--tech-panel-pad) 1rem;
@@ -5817,6 +5818,35 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 }
 .workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-actions{
   display: flex;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-side-panel-header{
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: .45rem;
+  padding-right: .45rem;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-side-panel-actions{
+  align-self: stretch;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+  box-sizing: border-box;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-actions{
+  margin-right: auto;
+  margin-left: 0;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-title{
+  padding-left: .1rem;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-side-panel-inner{
+  padding-right: 0;
+  padding-left: 0;
+}
+.workspace-tech-side-panel[data-active-tab="data"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-menu{
+  margin-right: calc(-1 * var(--tech-panel-inner-pad-right));
 }
 .workspace-tech-side-panel[data-active-tab="data"] [data-tech-panel-action="toggle-all"],
 .workspace-tech-side-panel[data-active-tab="data"] [data-tech-panel-action="toggle-behavior"],

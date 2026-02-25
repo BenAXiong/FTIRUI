@@ -103,16 +103,24 @@ export function createSpreadsheetDockController({
     return portal;
   };
 
-  const placePopover = (btn, pop, { offsetX = 0, offsetY = 8 } = {}) => {
+  const placePopover = (btn, pop, { offsetX = 0, offsetY = 0 } = {}) => {
     if (!btn || !pop) return;
-    const rect = btn.getBoundingClientRect?.();
-    if (!rect) return;
-    const left = rect.left + rect.width / 2 + offsetX;
-    const top = rect.bottom + offsetY;
+    const btnRect = btn.getBoundingClientRect?.();
+    if (!btnRect) return;
+    const panelRect = panel?.getBoundingClientRect?.();
+    const popRect = pop.getBoundingClientRect?.();
+    const popWidth = Number.isFinite(popRect?.width) ? popRect.width : 0;
+    const popHeight = Number.isFinite(popRect?.height) ? popRect.height : 0;
+    const sidebarLeft = Number.isFinite(panelRect?.left) ? panelRect.left : btnRect.left;
+    const left = sidebarLeft - popWidth - offsetX;
+    // Side placement uses translateY(-50%), so top is the popover vertical center.
+    // To align popover top edge with the button top edge: centerY = buttonTop + popoverHeight/2.
+    const top = btnRect.top + (popHeight / 2) + offsetY;
     pop.style.left = `${left}px`;
     pop.style.top = `${top}px`;
     pop.style.bottom = 'auto';
     pop.style.right = 'auto';
+    pop.dataset.popPlacement = 'side';
   };
 
   const openPortaledPopover = (btn, pop, opts = {}) => {
@@ -125,6 +133,7 @@ export function createSpreadsheetDockController({
     pop.classList.add('is-open');
     btn.setAttribute('aria-expanded', 'true');
     pop.__reflow = () => placePopover(btn, pop, opts);
+    requestAnimationFrame(pop.__reflow);
     window.addEventListener('scroll', pop.__reflow, true);
     window.addEventListener('resize', pop.__reflow, true);
   };
@@ -140,6 +149,7 @@ export function createSpreadsheetDockController({
     window.removeEventListener('resize', pop.__reflow, true);
     delete pop.__reflow;
     delete pop.__origParent;
+    delete pop.dataset.popPlacement;
   };
 
   const registerPopoverButton = (btn, pop, { openOnHover = false, suppressClickToggle = false } = {}) => {
@@ -377,9 +387,9 @@ export function createSpreadsheetDockController({
   };
 
   const showDataTab = () => {
-    sidePanelController?.setMode?.('panel', { visibleOverride: true });
     pinController?.setMode?.('panel', { persist: false });
     sidePanelController?.setActiveTab?.('data');
+    sidePanelController?.setMode?.('panel', { visibleOverride: true });
   };
 
   const dockPanel = (panelId) => {

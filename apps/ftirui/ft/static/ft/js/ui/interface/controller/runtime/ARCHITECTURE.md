@@ -16,6 +16,7 @@ The workspace runtime is intentionally organised as a collection of small facade
 * `preferences/facade.js` encapsulates UI preference storage (panel pin/collapse) so the runtime never touches `localStorage`/`sessionStorage` directly.
 * `browser/facade.js` renders the folder tree and attaches tree interactions.
 * `panels/panelDomFacade.js` builds panel shells, header controls, and popovers. It accepts runtime actions and callbacks so panel wiring lives outside of `registerPanel`.
+* `panels/spreadsheetDockController.js` owns the docked spreadsheet rendered in the Data side-tab. It mirrors spreadsheet header actions and uses its own portaled popover placement helper (side placement, left of the sidebar), separate from `panelDomFacade` popover wiring.
 * `panels/headerActions.js` owns the header action dispatcher, mapping UI intents to Plotly layout and trace mutations while handling history/persistence side effects.
 * `panels/panelInteractions.js` wires drag/resize behaviour through `interact.js`, normalising geometry updates and persistence outside of the runtime orchestrator.
 * `state/historyHelpers.js` provides a tiny API for queueing mutations and refreshing undo/redo/UI state, so call sites never hand-roll `pushHistory`/`persist`/`updateHistoryButtons` sequences.
