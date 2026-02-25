@@ -74,15 +74,15 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] hb: open in side pane
             - [x] hb: preview fix graphs names according to target
         - [-] UI refinement
-            - [-] hb: preview side panel - place hearder buttons popovers on left
-            - [-] sidebar: increase max width further, to 80vw
-            - [ ] UI : cursors when pinned and trying to resize, cell edit when locked, ...
-            - [ ] UI : darker headers, rework col toggles and buttons, shrink spark + popup
-            - [ ] UI : popup text & tooltips, narrower left-most col, ghost row (invi? seprate?)
+            - [x] hb: preview side panel - place hearder buttons popovers on left
+            - [x] sidebar: increase max width further, to 80vw
+            - [x] UI : cursors when pinned and trying to resize
+            - [x] UI : darker headers, rework col toggles and buttons, shrink spark + popup
+            - [-] UI : popup text & tooltips, narrower left-most col, ghost row (invi? seprate?)
             - [ ] Fix: col resize hitbox not centrered
             - [ ] Fix: col auto-resize on db-clk
             - [x] Rethink XYZ & NTD toggles placement
-            - [-] Rework graph popups
+            - [x] Rework graph popups
         - [ ] Doc
     - [-] Right pane extra tabs
         - [-] Tab 2: Data - display raw (as imported) + current ss
@@ -127,6 +127,7 @@ Phase x – Extra details
 - [ ] cleanup legacy content & dev mode
 - [ ] (post-MVP?) Improve graph previews and layout without hurting performances
 - [ ] (post-MVP?) figure out graph from SS behavior when multiple targets selected (flexible sequence)
+- [ ] (post-MVP?) ss templates: minimal, customs... for hidden rows, styles...?
 
 Phase x – (nondev)
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),

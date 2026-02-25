@@ -1,6 +1,6 @@
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const MAX_PANEL_VIEWPORT_RATIO = 0.8;
-const MAX_PANEL_WIDTH_PX = 854;
+const MAX_PANEL_WIDTH_PX = 1200;
 
 export function createTechToolbarSidePanelResizeController({
   panel,

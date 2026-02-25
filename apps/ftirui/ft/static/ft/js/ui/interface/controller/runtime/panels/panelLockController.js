@@ -143,8 +143,12 @@ export function createPanelLockController({
     if (!supportsPlot) {
       const content = getPanelContent(panelId);
       if (!content) return false;
+      const currentState = readContentLockState(content);
       const { content: nextContent, state, changed } = mergeContentLockState(content, patch);
-      if (!changed) return false;
+      if (!changed) {
+        syncPanelDomState(panelId, currentState);
+        return true;
+      }
       pushHistory({
         label: buildHistoryLabel(readContentLockState(content), state, 'panel'),
         meta: {
@@ -163,7 +167,10 @@ export function createPanelLockController({
     if (!figure) return false;
     const current = readFigureLockState(figure);
     const { figure: nextFigure, state, changed } = mergeLockState(figure, patch);
-    if (!changed) return false;
+    if (!changed) {
+      syncPanelDomState(panelId, current);
+      return true;
+    }
 
     pushHistory({
       label: buildHistoryLabel(current, state, supportsPlot ? 'graph' : 'panel'),

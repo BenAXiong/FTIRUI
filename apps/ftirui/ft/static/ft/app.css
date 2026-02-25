@@ -2247,7 +2247,7 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-grid thead th{
   position: sticky;
   top: 0;
-  background: color-mix(in srgb, var(--bs-body-bg) 86%, rgba(15,23,42,.08) 14%);
+  background: color-mix(in srgb, var(--bs-body-bg) 80%, rgba(15,23,42,.16) 20%);
   backdrop-filter: blur(6px);
   font-weight: 600;
   text-align: left;
@@ -2257,12 +2257,17 @@ body.workspace-panel-fullscreen .header-actions{
   z-index: 3;
 }
 .workspace-spreadsheet-head-row--formula th{
-  background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(15,23,42,.06) 10%);
+  background: color-mix(in srgb, var(--bs-body-bg) 84%, rgba(15,23,42,.14) 16%);
   border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 75%, transparent);
 }
 .workspace-spreadsheet-formula-input{
   width: 100%;
   font-size: .75rem;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+  margin: 0;
 }
 .workspace-spreadsheet-formula-error{
   font-size: .7rem;
@@ -2274,6 +2279,13 @@ body.workspace-panel-fullscreen .header-actions{
   text-align: center;
   color: var(--bs-secondary-color);
   font-size: .7rem;
+  position: relative;
+}
+.workspace-spreadsheet-head-row .workspace-spreadsheet-corner{
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: none;
 }
 .workspace-spreadsheet-column-header{
   min-width: 4rem;
@@ -2286,10 +2298,10 @@ body.workspace-panel-fullscreen .header-actions{
   background: color-mix(in srgb, var(--bs-primary-bg-subtle) 85%, rgba(15,23,42,.08) 15%);
 }
 .workspace-spreadsheet-column-header.is-x-column:not(.is-selected):not(.is-active){
-  background: color-mix(in srgb, var(--bs-body-bg) 88%, rgba(148,163,184,.2) 12%);
+  background: color-mix(in srgb, var(--bs-body-bg) 82%, rgba(148,163,184,.26) 18%);
 }
 .workspace-spreadsheet-cell-wrapper.is-x-column{
-  background: color-mix(in srgb, var(--bs-body-bg) 92%, rgba(148,163,184,.16) 8%);
+  background: color-mix(in srgb, var(--bs-body-bg) 90%, rgba(148,163,184,.2) 10%);
 }
 .workspace-spreadsheet-column-header--col{
   min-width: 3.25rem;
@@ -2333,6 +2345,49 @@ body.workspace-panel-fullscreen .header-actions{
 .workspace-spreadsheet-head-row--ghost .workspace-spreadsheet-column-header.is-selected{
   background: transparent;
 }
+.workspace-spreadsheet-header-row-controls{
+  position: absolute;
+  inset: 0;
+}
+.workspace-spreadsheet-header-row-visibility{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--bs-secondary-color) 84%, rgba(15,23,42,.2) 16%);
+  padding: 0;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.workspace-spreadsheet-head-row:hover .workspace-spreadsheet-header-row-visibility{
+  opacity: 1;
+  pointer-events: auto;
+}
+.workspace-spreadsheet-header-row-resizer{
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 4;
+}
+.workspace-spreadsheet-header-row-resizer::before{
+  content: '';
+  position: absolute;
+  left: .2rem;
+  right: .2rem;
+  bottom: 2px;
+  border-top: 1px dashed color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+  opacity: .3;
+}
+.workspace-spreadsheet-head-row:hover .workspace-spreadsheet-header-row-resizer::before{
+  opacity: .7;
+}
 .workspace-spreadsheet-ghost-actions{
   height: 100%;
   opacity: 0;
@@ -2351,6 +2406,44 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-sparkline-cell.is-empty{
   opacity: .35;
+}
+.workspace-spreadsheet-spark-preview-popover{
+  position: fixed;
+  z-index: 3200;
+  min-width: 260px;
+  max-width: 360px;
+  padding: .5rem .6rem;
+  border-radius: .45rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.06) 6%);
+  box-shadow: 0 14px 30px rgba(15,23,42,.24);
+  pointer-events: none;
+}
+.workspace-spreadsheet-spark-preview-title{
+  font-size: .69rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: color-mix(in srgb, var(--bs-secondary-color) 88%, rgba(15,23,42,.12) 12%);
+  margin-bottom: .35rem;
+  text-align: center;
+}
+.workspace-spreadsheet-spark-preview-graphic{
+  width: 100%;
+  height: 120px;
+}
+.workspace-spreadsheet-spark-preview-graphic svg{
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.workspace-spreadsheet-spark-preview-empty{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: .72rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 78%, rgba(15,23,42,.22) 22%);
 }
 .workspace-spreadsheet-col-header{
   position: relative;
@@ -2494,12 +2587,19 @@ body.workspace-panel-fullscreen .header-actions{
   z-index: 3;
 }
 .workspace-spreadsheet-header-input{
+  display: block;
   width: 100%;
-  font-size: .78rem;
-  border: none;
-  box-shadow: none;
-  background: transparent;
-  padding: .2rem 0;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  font-size: .75rem;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0;
+  padding: 0 .05rem;
+  line-height: 1.2;
+  box-sizing: border-box;
 }
 .workspace-spreadsheet-name-input{
   text-transform: none;
@@ -5688,7 +5788,7 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   position: absolute;
   inset: 0 0 0 auto;
   width: clamp(240px, 24vw, 320px);
-  max-width: min(80vw, 854px);
+  max-width: min(80vw, 1200px);
   display: flex;
   flex-direction: column;
   padding: .85rem var(--tech-panel-pad) 1rem;

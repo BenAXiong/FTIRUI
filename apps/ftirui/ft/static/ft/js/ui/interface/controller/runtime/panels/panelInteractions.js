@@ -167,6 +167,7 @@ export function createPanelInteractions({
         inertia: false,
         allowFrom: '.workspace-panel-header',
         ignoreFrom: '.workspace-panel-body, .workspace-panel-actions, .workspace-panel-actions *',
+        cursorChecker: () => (isPinned() ? 'default' : null),
         modifiers: [
           interact.modifiers.restrictRect({
             restriction: canvas,
@@ -202,6 +203,7 @@ export function createPanelInteractions({
         edges: { left: true, right: true, bottom: true, top: true },
         inertia: false,
         margin: 6,
+        cursorChecker: () => (isPinned() ? 'default' : null),
         modifiers: [
           interact.modifiers.restrictEdges({
             outer: canvas,
