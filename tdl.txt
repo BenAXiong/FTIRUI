@@ -73,19 +73,17 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] Add hb for extra option: "view" toggles for each header row, col & row sizes, copy mode (toggle headers, format,...)
             - [x] hb: open in side pane
             - [x] hb: preview fix graphs names according to target
-        - [-] UI refinement
+        - [x] UI refinement
             - [x] hb: preview side panel - place hearder buttons popovers on left
             - [x] sidebar: increase max width further, to 80vw
             - [x] UI : cursors when pinned and trying to resize
             - [x] UI : darker headers, rework col toggles and buttons, shrink spark + popup
-            - [ ] Fix: col resize hitbox not centrered
-            - [ ] Fix: manual nb input activates tb1 shortcuts
-            - [ ] Fix: col auto-resize on db-clk
+            - [x] Fix: col resize hitbox not centrered
             - [x] Rethink XYZ & NTD toggles placement
             - [x] Rework graph popups
-        - [ ] Doc
     - [-] Right pane extra tabs
         - [-] Tab 2: Data - display raw (as imported) + current ss
+            - [ ] hb : add show data in sidebar 
         - [ ] Tab 3: Notes - displays per graph metadata and notes (Md render) 
         - [ ] Tab 4: Worksheets - for ss not linked to graphs 
     - [ ] .opju
@@ -125,6 +123,7 @@ Phase x – Extra details
 - [ ] ss UI : popup text & tooltips, narrower left-most col, ghost row (invi? seprate?)
 - [ ] all icons...
 - [ ] SS name and save custom formulas in f
+- [ ] change tb1 shortcuts
 - [ ] cleanup legacy content & dev mode
 - [ ] (post-MVP?) Improve graph previews and layout without hurting performances
 - [ ] (post-MVP?) figure out graph from SS behavior when multiple targets selected (flexible sequence)

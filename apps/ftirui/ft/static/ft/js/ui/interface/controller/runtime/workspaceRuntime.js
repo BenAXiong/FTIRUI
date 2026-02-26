@@ -30,6 +30,7 @@ import { createTemplatesController } from './panels/templatesController.js';
 import { createPanelLockController } from './panels/panelLockController.js';
 import { createPanelTagController } from './panels/panelTagController.js';
 import { createSpreadsheetDockController } from './panels/spreadsheetDockController.js';
+import { createPanelDataTabController } from './panels/panelDataTabController.js';
 import { createUnitsToggleController } from './panels/unitsToggleController.js';
 import { createMultiTraceController } from './panels/multiTraceController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
@@ -3385,6 +3386,7 @@ let techToolbarSidePanelResizeController = null;
 let techToolbarHeaderVisibilityController = null;
 let techToolbarModebarVisibilityController = null;
 let spreadsheetDockController = null;
+let panelDataTabController = null;
 let tagFilterController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
@@ -3905,6 +3907,7 @@ const isPanelPinned = (panelId) =>
     peakMarkingController?.handleActivePanelChange?.(activePanelId);
     unitsToggleController?.handleActivePanelChange?.(activePanelId);
     multiTraceController?.handleActivePanelChange?.(activePanelId);
+    panelDataTabController?.handleActivePanelChange?.(activePanelId);
     techSelectorController?.syncToPanel?.(activePanelId);
     techToolbarPinController?.handleActivePanelChange?.(activePanelId);
     updateCanvasState();
@@ -4460,6 +4463,7 @@ const isPanelPinned = (panelId) =>
   const renderPlot = (panelId) => {
     if (!panelId || !panelSupportsPlot(panelId)) return;
     Plot.renderNow(panelId);
+    panelDataTabController?.handlePanelUpdated?.(panelId);
   };
 
   const resizePlotForPanel = (panelId) => {
@@ -5265,6 +5269,14 @@ const isPanelPinned = (panelId) =>
       },
       preferences: preferencesFacade
     });
+    panelDataTabController = createPanelDataTabController({
+      selectors: {
+        getPanelRecord,
+        getPanelFigure,
+        panelSupportsPlot
+      }
+    });
+    panelDataTabController?.handleActivePanelChange?.(getActivePanelId?.() || null);
     techToolbarSidePanelController = createTechToolbarSidePanelController({
       dom: {
         panel: document.querySelector('[data-tech-side-panel]')
@@ -5348,8 +5360,22 @@ const isPanelPinned = (panelId) =>
           label: 'Data',
           items: [
             {
-              id: 'spreadsheet-data',
+              id: 'data-live',
               label: 'Data',
+              menu: panelDataTabController?.getMenu?.() || null,
+              hideHeader: true,
+              disableCollapse: true,
+              placeholder: false
+            }
+          ]
+        },
+        {
+          id: 'worksheets',
+          label: 'Worksheets',
+          items: [
+            {
+              id: 'spreadsheet-data',
+              label: 'Worksheets',
               menu: spreadsheetDockController?.getMenu?.() || null,
               hideHeader: true,
               disableCollapse: true,
@@ -7713,6 +7739,8 @@ const isPanelPinned = (panelId) =>
       techToolbarHoverController = null;
       spreadsheetDockController?.teardown?.();
       spreadsheetDockController = null;
+      panelDataTabController?.teardown?.();
+      panelDataTabController = null;
       techToolbarSidePanelController?.teardown?.();
       techToolbarSidePanelController = null;
       techToolbarSidePanelResizeController?.teardown?.();

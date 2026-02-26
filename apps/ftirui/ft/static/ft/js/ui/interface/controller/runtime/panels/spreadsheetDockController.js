@@ -386,9 +386,9 @@ export function createSpreadsheetDockController({
     return true;
   };
 
-  const showDataTab = () => {
+  const showWorksheetsTab = () => {
     pinController?.setMode?.('panel', { persist: false });
-    sidePanelController?.setActiveTab?.('data');
+    sidePanelController?.setActiveTab?.('worksheets');
     sidePanelController?.setMode?.('panel', { visibleOverride: true });
   };
 
@@ -405,7 +405,7 @@ export function createSpreadsheetDockController({
     mountDockedPanel(panelId);
     buildDataActions();
     updateDockedState();
-    showDataTab();
+    showWorksheetsTab();
     return true;
   };
 
