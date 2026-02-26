@@ -1277,6 +1277,17 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
 
     const buildTracePayloads = () => {
       ensureSelectionIntegrity();
+      const isAutoColumnLabel = (value = '') => {
+        const normalized = String(value || '').trim();
+        if (!normalized) return true;
+        return /^Col\s+[A-Z]+$/i.test(normalized);
+      };
+      const resolveHelperSeries = (column) => {
+        if (!column || !column.id) return false;
+        const formula = String(sheetState.formulas?.[column.id] || '').trim();
+        if (!formula) return false;
+        return isAutoColumnLabel(column.label);
+      };
       const traces = [];
       if (plotMode === 'default') {
         const mapping = buildDefaultPlotMapping();
@@ -1289,16 +1300,19 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
             const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
             const hasData = yValues.some((value) => value !== null && value !== '');
             if (!hasData) return;
+            const helperSeries = resolveHelperSeries(column);
             traces.push({
               name: column.label || column.id,
               x: xValues,
               y: yValues,
+              showlegend: !helperSeries,
               meta: {
                 sourcePanelId: panelId,
                 columnId: column.id,
                 columnLabel: column.label || '',
                 xColumnId: xColumn.id,
-                xLabel: xColumn.label || ''
+                xLabel: xColumn.label || '',
+                helperSeries
               }
             });
           });
@@ -1316,16 +1330,19 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
           const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
           const hasData = yValues.some((value) => value !== null && value !== '');
           if (!hasData) return;
+          const helperSeries = resolveHelperSeries(column);
           traces.push({
             name: column.label || column.id,
             x: xValues,
             y: yValues,
+            showlegend: !helperSeries,
             meta: {
               sourcePanelId: panelId,
               columnId: column.id,
               columnLabel: column.label || '',
               xColumnId: xColumn.id,
-              xLabel: xColumn.label || ''
+              xLabel: xColumn.label || '',
+              helperSeries
             }
           });
         });

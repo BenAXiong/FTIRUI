@@ -306,6 +306,9 @@ export function createHeaderActions(context = {}) {
       case 'spreadsheet-plot-columns': {
         const traces = safeEnsureArray(payload.traces).map((entry) => ({
           ...entry,
+          showlegend: entry?.showlegend === false || entry?.meta?.helperSeries === true
+            ? false
+            : entry?.showlegend,
           x: safeEnsureArray(entry?.x).map(sanitizeSeriesValue),
           y: safeEnsureArray(entry?.y).map(sanitizeSeriesValue)
         })).filter((entry) => entry.x.length && entry.y.length);

@@ -5273,6 +5273,7 @@ const isPanelPinned = (panelId) =>
       selectors: {
         getPanelRecord,
         getPanelFigure,
+        getPanelContent,
         panelSupportsPlot
       }
     });

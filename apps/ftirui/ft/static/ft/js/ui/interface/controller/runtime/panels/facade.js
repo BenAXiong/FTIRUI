@@ -254,6 +254,7 @@ export function createPanelsFacade({
       },
       opacity: Number.isFinite(payload?.opacity) ? payload.opacity : 1,
       visible: payload?.visible !== false,
+      showlegend: payload?.showlegend !== false,
       meta: (() => {
         const meta = { ...(payload?.meta || {}) };
         const normalizedMeta = normalizeTraceMeta(payload?.meta || {});
