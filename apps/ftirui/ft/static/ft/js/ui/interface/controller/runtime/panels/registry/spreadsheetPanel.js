@@ -108,7 +108,7 @@ const normalizeColumns = (value) => {
   const incoming = Array.isArray(value) ? value : [];
   const next = incoming.length ? incoming : Array.from({ length: DEFAULT_COLUMN_COUNT }, (_, idx) => ({
     id: createColumnId(idx),
-    label: toColumnLabel(idx)
+    label: ''
   }));
   const seenIds = new Set();
   return next.map((column, index) => {
@@ -122,7 +122,7 @@ const normalizeColumns = (value) => {
       : (column?.type === 'text' ? 'text' : 'number');
     return {
       id: uniqueId,
-      label: sanitizeString(column?.label, toColumnLabel(index)),
+      label: sanitizeString(column?.label, ''),
       units: sanitizeString(column?.units ?? '', ''),
       width: Number.isFinite(Number(column?.width))
         ? Math.max(MIN_COLUMN_WIDTH, Math.round(Number(column?.width)))
@@ -170,7 +170,7 @@ const normalizeSpreadsheetUi = (value = {}) => {
     : { ...DEFAULT_HEADER_VISIBILITY };
   const dataFontSize = Number.isFinite(Number(raw.dataFontSize))
     ? Math.max(2, Math.round(Number(raw.dataFontSize)))
-    : null;
+    : 10;
   const minRowHeight = Number.isFinite(dataFontSize)
     ? Math.max(MIN_ROW_HEIGHT, dataFontSize + 8)
     : MIN_ROW_HEIGHT;
@@ -2725,7 +2725,7 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'workspace-spreadsheet-header-input workspace-spreadsheet-name-input';
-            input.value = column.label || toColumnLabel(columnIndex);
+            input.value = column.label || '';
             input.addEventListener('focus', () => {
               activeColumnIndex = columnIndex;
               syncActiveHighlights();
@@ -2737,13 +2737,13 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
               }
               if (event.key === 'Escape') {
                 event.preventDefault();
-                input.value = column.label || toColumnLabel(columnIndex);
+                input.value = column.label || '';
                 input.blur();
               }
             });
             input.addEventListener('blur', () => {
               updateColumnLabel(columnIndex, input.value);
-              input.value = sheetState.columns[columnIndex]?.label || toColumnLabel(columnIndex);
+              input.value = sheetState.columns[columnIndex]?.label || '';
             });
             th.appendChild(input);
           }
@@ -2792,6 +2792,9 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
             const errorMessage = formulaErrors[column.id];
             if (errorMessage) {
               input.classList.add('is-invalid');
+              input.title = errorMessage;
+            } else {
+              input.removeAttribute('title');
             }
             input.addEventListener('focus', () => {
               activeColumnIndex = columnIndex;
@@ -2821,12 +2824,6 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
               applyFormulaValue(column.id, '');
             });
             th.appendChild(clearBtn);
-            if (errorMessage) {
-              const hint = document.createElement('div');
-              hint.className = 'workspace-spreadsheet-formula-error';
-              hint.textContent = errorMessage;
-              th.appendChild(hint);
-            }
           }
         },
         {
@@ -3072,7 +3069,7 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
       if (isEditLocked) return;
       const column = sheetState.columns[columnIndex];
       if (!column) return;
-      const nextLabel = sanitizeString(value, column.label || toColumnLabel(columnIndex));
+      const nextLabel = typeof value === 'string' ? value.trim() : '';
       if (nextLabel === column.label) return;
       const nextColumns = sheetState.columns.slice();
       nextColumns[columnIndex] = { ...column, label: nextLabel };

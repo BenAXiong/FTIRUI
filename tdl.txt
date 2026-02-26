@@ -78,8 +78,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] sidebar: increase max width further, to 80vw
             - [x] UI : cursors when pinned and trying to resize
             - [x] UI : darker headers, rework col toggles and buttons, shrink spark + popup
-            - [-] UI : popup text & tooltips, narrower left-most col, ghost row (invi? seprate?)
             - [ ] Fix: col resize hitbox not centrered
+            - [ ] Fix: manual nb input activates tb1 shortcuts
             - [ ] Fix: col auto-resize on db-clk
             - [x] Rethink XYZ & NTD toggles placement
             - [x] Rework graph popups
@@ -122,6 +122,7 @@ Phase x – Extra details
 - [ ] *styling flow: avoid spread styling on multiple places (browser chip, hb, right pane).
         Ctrl+click on plot elements?
 - [ ] change tb2 mode toggle into a floating double arrow button just below s10
+- [ ] ss UI : popup text & tooltips, narrower left-most col, ghost row (invi? seprate?)
 - [ ] all icons...
 - [ ] SS name and save custom formulas in f
 - [ ] cleanup legacy content & dev mode
