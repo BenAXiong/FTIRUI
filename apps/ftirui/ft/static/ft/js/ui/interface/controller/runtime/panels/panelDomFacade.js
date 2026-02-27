@@ -2916,7 +2916,7 @@ export function createPanelDomFacade({
             || actionsCenter.querySelector('.workspace-panel-action-btn');
           const btnWidth = sampleBtn?.getBoundingClientRect().width || 24;
           const minRightWidth = (btnWidth * 4) + (gapValue * 3);
-          const rightReserved = Math.max(rightRect.width || 0, minRightWidth);
+          const rightReserved = Math.max(rightRect.width || 0, minRightWidth) + 18;
           const leftReserved = Number.isFinite(actionsRect.left) && Number.isFinite(titleRect.right)
             ? Math.max(0, titleRect.right - actionsRect.left + 8)
             : 0;
@@ -3360,7 +3360,7 @@ export function createPanelDomFacade({
                 || controlsWrapper.querySelector('.workspace-panel-action-btn');
               const btnWidth = sampleBtn?.getBoundingClientRect().width || 24;
               const minRightWidth = (btnWidth * 4) + (gapValue * 3);
-              const rightReserved = Math.max(rightRect.width || 0, minRightWidth);
+              const rightReserved = Math.max(rightRect.width || 0, minRightWidth) + 18;
               const leftReserved = Number.isFinite(actionsRect.left) && Number.isFinite(titleRect.right)
                 ? Math.max(0, titleRect.right - actionsRect.left + 8)
                 : 0;

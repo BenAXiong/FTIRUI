@@ -180,7 +180,12 @@ export function createPanelInteractions({
       }
     };
 
-    interact(rootEl)
+    const interactable = interact(rootEl);
+    if (typeof interactable?.styleCursor === 'function') {
+      interactable.styleCursor(true);
+    }
+
+    interactable
       .draggable({
         inertia: false,
         allowFrom: '.workspace-panel-header',
@@ -220,7 +225,7 @@ export function createPanelInteractions({
       .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
         inertia: false,
-        margin: 6,
+        margin: 10,
         cursorChecker: (action) => (isPinned() ? 'default' : resolveResizeCursor(action)),
         modifiers: [
           interact.modifiers.restrictEdges({

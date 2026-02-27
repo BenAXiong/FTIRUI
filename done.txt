@@ -157,3 +157,107 @@ Phase 7 – Pre-polishing pass
         - [x] project metadata
         - [x] canvas thumbnails (inital full prompt: 30min and 5% weekly quota, then 3h debug)
 
+- [-] Phase 7_2 - Graphs, Toolbars, Notes, SS & opju
+    - [x] Add tech ECD
+    - [x] More subtle hb highlights
+    - [x] Axes names and other texts: latex or helper with common units and best suggestions
+        - [x] MathJax setup for axis titles and plotly limitations - hb2 workaround
+        - [x] hb2 rework - columnns, input buttons, display behavior
+        - [x] Markdown notes: fix preview button and enable mathjax for TeX rendering
+    - [x] Legend options
+        - [x] Enable special characters: research tradeoffs mathjax vs HTML vs Unicode
+        - [x] Add formatting popup to browser trace name
+        - [x] Fix trace name drag behavior
+        - [x] Display formatted name in popup while editting
+        - [x] Display formatted name in browser when out of edit mode (sub and sup only)
+        - [x] hb5 legend title with own font + some styles and behaviors
+        - [x] (think how to override trace names & log)
+        - [x] Write the relevant doc
+        - [x] *auto-hide extensions (from browser)
+        - [x] ***autoclose tb2_s3 when graph unfocused
+    - [x] Toolbars
+        - [x] tb2 - sync s1 and s2
+        - [x] tb2 - s10 add right pane option: display section with 3 choices and build pane
+        - [x] tb2 - pane minimal UI fixing
+        - [x] tb2 - pane test full width sections instead of bubbles (extra tab)
+        - [X] tb2 - pane recover tech-dependent tool logic
+        - [x] tb2 - pane extend search to sub-items and add pin button
+        - [x] tb2 - pane merge tech tabs and add s10 toggle
+    - [x] Md notes
+        - [x] Rename as Notes
+        - [x] Add 4th preview toggle mode: vertical stack
+        - [.] (aborted) Make preview... editable (with buttons)
+        - [x] Add plain txt mode and header button to switch with Md
+        - [x] Add buttons: greek letters, symbols
+        - [x] Cleaner editor: less rounding, fewer borders, no gap, different bg for editor and preview
+    - [x] Browser: duplication and mutliselect
+        - [x] Add onHover button for section, folders and graphs
+        - [x] Add ctrl+alt+drag duplication
+        - [.] (postponed) Wire ctrl+click multiselect
+    - [x] Spreadsheets
+        - [x] Review necessary improvement for MVP and demo
+        - [x] Header buttons
+            - [x] Add right 3, add column, duplicate, tips
+            - [x] Solve pin & lock issues
+        - [x] Remove top band (feature already implemented above)
+        - [x] Switch bubble UI to streamlined
+        - [x] Rework Table
+            - [x] Add cross icons to delete columns & rows, onHover, ensure unredo
+            - [x] Make and style a header with Cols, Name, Units and f
+            - [x] Rename columns on double click
+            - [x] Make column draggable
+            - [x] Add duplicate column and clear buttons
+            - [x] Column resize handles (with per-column width persistence).
+            - [x] Multi-cell selection + fill-handle for quick series.
+            - [x] hb2: “Freeze first row/column” toggle + UI hints
+            - [x] Add XYZ toggle to column headers
+        - [x] Rework "Add to graph section"
+            - [x] Move to hb 
+            - [x] Workflow: select mode, source, target, action
+            - [x] Popup: Add toggle -  use columns settings (default) vs custom
+            - [x] Popup: 3 rows - mode, source, target
+            - [x] Make columns multi-selectable by mouse
+            - [x] Enable column risizing + autofit with double click
+            - [x] On hb click: create graph(s) from selection (warn if no or several graphs)
+            - [x] Popup UI: remove row names, input coutours for name and unit, grab handle on top
+            - [x] Plot preview sprak live + toggle hide preview
+            - [x] Multi-column select with ctrl+click and shift+click & multi resize with mouse
+            - [x] Enable copying data from selected cells and columns
+        - [x] Rework "Add to graph section"
+            - [x] Fix col dup: data, toggles, f, etc
+            - [x] Fix col width (don't fit panel width, let scroll)
+            - [x] Fix freeze behavior
+            - [x] Add hb for extra option: "view" toggles for each header row, col & row sizes, copy mode (toggle headers, format,...)
+            - [x] hb: open in side pane
+            - [x] hb: preview fix graphs names according to target
+        - [x] UI refinement
+            - [x] hb: preview side panel - place hearder buttons popovers on left
+            - [x] sidebar: increase max width further, to 80vw
+            - [x] UI : cursors when pinned and trying to resize
+            - [x] UI : darker headers, rework col toggles and buttons, shrink spark + popup
+            - [x] Fix: col resize hitbox not centrered
+            - [x] Rethink XYZ & NTD toggles placement
+            - [x] Rework graph popups
+    - [x] Right pane extra tabs
+        - [x] Tab 2: Data - display raw (as imported) + current ss
+            - [x] Make data ss autosync
+            - [x] Fix helper traces visibility
+            - [x] Add hb show overlays
+            - [x] Add hb : show data in sidebar 
+            - [x] Sync data tab names and units with graph
+        - [x] Tab 3: Worksheets - for ss not linked to graphs 
+            - [x] UI change: pill strip for mutliple ws
+            - [x] add persistennce of the strip
+            - [x] add linked graph
+        - [x] Tab 4: Notes - displays per graph metadata and notes (Md render) 
+    - [x] .opju
+        - [x] Check feasibility of import and conversion for single traces
+        - [x] Modify DnD listener to display popover for user to export csv from OriginLab
+    - [x] Bug fixes
+       - [x] resize cursor not activable even when unlocked
+       - [x] persist sidebar state
+       - [x] persist graph focus
+       - [x] note input height
+       - [x] panel hb overlap
+
+       
