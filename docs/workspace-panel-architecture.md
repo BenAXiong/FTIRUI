@@ -22,6 +22,7 @@ This document captures the current structure we use to build panels inside the w
 * `panelsModel` now stores `record.content` using the content store helpers.
 * `snapshotManager` runs panel snapshots through `panelSnapshotSerializer`, which consults each panel type’s `serializeState/hydrateState`.
 * `core/storage.js` also uses the content store so autosave/restore handles new panel kinds automatically.
+* UI prefs in snapshots include runtime view state used by sidebar/panel controllers (for example `uiPrefs.activePanelId`), so refresh restore can re-apply graph focus and side-tab context.
 
 ## Toolbar & Creation
 
@@ -46,9 +47,10 @@ Primary files:
 ### UI/UX surface
 
 * Grid editor with column headers, row headers, and per-cell inputs.
-* Column rename via double click (prompt-based rename).
+* Inline column header editing (name/axis/units/formula rows).
 * Formula row (per column) with error hints.
 * Toolbar with quick tips, add/remove rows/columns.
+* Header rows include: `Actions`, `Columns`, `Name`, `Axis`, `Units`, `Formula`, `Preview` (visibility/height persisted in `content.ui`).
 * Plot controls:
   - X-axis select (single column).
   - Y-series list (multi-select, minimum 1).
@@ -60,9 +62,11 @@ Primary files:
 
 * Content kind: `spreadsheet` registered in `workspace/canvas/state/contentStore.js`.
 * Serialized payload shape:
-  - `columns`: `{ id, label, type, formula }[]`
+  - `columns`: `{ id, label, axis, units, width, type, formula }[]`
   - `rows`: `{ id, [columnId]: value }[]`
   - `formulas`: `{ [columnId]: string }`
+  - `plot`: `{ x: string[], y: string[] }`
+  - `ui`: header visibility/row heights/copy-mode/render prefs
   - `version`: `CURRENT_VERSION`
 * Autosave is debounced (650ms) and uses `setPanelContent` with history batching.
 * `beforeunload` flush ensures pending edits persist.
@@ -82,7 +86,21 @@ Primary files:
 * `spreadsheet-plot-columns` header action:
   - `mode: "new"` creates a new plot panel from payloads.
   - `mode: "existing"` appends traces to a chosen plot panel.
-  - Both paths attach `meta` (source panel id, column id/label, x label).
+  - Both paths attach trace `meta` including source ids plus axis metadata (`xAxisLabel/Units/Title`, `yAxisLabel/Units/Title`).
+  - Both paths patch Plotly axis titles from spreadsheet axis metadata after plot insertion.
+
+### Axis/Units sync semantics
+
+* Spreadsheet `Axis` + `Units` are intended to drive graph axis titles.
+* In default mapping mode, Y columns are grouped by their nearest selected X column.
+  - Y columns in the same X group share a single editable `Axis` and `Units` owner (first Y in group).
+  - Other Y columns in that group are read-only mirrors in the header row.
+* X columns remain independently editable for `Axis` and `Units`.
+
+### Data tab bootstrap fallback
+
+* Data side-tab prefers trace meta (`xAxis*`, `yAxis*`) when present.
+* If missing on initial sync, it falls back to the active graph `layout.xaxis.title.text` / `layout.yaxis.title.text` to avoid generic labels like `X 1`.
 
 ### Notes for upcoming changes
 

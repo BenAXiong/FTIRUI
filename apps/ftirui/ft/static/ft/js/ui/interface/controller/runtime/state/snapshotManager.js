@@ -10,6 +10,7 @@ export function createSnapshotManager({
   updateCanvasState = () => {},
   renderBrowser = () => {},
   setActivePanel = () => {},
+  getActivePanelId = () => null,
   colorCursor
 } = {}) {
   if (!panelsModel) {
@@ -39,7 +40,8 @@ export function createSnapshotManager({
         : { counter: 0, items: [] }
     ),
     uiPrefs: {
-      colorCursor: colorCursor?.get?.() ?? 0
+      colorCursor: colorCursor?.get?.() ?? 0,
+      activePanelId: getActivePanelId?.() || null
     }
   });
 
@@ -66,6 +68,16 @@ export function createSnapshotManager({
           useModelState: true
         });
       });
+      const requestedActivePanelId =
+        typeof uiPrefs.activePanelId === 'string'
+          ? uiPrefs.activePanelId
+          : null;
+      if (requestedActivePanelId) {
+        const exists = panelsModel.getPanelsInIndexOrder().some((panel) => panel?.id === requestedActivePanelId);
+        if (exists) {
+          setActivePanel(requestedActivePanelId);
+        }
+      }
       updateCanvasState();
       renderBrowser();
       persistence?.persist?.();

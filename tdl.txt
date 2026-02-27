@@ -37,7 +37,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Add onHover button for section, folders and graphs
         - [x] Add ctrl+alt+drag duplication
         - [.] (postponed) Wire ctrl+click multiselect
-    - [-] Spreadsheets
+    - [x] Spreadsheets
         - [x] Review necessary improvement for MVP and demo
         - [x] Header buttons
             - [x] Add right 3, add column, duplicate, tips
@@ -81,27 +81,55 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
             - [x] Fix: col resize hitbox not centrered
             - [x] Rethink XYZ & NTD toggles placement
             - [x] Rework graph popups
-    - [-] Right pane extra tabs
-        - [-] Tab 2: Data - display raw (as imported) + current ss
-            - [ ] hb : add show data in sidebar 
-        - [ ] Tab 3: Notes - displays per graph metadata and notes (Md render) 
-        - [ ] Tab 4: Worksheets - for ss not linked to graphs 
-    - [ ] .opju
-        - [ ] Import and conversion for single traces
-        - [ ] Import folders and keep structure
+    - [x] Right pane extra tabs
+        - [x] Tab 2: Data - display raw (as imported) + current ss
+            - [x] Make data ss autosync
+            - [x] Fix helper traces visibility
+            - [x] Add hb show overlays
+            - [x] Add hb : show data in sidebar 
+            - [x] Sync data tab names and units with graph
+        - [x] Tab 3: Worksheets - for ss not linked to graphs 
+            - [x] UI change: pill strip for mutliple ws
+            - [x] add persistennce of the strip
+            - [x] add linked graph
+        - [x] Tab 4: Notes - displays per graph metadata and notes (Md render) 
+    - [x] .opju
+        - [x] Check feasibility of import and conversion for single traces
+        - [x] Modify DnD listener to display popover for user to export csv from OriginLab
+    - [-] Bug fixes
+       - [x] resize cursor not activable even when unlocked
+       - [x] persist sidebar state
+       - [-] persist graph focus
+       - [ ] note input height
+       - [ ] panel hb overlap
 
-- [ ] Phase 7_3 - Peripheral (?)
-    - [ ] Stylish landing for guests
+- [ ] Phase 8 - Landing
+    - [ ] Rework landing for guests: canvas with rainbow DnD and instructions
+    - [ ] Rework landing for users: dash
+
+- [ ] Phase 9 - Payment
+    - [ ] Research payment methods
     - [ ] Payment UI
-    - [ ] ? Payment methods
+        - [ ] 
+        - [ ] 
+    - [ ] Payment wiring (...)
 
-MVP Part 5/5 -- Polishing for publishing
+- [ ] Phase 9 - Publish
+research 
+build
+
+MVP Part 5/5 -- Polishing
+
+Phase 0 – Planning
+- [ ] Organise the MVP 5/5 list
 
 Phase 1 – Optimize features & UI/UX for "Workflow_1_MVP"
+- [ ] Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
 - [ ] see notion
 
-***Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
-**build
+Phase x – Data collection
+- [ ] Survey possibilities(users info, usage, analytics, etc)
+- [ ] Check Django update and usage
 
 Phase x – Bugs & technical debt
 - [ ] Fix grid behavior, graph drag/drop grouping, Coloris picker issues, pinned browser header wrapping.
@@ -109,7 +137,13 @@ Phase x – Bugs & technical debt
 - [ ] New dark theme : main ( #17212B or #191919), sidebar/code dark grays (e.g., #1E262F, #212B36), newer deeper blacks, with gray (#252525), brown (#2E2724), or blue (#1F282D). 
 - [ ] Md notes: cursor and selection reset on rendering
 - [ ] SS fix formulas not updating when moving col
+- [ ] Cross-app unredo @@
 - [ ] see full list
+
+Phase x – More features...
+- [ ] browser header: add style button for palette or templates, e.g. to change all canvas colors in one click
+- [ ] remove all modebar buttons..... to have more wysiwyg and switch to floating buttons?
+        also instead of styyling chips?
 
 Phase x – Extra details
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
@@ -124,6 +158,7 @@ Phase x – Extra details
 - [ ] all icons...
 - [ ] SS name and save custom formulas in f
 - [ ] change tb1 shortcuts
+- [ ] enable rich text in ss and think redundance of naming in browser vs sidebar
 - [ ] cleanup legacy content & dev mode
 - [ ] (post-MVP?) Improve graph previews and layout without hurting performances
 - [ ] (post-MVP?) figure out graph from SS behavior when multiple targets selected (flexible sequence)
@@ -137,16 +172,5 @@ YT channel and wow tutos (super fast + tricks for specific plots like XRD)
 dedicated mail email?
 _________________________________________________________________________________________________
 
-Phase x – Future explorations
-- [ ] Next tech = XRD & CV?
-- [ ] Merge left HUD with browser?
-- [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
-- [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
-- [ ] Mock-up 'in-paper' preview for wows
-- [ ] Ctrl+click multi select in canvas
-- [ ] Design multigraph figures: in pres/post mode? (templates for 2, 3, 4 graphs layouts)
-- [ ] Consider collapsible right pane for more simulatenous controls
-    ooooor Graph option v2: right side bar... -- make alternatives togglable?
-    Right pane: add tab for metadata and other info (incl user notes for self and collab)
-- [ ] Explore Papers/Reports workflow integration.
+
 _________________________________________________________________________________________________

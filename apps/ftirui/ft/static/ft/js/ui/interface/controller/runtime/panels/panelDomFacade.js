@@ -296,6 +296,7 @@ export function createPanelDomFacade({
         let stylePainterPopover = null;
         let lockBtn = null;
         let pinBtn = null;
+        let setDataTabButtonActive = null;
         let panelLockState = { editLocked: false, pinned: false };
         const buildMarkdownPreviewIcon = () => {
           const icon = document.createElement('span');
@@ -2094,6 +2095,28 @@ export function createPanelDomFacade({
         });
         appendPopoverControl(legendBtn, legendPopover, { openOnHover: true, suppressClickToggle: true });
 
+        const dataTabBtn = document.createElement('button');
+        dataTabBtn.type = 'button';
+        dataTabBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn';
+        dataTabBtn.innerHTML = '<i class="bi bi-table"></i>';
+        dataTabBtn.title = 'Open Data sidebar';
+        dataTabBtn.setAttribute('aria-label', 'Open Data sidebar');
+        dataTabBtn.dataset.panelAction = 'open-data-tab';
+        setDataTabButtonActive = (isActive) => {
+          const active = isActive === true;
+          dataTabBtn.classList.toggle('is-active', active);
+          dataTabBtn.setAttribute('aria-pressed', String(active));
+          dataTabBtn.title = active ? 'Close Data sidebar' : 'Open Data sidebar';
+          dataTabBtn.setAttribute('aria-label', dataTabBtn.title);
+        };
+        setDataTabButtonActive(false);
+        dataTabBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          closeAllPopovers();
+          safeHandleHeaderAction(panelId, 'open-data-tab');
+        });
+        appendActionItem(dataTabBtn);
+
         const legendDivider = document.createElement('span');
         legendDivider.className = 'workspace-panel-action-divider';
         legendDivider.setAttribute('aria-hidden', 'true');
@@ -3735,7 +3758,10 @@ export function createPanelDomFacade({
           contentHandles
         };
         safeRegisterPanelDom(panelId, domHandles);
-        safeUpdatePanelRuntime(panelId, { refreshActionOverflow });
+        safeUpdatePanelRuntime(panelId, {
+          refreshActionOverflow,
+          setDataTabButtonActive
+        });
         panelEl.addEventListener('pointerdown', (evt) => {
           if (typeof evt.button === 'number' && evt.button !== 0) return;
           safeBringPanelToFront(panelId);

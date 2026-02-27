@@ -49,6 +49,9 @@ export function createSpreadsheetDockController({
   const listPlotPanels = typeof selectors.listPlotPanels === 'function'
     ? selectors.listPlotPanels
     : () => [];
+  const getPanelFigure = typeof selectors.getPanelFigure === 'function'
+    ? selectors.getPanelFigure
+    : () => ({ data: [], layout: {} });
   const getPanelDom = typeof selectors.getPanelDom === 'function'
     ? selectors.getPanelDom
     : () => null;
@@ -58,14 +61,22 @@ export function createSpreadsheetDockController({
   const writeDocked = typeof preferences?.writeSpreadsheetDock === 'function'
     ? preferences.writeSpreadsheetDock
     : () => {};
+  const readDockedState = typeof preferences?.readSpreadsheetDockState === 'function'
+    ? preferences.readSpreadsheetDockState
+    : null;
+  const writeDockedState = typeof preferences?.writeSpreadsheetDockState === 'function'
+    ? preferences.writeSpreadsheetDockState
+    : null;
 
   let sidePanelController = toolbar.sidePanelController || null;
   let pinController = toolbar.pinController || null;
-  let dockedPanelId = null;
+  let dockedPanelIds = [];
+  let activeDockedPanelId = null;
   let dockedHandles = null;
   let dockedRoot = null;
   let lockObserver = null;
   let freezeEnabled = false;
+  const freezeByPanelId = new Map();
   let dataActions = null;
   let dataTitle = null;
 
@@ -73,10 +84,29 @@ export function createSpreadsheetDockController({
   const emptyState = documentRoot.createElement('div');
   emptyState.className = 'workspace-tech-panel-data-empty';
   emptyState.textContent = 'No spreadsheet docked yet.';
+  const pillStrip = documentRoot.createElement('div');
+  pillStrip.className = 'workspace-tech-panel-worksheets-strip';
+  pillStrip.hidden = true;
+  const linkedGraphStrip = documentRoot.createElement('div');
+  linkedGraphStrip.className = 'workspace-tech-panel-linked-graphs-strip';
+  linkedGraphStrip.hidden = true;
   const host = documentRoot.createElement('div');
   host.className = 'workspace-tech-panel-data-host';
   menu.appendChild(emptyState);
+  menu.appendChild(pillStrip);
+  menu.appendChild(linkedGraphStrip);
   menu.appendChild(host);
+
+  const persistDockState = () => {
+    if (writeDockedState) {
+      writeDockedState({
+        ids: dockedPanelIds.slice(),
+        activeId: activeDockedPanelId || null
+      });
+      return;
+    }
+    writeDocked(activeDockedPanelId || null);
+  };
 
   const ensureHeaderItems = () => {
     if (!header || !actionsRow) return;
@@ -242,6 +272,9 @@ export function createSpreadsheetDockController({
     freezeBtn.setAttribute('aria-pressed', 'false');
     freezeBtn.addEventListener('click', () => {
       setFreezeState(!freezeEnabled);
+      if (activeDockedPanelId) {
+        freezeByPanelId.set(activeDockedPanelId, freezeEnabled);
+      }
       dockedHandles?.setFreeze?.(freezeEnabled);
     });
     dataActions.appendChild(freezeBtn);
@@ -249,8 +282,8 @@ export function createSpreadsheetDockController({
     const duplicateBtn = buildIconButton('bi-files', 'Duplicate spreadsheet');
     duplicateBtn.dataset.techPanelDataAction = 'duplicate';
     duplicateBtn.addEventListener('click', () => {
-      if (!dockedPanelId) return;
-      safeDuplicatePanel(dockedPanelId);
+      if (!activeDockedPanelId) return;
+      safeDuplicatePanel(activeDockedPanelId);
     });
     dataActions.appendChild(duplicateBtn);
 
@@ -300,30 +333,116 @@ export function createSpreadsheetDockController({
     dataActions.appendChild(extraBtn);
   };
 
+  const collectLinkedGraphs = (spreadsheetPanelId) => {
+    if (!spreadsheetPanelId) return [];
+    const records = listPlotPanels();
+    if (!Array.isArray(records)) return [];
+    return records
+      .map((record) => {
+        const panelId = record?.id;
+        if (!panelId || panelId === spreadsheetPanelId) return null;
+        const figure = getPanelFigure(panelId) || { data: [] };
+        const traces = Array.isArray(figure?.data) ? figure.data : [];
+        const linkedTraceCount = traces.reduce((count, trace) => {
+          const sourcePanelId = trace?.meta?.sourcePanelId;
+          return count + (sourcePanelId === spreadsheetPanelId ? 1 : 0);
+        }, 0);
+        if (!linkedTraceCount) return null;
+        return {
+          id: panelId,
+          title: record?.title || 'Graph',
+          index: Number(record?.index) || 0,
+          linkedTraceCount
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.index - right.index);
+  };
+
+  const updateLinkedGraphStrip = () => {
+    linkedGraphStrip.innerHTML = '';
+    if (!activeDockedPanelId) {
+      linkedGraphStrip.hidden = true;
+      return;
+    }
+    const linkedGraphs = collectLinkedGraphs(activeDockedPanelId);
+    if (!linkedGraphs.length) {
+      linkedGraphStrip.hidden = true;
+      return;
+    }
+    linkedGraphStrip.hidden = false;
+    linkedGraphs.forEach((entry) => {
+      const button = documentRoot.createElement('button');
+      button.type = 'button';
+      button.className = 'workspace-tech-panel-linked-graph-pill';
+      button.textContent = entry.title || 'Graph';
+      button.title = `${entry.title || 'Graph'} • ${entry.linkedTraceCount} linked trace${entry.linkedTraceCount === 1 ? '' : 's'}`;
+      button.addEventListener('click', () => {
+        safeBringPanelToFront(entry.id);
+      });
+      linkedGraphStrip.appendChild(button);
+    });
+  };
+
   const updateDockedState = () => {
-    const panelRecord = dockedPanelId ? getPanelRecord(dockedPanelId) : null;
-    emptyState.hidden = !!dockedPanelId;
-    host.hidden = !dockedPanelId;
+    dockedPanelIds = dockedPanelIds.filter((panelId) => {
+      const record = getPanelRecord(panelId);
+      return !!record && record.type === 'spreadsheet';
+    });
+    if (!activeDockedPanelId || !dockedPanelIds.includes(activeDockedPanelId)) {
+      activeDockedPanelId = dockedPanelIds[0] || null;
+    }
+    const panelRecord = activeDockedPanelId ? getPanelRecord(activeDockedPanelId) : null;
+    emptyState.hidden = !!activeDockedPanelId;
+    host.hidden = !activeDockedPanelId;
+    pillStrip.hidden = dockedPanelIds.length === 0;
     if (panel) {
-      panel.dataset.dockedSpreadsheet = dockedPanelId ? 'true' : 'false';
-      if (dockedPanelId) {
-        panel.dataset.dockedPanelId = dockedPanelId;
+      panel.dataset.dockedSpreadsheet = activeDockedPanelId ? 'true' : 'false';
+      if (activeDockedPanelId) {
+        panel.dataset.dockedPanelId = activeDockedPanelId;
       } else {
         delete panel.dataset.dockedPanelId;
       }
     }
+    pillStrip.innerHTML = '';
+    dockedPanelIds.forEach((panelId) => {
+      const record = getPanelRecord(panelId);
+      if (!record || record.type !== 'spreadsheet') return;
+      const content = getPanelContent(panelId) || record.content || {};
+      const title = record?.title?.trim?.() || record?.title || 'Worksheet';
+      const columnCount = Array.isArray(content?.columns) ? content.columns.length : 0;
+      const rowCount = Array.isArray(content?.rows) ? content.rows.length : 0;
+      const pill = documentRoot.createElement('button');
+      pill.type = 'button';
+      pill.className = 'workspace-tech-panel-worksheet-pill';
+      if (panelId === activeDockedPanelId) {
+        pill.classList.add('is-active');
+      }
+      pill.textContent = title;
+      pill.title = `${title} \u2022 ${columnCount} col${columnCount === 1 ? '' : 's'} \u2022 ${rowCount} row${rowCount === 1 ? '' : 's'}`;
+      pill.addEventListener('click', () => {
+        if (panelId === activeDockedPanelId) return;
+        activeDockedPanelId = panelId;
+        persistDockState();
+        mountDockedPanel(panelId);
+        updateDockedState();
+      });
+      pillStrip.appendChild(pill);
+    });
+    updateLinkedGraphStrip();
     if (dataTitle) {
       dataTitle.textContent = panelRecord?.title?.trim?.()
         || panelRecord?.title
         || 'Spreadsheet';
-      dataTitle.hidden = !dockedPanelId;
+      dataTitle.hidden = !activeDockedPanelId;
     }
     if (dataActions) {
-      dataActions.hidden = !dockedPanelId;
+      dataActions.hidden = !activeDockedPanelId;
     }
     if (openCanvasBtn) {
-      openCanvasBtn.disabled = !dockedPanelId;
+      openCanvasBtn.disabled = !activeDockedPanelId;
     }
+    persistDockState();
   };
 
   const teardownDocked = () => {
@@ -349,7 +468,7 @@ export function createSpreadsheetDockController({
     const panelRecord = getPanelRecord(panelId);
     if (!panelRecord || panelRecord.type !== 'spreadsheet') return false;
     teardownDocked();
-    setFreezeState(false);
+    setFreezeState(freezeByPanelId.get(panelId) === true);
     dockedRoot = documentRoot.createElement('div');
     dockedRoot.className = 'workspace-tech-panel-data-root';
     const contentHost = documentRoot.createElement('div');
@@ -383,11 +502,12 @@ export function createSpreadsheetDockController({
       lockObserver.observe(panelRoot, { attributes: true, attributeFilter: ['class'] });
     }
     syncLockState(panelRoot);
+    dockedHandles?.setFreeze?.(freezeEnabled);
     return true;
   };
 
   const showWorksheetsTab = () => {
-    pinController?.setMode?.('panel', { persist: false });
+    pinController?.setMode?.('panel');
     sidePanelController?.setActiveTab?.('worksheets');
     sidePanelController?.setMode?.('panel', { visibleOverride: true });
   };
@@ -396,12 +516,12 @@ export function createSpreadsheetDockController({
     if (!panelId) return false;
     const panelRecord = getPanelRecord(panelId);
     if (!panelRecord || panelRecord.type !== 'spreadsheet') return false;
-    if (dockedPanelId && dockedPanelId !== panelId) {
-      undockPanel();
+    if (!dockedPanelIds.includes(panelId)) {
+      dockedPanelIds.push(panelId);
+      safeSetGraphVisibility(panelId, true);
     }
-    dockedPanelId = panelId;
-    writeDocked(panelId);
-    safeSetGraphVisibility(panelId, true);
+    activeDockedPanelId = panelId;
+    persistDockState();
     mountDockedPanel(panelId);
     buildDataActions();
     updateDockedState();
@@ -409,33 +529,65 @@ export function createSpreadsheetDockController({
     return true;
   };
 
-  const undockPanel = () => {
-    if (!dockedPanelId) return false;
-    const panelId = dockedPanelId;
-    dockedPanelId = null;
-    writeDocked(null);
+  const undockPanel = (panelId = activeDockedPanelId) => {
+    if (!panelId) return false;
+    if (!dockedPanelIds.includes(panelId)) return false;
+    dockedPanelIds = dockedPanelIds.filter((id) => id !== panelId);
+    freezeByPanelId.delete(panelId);
     safeSetGraphVisibility(panelId, false);
     safeBringPanelToFront(panelId);
-    teardownDocked();
+    if (activeDockedPanelId === panelId) {
+      activeDockedPanelId = dockedPanelIds[0] || null;
+      if (activeDockedPanelId) {
+        mountDockedPanel(activeDockedPanelId);
+      } else {
+        teardownDocked();
+      }
+    }
+    persistDockState();
     updateDockedState();
     return true;
   };
 
   const restoreDocked = () => {
-    if (dockedPanelId) return true;
-    const stored = readDocked(null);
-    if (!stored) return false;
-    const record = getPanelRecord(stored);
-    if (!record || record.type !== 'spreadsheet') {
-      writeDocked(null);
+    if (activeDockedPanelId || dockedPanelIds.length) return true;
+    const state = readDockedState?.(null);
+    let ids = Array.isArray(state?.ids) ? state.ids : [];
+    let activeId = typeof state?.activeId === 'string' ? state.activeId : null;
+    if (!ids.length) {
+      const legacy = readDocked(null);
+      if (legacy) {
+        ids = [legacy];
+        activeId = legacy;
+      }
+    }
+    const restoredIds = ids
+      .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+      .filter(Boolean)
+      .filter((entry, index, list) => list.indexOf(entry) === index)
+      .filter((entry) => {
+        const record = getPanelRecord(entry);
+        return !!record && record.type === 'spreadsheet';
+      });
+    if (!restoredIds.length) {
+      persistDockState();
       return false;
     }
-    return dockPanel(stored);
+    dockedPanelIds = restoredIds;
+    activeDockedPanelId = restoredIds.includes(activeId) ? activeId : restoredIds[0];
+    restoredIds.forEach((entry) => safeSetGraphVisibility(entry, true));
+    mountDockedPanel(activeDockedPanelId);
+    buildDataActions();
+    updateDockedState();
+    persistDockState();
+    // Respect persisted sidebar open/close state; restoring docked worksheets
+    // should not force the side panel open.
+    return true;
   };
 
   if (openCanvasBtn) {
     openCanvasBtn.addEventListener('click', () => {
-      undockPanel();
+      undockPanel(activeDockedPanelId);
     });
   }
 
@@ -448,8 +600,9 @@ export function createSpreadsheetDockController({
     dockPanel,
     undockPanel,
     restoreDocked,
-    isDocked: () => !!dockedPanelId,
-    getDockedPanelId: () => dockedPanelId,
+    isDocked: () => dockedPanelIds.length > 0,
+    getDockedPanelId: () => activeDockedPanelId,
+    getDockedPanelIds: () => dockedPanelIds.slice(),
     setSidePanelController(controller) {
       sidePanelController = controller;
     },
@@ -458,6 +611,16 @@ export function createSpreadsheetDockController({
     },
     setDuplicatePanel(handler) {
       safeDuplicatePanel = typeof handler === 'function' ? handler : () => {};
+    },
+    handlePanelUpdated(panelId) {
+      if (!activeDockedPanelId) return;
+      if (!panelId) {
+        updateLinkedGraphStrip();
+        return;
+      }
+      if (panelId === activeDockedPanelId || collectLinkedGraphs(activeDockedPanelId).some((entry) => entry.id === panelId)) {
+        updateLinkedGraphStrip();
+      }
     },
     teardown() {
       teardownDocked();

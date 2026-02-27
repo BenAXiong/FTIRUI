@@ -16,6 +16,7 @@ const DEFAULT_HEADER_VISIBILITY = {
   ghost: true,
   col: true,
   name: true,
+  axis: true,
   units: true,
   formula: true,
   spark: true
@@ -44,6 +45,13 @@ const sanitizeString = (value, fallback = '') => {
     if (trimmed) return trimmed;
   }
   return fallback;
+};
+
+const composeAxisTitle = (axisLabel = '', units = '') => {
+  const axis = sanitizeString(axisLabel, '');
+  const unit = sanitizeString(units, '');
+  if (axis && unit) return `${axis} (${unit})`;
+  return axis || unit || '';
 };
 
 const limitNumericPrecision = (value, places = MAX_DECIMAL_PLACES) => {
@@ -123,6 +131,7 @@ const normalizeColumns = (value) => {
     return {
       id: uniqueId,
       label: sanitizeString(column?.label, ''),
+      axis: sanitizeString(column?.axis ?? '', ''),
       units: sanitizeString(column?.units ?? '', ''),
       width: Number.isFinite(Number(column?.width))
         ? Math.max(MIN_COLUMN_WIDTH, Math.round(Number(column?.width)))
@@ -530,6 +539,7 @@ export const spreadsheetPanelType = {
       ['ghost', 'Actions'],
       ['col', 'Columns'],
       ['name', 'Name'],
+      ['axis', 'Axis'],
       ['units', 'Units'],
       ['formula', 'Formula'],
       ['spark', 'Preview']
@@ -1138,6 +1148,34 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
       return mapping;
     };
 
+    const resolveColumnAxisLabel = (column) => {
+      if (!column || typeof column !== 'object') return '';
+      const explicit = sanitizeString(column.axis, '');
+      if (explicit) return explicit;
+      return sanitizeString(column.label, sanitizeString(column.id, ''));
+    };
+
+    const buildYAxisGroupOwnerMap = () => {
+      const mapping = buildDefaultPlotMapping();
+      const ownerByColumnId = new Map();
+      mapping.forEach((yColumns) => {
+        if (!Array.isArray(yColumns) || !yColumns.length) return;
+        const ownerId = yColumns[0]?.id;
+        if (!ownerId) return;
+        yColumns.forEach((column) => {
+          if (!column?.id) return;
+          ownerByColumnId.set(column.id, ownerId);
+        });
+      });
+      return ownerByColumnId;
+    };
+
+    const getYAxisOwnerForColumn = (columnId, ownerMap = null) => {
+      const sourceMap = ownerMap instanceof Map ? ownerMap : buildYAxisGroupOwnerMap();
+      const ownerId = sourceMap.get(columnId);
+      return ownerId || null;
+    };
+
     const canPlot = () => Boolean(selectedXColumnId && selectedYColumnIds.size && evaluatedRows.length);
 
     const buildFormulaTokens = () => sheetState.columns.map((column, index) => {
@@ -1295,6 +1333,13 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
           const xColumn = getColumnById(xColumnId);
           if (!xColumn) return;
           if (!yColumns.length) return;
+          const yOwnerColumn = yColumns[0] || null;
+          const xAxisLabel = resolveColumnAxisLabel(xColumn);
+          const xAxisUnits = sanitizeString(xColumn.units, '');
+          const xAxisTitle = composeAxisTitle(xAxisLabel, xAxisUnits);
+          const yAxisLabel = resolveColumnAxisLabel(yOwnerColumn);
+          const yAxisUnits = sanitizeString(yOwnerColumn?.units, '');
+          const yAxisTitle = composeAxisTitle(yAxisLabel, yAxisUnits);
           const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
           yColumns.forEach((column) => {
             const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
@@ -1312,6 +1357,12 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
                 columnLabel: column.label || '',
                 xColumnId: xColumn.id,
                 xLabel: xColumn.label || '',
+                xAxisLabel,
+                yAxisLabel,
+                xAxisUnits,
+                yAxisUnits,
+                xAxisTitle,
+                yAxisTitle,
                 helperSeries
               }
             });
@@ -1324,9 +1375,18 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
       if (!xColumns.length) return [];
       const yColumns = sheetState.columns.filter((column) => selectedYColumnIds.has(column.id));
       if (!yColumns.length) return [];
+      const yOwnerByColumnId = buildYAxisGroupOwnerMap();
       xColumns.forEach((xColumn) => {
+        const xAxisLabel = resolveColumnAxisLabel(xColumn);
+        const xAxisUnits = sanitizeString(xColumn.units, '');
+        const xAxisTitle = composeAxisTitle(xAxisLabel, xAxisUnits);
         const xValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[xColumn.id]));
         yColumns.forEach((column) => {
+          const yOwnerId = getYAxisOwnerForColumn(column.id, yOwnerByColumnId) || column.id;
+          const yOwnerColumn = getColumnById(yOwnerId) || column;
+          const yAxisLabel = resolveColumnAxisLabel(yOwnerColumn);
+          const yAxisUnits = sanitizeString(yOwnerColumn.units, '');
+          const yAxisTitle = composeAxisTitle(yAxisLabel, yAxisUnits);
           const yValues = evaluatedRows.map((row) => sanitizeCellValue(row?.[column.id]));
           const hasData = yValues.some((value) => value !== null && value !== '');
           if (!hasData) return;
@@ -1342,6 +1402,12 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
               columnLabel: column.label || '',
               xColumnId: xColumn.id,
               xLabel: xColumn.label || '',
+              xAxisLabel,
+              yAxisLabel,
+              xAxisUnits,
+              yAxisUnits,
+              xAxisTitle,
+              yAxisTitle,
               helperSeries
             }
           });
@@ -2520,6 +2586,7 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
         return col;
       });
       table.appendChild(colgroup);
+      const yAxisOwnerByColumnId = buildYAxisGroupOwnerMap();
       const headerRows = [
         {
           key: 'ghost',
@@ -2766,14 +2833,25 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
           }
         },
         {
-          key: 'units',
-          label: 'Units',
-          className: 'workspace-spreadsheet-column-header--units',
+          key: 'axis',
+          label: 'Axis',
+          className: 'workspace-spreadsheet-column-header--axis',
           buildCell: (th, columnIndex, column) => {
+            const ownerId = getYAxisOwnerForColumn(column.id, yAxisOwnerByColumnId);
+            const ownerColumn = ownerId ? getColumnById(ownerId) : null;
+            const sharedWithGroup = Boolean(ownerId && ownerId !== column.id && ownerColumn);
             const input = document.createElement('input');
             input.type = 'text';
-            input.className = 'workspace-spreadsheet-header-input workspace-spreadsheet-units-input';
-            input.value = column.units || '';
+            input.className = 'workspace-spreadsheet-header-input workspace-spreadsheet-axis-input';
+            input.value = sharedWithGroup
+              ? resolveColumnAxisLabel(ownerColumn)
+              : resolveColumnAxisLabel(column);
+            if (sharedWithGroup) {
+              input.readOnly = true;
+              input.tabIndex = -1;
+              input.classList.add('is-shared');
+              input.title = 'Shared with Y columns on the same X axis';
+            }
             input.addEventListener('focus', () => {
               activeColumnIndex = columnIndex;
               syncActiveHighlights();
@@ -2785,11 +2863,60 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
               }
               if (event.key === 'Escape') {
                 event.preventDefault();
-                input.value = column.units || '';
+                input.value = sharedWithGroup
+                  ? resolveColumnAxisLabel(ownerColumn)
+                  : resolveColumnAxisLabel(column);
                 input.blur();
               }
             });
             input.addEventListener('blur', () => {
+              if (sharedWithGroup) return;
+              updateColumnAxis(columnIndex, input.value);
+              const nextColumn = sheetState.columns[columnIndex];
+              input.value = resolveColumnAxisLabel(nextColumn);
+            });
+            th.appendChild(input);
+          }
+        },
+        {
+          key: 'units',
+          label: 'Units',
+          className: 'workspace-spreadsheet-column-header--units',
+          buildCell: (th, columnIndex, column) => {
+            const ownerId = getYAxisOwnerForColumn(column.id, yAxisOwnerByColumnId);
+            const ownerColumn = ownerId ? getColumnById(ownerId) : null;
+            const sharedWithGroup = Boolean(ownerId && ownerId !== column.id && ownerColumn);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'workspace-spreadsheet-header-input workspace-spreadsheet-units-input';
+            input.value = sharedWithGroup
+              ? (ownerColumn?.units || '')
+              : (column.units || '');
+            if (sharedWithGroup) {
+              input.readOnly = true;
+              input.tabIndex = -1;
+              input.classList.add('is-shared');
+              input.title = 'Shared with Y columns on the same X axis';
+            }
+            input.addEventListener('focus', () => {
+              activeColumnIndex = columnIndex;
+              syncActiveHighlights();
+            });
+            input.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                input.blur();
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                input.value = sharedWithGroup
+                  ? (ownerColumn?.units || '')
+                  : (column.units || '');
+                input.blur();
+              }
+            });
+            input.addEventListener('blur', () => {
+              if (sharedWithGroup) return;
               updateColumnUnits(columnIndex, input.value);
               input.value = sheetState.columns[columnIndex]?.units || '';
             });
@@ -2893,6 +3020,7 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
         if (row.key === 'ghost') return headerVisibility.ghost !== false;
         if (row.key === 'col') return headerVisibility.col !== false;
         if (row.key === 'name') return headerVisibility.name !== false;
+        if (row.key === 'axis') return headerVisibility.axis !== false;
         if (row.key === 'units') return headerVisibility.units !== false;
         if (row.key === 'formula') return headerVisibility.formula !== false;
         if (row.key === 'spark') return headerVisibility.spark !== false;
@@ -3095,16 +3223,73 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
       refreshPlotControls();
     };
 
+    const updateColumnAxis = (columnIndex, value) => {
+      if (isEditLocked) return;
+      const column = sheetState.columns[columnIndex];
+      if (!column) return;
+      const nextAxis = typeof value === 'string' ? value.trim() : '';
+      const yOwnerByColumnId = buildYAxisGroupOwnerMap();
+      const ownerId = getYAxisOwnerForColumn(column.id, yOwnerByColumnId);
+      const targetOwnerId = ownerId || column.id;
+      if (ownerId && ownerId !== column.id) return;
+      const nextColumns = sheetState.columns.slice();
+      const targetIndices = [];
+      if (ownerId) {
+        sheetState.columns.forEach((entry, index) => {
+          if (getYAxisOwnerForColumn(entry.id, yOwnerByColumnId) === targetOwnerId) {
+            targetIndices.push(index);
+          }
+        });
+      } else {
+        targetIndices.push(columnIndex);
+      }
+      let changed = false;
+      targetIndices.forEach((index) => {
+        const entry = nextColumns[index];
+        if (!entry) return;
+        const currentAxis = sanitizeString(entry.axis ?? '', '');
+        if (currentAxis === nextAxis) return;
+        nextColumns[index] = { ...entry, axis: nextAxis };
+        changed = true;
+      });
+      if (!changed) return;
+      sheetState = { ...sheetState, columns: nextColumns };
+      markDirty();
+      renderGrid();
+    };
+
     const updateColumnUnits = (columnIndex, value) => {
       if (isEditLocked) return;
       const column = sheetState.columns[columnIndex];
       if (!column) return;
       const nextUnits = typeof value === 'string' ? value.trim() : '';
-      if (nextUnits === (column.units || '')) return;
+      const yOwnerByColumnId = buildYAxisGroupOwnerMap();
+      const ownerId = getYAxisOwnerForColumn(column.id, yOwnerByColumnId);
+      const targetOwnerId = ownerId || column.id;
+      if (ownerId && ownerId !== column.id) return;
       const nextColumns = sheetState.columns.slice();
-      nextColumns[columnIndex] = { ...column, units: nextUnits };
+      const targetIndices = [];
+      if (ownerId) {
+        sheetState.columns.forEach((entry, index) => {
+          if (getYAxisOwnerForColumn(entry.id, yOwnerByColumnId) === targetOwnerId) {
+            targetIndices.push(index);
+          }
+        });
+      } else {
+        targetIndices.push(columnIndex);
+      }
+      let changed = false;
+      targetIndices.forEach((index) => {
+        const entry = nextColumns[index];
+        if (!entry) return;
+        if (nextUnits === (entry.units || '')) return;
+        nextColumns[index] = { ...entry, units: nextUnits };
+        changed = true;
+      });
+      if (!changed) return;
       sheetState = { ...sheetState, columns: nextColumns };
       markDirty();
+      renderGrid();
     };
 
     const updateColumnType = (columnIndex, nextType) => {
@@ -3233,6 +3418,7 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
       const newColumn = {
         id: generateId('col'),
         label,
+        axis: '',
         units: '',
         width: null,
         type: 'number',
@@ -3261,6 +3447,7 @@ const createSparklineSvg = (xValues = [], yValues = [], options = {}) => {
       const nextColumn = {
         id: generateId('col'),
         label: buildCopyLabel(column.label, toColumnLabel(insertIndex)),
+        axis: sanitizeString(column.axis ?? '', ''),
         units: column.units || '',
         width: Number.isFinite(column.width) ? column.width : null,
         type: column.type,

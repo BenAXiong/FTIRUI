@@ -68,7 +68,25 @@ export function createPanelInteractions({
     if (!rootEl) return;
     const runtime = ensurePanelRuntime(panelId);
 
-    const isPinned = () => isPanelPinned(panelId) || rootEl.classList.contains('is-panel-pinned');
+    const isPinned = () => {
+      const pinned = !!isPanelPinned(panelId);
+      // Keep DOM class in sync so stale classes do not block drag/resize forever.
+      rootEl.classList.toggle('is-panel-pinned', pinned);
+      return pinned;
+    };
+
+    const resolveResizeCursor = (action) => {
+      const edges = action?.edges || {};
+      const horizontal = !!edges.left || !!edges.right;
+      const vertical = !!edges.top || !!edges.bottom;
+      if (horizontal && vertical) {
+        if ((edges.left && edges.top) || (edges.right && edges.bottom)) return 'nwse-resize';
+        return 'nesw-resize';
+      }
+      if (horizontal) return 'ew-resize';
+      if (vertical) return 'ns-resize';
+      return null;
+    };
 
     const beginInteraction = (mode) => {
       bringPanelToFront(panelId, { persistChange: false });
@@ -167,7 +185,7 @@ export function createPanelInteractions({
         inertia: false,
         allowFrom: '.workspace-panel-header',
         ignoreFrom: '.workspace-panel-body, .workspace-panel-actions, .workspace-panel-actions *',
-        cursorChecker: () => (isPinned() ? 'default' : null),
+        cursorChecker: () => (isPinned() ? 'default' : 'move'),
         modifiers: [
           interact.modifiers.restrictRect({
             restriction: canvas,
@@ -203,7 +221,7 @@ export function createPanelInteractions({
         edges: { left: true, right: true, bottom: true, top: true },
         inertia: false,
         margin: 6,
-        cursorChecker: () => (isPinned() ? 'default' : null),
+        cursorChecker: (action) => (isPinned() ? 'default' : resolveResizeCursor(action)),
         modifiers: [
           interact.modifiers.restrictEdges({
             outer: canvas,

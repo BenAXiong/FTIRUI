@@ -97,6 +97,19 @@ Future work
 - .ben = binned/basic/? experiment notebook
 - custom tags (based on existing)
 - pub/PR mode: specific QoL additions, eg auto placement and seq for Fig letters (a.) and styling
+
+Future explorations
+- [ ] Next tech = XRD & CV?
+- [ ] Merge left HUD with browser?
+- [ ] Evaluate hiding other tabs for MVP, annotation improvements, EC templates, Present tab, explorer raw file previews, OPJ/OPJU import, file attachments.
+- [ ] Tags! differenciate Tech tags and type tags (graph, md, ss, img, etc)
+- [ ] Mock-up 'in-paper' preview for wows
+- [ ] Ctrl+click multi select in canvas
+- [ ] Design multigraph figures: in pres/post mode? (templates for 2, 3, 4 graphs layouts)
+- [ ] Consider collapsible right pane for more simulatenous controls
+    ooooor Graph option v2: right side bar... -- make alternatives togglable?
+    Right pane: add tab for metadata and other info (incl user notes for self and collab)
+- [ ] Explore Papers/Reports workflow integration.
 ___________________________________________________________
 Bugs
 

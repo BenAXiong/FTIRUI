@@ -17,6 +17,7 @@ export function createUiPreferencesFacade({
   techToolbarHideHeadersKey = 'ftir.workspace.tb2.hideHeaders.v1',
   techToolbarHideModebarKey = 'ftir.workspace.tb2.hideModebar.v1',
   spreadsheetDockKey = 'ftir.workspace.spreadsheet.dock.v1',
+  spreadsheetDockStateKey = 'ftir.workspace.spreadsheet.dockState.v1',
   projectTreeCollapseKey = 'ftir.workspace.projectTreeCollapsed.v1',
   sessionStorage: session = typeof globalThis !== 'undefined' ? globalThis.sessionStorage : undefined,
   localStorage: local = typeof globalThis !== 'undefined' ? globalThis.localStorage : undefined
@@ -254,6 +255,11 @@ export function createUiPreferencesFacade({
     try {
       const stored = localStore.getItem(spreadsheetDockKey);
       if (stored === null) return fallback;
+      if (stored.trim().startsWith('{')) {
+        const parsed = JSON.parse(stored);
+        const active = typeof parsed?.activeId === 'string' ? parsed.activeId.trim() : '';
+        if (active) return active;
+      }
       const trimmed = stored.trim();
       return trimmed ? trimmed : fallback;
     } catch {
@@ -268,6 +274,60 @@ export function createUiPreferencesFacade({
         localStore.removeItem(spreadsheetDockKey);
       } else {
         localStore.setItem(spreadsheetDockKey, String(panelId));
+      }
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
+  const readSpreadsheetDockState = (fallback = { ids: [], activeId: null }) => {
+    if (!localStore) return fallback;
+    try {
+      const stateRaw = localStore.getItem(spreadsheetDockStateKey);
+      if (stateRaw) {
+        const parsed = JSON.parse(stateRaw);
+        const ids = Array.isArray(parsed?.ids)
+          ? parsed.ids
+            .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+            .filter(Boolean)
+          : [];
+        const activeId = typeof parsed?.activeId === 'string' && parsed.activeId.trim()
+          ? parsed.activeId.trim()
+          : (ids[0] || null);
+        return { ids, activeId };
+      }
+      const legacyActive = readSpreadsheetDock(null);
+      if (!legacyActive) return fallback;
+      return { ids: [legacyActive], activeId: legacyActive };
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeSpreadsheetDockState = (state) => {
+    if (!localStore) return;
+    try {
+      const ids = Array.isArray(state?.ids)
+        ? state.ids
+          .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+          .filter(Boolean)
+        : [];
+      const activeId = typeof state?.activeId === 'string' && state.activeId.trim()
+        ? state.activeId.trim()
+        : (ids[0] || null);
+      if (!ids.length) {
+        localStore.removeItem(spreadsheetDockStateKey);
+        localStore.removeItem(spreadsheetDockKey);
+        return;
+      }
+      localStore.setItem(
+        spreadsheetDockStateKey,
+        JSON.stringify({ ids, activeId })
+      );
+      if (activeId) {
+        localStore.setItem(spreadsheetDockKey, activeId);
+      } else {
+        localStore.removeItem(spreadsheetDockKey);
       }
     } catch {
       /* ignore storage failures */
@@ -327,6 +387,8 @@ export function createUiPreferencesFacade({
     writeTechToolbarHideModebar,
     readSpreadsheetDock,
     writeSpreadsheetDock,
+    readSpreadsheetDockState,
+    writeSpreadsheetDockState,
     readProjectTreeCollapse,
     writeProjectTreeCollapse,
     teardown

@@ -18,6 +18,7 @@ The workspace runtime is intentionally organised as a collection of small facade
 * `panels/panelDomFacade.js` builds panel shells, header controls, and popovers. It accepts runtime actions and callbacks so panel wiring lives outside of `registerPanel`.
 * `panels/spreadsheetDockController.js` owns the docked spreadsheet rendered in the Worksheets side-tab. It mirrors spreadsheet header actions and uses its own portaled popover placement helper (side placement, left of the sidebar), separate from `panelDomFacade` popover wiring.
 * `panels/panelDataTabController.js` owns the Data side-tab live read-only trace view for the active graph panel.
+* `panels/panelNotesTabController.js` owns the Notes side-tab rich text editor bound to the active graph panel, persisting note HTML in `figure.layout.meta.workspacePanel`.
 * `panels/headerActions.js` owns the header action dispatcher, mapping UI intents to Plotly layout and trace mutations while handling history/persistence side effects.
 * `panels/panelInteractions.js` wires drag/resize behaviour through `interact.js`, normalising geometry updates and persistence outside of the runtime orchestrator.
 * `state/historyHelpers.js` provides a tiny API for queueing mutations and refreshing undo/redo/UI state, so call sites never hand-roll `pushHistory`/`persist`/`updateHistoryButtons` sequences.
@@ -47,6 +48,56 @@ Each facade exposes a minimal API back to the controller (`panelsFacade` returns
 2. Instantiate the runtime state context (models + managers) and hand it to the panels and IO facades.
 3. Wire the panel DOM, persistence, and browser facades, providing only the constrained APIs they require.
 4. On teardown, delegate to each facade’s `teardown`/`detach` method to release listeners and flush storage.
+
+### Refresh/Focus Persistence Guardrails
+
+Panel focus and sidebar mode are persisted across refresh, but this path is sensitive to boot ordering.
+
+- Persist active panel in snapshot UI prefs (`uiPrefs.activePanelId`) and restore it in `state/snapshotManager.js` after panel registration.
+- Do not pass early-bound function references into long-lived facades during bootstrap.
+  - In `workspaceRuntime.js`, pass live wrappers to `createSnapshotManager`:
+    - `setActivePanel: (...args) => setActivePanel(...args)`
+    - `updateCanvasState: (...args) => updateCanvasState(...args)`
+    - `renderBrowser: (...args) => renderBrowser(...args)`
+    - `persistence.persist: (...args) => persist(...args)`
+- Persist focus on user-driven selection changes (`setActivePanel(..., { persistSelection: true })`) so autosave/cloud snapshots include the latest focus.
+- For cloud hydrate:
+  - If remote snapshot is valid but missing `uiPrefs.activePanelId`, merge local fallback `activePanelId` only when that panel exists in the remote panel list.
+- Side panel mode persistence:
+  - `tb2` mode is stored in `ftir.workspace.tb2.mode.v1`.
+  - Side panel state (`ftir.workspace.tb2.panelState.v1`) stores `mode` and `visible` as fallback.
+  - Restoring docked worksheets must not force-open the sidebar (`spreadsheetDockController.restoreDocked`).
+
+#### Known Regression (fixed): focus lost after refresh while sidebar tab persisted
+
+Symptoms seen in production:
+- Sidebar reopened on `Notes`, but showed "Notes are available for graph panels only."
+- Previously focused graph lost highlight after refresh.
+
+Primary root causes:
+- `createSnapshotManager(...)` received early-bound callbacks from `workspaceRuntime.js` before `setActivePanel`/`persist` were fully initialized. On restore, focus re-apply became a no-op.
+- Cloud payloads could be valid snapshot objects while missing `uiPrefs.activePanelId`, so remote restore overwrote local focus context.
+- Focus changes were not always persisted at selection time, so latest focus could be absent from saved snapshot.
+
+Exact fix pattern (do not deviate):
+- In `workspaceRuntime.js`, when calling `createSnapshotManager`, pass live wrappers, not raw vars:
+  - `setActivePanel: (...args) => setActivePanel(...args)`
+  - `updateCanvasState: (...args) => updateCanvasState(...args)`
+  - `renderBrowser: (...args) => renderBrowser(...args)`
+  - `persistence.persist: (...args) => persist(...args)`
+- In `state/snapshotManager.js`:
+  - include `uiPrefs.activePanelId = getActivePanelId()`
+  - after panel registration in `restore()`, call `setActivePanel(requestedActivePanelId)` if that panel exists
+- In `workspaceRuntime.js`:
+  - persist user focus transitions via `setActivePanel(..., { persistSelection: true })` on selection and explicit deselection paths
+  - during `hydrateDashboardCanvasState`, if remote snapshot lacks `uiPrefs.activePanelId`, merge local fallback `activePanelId` only if the panel exists in remote `panels.items`
+  - save `restoredState` (post-merge) back to local storage to keep local/remote state aligned
+
+Quick diagnosis checklist if this regresses:
+- Verify `snapshotManager.snapshot().uiPrefs.activePanelId` is present right before refresh.
+- Verify `restore()` in `snapshotManager` receives a snapshot where `uiPrefs.activePanelId` is set.
+- Verify `setActivePanel` invoked by restore is the runtime implementation (not the early placeholder).
+- Verify cloud hydrate is not replacing local focus with a remote snapshot missing `activePanelId`.
 
 ## Testing
 
@@ -105,6 +156,26 @@ The hb5 legend popover maps UI controls to Plotly `layout.legend.*` and `layout.
 - Traces: font family/size/color, entry width, item width.
 - Border: toggle + width + color.
 - Theme override: legend text color is forced to black in `workspaceRuntime.js` (intended for white plot backgrounds).
+
+## Spreadsheet Axis/Units Sync
+
+Spreadsheet plotting now carries axis metadata through trace `meta` and applies it on plot insertion.
+
+- Source: `panels/registry/spreadsheetPanel.js` emits `xAxisLabel`, `xAxisUnits`, `xAxisTitle`, `yAxisLabel`, `yAxisUnits`, `yAxisTitle` in each trace payload.
+- Apply point: `panels/headerActions.js` (`spreadsheet-plot-columns`) patches `xaxis.title.text` / `yaxis.title.text` for both:
+  - `mode: existing` (append to existing graph)
+  - `mode: new` (new graph panel)
+- Default mapping behavior: Y columns sharing the same selected X are treated as one axis group; only the group owner is editable in header `Axis`/`Units`, others are read-only mirrors.
+
+## Data Tab Bootstrap Fallback
+
+`panels/panelDataTabController.js` builds Data-tab worksheet content from active graph traces.
+
+- Preferred source is trace metadata (`columnLabel`, `xLabel`, axis fields above).
+- Initial fallback (when metadata is missing) reads Plotly figure titles:
+  - `layout.xaxis.title.text`
+  - `layout.yaxis.title.text`
+- This avoids generic placeholders (`X 1`) on first sync and keeps sidebar data headers aligned with graph axis intent.
 
 ## Theme + Trace Palette Behavior
 

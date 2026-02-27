@@ -263,11 +263,21 @@ export function createTechToolbarPinController({
   if (storedMode && modeMap.has(storedMode)) {
     setMode(storedMode, { persist: false });
   } else {
+    const panelState = preferences?.readTechToolbarPanelState?.(null);
+    const wantsPanelMode = modeMap.has('panel')
+      && (
+        panelState?.mode === 'panel'
+        || panelState?.visible === true
+      );
+    if (wantsPanelMode) {
+      setMode('panel', { persist: false });
+    } else {
     const legacyPinned = preferences?.readTechToolbarPin?.(null);
     if (typeof legacyPinned === 'boolean') {
       setMode(legacyPinned ? 'menus' : 'floating', { persist: false });
     } else {
       setMode(fallbackMode, { persist: false });
+    }
     }
   }
 

@@ -31,6 +31,7 @@ import { createPanelLockController } from './panels/panelLockController.js';
 import { createPanelTagController } from './panels/panelTagController.js';
 import { createSpreadsheetDockController } from './panels/spreadsheetDockController.js';
 import { createPanelDataTabController } from './panels/panelDataTabController.js';
+import { createPanelNotesTabController } from './panels/panelNotesTabController.js';
 import { createUnitsToggleController } from './panels/unitsToggleController.js';
 import { createMultiTraceController } from './panels/multiTraceController.js';
 import { registerPanelType, getPanelType } from './panels/registry/index.js';
@@ -3387,6 +3388,7 @@ let techToolbarHeaderVisibilityController = null;
 let techToolbarModebarVisibilityController = null;
 let spreadsheetDockController = null;
 let panelDataTabController = null;
+let panelNotesTabController = null;
 let tagFilterController = null;
 let renderBrowser = () => {};
 let setActivePanel = () => {};
@@ -3395,6 +3397,39 @@ const isPanelEditLocked = (panelId) =>
   panelLockController?.isPanelEditLocked?.(panelId) ?? false;
 const isPanelPinned = (panelId) =>
   panelLockController?.isPanelPinned?.(panelId) ?? false;
+
+const isDataTabVisibleInSidebar = () => {
+  const mode = techToolbarSidePanelController?.getMode?.();
+  const tabId = techToolbarSidePanelController?.getActiveTab?.();
+  const visible = techToolbarSidePanelController?.isVisible?.();
+  return mode === 'panel' && tabId === 'data' && visible === true;
+};
+
+const syncDataTabHeaderButtons = () => {
+  const visible = isDataTabVisibleInSidebar();
+  const dataPanelId = visible
+    ? (panelDataTabController?.getActivePanelId?.() || getActivePanelId?.() || null)
+    : null;
+  panelDomRegistry.forEach((dom, panelId) => {
+    dom?.runtime?.setDataTabButtonActive?.(visible && panelId === dataPanelId);
+  });
+};
+
+const toggleDataTabFromHeader = (panelId) => {
+  if (!panelId || !panelSupportsPlot(panelId)) return;
+  const isVisible = isDataTabVisibleInSidebar();
+  const activeDataPanelId = panelDataTabController?.getActivePanelId?.() || null;
+  if (isVisible && activeDataPanelId === panelId) {
+    techToolbarPinController?.setMode?.('menus');
+    syncDataTabHeaderButtons();
+    return;
+  }
+  panelDataTabController?.handleActivePanelChange?.(panelId);
+  techToolbarPinController?.setMode?.('panel');
+  techToolbarSidePanelController?.setActiveTab?.('data');
+  techToolbarSidePanelController?.setMode?.('panel', { visibleOverride: true });
+  syncDataTabHeaderButtons();
+};
 
   const historyHelpers = createHistoryHelpers({
     pushHistory: (...args) => pushHistory(...args),
@@ -3407,15 +3442,16 @@ const isPanelPinned = (panelId) =>
     panelsModel,
     sectionManager,
     historyHelpers,
-    persistence: { persist },
+    persistence: { persist: (...args) => persist(...args) },
     dom: {
       panelDomRegistry,
       detachPanelDom
     },
     registerPanel: registerPanelProxy,
-    updateCanvasState,
-    renderBrowser,
-    setActivePanel,
+    updateCanvasState: (...args) => updateCanvasState(...args),
+    renderBrowser: (...args) => renderBrowser(...args),
+    setActivePanel: (...args) => setActivePanel(...args),
+    getActivePanelId: (...args) => getActivePanelId(...args),
     colorCursor: colorCursorManager
   });
 
@@ -3895,10 +3931,12 @@ const isPanelPinned = (panelId) =>
   };
 
     setActivePanel = (panelId, options = {}) => {
+      const nextPanelId = panelId || null;
+      const focusChanged = activePanelId !== nextPanelId;
       if (activePanelId && activePanelId !== panelId) {
         updatePanelDomFocus(activePanelId, false);
       }
-      activePanelId = panelId || null;
+      activePanelId = nextPanelId;
       if (activePanelId) {
         updatePanelDomFocus(activePanelId, true);
       }
@@ -3908,9 +3946,16 @@ const isPanelPinned = (panelId) =>
     unitsToggleController?.handleActivePanelChange?.(activePanelId);
     multiTraceController?.handleActivePanelChange?.(activePanelId);
     panelDataTabController?.handleActivePanelChange?.(activePanelId);
+    panelNotesTabController?.handleActivePanelChange?.(activePanelId);
     techSelectorController?.syncToPanel?.(activePanelId);
     techToolbarPinController?.handleActivePanelChange?.(activePanelId);
+    syncDataTabHeaderButtons();
+    techToolbarSidePanelController?.syncDataOverlaysControl?.();
+    techToolbarSidePanelController?.syncDataSummaryControl?.();
     updateCanvasState();
+    if (focusChanged && options.persistSelection === true) {
+      persist();
+    }
   };
 
 
@@ -4078,19 +4123,22 @@ const isPanelPinned = (panelId) =>
         emptyOverlay.style.display = panelDomRegistry.size ? 'none' : '';
       }
       if (verticalToolbar) {
-        const showToolbar = !!(activePanelId && panelSupportsPlot(activePanelId));
+        const showToolbarForActivePlot = !!(activePanelId && panelSupportsPlot(activePanelId));
         if (techToolbarPinController?.setBaseVisibility) {
-          techToolbarPinController.setBaseVisibility(showToolbar);
+          // Keep side panel mode restorable even when no plot is currently focused.
+          // This prevents refresh from force-closing the sidebar despite persisted mode.
+          const persistedPanelMode = techToolbarPinController?.getMode?.() === 'panel';
+          techToolbarPinController.setBaseVisibility(showToolbarForActivePlot || persistedPanelMode);
         } else {
-          if (!showToolbar && typeof document !== 'undefined') {
+          if (!showToolbarForActivePlot && typeof document !== 'undefined') {
             const active = document.activeElement;
             if (active && verticalToolbar.contains(active) && typeof active.blur === 'function') {
               active.blur();
             }
           }
-          verticalToolbar.hidden = !showToolbar;
-          verticalToolbar.setAttribute('aria-hidden', String(!showToolbar));
-          if (!showToolbar) {
+          verticalToolbar.hidden = !showToolbarForActivePlot;
+          verticalToolbar.setAttribute('aria-hidden', String(!showToolbarForActivePlot));
+          if (!showToolbarForActivePlot) {
             verticalToolbar.setAttribute('inert', '');
           } else {
             verticalToolbar.removeAttribute('inert');
@@ -4284,7 +4332,7 @@ const isPanelPinned = (panelId) =>
         historyHelpers.persist();
       }
     }
-    setActivePanel(panelId, { scrollBrowser });
+    setActivePanel(panelId, { scrollBrowser, persistSelection: true });
   };
 
   const panelInteractions = createPanelInteractions({
@@ -4464,6 +4512,9 @@ const isPanelPinned = (panelId) =>
     if (!panelId || !panelSupportsPlot(panelId)) return;
     Plot.renderNow(panelId);
     panelDataTabController?.handlePanelUpdated?.(panelId);
+    panelNotesTabController?.handlePanelUpdated?.(panelId);
+    spreadsheetDockController?.handlePanelUpdated?.(panelId);
+    techToolbarSidePanelController?.syncDataSummaryControl?.();
   };
 
   const resizePlotForPanel = (panelId) => {
@@ -5135,6 +5186,11 @@ const isPanelPinned = (panelId) =>
     panels: {
       ingestPayloadAsPanel,
       addTracesToPanel
+    },
+    sidebar: {
+      openDataTab: (panelId) => {
+        toggleDataTabFromHeader(panelId);
+      }
     }
   });
 
@@ -5265,6 +5321,7 @@ const isPanelPinned = (panelId) =>
         getPanelRecord,
         getPanelContent,
         listPlotPanels: listAvailablePlotPanels,
+        getPanelFigure,
         getPanelDom
       },
       preferences: preferencesFacade
@@ -5275,9 +5332,30 @@ const isPanelPinned = (panelId) =>
         getPanelFigure,
         getPanelContent,
         panelSupportsPlot
+      },
+      actions: {
+        setPanelContent,
+        updatePanelFigure,
+        renderPanel: renderPlot,
+        persist: () => persist(),
+        pushHistory: (info) => pushHistory(info)
       }
     });
     panelDataTabController?.handleActivePanelChange?.(getActivePanelId?.() || null);
+    panelNotesTabController = createPanelNotesTabController({
+      selectors: {
+        getPanelRecord,
+        getPanelFigure,
+        panelSupportsPlot
+      },
+      actions: {
+        updatePanelFigure,
+        persist: () => persist(),
+        pushHistory: (info) => pushHistory(info)
+      }
+    });
+    panelNotesTabController?.handleActivePanelChange?.(getActivePanelId?.() || null);
+    syncDataTabHeaderButtons();
     techToolbarSidePanelController = createTechToolbarSidePanelController({
       dom: {
         panel: document.querySelector('[data-tech-side-panel]')
@@ -5357,6 +5435,27 @@ const isPanelPinned = (panelId) =>
           ]
         },
         {
+          id: 'styles',
+          label: 'Styles',
+          items: [
+            {
+              id: 'styles-panels',
+              label: 'Panel styling',
+              placeholderText: 'Styling options will appear here.'
+            },
+            {
+              id: 'styles-traces',
+              label: 'Trace styling',
+              placeholderText: 'Trace styling presets coming soon.'
+            },
+            {
+              id: 'styles-axes',
+              label: 'Axis styling',
+              placeholderText: 'Axis formatting controls coming soon.'
+            }
+          ]
+        },
+        {
           id: 'data',
           label: 'Data',
           items: [
@@ -5385,23 +5484,16 @@ const isPanelPinned = (panelId) =>
           ]
         },
         {
-          id: 'styles',
-          label: 'Styles',
+          id: 'notes',
+          label: 'Notes',
           items: [
             {
-              id: 'styles-panels',
-              label: 'Panel styling',
-              placeholderText: 'Styling options will appear here.'
-            },
-            {
-              id: 'styles-traces',
-              label: 'Trace styling',
-              placeholderText: 'Trace styling presets coming soon.'
-            },
-            {
-              id: 'styles-axes',
-              label: 'Axis styling',
-              placeholderText: 'Axis formatting controls coming soon.'
+              id: 'notes-editor',
+              label: 'Notes',
+              menu: panelNotesTabController?.getMenu?.() || null,
+              hideHeader: true,
+              disableCollapse: true,
+              placeholder: false
             }
           ]
         }
@@ -5409,6 +5501,13 @@ const isPanelPinned = (panelId) =>
       techToggle: techSelectorController?.toggle || null,
       techOptions: techSelectorController?.options || [],
       preferences: preferencesFacade,
+      getDataOverlaysActive: () => panelDataTabController?.isShowingOverlays?.() === true,
+      onToggleDataOverlays: (next) => {
+        panelDataTabController?.setShowOverlays?.(next === true);
+        techToolbarSidePanelController?.syncDataSummaryControl?.();
+      },
+      getDataSummary: () => panelDataTabController?.getHeaderSummary?.() || null,
+      onStateChange: () => syncDataTabHeaderButtons(),
       onClose: () => techToolbarPinController?.setMode?.('menus')
     });
     techToolbarSidePanelResizeController = createTechToolbarSidePanelResizeController({
@@ -5432,6 +5531,7 @@ const isPanelPinned = (panelId) =>
     });
     spreadsheetDockController?.setSidePanelController?.(techToolbarSidePanelController);
     spreadsheetDockController?.setPinController?.(techToolbarPinController);
+    techToolbarSidePanelController?.syncDataSummaryControl?.();
     techToolbarHeaderVisibilityController = createTechToolbarHeaderVisibilityController({
       dom: {
         toggle: document.querySelector('[data-hide-inactive-headers-toggle]')
@@ -7579,7 +7679,7 @@ const isPanelPinned = (panelId) =>
       const insideToolbar = closest('.workspace-toolbar') || closest('.workspace-toolbar-vertical');
       const insideDropdown = closest('.dropdown-menu');
       if (insidePanel || insideToolbar || insideDropdown) return;
-      setActivePanel(null);
+      setActivePanel(null, { persistSelection: true });
       hidePeakMenu();
     });
 
@@ -7742,6 +7842,8 @@ const isPanelPinned = (panelId) =>
       spreadsheetDockController = null;
       panelDataTabController?.teardown?.();
       panelDataTabController = null;
+      panelNotesTabController?.teardown?.();
+      panelNotesTabController = null;
       techToolbarSidePanelController?.teardown?.();
       techToolbarSidePanelController = null;
       techToolbarSidePanelResizeController?.teardown?.();
@@ -7844,8 +7946,34 @@ const isPanelPinned = (panelId) =>
         scheduleCanvasSync({ immediate: true });
         return;
       }
+      const mergeFallbackActivePanel = (remoteState, localState) => {
+        const remote = remoteState && typeof remoteState === 'object' ? remoteState : null;
+        if (!remote) return remoteState;
+        const remoteUiPrefs = remote.uiPrefs && typeof remote.uiPrefs === 'object'
+          ? remote.uiPrefs
+          : {};
+        const remoteActivePanelId = typeof remoteUiPrefs.activePanelId === 'string'
+          ? remoteUiPrefs.activePanelId.trim()
+          : '';
+        if (remoteActivePanelId) return remoteState;
+        const localActivePanelId = typeof localState?.uiPrefs?.activePanelId === 'string'
+          ? localState.uiPrefs.activePanelId.trim()
+          : '';
+        if (!localActivePanelId) return remoteState;
+        const panels = Array.isArray(remote?.panels?.items) ? remote.panels.items : [];
+        const existsInRemote = panels.some((panel) => panel?.id === localActivePanelId);
+        if (!existsInRemote) return remoteState;
+        return {
+          ...remote,
+          uiPrefs: {
+            ...remoteUiPrefs,
+            activePanelId: localActivePanelId
+          }
+        };
+      };
+      const restoredState = mergeFallbackActivePanel(payload.state, fallbackSnapshot);
       suppressRemoteSyncOnce = true;
-      restoreSnapshot(payload.state, { skipHistory: true });
+      restoreSnapshot(restoredState, { skipHistory: true });
       history?.clear?.();
       updateHistoryButtons();
       updateStorageButtons();
@@ -7853,7 +7981,7 @@ const isPanelPinned = (panelId) =>
       requestLayoutSync();
       if (typeof storage?.save === 'function') {
         try {
-          storage.save(payload.state);
+          storage.save(restoredState);
         } catch {
           /* ignore storage failures */
         }

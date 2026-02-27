@@ -2308,6 +2308,7 @@ body.workspace-panel-fullscreen .header-actions{
   padding: 0;
 }
 .workspace-spreadsheet-column-header--name,
+.workspace-spreadsheet-column-header--axis,
 .workspace-spreadsheet-column-header--units{
   min-width: 4.75rem;
 }
@@ -2607,6 +2608,10 @@ body.workspace-panel-fullscreen .header-actions{
 }
 .workspace-spreadsheet-name-input{
   text-transform: none;
+}
+.workspace-spreadsheet-header-input.is-shared{
+  opacity: .68;
+  cursor: not-allowed;
 }
 .workspace-spreadsheet-header-input:focus{
   outline: none;
@@ -5892,6 +5897,42 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   display: flex;
   align-items: center;
   gap: .35rem;
+  position: relative;
+}
+.workspace-tech-panel-summary{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .08rem;
+  min-width: 0;
+  max-width: calc(100% - 210px);
+  pointer-events: none;
+  text-align: center;
+}
+.workspace-tech-panel-summary-title{
+  font-size: .76rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: color-mix(in srgb, var(--bs-body-color) 90%, transparent);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-tech-panel-summary-meta{
+  font-size: .68rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 88%, transparent);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .workspace-tech-panel-data-title{
   display: none;
@@ -5918,7 +5959,7 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   display: inline-flex;
 }
 .workspace-tech-side-panel[data-active-tab="worksheets"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-title{
-  display: block;
+  display: none;
 }
 .workspace-tech-side-panel[data-active-tab="worksheets"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-actions{
   display: flex;
@@ -5942,9 +5983,6 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   margin-right: auto;
   margin-left: 0;
 }
-.workspace-tech-side-panel[data-active-tab="worksheets"][data-docked-spreadsheet="true"] .workspace-tech-panel-data-title{
-  padding-left: .1rem;
-}
 .workspace-tech-side-panel[data-active-tab="worksheets"][data-docked-spreadsheet="true"] .workspace-tech-side-panel-inner{
   padding-right: 0;
   padding-left: 0;
@@ -5956,6 +5994,15 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 .workspace-tech-side-panel[data-active-tab="worksheets"] [data-tech-panel-action="toggle-behavior"],
 .workspace-tech-side-panel[data-active-tab="worksheets"] .workspace-tech-panel-search{
   display: none;
+}
+.workspace-tech-side-panel:not([data-active-tab="data"]) .workspace-tech-panel-summary{
+  display: none;
+}
+.workspace-tech-side-panel [data-tech-panel-action="toggle-overlays"]{
+  display: none;
+}
+.workspace-tech-side-panel[data-active-tab="data"] [data-tech-panel-action="toggle-overlays"]{
+  display: inline-flex;
 }
 .workspace-tech-panel-action.is-active,
 .workspace-tech-panel-action[aria-pressed="true"]{
@@ -6079,6 +6126,72 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   gap: .75rem;
   min-height: 0;
 }
+.workspace-tech-panel-worksheets-strip{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .35rem;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 .05rem .12rem;
+  scrollbar-gutter: stable;
+}
+.workspace-tech-panel-worksheet-pill{
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 68%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bs-body-bg) 94%, rgba(15,23,42,.06) 6%);
+  color: color-mix(in srgb, var(--bs-body-color) 92%, transparent);
+  font-size: .72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 180px;
+  padding: .22rem .62rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workspace-tech-panel-worksheet-pill:hover{
+  border-color: color-mix(in srgb, var(--bs-primary) 45%, var(--bs-border-color));
+  color: color-mix(in srgb, var(--bs-body-color) 98%, transparent);
+}
+.workspace-tech-panel-worksheet-pill.is-active{
+  border-color: color-mix(in srgb, var(--bs-primary) 65%, var(--bs-border-color));
+  background: color-mix(in srgb, var(--bs-primary) 18%, transparent);
+  color: color-mix(in srgb, var(--bs-primary) 88%, var(--bs-body-color));
+}
+.workspace-tech-panel-linked-graphs-strip{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .32rem;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 .05rem .18rem;
+  scrollbar-gutter: stable;
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 48%, transparent);
+}
+.workspace-tech-panel-linked-graph-pill{
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 62%, transparent);
+  border-radius: .45rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.04) 4%);
+  color: color-mix(in srgb, var(--bs-body-color) 88%, transparent);
+  font-size: .68rem;
+  font-weight: 600;
+  line-height: 1.15;
+  max-width: 220px;
+  padding: .18rem .5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workspace-tech-panel-linked-graph-pill:hover{
+  border-color: color-mix(in srgb, var(--bs-primary) 40%, var(--bs-border-color));
+  color: color-mix(in srgb, var(--bs-primary) 85%, var(--bs-body-color));
+}
 .workspace-tech-panel-data-empty{
   color: var(--bs-secondary-color);
   font-size: .8rem;
@@ -6102,12 +6215,7 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
   gap: .55rem;
 }
 .workspace-tech-panel-live-header{
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: .6rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
-  padding-bottom: .45rem;
+  display: none;
 }
 .workspace-tech-panel-live-title{
   font-size: .86rem;
@@ -6137,6 +6245,74 @@ body.workspace-hide-modebar .workspace-panel-plot .modebar{
 .workspace-tech-panel-live-empty-sub{
   margin-top: .2rem;
   font-size: .72rem;
+}
+.workspace-tech-panel-notes-menu{
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: .55rem;
+}
+.workspace-tech-panel-notes-header{
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.workspace-tech-panel-notes-title{
+  font-size: .86rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--bs-body-color) 92%, transparent);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-tech-panel-notes-meta{
+  font-size: .7rem;
+  color: color-mix(in srgb, var(--bs-secondary-color) 88%, transparent);
+}
+.workspace-tech-panel-notes-toolbar{
+  display: flex;
+  align-items: center;
+  gap: .32rem;
+  flex-wrap: wrap;
+  padding-block: .28rem .34rem;
+}
+.workspace-tech-panel-notes-toolbar--header{
+  margin-left: 0;
+  margin-right: .5rem;
+  padding: 0;
+  flex-wrap: nowrap;
+  gap: .26rem;
+}
+.workspace-tech-panel-notes-btn{
+  padding: .22rem .44rem;
+  border-radius: .55rem;
+}
+.workspace-tech-panel-notes-toolbar--header .workspace-tech-panel-notes-btn{
+  padding: .18rem .4rem;
+}
+.workspace-tech-panel-notes-editor{
+  flex: 1 1 auto;
+  min-height: calc(10 * 1.38em + 1.05rem + 2px);
+  height: auto;
+  max-height: none;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 62%, transparent);
+  border-radius: .55rem;
+  padding: .5rem .58rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 96%, rgba(15,23,42,.05) 4%);
+  font-size: .8rem;
+  line-height: 1.38;
+}
+.workspace-tech-panel-notes-editor:focus{
+  outline: none;
+  border-color: color-mix(in srgb, var(--bs-primary) 62%, var(--bs-border-color));
+}
+.workspace-tech-panel-notes-editor:empty::before{
+  content: attr(data-placeholder);
+  color: color-mix(in srgb, var(--bs-secondary-color) 78%, transparent);
+  pointer-events: none;
 }
 .workspace-tech-panel-live-trace{
   border: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);

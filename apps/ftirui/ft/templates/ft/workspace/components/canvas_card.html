@@ -28,6 +28,13 @@
                       class="btn btn-outline-secondary workspace-tech-panel-tab"
                       role="tab"
                       aria-selected="false"
+                      data-tech-panel-tab="styles">
+                Styles
+              </button>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-tech-panel-tab"
+                      role="tab"
+                      aria-selected="false"
                       data-tech-panel-tab="data">
                 Data
               </button>
@@ -42,8 +49,8 @@
                       class="btn btn-outline-secondary workspace-tech-panel-tab"
                       role="tab"
                       aria-selected="false"
-                      data-tech-panel-tab="styles">
-                Styles
+                      data-tech-panel-tab="notes">
+                Notes
               </button>
             </div>
             <div class="workspace-tech-side-panel-actions" data-tech-side-panel-actions>
@@ -74,6 +81,18 @@
                        placeholder="Search"
                        data-tech-panel-search-input>
               </div>
+              <div class="workspace-tech-panel-summary" data-tech-panel-summary hidden>
+                <div class="workspace-tech-panel-summary-title" data-tech-panel-summary-title></div>
+                <div class="workspace-tech-panel-summary-meta" data-tech-panel-summary-meta></div>
+              </div>
+              <button type="button"
+                      class="btn btn-outline-secondary workspace-tech-panel-action"
+                      data-tech-panel-action="toggle-overlays"
+                      title="Show overlays"
+                      aria-label="Show overlays"
+                      aria-pressed="false">
+                <i class="bi bi-layers" aria-hidden="true"></i>
+              </button>
               <button type="button"
                       class="btn btn-outline-secondary workspace-tech-panel-action workspace-tech-panel-action--canvas"
                       data-tech-panel-action="open-canvas"

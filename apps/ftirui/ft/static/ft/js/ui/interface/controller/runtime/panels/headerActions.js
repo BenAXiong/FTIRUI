@@ -40,6 +40,10 @@ export function createHeaderActions(context = {}) {
   const panelsApi = context.panels || {};
   const ingestPanelFromPayloads = panelsApi.ingestPayloadAsPanel || (() => null);
   const addTracesToPanel = panelsApi.addTracesToPanel || (() => false);
+  const sidebarApi = context.sidebar || {};
+  const openDataTab = typeof sidebarApi.openDataTab === 'function'
+    ? sidebarApi.openDataTab
+    : (() => {});
 
   const safeEnsureArray = (value) => (Array.isArray(value) ? value : (typeof value === 'undefined' || value === null ? [] : [value]));
   const sanitizeSeriesValue = (value) => {
@@ -54,6 +58,31 @@ export function createHeaderActions(context = {}) {
       return Number.isFinite(numeric) ? numeric : trimmed;
     }
     return value;
+  };
+  const sanitizeAxisToken = (value) => (typeof value === 'string' ? value.trim() : '');
+  const composeAxisTitle = (label = '', units = '') => {
+    const cleanLabel = sanitizeAxisToken(label);
+    const cleanUnits = sanitizeAxisToken(units);
+    if (cleanLabel && cleanUnits) return `${cleanLabel} (${cleanUnits})`;
+    return cleanLabel || cleanUnits || '';
+  };
+  const resolveAxisPatchFromTraces = (traceList = []) => {
+    const traces = safeEnsureArray(traceList);
+    const pickAxis = (titleKey, labelKey, unitsKey) => {
+      for (const trace of traces) {
+        const direct = sanitizeAxisToken(trace?.meta?.[titleKey]);
+        if (direct) return direct;
+        const composed = composeAxisTitle(trace?.meta?.[labelKey], trace?.meta?.[unitsKey]);
+        if (composed) return composed;
+      }
+      return '';
+    };
+    const xTitle = pickAxis('xAxisTitle', 'xAxisLabel', 'xAxisUnits');
+    const yTitle = pickAxis('yAxisTitle', 'yAxisLabel', 'yAxisUnits');
+    const patch = {};
+    if (xTitle) patch['xaxis.title.text'] = xTitle;
+    if (yTitle) patch['yaxis.title.text'] = yTitle;
+    return Object.keys(patch).length ? patch : null;
   };
   const historyApi = context.historyApi || {};
   const permissions = context.permissions || {};
@@ -294,7 +323,7 @@ export function createHeaderActions(context = {}) {
     return runLayoutMutations(panelId, ...args);
   };
 
-  const allowWhenLocked = new Set(['export', 'toggle-fullscreen', 'spreadsheet-plot-columns']);
+  const allowWhenLocked = new Set(['export', 'toggle-fullscreen', 'spreadsheet-plot-columns', 'open-data-tab']);
 
   const handleHeaderAction = (panelId, act, payload = {}) => {
     if (!panelId) return;
@@ -313,17 +342,36 @@ export function createHeaderActions(context = {}) {
           y: safeEnsureArray(entry?.y).map(sanitizeSeriesValue)
         })).filter((entry) => entry.x.length && entry.y.length);
         if (!traces.length) break;
+        const axisPatch = resolveAxisPatchFromTraces(traces);
         const mode = payload.mode === 'existing' ? 'existing' : 'new';
         if (mode === 'existing' && payload.targetPanelId) {
           if (isPanelEditLocked(payload.targetPanelId)) break;
           addTracesToPanel(payload.targetPanelId, traces);
+          if (axisPatch) {
+            commitLayoutPatch(payload.targetPanelId, axisPatch, {
+              label: 'Axes',
+              meta: {
+                action: 'axis-title-text',
+                detail: 'Axis titles synced from worksheet'
+              }
+            });
+          }
           break;
         }
-        ingestPanelFromPayloads(traces, {
+        const createdPanelId = ingestPanelFromPayloads(traces, {
           width: payload.width,
           height: payload.height,
           sectionId: payload.sectionId
         });
+        if (createdPanelId && axisPatch) {
+          commitLayoutPatch(createdPanelId, axisPatch, {
+            label: 'Axes',
+            meta: {
+              action: 'axis-title-text',
+              detail: 'Axis titles synced from worksheet'
+            }
+          });
+        }
         break;
       }
 
@@ -499,6 +547,11 @@ export function createHeaderActions(context = {}) {
             detail: `Legend ${next ? 'shown' : 'hidden'}`
           }
         });
+        break;
+      }
+
+      case 'open-data-tab': {
+        openDataTab(panelId);
         break;
       }
 

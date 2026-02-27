@@ -151,6 +151,7 @@ export function createIoFacade({
   const DATA_EXTENSIONS = new Set([
     '.csv', '.txt', '.tsv', '.dat', '.spa', '.spc', '.jdx', '.dx', '.sp', '.mds', '.json'
   ]);
+  const ORIGIN_PROJECT_EXTENSIONS = new Set(['.opj', '.opju']);
   const IMAGE_EXTENSIONS = new Set([
     '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tif', '.tiff', '.svg', '.webp'
   ]);
@@ -327,6 +328,96 @@ export function createIoFacade({
   const formatExtensionLabel = (ext) => {
     if (!ext) return 'No extension';
     return ext.startsWith('.') ? ext : `.${ext}`;
+  };
+
+  const showOriginImportNotice = async (originFiles = []) => {
+    const fileNames = originFiles
+      .map((file) => decodeName(file?.name || ''))
+      .filter(Boolean);
+    const sampleNames = fileNames.slice(0, 3).join(', ');
+    const details = fileNames.length > 3
+      ? `${sampleNames}, and ${fileNames.length - 3} more`
+      : sampleNames;
+
+    if (typeof document === 'undefined' || typeof document.body === 'undefined') {
+      showToast('Origin project files (.opj/.opju) are not imported directly. Export worksheet data as CSV first.', 'warning');
+      return;
+    }
+
+    await new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'workspace-import-choice';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+
+      const panel = document.createElement('div');
+      panel.className = 'workspace-import-choice-panel';
+      overlay.appendChild(panel);
+
+      const title = document.createElement('h3');
+      title.className = 'workspace-import-choice-title';
+      title.textContent = 'Origin project files need export first';
+      panel.appendChild(title);
+
+      const hint = document.createElement('p');
+      hint.className = 'workspace-import-choice-hint';
+      hint.textContent = 'To import OriginLab files (.opj/.opju), first export worksheet data from OriginLab as CSV, then import that CSV here.';
+      panel.appendChild(hint);
+
+      if (details) {
+        const fileList = document.createElement('p');
+        fileList.className = 'workspace-import-choice-hint';
+        fileList.textContent = `Skipped: ${details}`;
+        panel.appendChild(fileList);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'workspace-import-choice-actions';
+      panel.appendChild(actions);
+
+      const okBtn = document.createElement('button');
+      okBtn.type = 'button';
+      okBtn.className = 'btn btn-primary workspace-import-choice-btn';
+      okBtn.textContent = 'OK';
+      actions.appendChild(okBtn);
+
+      const cleanup = () => {
+        document.removeEventListener('keydown', keyHandler, true);
+        overlay.classList.remove('is-visible');
+        window.setTimeout(() => {
+          overlay.remove();
+        }, 180);
+      };
+
+      const finish = () => {
+        cleanup();
+        resolve();
+      };
+
+      const keyHandler = (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish();
+        }
+      };
+
+      document.addEventListener('keydown', keyHandler, true);
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+          finish();
+        }
+      });
+      okBtn.addEventListener('click', finish);
+
+      document.body.appendChild(overlay);
+      const schedule = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+        ? window.requestAnimationFrame.bind(window)
+        : (cb) => setTimeout(cb, 0);
+      schedule(() => {
+        overlay.classList.add('is-visible');
+        okBtn.focus();
+      });
+    });
   };
 
   const createTypeButton = (stat, selectedTypes, update) => {
@@ -891,6 +982,15 @@ export function createIoFacade({
   const handleImportedFiles = async (fileList, options = {}) => {
     const files = Array.from(fileList || []).filter(Boolean);
     if (!files.length) return;
+    const originProjectFiles = files.filter((file) => ORIGIN_PROJECT_EXTENSIONS.has(getExtension(file?.name || '')));
+    if (options?.origin === 'drop' && originProjectFiles.length) {
+      await showOriginImportNotice(originProjectFiles);
+      const blocked = new Set(originProjectFiles);
+      const allowed = files.filter((file) => !blocked.has(file));
+      if (!allowed.length) return;
+      await handleFilesPayload(allowed, options);
+      return;
+    }
     await handleFilesPayload(files, options);
   };
 

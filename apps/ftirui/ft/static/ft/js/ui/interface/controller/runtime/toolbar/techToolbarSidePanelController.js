@@ -46,6 +46,10 @@ export function createTechToolbarSidePanelController({
   defaultTech = DEFAULT_TECH_KEY,
   featureResolver = resolveTechFeatureSet,
   preferences = null,
+  getDataOverlaysActive = () => false,
+  onToggleDataOverlays = () => {},
+  getDataSummary = () => null,
+  onStateChange = () => {},
   onClose = () => {}
 } = {}) {
   const documentRoot = dom.documentRoot
@@ -65,6 +69,15 @@ export function createTechToolbarSidePanelController({
   const searchInput = dom.searchInput
     || panel?.querySelector?.('[data-tech-panel-search-input]')
     || null;
+  const dataSummary = dom.dataSummary
+    || panel?.querySelector?.('[data-tech-panel-summary]')
+    || null;
+  const dataSummaryTitle = dom.dataSummaryTitle
+    || panel?.querySelector?.('[data-tech-panel-summary-title]')
+    || null;
+  const dataSummaryMeta = dom.dataSummaryMeta
+    || panel?.querySelector?.('[data-tech-panel-summary-meta]')
+    || null;
   const pinToggle = dom.pinToggle
     || panel?.querySelector?.('[data-tech-panel-action="pin"]')
     || null;
@@ -79,6 +92,9 @@ export function createTechToolbarSidePanelController({
     || null;
   const searchToggle = dom.searchToggle
     || panel?.querySelector?.('[data-tech-panel-action="search-toggle"]')
+    || null;
+  const overlaysToggle = dom.overlaysToggle
+    || panel?.querySelector?.('[data-tech-panel-action="toggle-overlays"]')
     || null;
   const toggleAllBtn = dom.toggleAll
     || panel?.querySelector?.('[data-tech-panel-action="toggle-all"]')
@@ -106,6 +122,27 @@ export function createTechToolbarSidePanelController({
   let activeTabId = tabItems[0]?.id || 'tech';
   let visibleTabId = activeTabId;
   let searchTerm = '';
+  const notesToolbar = tabItems
+    .find((tab) => tab.id === 'notes')
+    ?.items?.find((item) => item?.menu)
+    ?.menu?.querySelector?.('.workspace-tech-panel-notes-toolbar') || null;
+  const notesToolbarHome = notesToolbar
+    ? {
+      parent: notesToolbar.parentElement,
+      nextSibling: notesToolbar.nextElementSibling
+    }
+    : null;
+
+  const emitStateChange = () => {
+    if (typeof onStateChange !== 'function') return;
+    onStateChange({
+      mode: activeMode,
+      activeTabId,
+      visibleTabId,
+      visible: !panel.hidden,
+      pinned: panelPinned
+    });
+  };
 
   const addListener = (node, event, handler, options) => {
     if (!node || typeof node.addEventListener !== 'function') return;
@@ -153,7 +190,9 @@ export function createTechToolbarSidePanelController({
       behavior: sectionBehavior,
       focused,
       pinned: panelPinned,
-      techLayout
+      techLayout,
+      mode: activeMode,
+      visible: !panel.hidden
     });
   };
 
@@ -515,9 +554,10 @@ export function createTechToolbarSidePanelController({
     } else {
       panel.removeAttribute('inert');
     }
+    emitStateChange();
   };
 
-  const setActiveTab = (tabId) => {
+  const setActiveTab = (tabId, { persist = true } = {}) => {
     const nextTab = tabItems.find((tab) => tab.id === tabId) || tabItems[0];
     if (!nextTab) return;
     activeTabId = nextTab.id;
@@ -538,9 +578,16 @@ export function createTechToolbarSidePanelController({
     if (sectionBehavior === 'single') {
       enforceSingleBehavior(visibleTabId);
     }
-    persistState();
+    if (persist) {
+      persistState();
+    }
     updateToggleAllButton();
+    updateHeaderActionsVisibility();
+    updateNotesToolbarPlacement();
+    updateDataOverlaysControl();
+    updateDataSummaryControl();
     applySearchFilter(searchTerm);
+    emitStateChange();
   };
 
   const applySearchFilter = (value = '') => {
@@ -586,6 +633,65 @@ export function createTechToolbarSidePanelController({
     }
   };
 
+  const updateDataOverlaysControl = () => {
+    if (!overlaysToggle) return;
+    const visible = activeTabId === 'data';
+    overlaysToggle.hidden = !visible;
+    if (!visible) return;
+    const active = getDataOverlaysActive() === true;
+    overlaysToggle.classList.toggle('is-active', active);
+    overlaysToggle.setAttribute('aria-pressed', String(active));
+    overlaysToggle.title = active ? 'Hide overlays' : 'Show overlays';
+    overlaysToggle.setAttribute('aria-label', overlaysToggle.title);
+  };
+
+  const updateDataSummaryControl = () => {
+    if (!dataSummary) return;
+    const visible = activeTabId === 'data';
+    if (!visible) {
+      dataSummary.hidden = true;
+      if (dataSummaryTitle) dataSummaryTitle.textContent = '';
+      if (dataSummaryMeta) dataSummaryMeta.textContent = '';
+      return;
+    }
+    const summary = getDataSummary() || {};
+    const title = typeof summary.title === 'string' ? summary.title.trim() : '';
+    const meta = typeof summary.meta === 'string' ? summary.meta.trim() : '';
+    if (dataSummaryTitle) dataSummaryTitle.textContent = title || 'Data';
+    if (dataSummaryMeta) dataSummaryMeta.textContent = meta || '';
+    dataSummary.hidden = false;
+  };
+
+  const updateHeaderActionsVisibility = () => {
+    const hidePrimaryNotesActions = activeTabId === 'notes';
+    if (toggleAllBtn) {
+      toggleAllBtn.hidden = hidePrimaryNotesActions;
+      toggleAllBtn.setAttribute('aria-hidden', String(hidePrimaryNotesActions));
+    }
+    if (behaviorToggle) {
+      behaviorToggle.hidden = hidePrimaryNotesActions;
+      behaviorToggle.setAttribute('aria-hidden', String(hidePrimaryNotesActions));
+    }
+  };
+
+  const updateNotesToolbarPlacement = () => {
+    if (!notesToolbar || !notesToolbarHome?.parent) return;
+    const notesActive = activeTabId === 'notes';
+    if (notesActive && searchWrap?.parentNode) {
+      searchWrap.parentNode.insertBefore(notesToolbar, searchWrap);
+      notesToolbar.classList.add('workspace-tech-panel-notes-toolbar--header');
+      notesToolbar.hidden = false;
+      return;
+    }
+    if (notesToolbarHome.nextSibling && notesToolbarHome.nextSibling.parentNode === notesToolbarHome.parent) {
+      notesToolbarHome.parent.insertBefore(notesToolbar, notesToolbarHome.nextSibling);
+    } else {
+      notesToolbarHome.parent.appendChild(notesToolbar);
+    }
+    notesToolbar.classList.remove('workspace-tech-panel-notes-toolbar--header');
+    notesToolbar.hidden = false;
+  };
+
   const toggleAllSections = () => {
     const entries = Array.from(sectionState.values())
       .filter((entry) => entry.tabId === visibleTabId && !entry.disableCollapse);
@@ -624,6 +730,21 @@ export function createTechToolbarSidePanelController({
     addListener(searchToggle, 'click', (event) => {
       event.preventDefault();
       toggleSearch(true);
+    });
+  }
+
+  if (overlaysToggle) {
+    addListener(overlaysToggle, 'pointerdown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    addListener(overlaysToggle, 'click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const next = !(getDataOverlaysActive() === true);
+      onToggleDataOverlays(next);
+      updateDataOverlaysControl();
+      updateDataSummaryControl();
     });
   }
 
@@ -717,7 +838,9 @@ export function createTechToolbarSidePanelController({
   updateBehaviorControl();
   updatePinControl();
   updatePaneUiControl();
-  setActiveTab(activeTabId);
+  setActiveTab(activeTabId, { persist: false });
+  updateDataOverlaysControl();
+  updateDataSummaryControl();
   syncSectionIcons();
   if (techToggle) {
     updateFeaturesFromTech(techToggle.dataset?.techKey || defaultTech);
@@ -732,17 +855,24 @@ export function createTechToolbarSidePanelController({
   const setMode = (mode, { visibleOverride = null } = {}) => {
     const nextMode = mode || 'menus';
     const showPanel = nextMode === 'panel';
+    let didChange = false;
     if (activeMode === nextMode) {
       setPanelVisibility(typeof visibleOverride === 'boolean' ? visibleOverride : (showPanel && baseVisible));
+      persistState();
       return;
     }
     activeMode = nextMode;
+    didChange = true;
     if (showPanel) {
       attachMenus();
     } else {
       restoreMenus();
     }
     setPanelVisibility(typeof visibleOverride === 'boolean' ? visibleOverride : (showPanel && baseVisible));
+    if (didChange) {
+      persistState();
+    }
+    emitStateChange();
   };
 
   const setBaseVisibility = (visible) => {
@@ -762,6 +892,11 @@ export function createTechToolbarSidePanelController({
     setBaseVisibility,
     getReservedWidth,
     setActiveTab,
+    syncDataOverlaysControl: updateDataOverlaysControl,
+    syncDataSummaryControl: updateDataSummaryControl,
+    getMode: () => activeMode,
+    getActiveTab: () => activeTabId,
+    isVisible: () => !panel.hidden,
     teardown() {
       restoreMenus();
       iconObservers.forEach((observer) => {
