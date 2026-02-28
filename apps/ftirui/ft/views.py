@@ -72,7 +72,22 @@ def _to_fractional_T(y: np.ndarray) -> np.ndarray:
     return y
 
 def index(request):
-    return render(request, "ft/base.html", {"active_canvas": None})
+    if request.user.is_authenticated:
+        context = {
+            "workspace_only": False,
+            "workspace_pane_active": False,
+            "active_canvas": None,
+            "requested_canvas_id": None,
+        }
+    else:
+        context = {
+            "workspace_only": True,
+            "workspace_pane_active": True,
+            "active_canvas": None,
+            "requested_canvas_id": None,
+            "guest_workspace_landing": True,
+        }
+    return render(request, "ft/base.html", context)
 
 
 @ensure_csrf_cookie

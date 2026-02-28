@@ -1,165 +1,613 @@
 # MLIR UI Architecture
 
-This document captures how the current FTIR analysis application is organised and how data flows through it. It is intended to help both Codex and human contributors reason about the codebase quickly, as well as highlight opportunities for future improvements.
+This document is a current-state mechanics map for the checked-in repository. It is intended to make it easy to answer "where does this live?" and "what actually happens today?" without re-tracing the code every time.
+
+It focuses on the current implementation, not aspirational architecture. Forward-looking routing and analytics work is tracked separately in `docs/routing-and-analytics-implementation-plan.md`.
 
 ---
 
 ## 1. High-Level Overview
 
-- **Purpose**: Provide an interactive UI for uploading FTIR spectra, normalising them (auto-detecting transmittance vs absorbance), visualising traces, and managing saved sessions.
-- **Tech Stack**: Django backend (apps/ftirui/ft) with custom parsing utilities (core/), vanilla ES modules for the UI (apps/ftirui/ft/static/ft/js), and Plotly for charting.
-- **Deployment Targets**: Works as a Django site (manage.py) and is packaged via PyInstaller specs (`FTIR-UI.spec`, `ML-FTIR.spec`) for desktop builds.
+- Purpose: an FTIR-focused Django application for uploading spectra, normalizing input units, plotting and editing traces in a workspace canvas, and persisting saved state for authenticated users.
+- Backend stack: Django 4.2.x application under `apps/ftirui/`, with a single feature app `ft` and reusable parsing helpers under `core/`.
+- Frontend stack: server-rendered templates plus vanilla ES modules under `apps/ftirui/ft/static/ft/js`.
+- Visualization stack: Plotly-backed workspace panels coordinated by `workspaceRuntime.js`.
+- Auth stack: Django session auth plus `django-allauth` social login for Google and GitHub.
+- Deployment targets: local Django dev server, Docker web deployment, and PyInstaller-packaged desktop builds.
+
+Important repo reality:
+
+- `apps/ftirui/ftirui/settings.py` is the effective default settings module.
+- The file header in `settings.py` still says Django 5.2.x, but the pinned dependency is Django 4.2 (`apps/ftirui/requirements.txt`).
+- The checked-in default database configuration is SQLite, even though `.env.example` and some docs still mention Postgres and `DATABASE_URL`.
 
 ---
 
 ## 2. Repository Layout
 
-```
+```text
 mlirui/
-├─ apps/
-│  ├─ ftirui/              ← Django project
-│  │  ├─ ft/               ← Main FTIR Django app
-│  │  │  ├─ static/ft/     ← Frontend assets (JS, CSS, demos)
-│  │  │  ├─ templates/ft/  ← HTML templates
-│  │  │  ├─ views.py       ← REST/HTML endpoints
-│  │  │  └─ urls.py        ← Route definitions
-│  │  ├─ manage.py, settings, runtime files
-│  │  └─ sessions/         ← Saved session JSON blobs
-├─ core/                   ← Shared parsing/IO helpers (JCAMP, CSV, etc.)
-├─ build/, dist/           ← PyInstaller build artefacts
-├─ python-embed/           ← Portable Python runtime (for packaged app)
-└─ README.txt, specs, scripts
+|- apps/
+|  |- ftirui/
+|  |  |- ft/                      # Django feature app
+|  |  |  |- management/commands/ # migration + seed helpers
+|  |  |  |- migrations/          # schema history
+|  |  |  |- static/ft/           # JS, CSS, vendor assets, demos
+|  |  |  |- templates/           # Django templates
+|  |  |  |- context_processors.py
+|  |  |  |- models.py
+|  |  |  |- sessions_repository.py
+|  |  |  |- urls.py
+|  |  |  |- views.py
+|  |  |- ftirui/
+|  |  |  |- settings.py
+|  |  |  |- urls.py
+|  |  |  |- wsgi.py / asgi.py
+|  |  |- manage.py
+|  |  |- setting_dist.py         # desktop-oriented settings override
+|- core/                         # parsing + conversion helpers
+|- docs/                         # supporting architecture docs
+|- tests/                        # Playwright + unit tests outside Django app
+|- README.md
+|- architecture.md
+|- apps-architecture.md
 ```
 
----
+Useful subdocuments:
 
-## 3. Backend Architecture (Django)
-
-### 3.1 Apps
-- `apps/ftirui/ft` is the only feature app. It exposes template views and JSON APIs used by the UI.
-- URL patterns live in `apps/ftirui/ft/urls.py`. Key endpoints include:
-  - `/` → `index()`: serves `templates/ft/base.html` containing the full UI.
-  - `/workspace/` → `workspace_page()`: renders the standalone canvas shell used when dashboards open canvases in a new tab.
-  - `/api/xy/` → `api_xy()`: main upload endpoint returning numeric arrays, metadata, and inferred ingest mode.
-  - `/api/demos/` → `api_demo_files()`: enumerates demo datasets.
-  - `/api/session/…` → CRUD endpoints for saving and loading user sessions (JSON stored under `sessions/`).
-  - `/preview` and `/preview_json` for table previews during ingestion.
-
-### 3.2 Parsing & Normalisation
-- `_read_tabular_upload` ingests CSV/XLSX/text/JCAMP uploads and attaches metadata when available.
-- `_coerce_xy` selects x/y columns and enforces numeric arrays.
-- `_normalize_input_units` converts raw Y values to the canonical fractional transmittance representation, returning both the converted array and its inferred mode (abs or tr).
-- Shared helpers:
-  - `core/jcamp_utils.py`: robust JCAMP parsing and metadata extraction.
-  - `core/io.py` & `core/io_utils.py`: additional utilities for batch conversions and CLI usage.
-
-### 3.3 Persistence & Sessions
-- Session APIs now persist state in the `PlotSession` model (backed by the project database). Each row stores the JSON payload, its byte size, and metadata placeholders for future external storage; access requires an authenticated user (401 JSON when missing) to guarantee user-scoped data. Responses now surface `size` and `storage` attributes, and oversized payloads trigger HTTP 413 until the external storage path is implemented.
-- Dashboard-focused models (`WorkspaceSection`, `WorkspaceProject`, `WorkspaceCanvas`, `WorkspaceCanvasVersion`) mirror modern canvas tools. They expose REST endpoints under `/api/dashboard/...` so the client can list sections, create projects, save canvases (using the PlotSession JSON payload), and take immutable snapshots.
-- Existing `PlotSession` rows can be imported into the new hierarchy via `python apps/ftirui/manage.py migrate_sessions` (or the legacy `seed_workspace_from_sessions`). The command creates a default section/project per user, supports dry-runs/limits, and optionally deletes the source sessions once you’ve verified the canvases.
-- Social login uses django-allauth (Google & GitHub). Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and optional `SITE_ID` in the environment. Minimal login/logout templates live under `templates/account/`.
-
-- `/api/me/` exposes the current authentication status (username, email, avatar hash, cloud-session counts, and login/logout targets) so the front end can render account-aware widgets and keep redirect parameters in sync.
-- Legacy JSON files under `MEDIA_ROOT/sessions` remain discoverable via the `python manage.py import_sessions_from_fs` dry-run command, which inventories what will be migrated.
-- Uploaded demos are static assets under `static/ft/demos/`; additional demos can be dropped in without code changes.
+- `apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/ARCHITECTURE.md`
+  - detailed workspace runtime/facade architecture and guardrails
+- `apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/README.md`
+  - quick index of workspace runtime directories
+- `docs/workspace-panel-architecture.md`
+  - panel-specific notes
 
 ---
 
-## 4. Frontend Architecture (Vanilla ES Modules)
+## 3. Django Project Structure
 
-### 4.1 Entry HTML
-- `templates/ft/base.html` defines the layout: upload controls, plot area, and settings panels.
-- `/workspace` renders the same `workspace.html` partials outside the tabbed dashboard so users can pop canvases into their own tab without diverging UI contracts.
-- Bootstrap provides base styling; custom CSS is under `static/ft/app.css`.
+### 3.1 Project URLs
 
-### 4.2 JavaScript Modules
-- `static/ft/js/core/state.js` initialises the global application state (folders, traces, global settings) and exports helpers (IDs, colour palette, root folder ID).
-- `static/ft/js/core/plot.js` builds Plotly traces/layouts based on the state and triggers re-renders.
-- `static/ft/js/core/parse.js` (legacy) contains preview parsing utilities (distinct from backend parsing).
-- Legacy Option B UI (`static/ft/js/ui/interfaceB.js`) has been retired. The active workspace experience now lives under `static/ft/js/ui/interface/controller/runtime/`, which orchestrates uploads, plotting, history, and persistence through modular facades.
-- `static/ft/app.js` bootstraps shared UI chrome (theme toggle, account widget, toast notifications) and hands off to the dashboard/workspace modules. It consumes `/api/me/`, emits `ftir:user-status` events, and exposes `window.showAppToast` so feature modules can surface consistent feedback.
+The top-level URL configuration in `apps/ftirui/ftirui/urls.py` is intentionally small:
 
-### 4.3 Workspace Tags & Chip Panels
+- `/admin/` -> Django admin
+- `/accounts/` -> `allauth` routes
+- `/` -> everything in `ft.urls`
 
-- Tag colours are centralised in `static/ft/js/ui/utils/tagColors.js`. The helper exposes `getWorkspaceTagColor(tag)` so every surface (dashboard lists, HUD badges, browser nodes, on-canvas panel headers) shares the same palette. When you add new tag surfaces, import this helper instead of duplicating colour arrays.
-- The active canvas shares its primary tag with the client via `<body data-active-canvas-primary-tag="…">` (see `templates/ft/layouts/app_shell.html`). Browser graph nodes (`browser/renderTree.js`) and floating graph panels (`panels/panelDomFacade.js`) read that attribute to prepend a pill badge. Keep this attribute in sync whenever you mutate canvas tags server-side; otherwise, the badge will fall back to the grey placeholder.
-- Chip panels (`ui/interface/chipPanels.js`) now open their Info view only on click (line chip or info icon). Hover remains reserved for previewing styles. If you reintroduce hover interactions, ensure they respect the panel pin state and don’t interfere with keyboard accessibility.
-- `static/ft/js/ui/dashboard/initDashboard.js` pulls `/api/dashboard/...` data, renders sections/projects/canvases, and routes “open canvas” actions by navigating to `/?canvas=<uuid>#pane-plotC` so the workspace loads that canvas.
-- `static/ft/js/ui/interface/canvasSnapshots.js` powers the workspace “Save snapshot / Manage snapshots” actions, calling `/api/dashboard/canvases/<id>/versions/` to persist and restore immutable snapshots.
-- Additional UI helpers under `static/ft/js/lib/` provide CSRF handling, etc.
+### 3.2 Installed Apps and Middleware
 
-### 4.3 Data Flow
-1. User selects/drops a file via the workspace IO facade (`static/ft/js/ui/interface/controller/runtime/io/facade.js`) orchestrated by `workspaceRuntime.js`.
-2. Front-end FormData posts to `/api/xy/`, passing the current input units preference (`auto|abs|tr`).
-3. Django endpoint reads the file, normalises the Y axis, infers the ingest mode, and returns `{x, y, meta, ingest_mode}`.
-4. Front-end state stores both raw (`trace.source.y`) and display data (`trace.data.y`); metadata is shown as tooltips in the folder tree.
-5. Plotly re-renders when traces or global settings change.
-6. Sessions are serialised via `/api/session/…`, rehydrating state on load.
+Auth-relevant installed apps in `apps/ftirui/ftirui/settings.py`:
 
----
+- `django.contrib.auth`
+- `django.contrib.sessions`
+- `django.contrib.sites`
+- `allauth`
+- `allauth.account`
+- `allauth.socialaccount`
+- `allauth.socialaccount.providers.google`
+- `allauth.socialaccount.providers.github`
 
-## 5. Development Workflow Notes
+Relevant middleware:
 
-### 5.1 Environment
-- Use the Django project under `apps/ftirui/ftirui` with `manage.py` (standard `python manage.py runserver`).
-- Static assets are served directly; no bundler step is required currently.
+- `django.contrib.sessions.middleware.SessionMiddleware`
+- `django.middleware.csrf.CsrfViewMiddleware`
+- `django.contrib.auth.middleware.AuthenticationMiddleware`
+- `allauth.account.middleware.AccountMiddleware`
 
-### 5.2 Common Tasks
-- **Run the dev server**: `cd apps/ftirui && python manage.py runserver`
-- **Collect static (for deployment)**: `python manage.py collectstatic`
-- **Regenerate PyInstaller builds**: Use the `.spec` files in repo root or `apps/ftirui`.
-- **Linting/formatting**: Not enforced by tooling; maintainers rely on manual review.
-- **Testing**: Django unit tests cover `PlotSession` CRUD and payload limits (`python apps/ftirui/manage.py test ft`). Manual regression is still essential for uploads, plotting, and session UX (cloud/local save, export/import, autosave indicator).
+### 3.3 Settings Reality
 
-### 5.3 Contributor Tips
-- Keep backend parsing deterministic; subtle differences in normalization cascade to the UI.
-- When touching the dashboard hierarchy, prefer using the provided management command for test data instead of crafting manual DB entries.
-- When touching the workspace runtime stack (`workspaceRuntime.js` and its facades), be mindful of the global state mutations—multiple features depend on consistent keys (`inputAuto`, `inputMode`, folder structures).
-- For static assets, maintain ASCII unless existing file uses unicode (project policy).
+Current default settings behavior:
 
----
+- `DATABASES['default']` is SQLite at `apps/ftirui/db.sqlite3`.
+- `AUTHENTICATION_BACKENDS` includes Django `ModelBackend` plus the allauth backend.
+- `LOGIN_URL` is `/accounts/login/`.
+- `LOGIN_REDIRECT_URL` and `LOGOUT_REDIRECT_URL` default to `/`.
+- `ACCOUNT_EMAIL_VERIFICATION = 'none'`.
+- `ACCOUNT_RATE_LIMITS` only explicitly configures failed login throttling.
+- `SOCIALACCOUNT_LOGIN_ON_GET = True`.
+- Feature flags exposed from settings:
+  - `WORKSPACE_LEGACY_ENABLED`
+  - `WORKSPACE_DEV_SHORTCUT_ENABLED`
+  - `DASHBOARD_V2_ENABLED`
 
-## 6. Known Pain Points
+Known config drift:
 
-- **Large orchestration modules**: `workspaceRuntime.js` still coordinates many concerns; keep pushing logic into dedicated facades/managers to maintain separation of responsibilities.
-- **Limited automated verification**: Lack of tests increases regression risk for parsing and unit conversion logic.
-- **Synchronous/local session storage**: Session persistence uses filesystem JSON files, complicating multi-user or cloud deployment.
-- **Duplicate parsing logic**: Backend `_read_tabular_upload` and front-end `core/parse.js` are divergent, risking inconsistent behaviour in previews vs full ingestion.
+- `.env.example` mentions `DATABASE_URL`, but the default `settings.py` does not read it.
+- `MEDIA_ROOT` and `MEDIA_URL` are commented out in `settings.py`, while `ft.views` expects them.
+- `apps/ftirui/setting_dist.py` defines `MEDIA_ROOT` explicitly for desktop packaging, so packaged builds are less ambiguous than the default web settings path.
 
 ---
 
-## 7. Future Architecture Proposal (Conceptual)
+## 4. Routing and Page Modes
 
-The current structure is functional but monolithic. A more efficient and maintainable architecture could look like this:
+The repo currently supports three major user-visible shells:
 
-1. **API Layer Modernisation**
-   - Reorganise backend endpoints into a dedicated Django REST Framework (DRF) app. Define serializers for uploads, traces, and sessions, enabling validation and versioning.
-   - Expose session data via authenticated REST endpoints (optional token or user-based storage), paving the way for multi-user deployments.
+1. Dashboard + tabs on `/`
+2. Standalone workspace shell on `/workspace/`
+3. Profile page on `/profile/`
 
-2. **Service Modules for Parsing**
-   - Extract parsing/normalisation logic into a standalone Python package (e.g., `ftir_core`) with full unit coverage.
-   - Provide both CLI and programmatic entrypoints, so the UI server and batch conversion scripts share identical code.
+### 4.1 Home Route: `/`
 
-3. **Typed Frontend with Componentisation**
-   - Replace the monolithic vanilla JS with a component-based SPA (React/Vue/Svelte) compiled by Vite or similar.
-   - Encode application state with TypeScript types, separating data stores (e.g., Zustand/Redux) from presentation components.
-   - Factor plot logic into dedicated hooks/components, isolating Plotly integration.
+`ft.views.index()` renders `templates/ft/base.html` and chooses between guest-first and signed-in contexts:
 
-4. **Shared Schema Contracts**
-   - Define JSON schemas (or OpenAPI) for all API payloads and use code generation for both backend (Pydantic/DRF serializers) and frontend (TypeScript types).
-   - This reduces drift between backend responses and frontend expectations (`ingest_mode`, metadata fields, etc.).
+- Authenticated user:
+  - `workspace_only = False`
+  - `workspace_pane_active = False`
+  - dashboard is the primary shell
+- Anonymous user:
+  - `workspace_only = True`
+  - `workspace_pane_active = True`
+  - `guest_workspace_landing = True`
+  - guest is dropped directly into the workspace shell
 
-5. **Testing & CI**
-   - Introduce pytest suites covering parsing heuristics and REST APIs (using DRF test client).
-   - Add frontend unit tests (Vitest/Jest) and integration smoke tests (Playwright) for core flows: upload, auto-detect mode, session save/load.
-   - Configure CI (GitHub Actions) to run lint + tests on pull requests and PyInstaller packaging on tags.
+This means `/` is not a neutral landing page today. It is already auth-sensitive and doubles as a routing decision point.
 
-6. **Deployment Pipeline**
-   - Containerise the Django app (Dockerfile) with multi-stage build supporting both web deployment and packaging.
-   - For desktop builds, script reproducible PyInstaller artefacts using the unified parsing package.
+### 4.2 Workspace Route: `/workspace/`
 
-This proposed architecture emphasises modular boundaries, typed contracts, and automated testing. It would reduce maintenance overhead, facilitate parallel development, and make the system friendlier to both web and desktop deployment scenarios without altering existing features immediately.
+`ft.views.workspace_page()` renders the standalone workspace shell used when a dashboard canvas opens outside the tabbed dashboard.
+
+Behavior:
+
+- always renders workspace mode
+- accepts `?canvas=<uuid>`
+- if the user is authenticated and owns the canvas, the view injects `active_canvas`
+- if the canvas id is missing, invalid, or belongs to another user, the shell still renders but without a loaded server-backed canvas
+- `?dev=true` forces the non-standalone wrapper behavior used by feature-flag/dev flows
+
+### 4.3 Profile Route: `/profile/`
+
+`ft.views.profile()` is the only HTML route in `ft` protected with `@login_required`. It renders user details and the cloud-state card.
+
+### 4.4 Template Context Flags
+
+The current route behavior is driven by template flags more than by separate pages:
+
+- `workspace_only`
+- `workspace_pane_active`
+- `active_canvas`
+- `requested_canvas_id`
+- `guest_workspace_landing`
+
+These values are consumed by:
+
+- `templates/ft/base.html`
+- `templates/ft/layouts/app_shell.html`
+- `templates/ft/partials/header_nav.html`
+- `templates/ft/workspace/components/workspace_hud.html`
+
+`ft.context_processors.feature_flags()` also injects:
+
+- `workspace_tab_enabled`
+- `workspace_pane_active`
+- `workspace_dev_shortcut_enabled`
+- `workspace_dev_active`
+- `dashboard_v2_enabled`
+
+### 4.5 Dashboard -> Workspace Navigation
+
+The dashboard frontend opens canvases via `static/ft/js/ui/dashboard/initDashboard.js`.
+
+Current behavior:
+
+- if the workspace tab is enabled, navigation stays on the current page and appends:
+  - `?canvas=<id>`
+  - `#pane-plotC`
+- if the workspace tab is disabled, navigation goes to:
+  - `/workspace?canvas=<id>`
+  - and preserves `dev=true` when active
+
+This route split is important for future first-time-user routing changes because the client already contains logic that depends on whether the workspace is tabbed or standalone.
 
 ---
 
-*Maintainers should keep this document current as modules evolve. Contributions that touch multiple architectural layers should update the relevant sections to reflect the new structure or design decisions.*
+## 5. Authentication and User Model
+
+### 5.1 Current User Model
+
+- No custom `AUTH_USER_MODEL` is configured.
+- All ownership relations point to Django's built-in user model via `get_user_model()`.
+
+### 5.2 Login Mechanism
+
+The app uses Django session auth plus `django-allauth`.
+
+Current UI characteristics:
+
+- `/accounts/login/` uses a custom template with only social login buttons:
+  - Google
+  - GitHub
+- `/accounts/logout/` uses a custom logout confirmation template
+- there is no custom in-app username/password login form
+- Django admin still exists and is used by smoke tests for staff login
+
+### 5.3 Auth State API
+
+`ft.views.api_me()` is the frontend's auth bootstrap endpoint. It returns:
+
+- `authenticated`
+- `username`
+- `email`
+- `avatar` (Gravatar hash from email)
+- `session_count`
+- `login_url`
+- `logout_url`
+
+Important nuance:
+
+- `session_count` counts legacy `PlotSession` rows, not dashboard canvases.
+
+### 5.4 Frontend Auth Bootstrap
+
+`static/ft/app.js`:
+
+- fetches `/api/me/`
+- updates sign-in/sign-out UI
+- sets `document.body.dataset.userAuthenticated`
+- dispatches a `ftir:user-status` event for other modules
+
+The workspace runtime listens for that event to toggle guest-specific behavior.
+
+### 5.5 API Authorization Model
+
+Protected JSON routes use a lightweight custom decorator in `ft.views`:
+
+- `_require_json_auth`
+  - returns JSON `401 {"error": "Authentication required"}` for anonymous users
+
+Ownership is enforced by user-scoped ORM queries:
+
+- sections are fetched by `owner=user`
+- projects are fetched by `owner=user`
+- canvases are fetched by `owner=user`
+
+Effectively:
+
+- anonymous user -> `401`
+- authenticated wrong user -> object lookup fails and usually returns `404`
+
+There is no custom role/permission system on top of this for the `ft` endpoints.
+
+---
+
+## 6. Persistence Model
+
+There are two server-backed persistence layers in the repo today:
+
+1. Legacy user sessions (`PlotSession`)
+2. Dashboard/workspace hierarchy (`WorkspaceSection`, `WorkspaceProject`, `WorkspaceCanvas`, `WorkspaceCanvasVersion`)
+
+### 6.1 PlotSession
+
+`PlotSession` is the legacy cloud-save/session API model.
+
+Fields:
+
+- `id` (UUID)
+- `owner` (nullable FK to user, `SET_NULL`)
+- `title`
+- `state_json`
+- `state_size`
+- `storage_backend`
+- `payload_locator`
+- timestamps
+
+The backing repository module is `ft/sessions_repository.py`.
+
+Current repository behavior:
+
+- everything is stored inline in the DB
+- `storage_backend` is currently always `db`
+- payloads above `MAX_EMBEDDED_BYTES = 2_000_000` raise `SessionTooLargeError`
+
+### 6.2 Dashboard Workspace Hierarchy
+
+These models back the newer Projects/Folders/Canvases experience:
+
+- `WorkspaceSection`
+  - top-level user-owned grouping
+- `WorkspaceProject`
+  - belongs to a section
+- `WorkspaceCanvas`
+  - editable current canvas state
+- `WorkspaceCanvasVersion`
+  - immutable snapshots of a canvas
+
+Important `WorkspaceCanvas` fields:
+
+- `state_json`
+- `state_size`
+- `thumbnail_url`
+- `version_label`
+- `autosave_token`
+- `is_favorite`
+- `tags`
+
+Delete semantics:
+
+- sections/projects/canvases generally use `CASCADE`
+- canvas versions use `SET_NULL` for `created_by`
+
+### 6.3 Migration Helpers
+
+Management commands under `ft/management/commands/`:
+
+- `migrate_sessions`
+  - moves `PlotSession` rows into workspace canvases
+- `seed_dashboard_demo`
+  - creates demo section/project/canvas data for an existing user
+- `import_sessions_from_fs`
+  - inspects legacy JSON session files under `MEDIA_ROOT/sessions`
+  - current behavior is dry-run only; commit/import is not implemented
+
+### 6.4 Local / Browser-Side Persistence
+
+The workspace also has browser-side persistence for guest/offline flows:
+
+- the runtime persistence facade and state helpers manage local snapshot/autosave behavior
+- the UI explicitly treats logout/guest mode as "local only" rather than as complete lockout
+
+This local path is separate from `PlotSession` and `WorkspaceCanvas` server persistence.
+
+---
+
+## 7. Backend Endpoints
+
+### 7.1 HTML Endpoints
+
+Defined in `ft.urls`:
+
+- `/` -> `index`
+- `/workspace/` -> `workspace_page`
+- `/profile/` -> `profile`
+
+### 7.2 Upload / Utility JSON Endpoints
+
+Public endpoints include:
+
+- `/data/`
+- `/preview/`
+- `/api/xy/`
+- `/export/png/`
+- `/notes/`
+- `/logs/`
+- `/api/demos/`
+
+These are primarily used for ingest, preview, export, demos, and utility features.
+
+### 7.3 Auth-Aware JSON Endpoints
+
+`/api/me/`
+
+- current auth state
+- login/logout targets
+- session count
+
+### 7.4 Protected Session Endpoints
+
+- `/api/session/` -> create
+- `/api/session/list/` -> list
+- `/api/session/<uuid>/` -> get/update/delete
+
+These are protected by `_require_json_auth`.
+
+### 7.5 Protected Dashboard Endpoints
+
+- `/api/dashboard/sections/`
+- `/api/dashboard/sections/<uuid>/`
+- `/api/dashboard/sections/<uuid>/projects/`
+- `/api/dashboard/projects/<uuid>/`
+- `/api/dashboard/projects/<uuid>/canvases/`
+- `/api/dashboard/canvases/<uuid>/`
+- `/api/dashboard/canvases/<uuid>/state/`
+- `/api/dashboard/canvases/<uuid>/thumbnail/`
+- `/api/dashboard/canvases/<uuid>/versions/`
+- `/api/dashboard/canvases/<uuid>/versions/<uuid>/`
+
+These are the main server contract for the modern dashboard and workspace canvas flows.
+
+---
+
+## 8. Frontend Architecture
+
+### 8.1 Shared Boot Layer
+
+`static/ft/app.js` is the cross-page boot layer. It handles:
+
+- theme toggle
+- user status bootstrap
+- sign-in/sign-out UI state
+- toast notifications
+- global `window.showAppToast`
+
+It is the best current insertion point for route/auth analytics because it already centralizes auth-state resolution and top-level chrome behavior.
+
+### 8.2 Services Layer
+
+Lightweight wrappers live under `static/ft/js/services/`:
+
+- `dashboard.js`
+  - wraps `/api/dashboard/...`
+- `sessions.js`
+  - wraps `/api/session/...`
+- `uploads.js`
+  - upload helpers
+- `demos.js`
+  - demo file listing
+
+Notable behavior:
+
+- `sessions.js` treats `401` as a normal "requires sign-in" state for list/load/delete/save flows
+- this is why guest mode remains usable instead of failing hard
+
+### 8.3 Dashboard UI
+
+Main entry point:
+
+- `static/ft/js/ui/dashboard/initDashboard.js`
+
+Responsibilities:
+
+- fetch and render sections/projects/canvases
+- apply filters and sidebar state
+- create/update/delete dashboard entities
+- open canvases in either tabbed or standalone workspace mode
+
+### 8.4 Workspace UI
+
+Main orchestration entry point:
+
+- `static/ft/js/ui/interface/controller/runtime/workspaceRuntime.js`
+
+The runtime is intentionally split into facades and helpers, documented in:
+
+- `static/ft/js/ui/interface/controller/runtime/ARCHITECTURE.md`
+
+Major runtime areas:
+
+- `browser/`
+- `io/`
+- `panels/`
+- `persistence/`
+- `preferences/`
+- `sections/`
+- `state/`
+- `toolbar/`
+- `thumbnails/`
+
+Important runtime auth interaction:
+
+- it reads `document.body.dataset.userAuthenticated`
+- it listens for `ftir:user-status`
+- it only enables dashboard cloud hydrate/sync when the user is authenticated and a canvas id is present
+- otherwise it falls back to local snapshot restore and shows guest/offline messaging
+
+### 8.5 Legacy / Transitional Code
+
+There is still legacy or transitional frontend code in the repo:
+
+- `static/ft/js/core/*`
+- `static/ft/js/legacy/*`
+- some dashboard/workspace overlap in older modules
+
+When tracing behavior, prefer the newer paths unless the template explicitly references a legacy script.
+
+---
+
+## 9. Core Data Flows
+
+### 9.1 Auth Bootstrap Flow
+
+1. User loads `/` or `/workspace/`.
+2. Django renders template flags based on auth state and route params.
+3. `app.js` requests `/api/me/`.
+4. `app.js` updates UI, sets body dataset, and dispatches `ftir:user-status`.
+5. Workspace/dashboard modules adapt behavior based on the resolved auth state.
+
+### 9.2 Dashboard Canvas Open Flow
+
+1. Dashboard fetches workspace hierarchy from `/api/dashboard/...`.
+2. User clicks a canvas.
+3. `initDashboard.js` routes to:
+   - same-page tabbed workspace with `?canvas=<id>#pane-plotC`, or
+   - standalone `/workspace?canvas=<id>`
+4. `workspace_page()` injects `active_canvas` if the user owns it.
+5. Workspace runtime hydrates remote canvas state when cloud sync is allowed.
+
+### 9.3 Upload / Ingest Flow
+
+1. User selects or drops a file in the workspace.
+2. Runtime IO facade posts to `/api/xy/`.
+3. Django reads tabular or JCAMP input and normalizes the Y axis.
+4. Response returns arrays plus metadata and ingest mode.
+5. Workspace runtime inserts or updates traces/panels and re-renders Plotly.
+
+### 9.4 Legacy Session Save Flow
+
+1. Authenticated user saves via session UI.
+2. Frontend posts to `/api/session/`.
+3. `sessions_repository.py` serializes and size-checks the state.
+4. `PlotSession` row is created or updated.
+
+### 9.5 Dashboard Canvas Save Flow
+
+1. User edits a server-backed canvas.
+2. Frontend saves state through `/api/dashboard/canvases/<id>/state/`.
+3. `WorkspaceCanvas.state_json` and related metadata are updated.
+4. Snapshots are created separately via `/versions/`.
+5. Thumbnail capture is sent separately to `/thumbnail/`.
+
+---
+
+## 10. Testing and Operational Tooling
+
+Backend tests:
+
+- `apps/ftirui/ft/tests/test_sessions.py`
+- `apps/ftirui/ft/tests/test_dashboard.py`
+- `apps/ftirui/ft/tests/test_profile.py`
+
+Covered areas include:
+
+- `/api/me/`
+- anonymous rejection for protected APIs
+- `PlotSession` CRUD and payload limits
+- dashboard canvas/version CRUD flows
+- profile auth protection
+- demo seed command path
+
+Frontend tests:
+
+- Vitest runtime and helper tests under the workspace runtime tree and `tests/unit/`
+- Playwright smoke and accessibility checks under `tests/`
+
+Operational scripts / packaging:
+
+- `docker-compose.yml`
+- `Dockerfile`
+- `docker/entrypoint.sh`
+- PyInstaller spec files in repo root
+
+Smoke tests currently log in through Django admin with a staff user and then reuse that session for app flows.
+
+---
+
+## 11. Known Drift and Caveats
+
+These are the main mismatches or gotchas worth remembering:
+
+1. `architecture.md` before this rewrite contained stale claims about filesystem-backed session storage. The current `/api/session/` implementation uses the DB-backed `PlotSession` model.
+2. `.env.example` and README mention Postgres and `DATABASE_URL`, but the checked-in default settings still use SQLite directly.
+3. `MEDIA_ROOT` / `MEDIA_URL` handling is inconsistent across settings modules. Views assume them; default web settings do not clearly define them.
+4. `session_count` in `/api/me/` reflects `PlotSession` only, not the newer workspace hierarchy.
+5. The dashboard/workspace route split already exists. Any first-time-user or logged-in-user routing change must account for:
+   - guest `/`
+   - authenticated `/`
+   - `/workspace?canvas=<id>`
+   - tabbed workspace `?canvas=<id>#pane-plotC`
+   - `dev=true` feature-flag override flows
+6. `workspaceRuntime.js` is still very large, even though the facade split is in progress. Use the runtime architecture document before changing its wiring.
+
+---
+
+## 12. Current Gaps Relevant to Future Routing and Analytics Work
+
+There is currently no first-class analytics implementation in the repo:
+
+- no PostHog, Plausible, Mixpanel, or similar client SDK
+- no backend analytics service wrapper
+- no event taxonomy document
+- no server-side billing/analytics sync layer
+
+Because routing already depends on auth state, canvas context, and feature flags, the clean insertion points for future routing/analytics work are:
+
+- backend route resolution in `ft.views.index()` and `ft.views.workspace_page()`
+- auth status contract in `ft.views.api_me()`
+- top-level client bootstrap in `static/ft/app.js`
+- dashboard navigation in `static/ft/js/ui/dashboard/initDashboard.js`
+- workspace auth-aware cloud sync logic in `workspaceRuntime.js`
+
+See `docs/routing-and-analytics-implementation-plan.md` for the proposed implementation sequence.
+
+---
+
+Keep this document current when the route model, auth model, or persistence model changes. It should stay useful as a "what exists now" reference, not a wish list.

@@ -1,11 +1,12 @@
 MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
-- [ ] Phase 8 - Landing
-    - [ ] Rework landing for guests: canvas with rainbow DnD and instructions
+- [-] Phase 8 - Landing
+    - [x] Research Django user db features and analytics priorities + log in Notion
+    - [-] Rework landing for guests: canvas with rainbow DnD and instructions
     - [ ] Rework landing for users: dash
 
-- [ ] Phase 9 - Payment
-    - [ ] Research payment methods
+- [-] Phase 9 - Payment
+    - [-] Research payment methods
     - [ ] Payment UI
         - [ ] 
         - [ ] 

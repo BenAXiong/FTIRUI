@@ -130,11 +130,13 @@
         </div>
       </div>
     </div>
-    <a href="{% url 'ft:home' %}"
-       class="btn btn-outline-secondary btn-sm workspace-back-btn workspace-hud-back"
-       title="Return to dashboard">
-      ← Dashboard
-    </a>
+    {% if request.user.is_authenticated or not guest_workspace_landing %}
+      <a href="{% url 'ft:home' %}"
+         class="btn btn-outline-secondary btn-sm workspace-back-btn workspace-hud-back"
+         title="Return to dashboard">
+        ← Dashboard
+      </a>
+    {% endif %}
   </div>
   <div class="workspace-hud__slot workspace-hud__slot--right">
     <div class="workspace-hud-meta workspace-hud-meta--autosave">
