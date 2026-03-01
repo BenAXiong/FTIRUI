@@ -26,7 +26,8 @@
         data-workspace-shortcut="{% if workspace_dev_shortcut_enabled %}true{% else %}false{% endif %}"
         data-workspace-tab-enabled="{% if workspace_tab_enabled %}true{% else %}false{% endif %}"
         data-workspace-route="{% url 'ft:workspace' %}"
-        data-workspace-page="{% if workspace_only %}true{% else %}false{% endif %}"
+        data-workspace-page="{% if workspace_only or canvas_focused_shell %}true{% else %}false{% endif %}"
+        data-initial-shell-pane="{{ initial_shell_pane|default:'dashboard' }}"
         data-workspace-dev="{% if workspace_dev_active %}true{% else %}false{% endif %}"
         data-dashboard-v2="{% if dashboard_v2_enabled %}true{% else %}false{% endif %}"
         data-user-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}"
@@ -34,7 +35,7 @@
         data-active-canvas-title="{% if active_canvas %}{{ active_canvas.title|default_if_none:'' }}{% endif %}"
         data-active-canvas-primary-tag="{% if active_canvas and active_canvas.tags %}{{ active_canvas.tags.0 }}{% endif %}"
         data-requested-canvas-id="{% if requested_canvas_id %}{{ requested_canvas_id }}{% endif %}">
-    <div class="container-fluid app-frame-main {% if workspace_only %}workspace-frame{% else %}py-3 px-3 px-lg-4{% endif %}">
+    <div class="container-fluid app-frame-main {% if workspace_only or canvas_focused_shell %}workspace-frame{% else %}py-3 px-3 px-lg-4{% endif %}">
       {% block page_header %}{% endblock %}
       {% block page_body %}{% endblock %}
     </div>
@@ -46,7 +47,7 @@
     <script src="{% static 'ft/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'ft/vendor/coloris/coloris.min.js' %}"></script>
     <script src="{% static 'ft/vendor/html2canvas/html2canvas.min.js' %}"></script>
-    {% if workspace_only or workspace_tab_enabled %}
+    {% if workspace_only or canvas_focused_shell or workspace_tab_enabled %}
     <script>
       window.MathJax = {
         tex2jax: {

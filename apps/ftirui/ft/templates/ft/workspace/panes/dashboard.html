@@ -1,5 +1,5 @@
 <!-- Dashboard -->
-<div id="dashboard" class="tab-pane fade{% if not workspace_pane_active %} show active{% endif %}" role="tabpanel">
+<div id="dashboard" class="tab-pane fade{% if initial_shell_pane == 'dashboard' %} show active{% endif %}" role="tabpanel">
   <div class="dashboard-pane">
     <div class="dashboard-layout">
       {% include 'ft/dashboard/partials/sidebar.html' %}

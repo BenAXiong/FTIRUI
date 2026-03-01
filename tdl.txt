@@ -13,7 +13,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
     - [ ] Payment wiring (...)
 
 - [ ] Phase 10 - Publish
-    - [ ] research
+    - [ ] research building and hosting
             - [ ] 
     - [ ] build
             - [ ] 
@@ -25,10 +25,11 @@ Phase 0 – Planning
 
 Phase 1 – Optimize features & UI/UX for "Workflow_1_MVP"
 - [ ] Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
+- [ ] Dash band: remove coming soon overlay and make card 0.1 opacity + disabled cursor
 - [ ] see notion
 
 Phase x – Data collection
-- [ ] Survey possibilities(users info, usage, analytics, etc)
+- [ ] Survey possibilities (users info, usage, analytics, etc)
 - [ ] Check Django update and usage
 
 Phase x – Bugs & technical debt

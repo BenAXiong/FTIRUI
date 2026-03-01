@@ -10,37 +10,22 @@
           ← Back to Dashboard
         </a>
       </div>
-    {% elif not workspace_only %}
+    {% else %}
       <ul class="nav nav-tabs flex-wrap" id="tabs" role="tablist">
-        <li class="nav-item{% if not workspace_tab_enabled %} d-none{% endif %}">
-          <button class="nav-link {% if workspace_pane_active %}active{% endif %}" id="tab-plotC" data-bs-toggle="tab" data-bs-target="#pane-plotC" type="button" role="tab">
-            Workspace
-          </button>
-        </li>
+        {% if initial_shell_pane == 'workspace' %}
+          <li class="nav-item">
+            <button class="nav-link active" id="tab-plotC" data-bs-toggle="tab" data-bs-target="#pane-plotC" type="button" role="tab">
+              Workspace
+            </button>
+          </li>
+        {% endif %}
         <li class="nav-item">
-          <button class="nav-link {% if not workspace_pane_active %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">Dashboard</button>
+          <button class="nav-link {% if initial_shell_pane == 'dashboard' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">Dashboard</button>
         </li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#live" type="button">Live</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes" type="button">Tools</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#about" type="button">About</button></li>
       </ul>
-    {% else %}
-      <span class="workspace-canvas-title badge rounded-pill bg-body-tertiary"
-            data-workspace-canvas-title
-            data-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
-            {% if active_canvas %}title="Double-click to rename canvas"{% endif %}
-            aria-disabled="{% if active_canvas %}false{% else %}true{% endif %}"
-            role="button"
-            tabindex="0">
-        {% if active_canvas %}
-          {{ active_canvas.title|default:"Untitled canvas" }}
-        {% else %}
-          Untitled canvas
-        {% endif %}
-      </span>
-      <a href="{% url 'ft:home' %}" class="btn btn-outline-secondary btn-sm workspace-back-btn ms-2" title="Return to dashboard">
-        ← Back to Dashboard
-      </a>
     {% endif %}
     <div class="dropdown workspace-hud-menu">
       <button class="btn btn-link p-0 workspace-hud-menu__toggle"

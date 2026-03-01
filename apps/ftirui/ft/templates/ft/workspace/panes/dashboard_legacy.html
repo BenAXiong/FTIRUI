@@ -1,5 +1,5 @@
 <!-- Legacy Dashboard (flagged via DASHBOARD_V2_ENABLED) -->
-<div id="dashboard_legacy" class="tab-pane fade{% if not workspace_pane_active %} show active{% endif %}" role="tabpanel">
+<div id="dashboard_legacy" class="tab-pane fade{% if initial_shell_pane == 'dashboard' %} show active{% endif %}" role="tabpanel">
   <div class="card shadow-sm my-4">
     <div class="card-body">
       <h2 class="h5 mb-3">Projects overview (legacy)</h2>
@@ -48,4 +48,3 @@
     </div>
   </div>
 </div>
-

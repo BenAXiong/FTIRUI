@@ -2464,13 +2464,6 @@ const clearProjectDropIndicators = () => {
 
   const navigateToCanvas = (canvasId) => {
     if (!canvasId) return;
-    if (workspaceTabEnabled) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('canvas', canvasId);
-      url.hash = '#pane-plotC';
-      window.location.href = url.toString();
-      return;
-    }
     const target = new URL(workspaceRoute, window.location.origin);
     target.searchParams.set('canvas', canvasId);
     if (state.devMode) {

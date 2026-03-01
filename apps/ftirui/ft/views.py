@@ -72,39 +72,63 @@ def _to_fractional_T(y: np.ndarray) -> np.ndarray:
     return y
 
 def index(request):
-    if request.user.is_authenticated:
-        context = {
-            "workspace_only": False,
-            "workspace_pane_active": False,
-            "active_canvas": None,
-            "requested_canvas_id": None,
-        }
-    else:
-        context = {
-            "workspace_only": True,
-            "workspace_pane_active": True,
-            "active_canvas": None,
-            "requested_canvas_id": None,
-            "guest_workspace_landing": True,
-        }
+    """
+    Main app shell at `/`.
+
+    This route always renders the full dashboard+workspace shell
+    (`workspace_only=False`).
+
+    Intended product behavior:
+    - authenticated users land on Dashboard first
+    - guest users land on the canvas-first presentation first, but still on the
+      main `/` route so they can later access Dashboard via the same shell
+
+    Important distinction:
+    - `initial_shell_pane` only selects the first active pane in the full shell
+    - it must not be confused with `workspace_only`
+    """
+    requested_pane = request.GET.get("pane")
+    if requested_pane not in {"dashboard", "workspace"}:
+        requested_pane = None
+    initial_shell_pane = requested_pane or ("dashboard" if request.user.is_authenticated else "workspace")
+    dashboard_entry_url = f"{reverse('ft:home')}?pane=dashboard"
+    context = {
+        "workspace_only": False,
+        "canvas_focused_shell": request.user.is_authenticated is False and initial_shell_pane == "workspace",
+        "workspace_pane_active": initial_shell_pane == "workspace",
+        "initial_shell_pane": initial_shell_pane,
+        "active_canvas": None,
+        "requested_canvas_id": None,
+        "dashboard_entry_url": dashboard_entry_url,
+    }
     return render(request, "ft/base.html", context)
 
 
 @ensure_csrf_cookie
 def workspace_page(request):
     """
-    Standalone workspace shell so canvases can open outside the dashboard tabs.
+    Canvas-focused full shell at `/workspace/`.
+
+    This is the current direct-canvas route used when a canvas is opened from
+    Dashboard (`/workspace/?canvas=<id>`). It deliberately keeps the HUD +
+    no-top-tabs presentation, but does so with `canvas_focused_shell=True`
+    rather than the old `workspace_only` product path.
+
+    This route is still valid and should not be conflated with the stale
+    legacy/dev activation path (`?dev=true`, old workspace-tab shortcuts).
     """
-    dev_override = request.GET.get("dev") == "true"
     canvas_id = request.GET.get("canvas")
     canvas = None
     if canvas_id and request.user.is_authenticated:
         canvas = _get_canvas_for_user(request.user, canvas_id)
     context = {
-        "workspace_only": not dev_override,
+        "workspace_only": False,
+        "canvas_focused_shell": True,
         "workspace_pane_active": True,
+        "initial_shell_pane": "workspace",
         "active_canvas": canvas,
         "requested_canvas_id": canvas_id,
+        "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
     }
     return render(request, "ft/base.html", context)
 
@@ -114,8 +138,12 @@ def profile(request):
     context = {
         "profile_user": request.user,
         "active_canvas": None,
+        "workspace_only": False,
+        "canvas_focused_shell": False,
         "workspace_pane_active": False,
+        "initial_shell_pane": "dashboard",
         "profile_page": True,
+        "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
     }
     return render(request, "ft/profile/detail.html", context)
 

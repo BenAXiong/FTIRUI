@@ -1,7 +1,7 @@
 <!-- Workspace -->
 {% with standalone=workspace_standalone|default:False %}
 <div id="pane-plotC"
-     class="{% if standalone %}workspace-pane workspace-pane-standalone show active{% else %}tab-pane fade workspace-pane{% if workspace_pane_active %} show active{% endif %}{% endif %}"
+     class="{% if standalone %}workspace-pane workspace-pane-standalone show active{% else %}tab-pane fade workspace-pane{% if initial_shell_pane == 'workspace' %} show active{% endif %}{% endif %}"
      role="{% if standalone %}region{% else %}tabpanel{% endif %}">
   <div class="plot-b-wrapper{% if not standalone %} mt-2{% endif %}">
     {% include 'ft/workspace/components/browser_panel.html' %}

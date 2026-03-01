@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block body_class %}
-  {% if workspace_only %}
+  {% if workspace_only or canvas_focused_shell %}
     app-frame workspace-page
   {% else %}
     bg-body app-frame
@@ -10,13 +10,13 @@
 {% endblock %}
 
 {% block page_header %}
-  {% if not workspace_only %}
+  {% if not workspace_only and not canvas_focused_shell %}
     {% include 'ft/partials/header_nav.html' %}
   {% endif %}
 {% endblock %}
 
 {% block page_body %}
-  {% if workspace_only %}
+  {% if workspace_only or canvas_focused_shell %}
     {% include 'ft/workspace/components/workspace_hud.html' %}
     <div class="workspace-shell">
       {% include 'ft/workspace/panes/workspace.html' with workspace_standalone=True %}
@@ -24,9 +24,7 @@
   {% else %}
     <div class="mb-3 app-tabs-container">
       <div class="tab-content">
-        {% if workspace_tab_enabled %}
-          {% include 'ft/workspace/panes/workspace.html' %}
-        {% endif %}
+        {% include 'ft/workspace/panes/workspace.html' %}
         {% if dashboard_v2_enabled %}
           {% include 'ft/workspace/panes/dashboard.html' %}
         {% else %}
@@ -41,7 +39,7 @@
 {% endblock %}
 
 {% block footer %}
-  {% if not workspace_only %}
+  {% if not workspace_only and not canvas_focused_shell %}
     {{ block.super }}
   {% endif %}
 {% endblock %}

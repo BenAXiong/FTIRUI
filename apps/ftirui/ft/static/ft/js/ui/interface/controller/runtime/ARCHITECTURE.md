@@ -49,6 +49,200 @@ Each facade exposes a minimal API back to the controller (`panelsFacade` returns
 3. Wire the panel DOM, persistence, and browser facades, providing only the constrained APIs they require.
 4. On teardown, delegate to each facade’s `teardown`/`detach` method to release listeners and flush storage.
 
+## Shell / Landing Flow
+
+The current product direction is a single full shell containing both Dashboard and Workspace panes.
+
+- Guests and authenticated users both render the same full shell (`ft/base.html` with tabs/panes present).
+- Initial landing is selected by server context via `initial_shell_pane`:
+  - guests: `"workspace"`
+  - authenticated users: `"dashboard"`
+  - direct `/workspace/` entry: `"workspace"`
+- Do not use `workspace_only` for new behavior. Treat it as sunset/compatibility only.
+- Do not reuse the old `?dev=true` / "workspace-only" shortcut path for product routing.
+
+### Important inconsistency to remember
+
+`WORKSPACE_LEGACY_ENABLED` is now a misleading name.
+
+- The current full-shell Workspace pane is considered first-class and should remain available regardless of that legacy setting.
+- The setting/name still exists in `ft/context_processors.py`, but it should no longer be treated as the switch for whether the modern Workspace pane exists in the shell.
+- Future cleanup:
+  - rename/remove `WORKSPACE_LEGACY_ENABLED`
+  - remove dead `workspace_only` template branches once no routes depend on them
+  - replace remaining `workspace_pane_active` compatibility plumbing with `initial_shell_pane` everywhere
+
+## Critical Distinction: Canvas-Focused Shell vs Legacy Dev Workspace
+
+This codebase currently has two different concepts that are easy to conflate. They are not the same thing.
+
+### 1. Canvas-focused shell = current product-facing canvas presentation
+
+This is the current product-facing canvas UI used for:
+- guest landing on `/`
+- direct canvas opening through `/workspace/?canvas=<id>`
+
+What it means:
+- render the canvas-first HUD/workspace presentation
+- keep the workspace HUD
+- do not render the top nav tabs (`Dashboard`, `Live`, `Tools`, `About`)
+- keep the current runtime/canvas controllers
+
+Primary route:
+- `ft.views.index` for guest landing
+- `ft.views.workspace_page`
+
+Primary view/context flags:
+- `workspace_only=False`
+- `canvas_focused_shell=True`
+- `initial_shell_pane="workspace"`
+
+Primary template branches:
+- `templates/ft/base.html`
+  - `if workspace_only or canvas_focused_shell`:
+    - include `ft/workspace/components/workspace_hud.html`
+    - include `ft/workspace/panes/workspace.html` with `workspace_standalone=True`
+  - `else`:
+    - render the full tabbed shell
+- `templates/ft/layouts/app_shell.html`
+  - `workspace_only or canvas_focused_shell` changes outer container class (`workspace-frame`)
+  - `workspace_only or canvas_focused_shell` also enables MathJax/script setup for the canvas-first path
+
+Current intended use:
+- guests should land on the same canvas UI logged-in users see when they open a canvas
+- canvases opened from dashboard entries should still go through `/workspace/?canvas=<id>`
+- both routes should use the same canvas-focused presentation
+
+`workspace_only` is now compatibility-only and should not be used for new product routing.
+
+### 2. Legacy/dev workspace activation path (STALE, DO NOT REUSE)
+
+This is the old logic that historically controlled whether the Workspace pane/tab was available inside the full shell.
+
+Primary sources:
+- `ft/context_processors.py`
+- query param `?dev=true`
+- setting `WORKSPACE_LEGACY_ENABLED`
+- old `workspace_tab_enabled` / `workspace_pane_active` coupling
+
+Why it is stale:
+- it mixed "show workspace in full shell" with old dev/feature-flag behavior
+- it is not the product routing model anymore
+- it caused repeated confusion because "workspace" existed both as:
+  - a full-shell tab/pane
+  - a canvas-first route/presentation
+
+Rule:
+- do not use `?dev=true`, `WORKSPACE_LEGACY_ENABLED`, or old `workspace_pane_active` semantics to design product routing
+- product routing should be expressed with explicit concepts such as:
+  - full shell dashboard view vs canvas-focused shell
+  - initial landing pane (`initial_shell_pane`)
+  - direct canvas route (`/workspace/`)
+
+## Current Intended Routing Model
+
+As of the current MVP direction:
+
+- `/`
+  - authenticated users: full shell, Dashboard first
+  - guests: canvas-focused shell on the same route
+- `/?pane=dashboard`
+  - full shell
+  - explicit dashboard entry point for guests from the canvas-first landing
+- `/workspace/`
+  - canvas-focused shell
+  - used for direct canvas opening (for example from dashboard entries)
+
+This means the product currently uses:
+- a full shell dashboard view
+- a canvas-focused presentation for canvas entry
+
+What it no longer needs for product behavior:
+- the old `workspace_only=True` standalone branch
+
+`workspace_only` may remain in templates temporarily as a compatibility branch, but product routes should prefer `canvas_focused_shell=True`.
+
+## Files To Check Before Touching Routing/UI Shell Logic
+
+Always inspect these together. Do not edit one in isolation and assume the system is understood.
+
+Server/context:
+- `apps/ftirui/ft/views.py`
+- `apps/ftirui/ft/context_processors.py`
+
+Shell templates:
+- `apps/ftirui/ft/templates/ft/base.html`
+- `apps/ftirui/ft/templates/ft/layouts/app_shell.html`
+- `apps/ftirui/ft/templates/ft/partials/header_nav.html`
+- `apps/ftirui/ft/templates/ft/workspace/panes/workspace.html`
+- `apps/ftirui/ft/templates/ft/workspace/panes/dashboard.html`
+- `apps/ftirui/ft/templates/ft/workspace/panes/dashboard_legacy.html`
+- `apps/ftirui/ft/templates/ft/workspace/components/workspace_hud.html`
+
+Client boot:
+- `apps/ftirui/ft/static/ft/app.js`
+- `apps/ftirui/ft/static/ft/js/ui/dashboard/initDashboard.js`
+- `apps/ftirui/ft/static/ft/js/ui/workspace/initControls.js`
+
+## Known Failure Mode That Already Happened
+
+What went wrong previously:
+
+1. The canvas-first presentation in `base.html` / `app_shell.html` was flattened into the generic full shell.
+2. As a result, direct canvas routes started rendering with top tabs and without the expected HUD/canvas layout.
+4. At the same time, `workspace_tab_enabled` was forced on, which changed dashboard canvas navigation from:
+   - route navigation to `/workspace/?canvas=<id>`
+   to:
+   - same-page tab/hash switching
+5. That broke the expected "open canvas from dashboard" behavior and mixed guest/full-shell/canvas-focused modes together.
+
+Exact lesson:
+- route behavior, shell behavior, and tab behavior are controlled in different places
+- if you touch routing, you must verify both:
+  - what context flags the view sets
+  - whether templates still honor those flags
+- if you touch dashboard canvas navigation, verify whether it uses:
+  - route navigation (`window.location.assign(workspaceRoute...)`)
+  - or same-page tab/hash switching
+
+## Safety Rules For Future Changes
+
+Before changing landing/routing behavior:
+
+1. Decide explicitly whether the target experience is:
+   - full shell dashboard view
+   - canvas-focused shell
+
+2. Write the answer in terms of routes:
+   - `/`
+   - `/workspace/`
+
+3. Verify dashboard "open canvas" still uses the intended route.
+
+4. Verify `base.html` and `app_shell.html` still contain the correct canvas-focused branch if the HUD/no-tabs canvas behavior is still desired.
+
+5. Do not describe `workspace_only` as the product canvas path. It is compatibility-only now.
+
+6. Do not describe `WORKSPACE_LEGACY_ENABLED` as controlling the canvas-focused shell. It does not.
+
+## Suggested Terminology
+
+To reduce confusion in future conversations:
+
+- Say "canvas-focused shell" instead of just "`workspace_only`"
+- Say "full shell" instead of "dashboard+canvas system"
+- Say "legacy dev activation path" instead of "workspace mode"
+
+Bad / ambiguous:
+- "legacy workspace"
+- "workspace-only"
+- "dev workspace"
+
+Better:
+- "canvas-focused shell"
+- "full shell with tabs"
+- "old dev/feature-flag path"
+
 ### Refresh/Focus Persistence Guardrails
 
 Panel focus and sidebar mode are persisted across refresh, but this path is sensitive to boot ordering.
