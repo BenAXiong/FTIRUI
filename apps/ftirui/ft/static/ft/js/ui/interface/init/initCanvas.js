@@ -21,6 +21,7 @@ const collectRoots = () => {
     browseButton: document.getElementById('c_canvas_browse_btn'),
     importFolderButton: document.getElementById('c_canvas_import_folder'),
     demoButton: document.getElementById('c_canvas_demo_btn'),
+    emptyBrowseButton: document.getElementById('c_canvas_empty_browse_btn'),
     fileInput: document.getElementById('c_canvas_file_input'),
     folderInput: document.getElementById('c_canvas_folder_input'),
     emptyOverlay: document.getElementById('c_canvas_empty'),

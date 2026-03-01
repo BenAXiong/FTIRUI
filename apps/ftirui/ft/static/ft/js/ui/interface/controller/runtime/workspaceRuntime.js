@@ -1647,6 +1647,7 @@ export function initWorkspaceRuntime(context = {}) {
   const shareBtn = document.getElementById('c_canvas_share_btn');
   const shareLinkBtn = document.getElementById('c_canvas_share_link');
   const browseBtn = roots.browseButton ?? document.getElementById('c_canvas_browse_btn');
+  const emptyBrowseBtn = roots.emptyBrowseButton ?? document.getElementById('c_canvas_empty_browse_btn');
   const importFolderBtn = roots.importFolderButton ?? document.getElementById('c_canvas_import_folder');
   const packageBundleBtn = document.getElementById('c_canvas_package_bundle');
   const packageBackupBtn = document.getElementById('c_canvas_package_backup');
@@ -3865,6 +3866,11 @@ const toggleDataTabFromHeader = (panelId) => {
   });
   panelPreferences.restorePinned();
   panelPreferences.restoreCollapsed();
+  if (!userAuthenticated && panelDomRegistry.size === 0) {
+    panelPreferences.setPinned(false, { persist: false });
+    panelPreferences.setCollapsed(true, { persist: false, silent: true });
+    updateCanvasOffset();
+  }
 
   const collectSectionAncestors = (sectionId) => {
     const result = [];
@@ -4116,12 +4122,34 @@ const toggleDataTabFromHeader = (panelId) => {
     panelDom.empty.style.display = panelDomRegistry.size ? 'none' : '';
   };
 
+  let emptyOverlayRevealFrame = null;
+  const updateEmptyOverlayVisibility = (hasPanels) => {
+    if (!emptyOverlay) return;
+    if (emptyOverlayRevealFrame) {
+      window.cancelAnimationFrame(emptyOverlayRevealFrame);
+      emptyOverlayRevealFrame = null;
+    }
+    if (hasPanels) {
+      emptyOverlay.classList.remove('is-visible');
+      emptyOverlay.style.display = 'none';
+      return;
+    }
+    emptyOverlay.style.display = '';
+    if (!userAuthenticated) {
+      emptyOverlayRevealFrame = window.requestAnimationFrame(() => {
+        emptyOverlay.classList.add('is-visible');
+        emptyOverlayRevealFrame = null;
+      });
+      return;
+    }
+    emptyOverlay.classList.add('is-visible');
+  };
+
     updateCanvasState = () => {
-      canvas.classList.toggle('has-panels', panelDomRegistry.size > 0);
+      const hasPanels = panelDomRegistry.size > 0;
+      canvas.classList.toggle('has-panels', hasPanels);
       updatePanelEmpty();
-      if (emptyOverlay) {
-        emptyOverlay.style.display = panelDomRegistry.size ? 'none' : '';
-      }
+      updateEmptyOverlayVisibility(hasPanels);
       if (verticalToolbar) {
         const showToolbarForActivePlot = !!(activePanelId && panelSupportsPlot(activePanelId));
         if (techToolbarPinController?.setBaseVisibility) {
@@ -5815,6 +5843,7 @@ const toggleDataTabFromHeader = (panelId) => {
     dom: {
       canvas,
       emptyOverlay,
+      emptyBrowseButton: emptyBrowseBtn,
       browseBtn,
       importFolderBtn,
       fileInput,

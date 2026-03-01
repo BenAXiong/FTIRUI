@@ -12,6 +12,7 @@ export function createIoFacade({
   const {
     canvas = null,
     emptyOverlay = null,
+    emptyBrowseButton = null,
     browseButton = null,
     importFolderButton = null,
     fileInput = null,
@@ -22,6 +23,7 @@ export function createIoFacade({
   } = {
     canvas: dom.canvas,
     emptyOverlay: dom.emptyOverlay,
+    emptyBrowseButton: dom.emptyBrowseButton,
     browseButton: dom.browseBtn,
     importFolderButton: dom.importFolderBtn,
     fileInput: dom.fileInput,
@@ -79,6 +81,8 @@ export function createIoFacade({
   const {
     resetColorCursor = () => {}
   } = helpers;
+
+  const guestDropzone = emptyOverlay?.querySelector?.('[data-workspace-guest-dropzone]') ?? null;
 
   const {
     decodeName = (value) => value
@@ -1128,6 +1132,7 @@ export function createIoFacade({
 
   const attach = () => {
     addListener(browseButton, 'click', onBrowseClick);
+    addListener(emptyBrowseButton, 'click', onBrowseClick);
     addListener(importFolderButton, 'click', onFolderButtonClick);
     addListener(fileInput, 'change', onFileInputChange);
     addListener(folderInput, 'change', onFolderInputChange);
@@ -1146,6 +1151,13 @@ export function createIoFacade({
       addListener(emptyOverlay, 'dragleave', deactivateCanvas);
       addListener(emptyOverlay, 'dragend', deactivateCanvas);
       addListener(emptyOverlay, 'drop', onCanvasDrop);
+    }
+    if (guestDropzone) {
+      addListener(guestDropzone, 'dragover', onCanvasDrag);
+      addListener(guestDropzone, 'dragenter', onCanvasDrag);
+      addListener(guestDropzone, 'dragleave', deactivateCanvas);
+      addListener(guestDropzone, 'dragend', deactivateCanvas);
+      addListener(guestDropzone, 'drop', onCanvasDrop);
     }
 
     addListener(addPlotButton, 'click', onAddSampleClick);

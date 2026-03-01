@@ -5,9 +5,24 @@
         {% include 'ft/workspace/components/canvas_toolbar.html' %}
         <div id="c_canvas_root" class="workspace-canvas" role="region" aria-live="polite">
           <div id="c_canvas_empty" class="workspace-empty">
-            <div class="workspace-empty-inner text-center">
-              <p class="mb-0 text-body-secondary">Drop files here or use the toolbar above to add panels.</p>
-            </div>
+            {% if request.user.is_authenticated %}
+              <div class="workspace-empty-inner text-center">
+                <p class="mb-0 text-body-secondary">Drop files here or use the toolbar above to add panels.</p>
+              </div>
+            {% else %}
+              <div class="workspace-empty-guest-shell" data-workspace-guest-dropzone>
+                <div class="workspace-empty-guest-card">
+                  <h2 class="workspace-empty-guest-title">Drop your data on the canvas to plot them.</h2>
+                  <p class="workspace-empty-guest-copy">Scisci will try to guess what they are.</p>
+                  <button id="c_canvas_empty_browse_btn"
+                          class="btn btn-primary workspace-empty-guest-browse"
+                          type="button">
+                    Browse
+                  </button>
+                  <p class="workspace-empty-guest-copy">Or browse the files from your computer.</p>
+                </div>
+              </div>
+            {% endif %}
           </div>
         </div>
         <input id="c_canvas_file_input" type="file" multiple hidden>
