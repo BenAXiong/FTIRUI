@@ -100,6 +100,9 @@ export function createPersistenceFacade({
     const hasFigures = Object.keys(figures).length > 0;
     return {
       ...base,
+      workspaceTitle:
+        (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasTitle) ||
+        'Untitled canvas',
       figures: hasFigures ? figures : null
     };
   };

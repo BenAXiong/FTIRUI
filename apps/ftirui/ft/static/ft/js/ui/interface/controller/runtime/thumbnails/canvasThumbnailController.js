@@ -179,6 +179,7 @@ export function createCanvasThumbnailController({
   getActiveCanvasId,
   canCapture,
   saveThumbnail,
+  beforeNavigate = null,
   maxWidth = DEFAULT_MAX_WIDTH,
   autosaveDebounceMs = DEFAULT_AUTOSAVE_DEBOUNCE_MS
 } = {}) {
@@ -308,11 +309,22 @@ export function createCanvasThumbnailController({
       event.preventDefault();
       event.stopPropagation();
       const navigate = () => window.location.assign(href);
+      const runBeforeNavigate = async () => {
+        if (typeof beforeNavigate === 'function') {
+          await beforeNavigate();
+        }
+      };
       if (!isDirty) {
-        navigate();
+        runBeforeNavigate()
+          .catch(() => {})
+          .finally(() => {
+            navigate();
+          });
         return;
       }
-      capture()
+      runBeforeNavigate()
+        .catch(() => {})
+        .then(() => capture())
         .catch(() => {})
         .finally(() => {
           navigate();

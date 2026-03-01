@@ -12,6 +12,7 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth import get_user
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
@@ -54,6 +55,144 @@ SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 THUMBNAILS_DIR = MEDIA_ROOT / "thumbnails" / "canvases"
 THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
 DEMOS_DIR = BASE_DIR / "ft" / "static" / "ft" / "demos"
+GUEST_WORKSPACE_OWNER_SESSION_KEY = "ft_guest_workspace_owner_id"
+GUEST_WORKSPACE_OWNER_PREFIX = "guest-workspace-"
+DEFAULT_GUEST_SECTION_NAME = "Workspace"
+DEFAULT_GUEST_PROJECT_NAME = "Project"
+DEFAULT_GUEST_CANVAS_TITLE = "Untitled canvas"
+GUEST_WORKSPACE_LIMITS = {
+    "sections": 1,
+    "projects": 1,
+    "canvases": 1,
+}
+
+
+def _ensure_session_key(request) -> str:
+    session_key = request.session.session_key
+    if not session_key:
+        request.session.save()
+        session_key = request.session.session_key
+    return session_key
+
+
+def _is_guest_workspace_owner(user) -> bool:
+    if not user:
+        return False
+    username = getattr(user, "get_username", lambda: getattr(user, "username", ""))() or ""
+    return username.startswith(GUEST_WORKSPACE_OWNER_PREFIX)
+
+
+def _get_or_create_guest_workspace_owner(request):
+    UserModel = get_user_model()
+    owner_id = request.session.get(GUEST_WORKSPACE_OWNER_SESSION_KEY)
+    if owner_id:
+      try:
+          owner = UserModel.objects.get(id=owner_id)
+          if _is_guest_workspace_owner(owner):
+              return owner
+      except UserModel.DoesNotExist:
+          request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
+
+    session_key = _ensure_session_key(request)
+    username = f"{GUEST_WORKSPACE_OWNER_PREFIX}{session_key}"
+    owner, created = UserModel.objects.get_or_create(
+        username=username,
+        defaults={
+            "is_active": False,
+        },
+    )
+    if created:
+        owner.set_unusable_password()
+        owner.save(update_fields=["password"])
+    request.session[GUEST_WORKSPACE_OWNER_SESSION_KEY] = owner.pk
+    request.session.modified = True
+    return owner
+
+
+def _resolve_workspace_owner(request, *, create_guest=False):
+    if request.user.is_authenticated:
+        return request.user
+    if not create_guest:
+        return None
+    return _get_or_create_guest_workspace_owner(request)
+
+
+def _get_workspace_limits(request):
+    if request.user.is_authenticated:
+        return {
+            "sections": getattr(settings, "FT_WORKSPACE_FREE_SECTION_LIMIT", None),
+            "projects": getattr(settings, "FT_WORKSPACE_FREE_PROJECT_LIMIT", None),
+            "canvases": getattr(settings, "FT_WORKSPACE_FREE_CANVAS_LIMIT", None),
+        }
+    return dict(GUEST_WORKSPACE_LIMITS)
+
+
+def _workspace_limit_response(kind: str, limit: int):
+    labels = {
+        "sections": "section",
+        "projects": "project",
+        "canvases": "canvas",
+    }
+    label = labels.get(kind, kind.rstrip("s"))
+    suffix = "" if limit == 1 else "s"
+    return JsonResponse(
+        {
+            "error": f"{label.capitalize()} limit reached ({limit} {label}{suffix})."
+        },
+        status=403,
+    )
+
+
+def _check_workspace_quota(request, owner, kind: str):
+    limits = _get_workspace_limits(request)
+    limit = limits.get(kind)
+    if limit is None:
+        return None
+    counts = {
+        "sections": WorkspaceSection.objects.filter(owner=owner).count(),
+        "projects": WorkspaceProject.objects.filter(owner=owner).count(),
+        "canvases": WorkspaceCanvas.objects.filter(owner=owner).count(),
+    }
+    if counts.get(kind, 0) >= limit:
+        return _workspace_limit_response(kind, limit)
+    return None
+
+
+def _ensure_workspace_bootstrap(owner):
+    section, _ = WorkspaceSection.objects.get_or_create(
+        owner=owner,
+        name=DEFAULT_GUEST_SECTION_NAME,
+        defaults={
+            "position": _next_position(WorkspaceSection.objects.filter(owner=owner)),
+        },
+    )
+    project, _ = WorkspaceProject.objects.get_or_create(
+        owner=owner,
+        section=section,
+        title=DEFAULT_GUEST_PROJECT_NAME,
+        defaults={
+            "position": _next_position(section.projects.all()),
+        },
+    )
+    canvas = (
+        WorkspaceCanvas.objects.filter(owner=owner, project=project)
+        .order_by("-updated_at")
+        .first()
+    )
+    if not canvas:
+        state, state_size = _compute_state_size({})
+        canvas = WorkspaceCanvas.objects.create(
+            owner=owner,
+            project=project,
+            title=DEFAULT_GUEST_CANVAS_TITLE,
+            state_json=state,
+            state_size=state_size,
+        )
+    return {
+        "section": section,
+        "project": project,
+        "canvas": canvas,
+    }
 
 # Helper: coerce y to fractional Transmittance [0..1]
 def _to_fractional_T(y: np.ndarray) -> np.ndarray:
@@ -71,6 +210,7 @@ def _to_fractional_T(y: np.ndarray) -> np.ndarray:
     # Otherwise assume already fractional T
     return y
 
+@ensure_csrf_cookie
 def index(request):
     """
     Main app shell at `/`.
@@ -92,13 +232,21 @@ def index(request):
         requested_pane = None
     initial_shell_pane = requested_pane or ("dashboard" if request.user.is_authenticated else "workspace")
     dashboard_entry_url = f"{reverse('ft:home')}?pane=dashboard"
+    active_canvas = None
+    requested_canvas_id = None
+    if not request.user.is_authenticated:
+        owner = _resolve_workspace_owner(request, create_guest=True)
+        bootstrap = _ensure_workspace_bootstrap(owner)
+        requested_canvas_id = str(bootstrap["canvas"].id)
+        if initial_shell_pane == "workspace":
+            active_canvas = bootstrap["canvas"]
     context = {
         "workspace_only": False,
         "canvas_focused_shell": request.user.is_authenticated is False and initial_shell_pane == "workspace",
         "workspace_pane_active": initial_shell_pane == "workspace",
         "initial_shell_pane": initial_shell_pane,
-        "active_canvas": None,
-        "requested_canvas_id": None,
+        "active_canvas": active_canvas,
+        "requested_canvas_id": requested_canvas_id,
         "dashboard_entry_url": dashboard_entry_url,
     }
     return render(request, "ft/base.html", context)
@@ -119,15 +267,21 @@ def workspace_page(request):
     """
     canvas_id = request.GET.get("canvas")
     canvas = None
-    if canvas_id and request.user.is_authenticated:
-        canvas = _get_canvas_for_user(request.user, canvas_id)
+    requested_canvas_id = canvas_id
+    owner = _resolve_workspace_owner(request, create_guest=not request.user.is_authenticated)
+    if canvas_id and owner:
+        canvas = _get_canvas_for_user(owner, canvas_id)
+    if not canvas and not request.user.is_authenticated:
+        bootstrap = _ensure_workspace_bootstrap(owner)
+        canvas = bootstrap["canvas"]
+        requested_canvas_id = str(canvas.id)
     context = {
         "workspace_only": False,
         "canvas_focused_shell": True,
         "workspace_pane_active": True,
         "initial_shell_pane": "workspace",
         "active_canvas": canvas,
-        "requested_canvas_id": canvas_id,
+        "requested_canvas_id": requested_canvas_id,
         "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
     }
     return render(request, "ft/base.html", context)
@@ -729,11 +883,13 @@ def _next_position(queryset):
     last = queryset.order_by("-position").first()
     return (last.position + 1) if last else 1
 
-def _require_json_auth(view_func):
+def _require_workspace_owner(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
-        if not request.user.is_authenticated:
+        owner = _resolve_workspace_owner(request, create_guest=True)
+        if not owner:
             return JsonResponse({"error": "Authentication required"}, status=401)
+        kwargs["workspace_owner"] = owner
         return view_func(request, *args, **kwargs)
     return _wrapped
 
@@ -782,9 +938,9 @@ def _get_canvas_for_user(user, canvas_id):
         return None
 
 @require_http_methods(["GET", "POST"])
-@_require_json_auth
-def api_dashboard_sections(request):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_sections(request, workspace_owner):
+    user = workspace_owner
     if request.method == "GET":
         include = request.GET.get("include") == "full"
         sections = WorkspaceSection.objects.filter(owner=user).order_by("-is_pinned", "position", "created_at")
@@ -801,6 +957,10 @@ def api_dashboard_sections(request):
     if not name:
         return JsonResponse({"error": "'name' is required"}, status=400)
 
+    limit_error = _check_workspace_quota(request, user, "sections")
+    if limit_error:
+        return limit_error
+
     position = payload.get("position")
     if not isinstance(position, int):
         position = _next_position(WorkspaceSection.objects.filter(owner=user))
@@ -815,9 +975,9 @@ def api_dashboard_sections(request):
     return JsonResponse(_serialize_section(section, include_projects=True), status=201)
 
 @require_http_methods(["PATCH", "DELETE"])
-@_require_json_auth
-def api_dashboard_section_detail(request, section_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_section_detail(request, section_id, workspace_owner):
+    user = workspace_owner
     section = _get_section_for_user(user, section_id)
     if not section:
         return JsonResponse({"error": "Section not found"}, status=404)
@@ -857,9 +1017,9 @@ def api_dashboard_section_detail(request, section_id):
     return JsonResponse(_serialize_section(section, include_projects=True))
 
 @require_http_methods(["GET", "POST"])
-@_require_json_auth
-def api_dashboard_section_projects(request, section_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_section_projects(request, section_id, workspace_owner):
+    user = workspace_owner
     section = _get_section_for_user(user, section_id)
     if not section:
         return JsonResponse({"error": "Section not found"}, status=404)
@@ -877,6 +1037,10 @@ def api_dashboard_section_projects(request, section_id):
     if not title:
         return JsonResponse({"error": "'title' is required"}, status=400)
 
+    limit_error = _check_workspace_quota(request, user, "projects")
+    if limit_error:
+        return limit_error
+
     position = payload.get("position")
     if not isinstance(position, int):
         position = _next_position(section.projects.all())
@@ -892,9 +1056,9 @@ def api_dashboard_section_projects(request, section_id):
     return JsonResponse(_serialize_project(project, include_canvases=True), status=201)
 
 @require_http_methods(["GET", "PATCH", "DELETE"])
-@_require_json_auth
-def api_dashboard_project_detail(request, project_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_project_detail(request, project_id, workspace_owner):
+    user = workspace_owner
     project = _get_project_for_user(user, project_id)
     if not project:
         return JsonResponse({"error": "Project not found"}, status=404)
@@ -941,9 +1105,9 @@ def api_dashboard_project_detail(request, project_id):
     return JsonResponse(_serialize_project(project, include_canvases=True))
 
 @require_http_methods(["GET", "POST"])
-@_require_json_auth
-def api_dashboard_project_canvases(request, project_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_project_canvases(request, project_id, workspace_owner):
+    user = workspace_owner
     project = _get_project_for_user(user, project_id)
     if not project:
         return JsonResponse({"error": "Project not found"}, status=404)
@@ -962,6 +1126,10 @@ def api_dashboard_project_canvases(request, project_id):
     if raw_state is None:
         raw_state = {}
     state, state_size = _compute_state_size(raw_state if isinstance(raw_state, dict) else {})
+
+    limit_error = _check_workspace_quota(request, user, "canvases")
+    if limit_error:
+        return limit_error
 
     if "tags" in payload:
         try:
@@ -985,9 +1153,9 @@ def api_dashboard_project_canvases(request, project_id):
     return JsonResponse(_serialize_canvas(canvas), status=201)
 
 @require_http_methods(["GET", "PATCH", "DELETE"])
-@_require_json_auth
-def api_dashboard_canvas_detail(request, canvas_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_canvas_detail(request, canvas_id, workspace_owner):
+    user = workspace_owner
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
@@ -1038,9 +1206,9 @@ def api_dashboard_canvas_detail(request, canvas_id):
     return JsonResponse(_serialize_canvas(canvas))
 
 @require_http_methods(["GET", "PUT"])
-@_require_json_auth
-def api_dashboard_canvas_state(request, canvas_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_canvas_state(request, canvas_id, workspace_owner):
+    user = workspace_owner
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
@@ -1078,9 +1246,9 @@ def api_dashboard_canvas_state(request, canvas_id):
 
 
 @require_http_methods(["POST"])
-@_require_json_auth
-def api_dashboard_canvas_thumbnail(request, canvas_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_canvas_thumbnail(request, canvas_id, workspace_owner):
+    user = workspace_owner
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
@@ -1109,9 +1277,9 @@ def api_dashboard_canvas_thumbnail(request, canvas_id):
     return JsonResponse({"thumbnail_url": thumbnail_url})
 
 @require_http_methods(["GET", "POST"])
-@_require_json_auth
-def api_dashboard_canvas_versions(request, canvas_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_canvas_versions(request, canvas_id, workspace_owner):
+    user = workspace_owner
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
@@ -1165,9 +1333,9 @@ def api_dashboard_canvas_versions(request, canvas_id):
     )
 
 @require_http_methods(["GET"])
-@_require_json_auth
-def api_dashboard_canvas_version_detail(request, canvas_id, version_id):
-    user = request.user
+@_require_workspace_owner
+def api_dashboard_canvas_version_detail(request, canvas_id, version_id, workspace_owner):
+    user = workspace_owner
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
@@ -1454,8 +1622,8 @@ def export_png(request):
 
 # --- Sessions API for interface B -------------------------------------------
 @require_http_methods(["POST"])
-@_require_json_auth
-def api_session_create(request):
+@_require_workspace_owner
+def api_session_create(request, workspace_owner):
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
     except json.JSONDecodeError:
@@ -1468,7 +1636,7 @@ def api_session_create(request):
     title = str(payload.get("title") or "").strip()
 
     try:
-        session = session_repo.create_session(request.user, title, state)
+        session = session_repo.create_session(workspace_owner, title, state)
     except SessionTooLargeError as exc:
         return JsonResponse({"error": str(exc)}, status=413)
     except SessionStorageError as exc:
@@ -1487,10 +1655,10 @@ def api_session_create(request):
     )
 
 @require_http_methods(["GET"])
-@_require_json_auth
-def api_session_list(request):
+@_require_workspace_owner
+def api_session_list(request, workspace_owner):
     items: List[dict] = []
-    for row in session_repo.list_sessions(request.user):
+    for row in session_repo.list_sessions(workspace_owner):
         updated = row.get("updated_at")
         items.append({
             "session_id": str(row["id"]),
@@ -1502,20 +1670,20 @@ def api_session_list(request):
     return JsonResponse({"items": items})
 
 @require_http_methods(["GET", "PUT", "DELETE"])
-@_require_json_auth
-def api_session_get(request, session_id):
+@_require_workspace_owner
+def api_session_get(request, session_id, workspace_owner):
     sid = str(session_id)
 
     if request.method == "DELETE":
         try:
-            session_repo.delete_session(request.user, sid)
+            session_repo.delete_session(workspace_owner, sid)
         except PlotSession.DoesNotExist:
             return JsonResponse({"error": "Session not found"}, status=404)
         return HttpResponse(status=204)
 
     if request.method == "GET":
         try:
-            session = session_repo.get_session(request.user, sid)
+            session = session_repo.get_session(workspace_owner, sid)
         except PlotSession.DoesNotExist:
             return JsonResponse({"error": "Session not found"}, status=404)
         return JsonResponse({
@@ -1539,7 +1707,7 @@ def api_session_get(request, session_id):
     title = str(payload.get("title") or "").strip()
 
     try:
-        session = session_repo.update_session(request.user, sid, title, state)
+        session = session_repo.update_session(workspace_owner, sid, title, state)
     except PlotSession.DoesNotExist:
         return JsonResponse({"error": "Session not found"}, status=404)
     except SessionTooLargeError as exc:

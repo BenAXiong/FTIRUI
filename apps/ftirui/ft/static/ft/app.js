@@ -323,6 +323,7 @@ stripWorkspaceParams();
 function initWorkspaceTitleEditor() {
   const titleEl = document.querySelector('[data-workspace-canvas-title]');
   if (!titleEl) return;
+  const canEditLocally = document.body?.dataset?.userAuthenticated !== 'true';
   const getCanvasId = () =>
     titleEl.dataset.canvasId ||
     document.body?.dataset?.activeCanvasId ||
@@ -336,16 +337,17 @@ function initWorkspaceTitleEditor() {
       document.body.dataset.activeCanvasTitle = next;
     }
   };
+  applyDisplayValue(titleEl.textContent);
   const baseId = getCanvasId();
-  if (!baseId) {
+  if (!baseId && !canEditLocally) {
     titleEl.setAttribute('aria-disabled', 'true');
     return;
   }
-  applyDisplayValue(titleEl.textContent);
+  titleEl.setAttribute('aria-disabled', 'false');
 
   const startEdit = () => {
     const canvasId = getCanvasId();
-    if (!canvasId || titleEl.dataset.editing === 'true') return;
+    if ((!canvasId && !canEditLocally) || titleEl.dataset.editing === 'true') return;
     titleEl.dataset.editing = 'true';
     const original = titleEl.dataset.displayValue || titleEl.textContent?.trim() || 'Untitled canvas';
     const input = document.createElement('input');
@@ -374,11 +376,31 @@ function initWorkspaceTitleEditor() {
         finish(original);
         return;
       }
+      if (!canvasId && canEditLocally) {
+        finish(nextTitle);
+        document.dispatchEvent(
+          new CustomEvent('ftir:workspace-title-changed', {
+            detail: {
+              title: nextTitle,
+              source: 'guest-local'
+            }
+          })
+        );
+        return;
+      }
       saving = true;
       input.disabled = true;
       try {
         await updateCanvas(canvasId, { title: nextTitle });
         finish(nextTitle);
+        document.dispatchEvent(
+          new CustomEvent('ftir:workspace-title-changed', {
+            detail: {
+              title: nextTitle,
+              source: 'cloud'
+            }
+          })
+        );
         window.showAppToast?.({
           title: 'Canvas renamed',
           message: nextTitle,
@@ -418,6 +440,7 @@ function initWorkspaceTitleEditor() {
 
   titleEl.addEventListener('click', (event) => {
     if (titleEl.dataset.editing === 'true') return;
+    if (titleEl.getAttribute('aria-disabled') === 'true') return;
     event.preventDefault();
     startEdit();
   });

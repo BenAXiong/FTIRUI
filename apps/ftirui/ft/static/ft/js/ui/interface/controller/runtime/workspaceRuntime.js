@@ -442,6 +442,8 @@ let clearWorkspaceSnapshot = () => {};
 let preferencesFacade = null;
 let remoteSyncTimer = null;
 let userStatusHandler = null;
+let workspaceTitleChangeHandler = null;
+let workspaceBackNavigationHandler = null;
 const REMOTE_SYNC_DELAY_MS = 5000;
 
 const getActiveCanvasIdFromContext = () => {
@@ -1671,9 +1673,25 @@ export function initWorkspaceRuntime(context = {}) {
   };
   syncGuestSessionClass();
   const activeCanvasId = getActiveCanvasIdFromContext();
-  let cloudSyncEnabled = userAuthenticated && !!activeCanvasId;
+  const applyWorkspaceTitleValue = (value) => {
+    const next = typeof value === 'string' && value.trim() ? value.trim() : 'Untitled canvas';
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.dataset.activeCanvasTitle = next;
+    }
+    const badge = document.querySelector('[data-workspace-canvas-title]');
+    if (badge && badge.dataset.editing !== 'true') {
+      badge.dataset.displayValue = next;
+      badge.textContent = next;
+    }
+  };
+  applyWorkspaceTitleValue(
+    document.body?.dataset?.activeCanvasTitle ||
+      document.querySelector('[data-workspace-canvas-title]')?.textContent ||
+      'Untitled canvas'
+  );
+  let cloudSyncEnabled = !!activeCanvasId;
   const updateCloudSyncState = () => {
-    const next = userAuthenticated && !!activeCanvasId;
+    const next = !!activeCanvasId;
     if (next === cloudSyncEnabled) return;
     cloudSyncEnabled = next;
     if (!cloudSyncEnabled && remoteSyncTimer) {
@@ -1685,12 +1703,21 @@ export function initWorkspaceRuntime(context = {}) {
     canvasWrapper,
     getActiveCanvasId: () => getActiveCanvasIdFromContext(),
     canCapture: () => cloudSyncEnabled,
-    saveThumbnail: saveCanvasThumbnail
+    saveThumbnail: saveCanvasThumbnail,
+    beforeNavigate: async () => {
+      persistence?.handleBeforeUnload?.();
+      if (cloudSyncEnabled && activeCanvasId) {
+        await flushRemoteSync();
+      }
+    }
   });
   canvasThumbnailController?.attachBackButton?.(backBtn);
   if (typeof document !== 'undefined') {
     if (userStatusHandler) {
       document.removeEventListener('ftir:user-status', userStatusHandler);
+    }
+    if (workspaceTitleChangeHandler) {
+      document.removeEventListener('ftir:workspace-title-changed', workspaceTitleChangeHandler);
     }
     userStatusHandler = (event) => {
       const next = !!event?.detail?.data?.authenticated;
@@ -1699,7 +1726,13 @@ export function initWorkspaceRuntime(context = {}) {
       syncGuestSessionClass();
       updateCloudSyncState();
     };
+    workspaceTitleChangeHandler = (event) => {
+      const nextTitle = event?.detail?.title;
+      applyWorkspaceTitleValue(nextTitle);
+      persist?.();
+    };
     document.addEventListener('ftir:user-status', userStatusHandler);
+    document.addEventListener('ftir:workspace-title-changed', workspaceTitleChangeHandler);
   }
   const listAvailablePlotPanels = () => {
     const records = panelsModel.getPanelsInIndexOrder();
@@ -4475,6 +4508,15 @@ const toggleDataTabFromHeader = (panelId) => {
       return result;
     };
     persistence.attachEvents();
+    if (backBtn) {
+      if (workspaceBackNavigationHandler) {
+        backBtn.removeEventListener('click', workspaceBackNavigationHandler, true);
+      }
+      workspaceBackNavigationHandler = () => {
+        persistence?.handleBeforeUnload?.();
+      };
+      backBtn.addEventListener('click', workspaceBackNavigationHandler, true);
+    }
     const rawPushHistory = pushHistory || (() => false);
     pushHistory = (info = null) => {
       const normalized = normalizeHistoryInfo(info);
@@ -5939,10 +5981,10 @@ const toggleDataTabFromHeader = (panelId) => {
   const disableSnapshotButton = (btn) => {
     if (!btn) return;
     btn.disabled = true;
-    if (activeCanvasId && !userAuthenticated) {
-      btn.title = 'Sign in to access project snapshots.';
-    } else {
+    if (!activeCanvasId) {
       btn.title = 'Snapshots available when editing a project canvas.';
+    } else {
+      btn.title = 'Snapshots unavailable right now.';
     }
   };
 
@@ -6158,10 +6200,13 @@ const toggleDataTabFromHeader = (panelId) => {
 
   const hadSnapshotOnBoot = storage.hasSnapshot?.() ?? false;
   const saved = storage.load?.();
+  if (saved?.workspaceTitle) {
+    applyWorkspaceTitleValue(saved.workspaceTitle);
+  }
   const shouldHydrateDashboardCanvas = cloudSyncEnabled && !!activeCanvasId;
   const notifyGuestCloudUnavailable = () => {
-    if (activeCanvasId && !userAuthenticated) {
-      showToast('Sign in to load and sync this canvas. Working offline for now.', 'info');
+    if (!activeCanvasId && !userAuthenticated) {
+      showToast('Working offline for now. Sign in later to keep this workspace across devices.', 'info');
     }
   };
 
@@ -7835,6 +7880,14 @@ const toggleDataTabFromHeader = (panelId) => {
       document.removeEventListener('ftir:user-status', userStatusHandler);
       userStatusHandler = null;
     }
+    if (workspaceTitleChangeHandler && typeof document !== 'undefined') {
+      document.removeEventListener('ftir:workspace-title-changed', workspaceTitleChangeHandler);
+      workspaceTitleChangeHandler = null;
+    }
+    if (workspaceBackNavigationHandler && backBtn) {
+      backBtn.removeEventListener('click', workspaceBackNavigationHandler, true);
+      workspaceBackNavigationHandler = null;
+    }
     browserFacade?.teardown?.();
     browserFacade = null;
     browserTabsController?.teardown?.();
@@ -7946,14 +7999,7 @@ const toggleDataTabFromHeader = (panelId) => {
       const payload = await fetchCanvasState(canvasId);
       const applyActiveCanvasTitle = (value) => {
         if (!value) return;
-        if (typeof document !== 'undefined' && document.body) {
-          document.body.dataset.activeCanvasTitle = value;
-        }
-        const badge = document.querySelector('[data-workspace-canvas-title]');
-        if (badge && badge.dataset.editing !== 'true') {
-          badge.dataset.displayValue = value;
-          badge.textContent = value;
-        }
+        applyWorkspaceTitleValue(value);
       };
       if (payload?.title) {
         applyActiveCanvasTitle(payload.title);

@@ -12,8 +12,8 @@
           <span class="workspace-canvas-title badge rounded-pill"
                 data-workspace-canvas-title
                 data-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
-                {% if active_canvas %}title="Rename canvas"{% endif %}
-                aria-disabled="{% if active_canvas %}false{% else %}true{% endif %}"
+                {% if active_canvas or not request.user.is_authenticated %}title="Rename canvas"{% endif %}
+                aria-disabled="{% if active_canvas or not request.user.is_authenticated %}false{% else %}true{% endif %}"
                 role="button"
                 tabindex="0">
             {% if active_canvas %}

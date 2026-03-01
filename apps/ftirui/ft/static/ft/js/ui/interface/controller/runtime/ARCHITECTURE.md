@@ -112,8 +112,46 @@ Current intended use:
 - guests should land on the same canvas UI logged-in users see when they open a canvas
 - canvases opened from dashboard entries should still go through `/workspace/?canvas=<id>`
 - both routes should use the same canvas-focused presentation
+- guests now also use real backend workspace entities via a hidden session-backed workspace owner
+  - they are still reported as guests in `api_me`
+  - but sections/projects/canvases are no longer local-only exceptions
 
 `workspace_only` is now compatibility-only and should not be used for new product routing.
+
+## Guest Workspace Ownership
+
+Guest workflow parity is now implemented at the data-model/API layer, not through local-only UI patches.
+
+Source of truth:
+- `apps/ftirui/ft/views.py`
+
+Rules:
+- authenticated users use `request.user` as the workspace owner
+- guests get a hidden session-backed workspace owner user record
+- Dashboard and Workspace APIs operate on that resolved workspace owner for both cases
+- `api_me` must still report guests as unauthenticated; guest ownership is an internal persistence detail
+
+Bootstrap behavior:
+- guest landing on `/` creates or reuses:
+  - 1 default section
+  - 1 default project
+  - 1 default canvas
+- the guest canvas is then passed into the canvas-focused shell as `active_canvas`
+
+Why this matters:
+- title rename, autosave, dashboard listing, canvas open, thumbnails, and back-to-dashboard state flush must all target the same real canvas identity
+- do not reintroduce a split where guest canvas state is "local only" while authenticated canvas state is model-backed
+
+Quota behavior:
+- guest quotas are enforced server-side in `views.py`
+  - sections: 1
+  - projects: 1
+  - canvases: 1
+- authenticated/free-user quotas are intentionally left behind a settings hook for now:
+  - `FT_WORKSPACE_FREE_SECTION_LIMIT`
+  - `FT_WORKSPACE_FREE_PROJECT_LIMIT`
+  - `FT_WORKSPACE_FREE_CANVAS_LIMIT`
+- there is no billing/subscription model in this repo yet, so do not pretend plan-aware quota enforcement exists unless that backend signal is added first
 
 ### 2. Legacy/dev workspace activation path (STALE, DO NOT REUSE)
 

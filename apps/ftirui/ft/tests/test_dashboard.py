@@ -69,10 +69,53 @@ class DashboardApiTests(TestCase):
             content_type="application/json",
         )
 
-    def test_sections_require_auth(self):
+    def _guest_owner(self):
+        owner_id = self.client.session.get("ft_guest_workspace_owner_id")
+        self.assertIsNotNone(owner_id)
+        return User.objects.get(id=owner_id)
+
+    def test_guest_home_bootstraps_workspace_entities(self):
         self.client.logout()
-        resp = self.client.get("/api/dashboard/sections/")
-        self.assertEqual(resp.status_code, 401)
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+
+        owner = self._guest_owner()
+        self.assertEqual(WorkspaceSection.objects.filter(owner=owner).count(), 1)
+        self.assertEqual(WorkspaceProject.objects.filter(owner=owner).count(), 1)
+        self.assertEqual(WorkspaceCanvas.objects.filter(owner=owner).count(), 1)
+
+    def test_guest_sections_api_returns_bootstrapped_workspace(self):
+        self.client.logout()
+        self.client.get("/")
+        resp = self.client.get("/api/dashboard/sections/?include=full")
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+        self.assertEqual(len(payload["items"]), 1)
+        section = payload["items"][0]
+        self.assertEqual(len(section.get("projects", [])), 1)
+        project = section["projects"][0]
+        self.assertEqual(project["canvas_count"], 1)
+
+    def test_guest_quota_blocks_extra_project_and_canvas(self):
+        self.client.logout()
+        self.client.get("/")
+        owner = self._guest_owner()
+        section = WorkspaceSection.objects.get(owner=owner)
+        project = WorkspaceProject.objects.get(owner=owner)
+
+        project_resp = self.client.post(
+            f"/api/dashboard/sections/{section.id}/projects/",
+            data=json.dumps({"title": "Another project"}),
+            content_type="application/json",
+        )
+        self.assertEqual(project_resp.status_code, 403)
+
+        canvas_resp = self.client.post(
+            f"/api/dashboard/projects/{project.id}/canvases/",
+            data=json.dumps({"title": "Another canvas", "state": {}}),
+            content_type="application/json",
+        )
+        self.assertEqual(canvas_resp.status_code, 403)
 
     def test_list_sections_with_projects(self):
         resp = self.client.get("/api/dashboard/sections/?include=full")
