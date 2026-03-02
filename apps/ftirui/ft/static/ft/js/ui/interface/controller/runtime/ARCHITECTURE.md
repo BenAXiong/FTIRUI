@@ -200,6 +200,13 @@ Quota behavior:
   - `FT_WORKSPACE_FREE_SECTION_LIMIT`
   - `FT_WORKSPACE_FREE_PROJECT_LIMIT`
   - `FT_WORKSPACE_FREE_CANVAS_LIMIT`
+- current free-plan defaults are:
+  - sections: 1
+  - projects: unlimited
+  - canvases: 3
+- folders are not a separate backend quota bucket right now
+  - they are created through the same `WorkspaceProject` path
+  - in practice, making free-plan projects unlimited also makes free-plan folders unlimited
 - current canvas overflow policy is:
   - creating a new canvas is allowed
   - the oldest excess canvas becomes `quota_locked`
@@ -251,10 +258,13 @@ Guest canvas onboarding:
 - trigger rules:
   - first successful file import on guest canvas -> 4-step "first graph" coach
   - first successful plot export on guest canvas OR 10 minutes after first successful import -> 3-step efficiency coach
+- free canvas onboarding now also lives in the same surface controller
+  - first canvas opening on a signed-in free plan, when the canvas already contains panels -> 4-step free-plan canvas coach
 - the controller persists seen-state in local browser storage
 - the controller also owns the manual replay launcher for guest canvas review
   - users can replay the first-graph coach and efficiency tips from the UI without clearing storage
   - reset/replay must update both persisted storage and in-memory controller state
+- launcher now also exposes the free-plan canvas coach when the active user is authenticated on the free plan
 - important: import/export hooks must stay explicit
   - import success is emitted from `io/facade.js` after payload ingest and arrange complete
   - export success is emitted from `panels/headerActions.js` after the file download is triggered
@@ -264,18 +274,36 @@ Guest dashboard onboarding:
 - source of truth is `onboarding/dashboardCoachController.js`
 - current trigger rule:
   - first successful dashboard data load while viewing the dashboard as a guest -> guest dashboard intro coach
+- free dashboard onboarding now also lives in the same surface controller
+  - first successful dashboard data load while viewing the dashboard as an authenticated free-plan user -> free dashboard coach
+  - the free dashboard coach now branches by content state:
+    - empty dashboard -> empty-state onboarding
+    - dashboard with canvases -> standard free dashboard onboarding
 - optional replay launcher is enabled from `ui/dashboard/initDashboard.js`
   - `ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER`
   - disable there if the launcher should be removed without changing controller internals
 - keep dashboard onboarding separate from canvas onboarding
   - dashboard tips are about organization, quotas, reopening work, and account upgrade
   - canvas tips are about plotting, styling, export, and sharing
+- do not promise features that are not actually shipped yet in onboarding copy
+  - example: project comments/invite workflows are not yet live, so onboarding should point to real share flows instead of fictional comment tools
 
 Onboarding file structure rule:
 - keep one controller per surface for now:
   - `onboarding/canvasCoachController.js`
   - `onboarding/dashboardCoachController.js`
+- keep the flow definitions grouped by audience and state inside the surface controller until the files become hard to scan:
+  - guest canvas
+  - free canvas
+  - guest dashboard
+  - free dashboard
+  - free dashboard empty state
 - when case count grows further, extract shared UI/arrow/storage helpers into a small internal onboarding helper module
+- if onboarding copy/targets grow further, extract only the flow definitions into small files first:
+  - `onboarding/flows/canvasGuest.js`
+  - `onboarding/flows/canvasFree.js`
+  - `onboarding/flows/dashboardGuest.js`
+  - `onboarding/flows/dashboardFree.js`
 - do not collapse all onboarding flows into one giant controller keyed by page name; that becomes brittle fast
 
 Current placeholder billing flow:

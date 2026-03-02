@@ -37,7 +37,7 @@ The app currently supports these identity/product states:
 - standard account signup/login
 - uses normal backend workspace entities
 - default free quotas:
-  - 1 project
+  - unlimited projects and folders
   - 3 canvases
 
 3. Authenticated Paid Test Plans
@@ -213,7 +213,7 @@ Guest:
 - 1 canvas
 
 Authenticated free:
-- 1 project
+- unlimited projects and folders
 - 3 canvases
 
 Authenticated paid test plans:
@@ -239,7 +239,7 @@ Current rules:
 - meaningful guest work migrates into the signed-in account by default
 - guest canvases are allowed to migrate even if they overflow the authenticated free canvas quota
   - the normal post-migration free quota policy then locks the excess canvases read-only
-- guest migration is staged only when the adoption would exceed structural limits such as project/section capacity
+- guest migration is staged only when the adoption would exceed structural limits such as section capacity
 
 This matters because auth and billing work must not reintroduce a split where:
 - guests use local-only workspace state

@@ -1677,7 +1677,9 @@ export function initWorkspaceRuntime(context = {}) {
   const topToolbar = roots.topToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar');
   const verticalToolbar = roots.verticalToolbar ?? canvasWrapper?.querySelector('.workspace-toolbar-vertical');
   const resolveAuthState = () => readDatasetBool(readBodyDatasetValue('userAuthenticated'));
+  const resolveWorkspacePlan = () => String(readBodyDatasetValue('workspacePlan') || 'free').toLowerCase();
   let userAuthenticated = resolveAuthState();
+  let workspacePlan = resolveWorkspacePlan();
   const syncGuestSessionClass = () => {
     if (typeof document === 'undefined' || !document.body) return;
     document.body.classList.toggle('workspace-guest-session', !userAuthenticated);
@@ -1740,8 +1742,10 @@ export function initWorkspaceRuntime(context = {}) {
     }
     userStatusHandler = (event) => {
       const next = !!event?.detail?.data?.authenticated;
-      if (next === userAuthenticated) return;
+      const nextPlan = String(event?.detail?.data?.plan || readBodyDatasetValue('workspacePlan') || 'free').toLowerCase();
+      if (next === userAuthenticated && nextPlan === workspacePlan) return;
       userAuthenticated = next;
+      workspacePlan = nextPlan;
       syncGuestSessionClass();
       storage.setNamespace?.(
         buildWorkspaceStorageNamespace({
@@ -3283,7 +3287,8 @@ const recordOperation = (entry) => {
     getActivePanelId: () => activePanelId,
     getPanelDom,
     hasPanels: () => panelDomRegistry.size > 0,
-    isGuest: () => !userAuthenticated
+    isGuest: () => !userAuthenticated,
+    isFreeUser: () => userAuthenticated && workspacePlan === 'free'
   });
 
   const Plot = createPlotFacade({

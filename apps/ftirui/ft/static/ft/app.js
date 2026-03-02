@@ -255,6 +255,8 @@ function applyUserStatus(data) {
   }
   if (typeof document !== 'undefined' && document.body) {
     document.body.dataset.userAuthenticated = data && data.authenticated ? 'true' : 'false';
+    document.body.dataset.workspacePlan = String(data?.plan || 'free').toLowerCase();
+    document.body.dataset.workspaceBillingStatus = String(data?.billing_status || 'inactive').toLowerCase();
   }
 }
 

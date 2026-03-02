@@ -132,6 +132,23 @@ class DashboardApiTests(TestCase):
         locked = [canvas for canvas in canvases if canvas.get("quota_locked")]
         self.assertEqual(len(locked), 1)
 
+    def test_free_user_can_create_multiple_projects(self):
+        resp_1 = self.client.post(
+            f"/api/dashboard/sections/{self.section.id}/projects/",
+            data=json.dumps({"title": "Project Two"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp_1.status_code, 201)
+
+        resp_2 = self.client.post(
+            f"/api/dashboard/sections/{self.section.id}/projects/",
+            data=json.dumps({"title": "Project Three"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp_2.status_code, 201)
+
+        self.assertEqual(WorkspaceProject.objects.filter(owner=self.user).count(), 3)
+
     def test_guest_workspace_is_adopted_after_login(self):
         self.client.logout()
         self.client.get("/")

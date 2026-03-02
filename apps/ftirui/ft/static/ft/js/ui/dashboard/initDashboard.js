@@ -171,6 +171,16 @@ export function initDashboard() {
   };
   const dashboardCoachController = createDashboardCoachController({
     isGuest: () => document.body?.dataset?.userAuthenticated !== 'true',
+    isFreeUser: () =>
+      document.body?.dataset?.userAuthenticated === 'true'
+      && String(document.body?.dataset?.workspacePlan || 'free').toLowerCase() === 'free',
+    hasAnyCanvas: () => {
+      const sections = Array.isArray(state.sections) ? state.sections : [];
+      return sections.some((section) =>
+        Array.isArray(section.projects)
+        && section.projects.some((project) => Array.isArray(project.canvases) && project.canvases.length > 0)
+      );
+    },
     isVisible: () =>
       !!dashboardPane?.classList.contains('show') ||
       !!dashboardPane?.classList.contains('active') ||

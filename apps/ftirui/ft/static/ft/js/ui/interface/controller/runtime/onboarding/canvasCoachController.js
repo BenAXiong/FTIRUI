@@ -29,7 +29,8 @@ const writeStorage = (state) => {
 const baseState = () => ({
   guestCanvasIntroSeen: false,
   guestCanvasTipsSeen: false,
-  guestCanvasFirstImportAt: null
+  guestCanvasFirstImportAt: null,
+  freeCanvasIntroSeen: false
 });
 
 const getFlowDefinitions = ({ resolvePanelRoot } = {}) => ({
@@ -112,6 +113,48 @@ const getFlowDefinitions = ({ resolvePanelRoot } = {}) => ({
         resolveTarget: () => document.querySelector('.workspace-back-btn')
       }
     ]
+  },
+  'free-canvas-intro': {
+    storageKey: 'freeCanvasIntroSeen',
+    steps: [
+      {
+        key: 'theme',
+        tab: 'Theme',
+        title: 'Change the workspace theme here',
+        body:
+          'Use this menu to change the canvas background, panel look, plot background, and trace palette.',
+        arrowPlacement: 'above',
+        resolveTarget: () => document.getElementById('c_canvas_toggle_theme')
+      },
+      {
+        key: 'tech',
+        tab: 'Analysis',
+        title: 'Use the graph toolbar to work faster',
+        body:
+          'This toolbar gives you the main graph controls. Start here when you want to change graph type, run analysis, or open the right-side control pane.',
+        arrowPlacement: 'above',
+        resolveTarget: () =>
+          document.getElementById('tb2_tech_selector')
+          || document.getElementById('tb2_graph_type')
+          || document.querySelector('[data-tech-side-panel]')
+      },
+      {
+        key: 'share',
+        tab: 'Share',
+        title: 'Share a canvas link with guests',
+        body:
+          'Use Share to copy the canvas link and send it to collaborators, even if they do not have an account yet.',
+        resolveTarget: () => document.getElementById('c_canvas_share_btn')
+      },
+      {
+        key: 'cloud',
+        tab: 'Save',
+        title: 'Your signed-in work is saved automatically',
+        body:
+          'While you work, the canvas is autosaved and stays attached to your account in the dashboard.',
+        resolveTarget: () => document.getElementById('autosave_indicator')
+      }
+    ]
   }
 });
 
@@ -119,7 +162,8 @@ export function createCanvasCoachController({
   getActivePanelId = () => null,
   getPanelDom = () => null,
   hasPanels = () => false,
-  isGuest = () => false
+  isGuest = () => false,
+  isFreeUser = () => false
 } = {}) {
   if (typeof document === 'undefined' || !document.body) {
     return {
@@ -197,6 +241,7 @@ export function createCanvasCoachController({
       <div class="workspace-coach-launcher-actions">
         <button type="button" class="btn btn-sm btn-outline-light" data-workspace-coach-replay="guest-first-graph">First graph tutorial</button>
         <button type="button" class="btn btn-sm btn-outline-light" data-workspace-coach-replay="guest-efficiency">Efficiency tips</button>
+        <button type="button" class="btn btn-sm btn-outline-light" data-workspace-coach-replay="free-canvas-intro">Free plan canvas tips</button>
       </div>
       <div class="workspace-coach-launcher-footer">
         <button type="button" class="btn btn-sm btn-link" data-workspace-coach-reset>Reset progress</button>
@@ -232,11 +277,12 @@ export function createCanvasCoachController({
   const persistState = () => writeStorage({
     guestCanvasIntroSeen: !!state.guestCanvasIntroSeen,
     guestCanvasTipsSeen: !!state.guestCanvasTipsSeen,
-    guestCanvasFirstImportAt: state.guestCanvasFirstImportAt || null
+    guestCanvasFirstImportAt: state.guestCanvasFirstImportAt || null,
+    freeCanvasIntroSeen: !!state.freeCanvasIntroSeen
   });
 
   const syncLauncherVisibility = () => {
-    const visible = !!isGuest();
+    const visible = !!isGuest() || !!isFreeUser();
     launcher.hidden = !visible;
     if (!visible) {
       launcherOpen = false;
@@ -245,7 +291,7 @@ export function createCanvasCoachController({
   };
 
   const setLauncherOpen = (next) => {
-    launcherOpen = !!next && !!isGuest();
+    launcherOpen = !!next && (!!isGuest() || !!isFreeUser());
     launcherCard.hidden = !launcherOpen;
     launcher.classList.toggle('is-open', launcherOpen);
   };
@@ -254,11 +300,16 @@ export function createCanvasCoachController({
     state.guestCanvasIntroSeen = false;
     state.guestCanvasTipsSeen = false;
     state.guestCanvasFirstImportAt = null;
+    state.freeCanvasIntroSeen = false;
     persistState();
     clearTipsTimer();
     if (hasPanels()) {
       queue.length = 0;
-      queueFlow('guest-first-graph', { panelId: getActivePanelId() });
+      if (isGuest()) {
+        queueFlow('guest-first-graph', { panelId: getActivePanelId() });
+      } else if (isFreeUser()) {
+        queueFlow('free-canvas-intro', { panelId: getActivePanelId() });
+      }
     }
   };
 
@@ -367,7 +418,7 @@ export function createCanvasCoachController({
   };
 
   const forceOpenFlow = (flowId, context = {}) => {
-    if (!isGuest()) return;
+    if (!isGuest() && !isFreeUser()) return;
     const flow = flowDefinitions[flowId];
     if (!flow) return;
     queue.length = 0;
@@ -379,9 +430,10 @@ export function createCanvasCoachController({
   };
 
   const queueFlow = (flowId, context = {}) => {
-    if (!isGuest()) return;
     const flow = flowDefinitions[flowId];
     if (!flow) return;
+    if (flowId.startsWith('guest-') && !isGuest()) return;
+    if (flowId.startsWith('free-') && !isFreeUser()) return;
     if (state[flow.storageKey]) return;
     if (activeFlowId === flowId) return;
     if (queue.some((entry) => entry.flowId === flowId)) return;
@@ -503,6 +555,13 @@ export function createCanvasCoachController({
     }
   });
 
+  const syncLauncherActions = () => {
+    launcher?.querySelectorAll('[data-workspace-coach-replay]').forEach((btn) => {
+      const flowId = btn.dataset.workspaceCoachReplay || '';
+      btn.hidden = (flowId.startsWith('guest-') && !isGuest()) || (flowId.startsWith('free-') && !isFreeUser());
+    });
+  };
+
   const syncVisibleArrow = () => {
     if (root.hidden || !activeArrowTarget) return;
     updateArrow(activeArrowTarget, activeArrowPlacement);
@@ -510,18 +569,22 @@ export function createCanvasCoachController({
   window.addEventListener('resize', syncVisibleArrow);
   window.addEventListener('scroll', syncVisibleArrow, true);
   syncLauncherVisibility();
+  syncLauncherActions();
 
   if (state.guestCanvasFirstImportAt && !state.guestCanvasIntroSeen && hasPanels()) {
     queueFlow('guest-first-graph', { panelId: getActivePanelId() });
+  }
+  if (!state.freeCanvasIntroSeen && hasPanels() && isFreeUser()) {
+    queueFlow('free-canvas-intro', { panelId: getActivePanelId() });
   }
   scheduleTips();
 
   return {
     handleImportSuccess({ panelIds = [] } = {}) {
-      if (!isGuest()) return;
+      if (!isGuest() && !isFreeUser()) return;
       markFirstImport();
       const panelId = panelIds[panelIds.length - 1] || getActivePanelId();
-      if (!state.guestCanvasIntroSeen) {
+      if (isGuest() && !state.guestCanvasIntroSeen) {
         queueFlow('guest-first-graph', { panelId });
       }
       scheduleTips();

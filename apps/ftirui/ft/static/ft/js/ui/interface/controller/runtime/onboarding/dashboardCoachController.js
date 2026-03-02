@@ -22,52 +22,143 @@ const writeStorage = (state) => {
 };
 
 const baseState = () => ({
-  guestDashboardIntroSeen: false
+  guestDashboardIntroSeen: false,
+  freeDashboardIntroSeen: false,
+  freeDashboardEmptySeen: false
 });
 
-const getSteps = () => ([
-  {
-    key: 'projects',
-    tab: 'Projects',
-    title: 'Projects and folders will live here',
-    body:
-      'Once you create a free account, this area is where your canvases can be organized into projects and folders.',
-    arrowPlacement: 'right',
-    resolveTarget: () => document.querySelector('.sidebar-section-header')
+const getFlowDefinitions = () => ({
+  'guest-dashboard-intro': {
+    storageKey: 'guestDashboardIntroSeen',
+    steps: [
+      {
+        key: 'projects',
+        tab: 'Projects',
+        title: 'Projects and folders will live here',
+        body:
+          'Once you create a free account, this area is where your canvases can be organized into projects and folders.',
+        arrowPlacement: 'right',
+        resolveTarget: () => document.querySelector('.sidebar-section-header')
+      },
+      {
+        key: 'canvases',
+        tab: 'Canvases',
+        title: 'You can keep creating canvases before signing in',
+        body:
+          'As a guest, the newest canvas stays editable. Older ones remain available in read-only mode, so your work does not disappear.',
+        arrowPlacement: 'above',
+        resolveTarget: () => document.getElementById('dashboard_action_new_canvas')
+      },
+      {
+        key: 'latest',
+        tab: 'Latest',
+        title: 'Use Latest to jump back into recent work',
+        body:
+          'Latest is the quickest way back to your recent canvases. The project tree on the left becomes more useful once you start organizing work.',
+        arrowPlacement: 'right',
+        resolveTarget: () => document.querySelector('[data-view="latest"]')
+      },
+      {
+        key: 'account',
+        tab: 'Account',
+        title: 'Create a free account whenever you want more room',
+        body:
+          'A free account keeps your canvases in the dashboard and gives you more editable canvas space without changing the way you work.',
+        arrowPlacement: 'below',
+        resolveTarget: () => document.getElementById('user_sign_in')
+      }
+    ]
   },
-  {
-    key: 'canvases',
-    tab: 'Canvases',
-    title: 'You can keep creating canvases before signing in',
-    body:
-      'As a guest, the newest canvas stays editable. Older ones remain available in read-only mode, so your work does not disappear.',
-    arrowPlacement: 'above',
-    resolveTarget: () => document.getElementById('dashboard_action_new_canvas')
+  'free-dashboard-intro': {
+    storageKey: 'freeDashboardIntroSeen',
+    steps: [
+      {
+        key: 'canvases',
+        tab: 'Canvases',
+        title: 'Free plans keep up to three editable canvases',
+        body:
+          'You can create up to three editable canvases on the free plan. Older overflow canvases stay visible here in read-only mode instead of disappearing.',
+        arrowPlacement: 'above',
+        resolveTarget: () => document.getElementById('dashboard_action_new_canvas')
+      },
+      {
+        key: 'projects',
+        tab: 'Organize',
+        title: 'Use the tree on the left to keep work organized',
+        body:
+          'Use the project tree to group canvases into as many projects and folders as you need on the free plan.',
+        arrowPlacement: 'right',
+        resolveTarget: () => document.querySelector('.sidebar-section-header')
+      },
+      {
+        key: 'share',
+        tab: 'Share',
+        title: 'Share projects from the dashboard',
+        body:
+          'Open the project options menu here when you want to share the current project with collaborators.',
+        arrowPlacement: 'above',
+        resolveTarget: () => document.getElementById('dashboard_main_options_btn')
+      },
+      {
+        key: 'upgrade',
+        tab: 'Upgrade',
+        title: 'Upgrade from the account menu when you need more room',
+        body:
+          'Pro removes the canvas cap and gives you an easier path as your workspace grows.',
+        arrowPlacement: 'below',
+        resolveTarget: () => document.getElementById('user_menu_toggle')
+      }
+    ]
   },
-  {
-    key: 'latest',
-    tab: 'Latest',
-    title: 'Use Latest to jump back into recent work',
-    body:
-      'Latest is the quickest way back to your recent canvases. The project tree on the left becomes more useful once you start organizing work.',
-    arrowPlacement: 'right',
-    resolveTarget: () => document.querySelector('[data-view="latest"]')
-  },
-  {
-    key: 'account',
-    tab: 'Account',
-    title: 'Create a free account whenever you want more room',
-    body:
-      'A free account keeps your canvases in the dashboard and gives you more editable canvas space without changing the way you work.',
-    arrowPlacement: 'below',
-    resolveTarget: () => document.getElementById('user_sign_in')
+  'free-dashboard-empty': {
+    storageKey: 'freeDashboardEmptySeen',
+    steps: [
+      {
+        key: 'canvas',
+        tab: 'Canvas',
+        title: 'Start by creating a canvas',
+        body:
+          'Use this button to create your next working canvas. On the free plan, up to three canvases stay editable at the same time.',
+        arrowPlacement: 'above',
+        resolveTarget: () => document.getElementById('dashboard_action_new_canvas')
+      },
+      {
+        key: 'projects',
+        tab: 'Projects',
+        title: 'Create projects and folders as your workspace grows',
+        body:
+          'Use this button to start a project area. From there, you can create as many projects and folders as you need to organize your canvases.',
+        arrowPlacement: 'above',
+        resolveTarget: () => document.getElementById('dashboard_action_new_section')
+      },
+      {
+        key: 'latest',
+        tab: 'Latest',
+        title: 'Latest will bring you back to recent work',
+        body:
+          'Once you have a few canvases, Latest becomes the quickest way to jump back into the ones you touched most recently.',
+        arrowPlacement: 'right',
+        resolveTarget: () => document.querySelector('[data-view="latest"]')
+      },
+      {
+        key: 'upgrade',
+        tab: 'Upgrade',
+        title: 'Upgrade later if you want unlimited canvases',
+        body:
+          'Use the account menu to upgrade to Pro later. That removes the canvas cap without changing the rest of your workflow.',
+        arrowPlacement: 'below',
+        resolveTarget: () => document.getElementById('user_menu_toggle')
+      }
+    ]
   }
-]);
+});
 
 export function createDashboardCoachController({
   isGuest = () => false,
   isVisible = () => true,
-  enableLauncher = true
+  enableLauncher = true,
+  isFreeUser = () => false,
+  hasAnyCanvas = () => false
 } = {}) {
   if (typeof document === 'undefined' || !document.body) {
     return {
@@ -77,13 +168,15 @@ export function createDashboardCoachController({
   }
 
   const state = { ...baseState(), ...readStorage() };
-  const steps = getSteps();
+  const flowDefinitions = getFlowDefinitions();
+  let steps = [];
   let activeStepIndex = 0;
   let isOpen = false;
   let highlightedTarget = null;
   let activeArrowTarget = null;
   let activeArrowPlacement = 'below';
   let launcherOpen = false;
+  let activeFlowId = null;
 
   const root = document.createElement('aside');
   root.className = 'workspace-coach';
@@ -130,7 +223,9 @@ export function createDashboardCoachController({
           </button>
         </div>
         <div class="workspace-coach-launcher-actions">
-          <button type="button" class="btn btn-sm btn-outline-light" data-workspace-coach-replay>Replay dashboard tour</button>
+          <button type="button" class="btn btn-sm btn-outline-light" data-workspace-coach-replay="guest-dashboard-intro">Replay guest dashboard tour</button>
+          <button type="button" class="btn btn-sm btn-outline-light" data-workspace-coach-replay="free-dashboard-empty">Replay free dashboard empty-state tips</button>
+          <button type="button" class="btn btn-sm btn-outline-light" data-workspace-coach-replay="free-dashboard-intro">Replay free dashboard tour</button>
         </div>
         <div class="workspace-coach-launcher-footer">
           <button type="button" class="btn btn-sm btn-link" data-workspace-coach-reset>Reset tour</button>
@@ -165,12 +260,14 @@ export function createDashboardCoachController({
   const launcherCloseBtn = launcher?.querySelector('[data-workspace-coach-launcher-close]') || null;
 
   const persistState = () => writeStorage({
-    guestDashboardIntroSeen: !!state.guestDashboardIntroSeen
+    guestDashboardIntroSeen: !!state.guestDashboardIntroSeen,
+    freeDashboardIntroSeen: !!state.freeDashboardIntroSeen,
+    freeDashboardEmptySeen: !!state.freeDashboardEmptySeen
   });
 
   const syncLauncherVisibility = () => {
     if (!launcher) return;
-    const visible = !!isGuest() && !!isVisible();
+    const visible = (!!isGuest() || !!isFreeUser()) && !!isVisible();
     launcher.hidden = !visible;
     if (!visible) {
       launcherOpen = false;
@@ -180,19 +277,23 @@ export function createDashboardCoachController({
 
   const setLauncherOpen = (next) => {
     if (!launcher || !launcherCard) return;
-    launcherOpen = !!next && !!isGuest() && !!isVisible();
+    launcherOpen = !!next && (!!isGuest() || !!isFreeUser()) && !!isVisible();
     launcherCard.hidden = !launcherOpen;
     launcher.classList.toggle('is-open', launcherOpen);
   };
 
   const resetProgress = () => {
     state.guestDashboardIntroSeen = false;
+    state.freeDashboardIntroSeen = false;
+    state.freeDashboardEmptySeen = false;
     persistState();
-    if (isVisible()) {
-      isOpen = true;
-      activeStepIndex = 0;
-      render();
-    }
+    maybeOpen();
+  };
+
+  const resolveFlowId = () => {
+    if (isFreeUser()) return hasAnyCanvas() ? 'free-dashboard-intro' : 'free-dashboard-empty';
+    if (isGuest()) return 'guest-dashboard-intro';
+    return null;
   };
 
   const clearHighlight = () => {
@@ -259,9 +360,13 @@ export function createDashboardCoachController({
   };
 
   const close = () => {
-    state.guestDashboardIntroSeen = true;
+    const flow = flowDefinitions[activeFlowId];
+    if (flow?.storageKey) {
+      state[flow.storageKey] = true;
+    }
     persistState();
     isOpen = false;
+    activeFlowId = null;
     clearHighlight();
     clearArrow();
     root.classList.remove('is-visible');
@@ -271,6 +376,9 @@ export function createDashboardCoachController({
   };
 
   const render = () => {
+    const flow = flowDefinitions[activeFlowId];
+    if (!flow) return;
+    steps = flow.steps;
     const step = steps[activeStepIndex];
     if (!step) return;
     root.hidden = false;
@@ -296,8 +404,12 @@ export function createDashboardCoachController({
   };
 
   const maybeOpen = () => {
-    if (!isGuest() || state.guestDashboardIntroSeen || isOpen || !isVisible()) return;
+    const flowId = resolveFlowId();
+    if (!flowId || isOpen || !isVisible()) return;
+    const flow = flowDefinitions[flowId];
+    if (!flow || state[flow.storageKey]) return;
     isOpen = true;
+    activeFlowId = flowId;
     activeStepIndex = 0;
     render();
   };
@@ -333,6 +445,7 @@ export function createDashboardCoachController({
   launcher?.addEventListener('click', (event) => {
     const replayBtn = event.target.closest('[data-workspace-coach-replay]');
     if (replayBtn) {
+      activeFlowId = replayBtn.dataset.workspaceCoachReplay || resolveFlowId();
       isOpen = true;
       activeStepIndex = 0;
       setLauncherOpen(false);
@@ -346,6 +459,13 @@ export function createDashboardCoachController({
     }
   });
 
+  const syncLauncherActions = () => {
+    launcher?.querySelectorAll('[data-workspace-coach-replay]').forEach((btn) => {
+      const flowId = btn.dataset.workspaceCoachReplay || '';
+      btn.hidden = (flowId.startsWith('guest-') && !isGuest()) || (flowId.startsWith('free-') && !isFreeUser());
+    });
+  };
+
   const syncArrow = () => {
     if (root.hidden || !activeArrowTarget) return;
     updateArrow(activeArrowTarget, activeArrowPlacement);
@@ -353,10 +473,12 @@ export function createDashboardCoachController({
   window.addEventListener('resize', syncArrow);
   window.addEventListener('scroll', syncArrow, true);
   syncLauncherVisibility();
+  syncLauncherActions();
 
   return {
     handleDataReady() {
       syncLauncherVisibility();
+      syncLauncherActions();
       maybeOpen();
     },
     teardown() {

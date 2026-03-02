@@ -15,7 +15,7 @@ GUEST_WORKSPACE_LIMITS = {
 
 AUTH_WORKSPACE_LIMITS = {
     "sections": 1,
-    "projects": 1,
+    "projects": None,
     "canvases": 3,
 }
 

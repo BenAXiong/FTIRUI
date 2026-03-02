@@ -20,10 +20,11 @@ MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
         - [x] Locked canvas styling: in tree keep only icon and highlight, ?
         - [-] Non-guests: land on dash + tutos & tips if no content yet (drafts)
             - [x] Case 1: Guest Canvas 4-step tuto + 3 tips
-            - [-] Case 2: Guest Dash
-            - [ ] Case 3: Free Canvas
-            - [ ] Case 4: Free Dash
-            - [ ] Adapt all cards positions
+            - [x] Case 2: Guest Dash
+            - [x] Case 3: Free Canvas
+            - [x] Case 4: Free Dash
+            - [-] Adapt all cards positions
+            - [ ] Dim rest of interface
             - [ ] Options to turn everything off till polished
         - [ ] Display non-paid quotas (dash or popup?)
         - [ ] Design account perks UI
