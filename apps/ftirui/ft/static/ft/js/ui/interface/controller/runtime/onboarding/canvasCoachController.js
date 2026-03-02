@@ -44,12 +44,24 @@ const getFlowDefinitions = ({ resolvePanelRoot } = {}) => ({
         body:
           'Use these header buttons to adjust the look of the graph: titles, legend, colors, traces, and layout.',
         arrowPlacement: 'above',
+        cutoutPadding: 5,
         resolveTarget: (context) => {
           const panelRoot = resolvePanelRoot(context);
-          return panelRoot?.querySelector?.('[data-panel-action="style-painter"]')
+          const actionButtons = Array.from(
+            panelRoot?.querySelectorAll?.('.workspace-panel-actions-collection .workspace-panel-action-btn') || []
+          ).filter((node) => !node.closest('.workspace-panel-actions-overflow-panel'));
+          return actionButtons[2]
+            || panelRoot?.querySelector?.('[data-panel-action="style-painter"]')
             || panelRoot?.querySelector?.('[data-panel-action="templates"]')
             || panelRoot?.querySelector?.('.workspace-panel-actions-collection')
             || panelRoot?.querySelector?.('.workspace-panel-actions');
+        },
+        resolveHighlightTargets: (context) => {
+          const panelRoot = resolvePanelRoot(context);
+          const actionButtons = Array.from(
+            panelRoot?.querySelectorAll?.('.workspace-panel-actions-collection .workspace-panel-action-btn') || []
+          ).filter((node) => !node.closest('.workspace-panel-actions-overflow-panel'));
+          return actionButtons.slice(0, 5);
         }
       },
       {
@@ -190,11 +202,13 @@ export function createCanvasCoachController({
   let activeFlowId = null;
   let activeStepIndex = 0;
   let activeContext = {};
-  let highlightedTarget = null;
+  let highlightedTargets = [];
   let tipsTimer = null;
   let activeArrowTarget = null;
   let activeArrowPlacement = 'below';
   let activePanelPlacement = 'below';
+  let activeCutoutTargets = [];
+  let activeCutoutPadding = 10;
   let launcherOpen = false;
 
   const root = document.createElement('aside');
@@ -266,6 +280,12 @@ export function createCanvasCoachController({
   const dimLayer = document.createElement('div');
   dimLayer.className = 'workspace-coach-dim-layer';
   dimLayer.hidden = true;
+  dimLayer.innerHTML = `
+    <div class="workspace-coach-dim-segment workspace-coach-dim-top"></div>
+    <div class="workspace-coach-dim-segment workspace-coach-dim-left"></div>
+    <div class="workspace-coach-dim-segment workspace-coach-dim-right"></div>
+    <div class="workspace-coach-dim-segment workspace-coach-dim-bottom"></div>
+  `;
   document.body.appendChild(dimLayer);
 
   const tabsEl = root.querySelector('[data-workspace-coach-tabs]');
@@ -277,6 +297,10 @@ export function createCanvasCoachController({
   const nextBtn = root.querySelector('[data-workspace-coach-next]');
   const closeBtn = root.querySelector('[data-workspace-coach-close]');
   const arrowEl = arrowLayer.querySelector('[data-workspace-coach-arrow]');
+  const dimTopEl = dimLayer.querySelector('.workspace-coach-dim-top');
+  const dimLeftEl = dimLayer.querySelector('.workspace-coach-dim-left');
+  const dimRightEl = dimLayer.querySelector('.workspace-coach-dim-right');
+  const dimBottomEl = dimLayer.querySelector('.workspace-coach-dim-bottom');
   const launcherToggleBtn = launcher.querySelector('[data-workspace-coach-launcher-toggle]');
   const launcherCard = launcher.querySelector('[data-workspace-coach-launcher-card]');
   const launcherCloseBtn = launcher.querySelector('[data-workspace-coach-launcher-close]');
@@ -320,10 +344,19 @@ export function createCanvasCoachController({
     }
   };
 
+  const normalizeTargets = (targets) => {
+    if (!targets) return [];
+    const list = Array.isArray(targets) ? targets : [targets];
+    return list.filter((target, index, array) => (
+      target instanceof Element
+      && array.indexOf(target) === index
+    ));
+  };
+
   const clearHighlight = () => {
-    if (!highlightedTarget) return;
-    highlightedTarget.classList.remove('workspace-coach-target--active');
-    highlightedTarget = null;
+    if (!highlightedTargets.length) return;
+    highlightedTargets.forEach((target) => target.classList.remove('workspace-coach-target--active'));
+    highlightedTargets = [];
   };
 
   const clearArrow = () => {
@@ -335,6 +368,85 @@ export function createCanvasCoachController({
     arrowEl.style.top = '0px';
     arrowEl.style.transform = 'translateX(-50%)';
     delete arrowEl.dataset.direction;
+  };
+
+  const clearDimCutout = () => {
+    [dimTopEl, dimLeftEl, dimRightEl, dimBottomEl].forEach((segment) => {
+      if (!segment) return;
+      segment.style.left = '0px';
+      segment.style.top = '0px';
+      segment.style.width = '0px';
+      segment.style.height = '0px';
+    });
+  };
+
+  const computeTargetsBounds = (targets, padding = 10) => {
+    const normalizedTargets = normalizeTargets(targets);
+    if (!normalizedTargets.length) return null;
+    const visibleRects = normalizedTargets
+      .map((target) => target.getBoundingClientRect())
+      .filter((rect) => rect.width && rect.height);
+    if (!visibleRects.length) return null;
+    const left = Math.max(
+      0,
+      Math.round(Math.min(...visibleRects.map((rect) => rect.left)) - padding)
+    );
+    const top = Math.max(
+      0,
+      Math.round(Math.min(...visibleRects.map((rect) => rect.top)) - padding)
+    );
+    const right = Math.min(
+      window.innerWidth,
+      Math.round(Math.max(...visibleRects.map((rect) => rect.right)) + padding)
+    );
+    const bottom = Math.min(
+      window.innerHeight,
+      Math.round(Math.max(...visibleRects.map((rect) => rect.bottom)) + padding)
+    );
+    return {
+      left,
+      top,
+      right,
+      bottom,
+      width: Math.max(0, right - left),
+      height: Math.max(0, bottom - top)
+    };
+  };
+
+  const updateDimCutout = (targets, padding = 10) => {
+    const bounds = computeTargetsBounds(targets, padding);
+    if (!bounds) {
+      clearDimCutout();
+      return;
+    }
+    const {
+      left,
+      top,
+      right,
+      bottom,
+      width,
+      height
+    } = bounds;
+
+    dimTopEl.style.left = '0px';
+    dimTopEl.style.top = '0px';
+    dimTopEl.style.width = '100vw';
+    dimTopEl.style.height = `${top}px`;
+
+    dimBottomEl.style.left = '0px';
+    dimBottomEl.style.top = `${bottom}px`;
+    dimBottomEl.style.width = '100vw';
+    dimBottomEl.style.height = `${Math.max(0, window.innerHeight - bottom)}px`;
+
+    dimLeftEl.style.left = '0px';
+    dimLeftEl.style.top = `${top}px`;
+    dimLeftEl.style.width = `${left}px`;
+    dimLeftEl.style.height = `${height}px`;
+
+    dimRightEl.style.left = `${right}px`;
+    dimRightEl.style.top = `${top}px`;
+    dimRightEl.style.width = `${Math.max(0, window.innerWidth - right)}px`;
+    dimRightEl.style.height = `${height}px`;
   };
 
   const setFixedPosition = () => {
@@ -419,11 +531,10 @@ export function createCanvasCoachController({
     root.style.top = `${Math.round(clamp(chosen.top, padding, maxTop))}px`;
   };
 
-  const applyHighlight = (element) => {
+  const applyHighlight = (targets) => {
     clearHighlight();
-    if (!element || !(element instanceof Element)) return;
-    highlightedTarget = element;
-    highlightedTarget.classList.add('workspace-coach-target--active');
+    highlightedTargets = normalizeTargets(targets);
+    highlightedTargets.forEach((target) => target.classList.add('workspace-coach-target--active'));
   };
 
   const updateArrow = (element, placement = 'below') => {
@@ -499,6 +610,7 @@ export function createCanvasCoachController({
     clearHighlight();
     clearArrow();
     dimLayer.hidden = true;
+    clearDimCutout();
     root.classList.remove('is-visible');
     window.setTimeout(() => {
       if (!activeFlowId) {
@@ -572,11 +684,17 @@ export function createCanvasCoachController({
     nextBtn.textContent = activeStepIndex === flow.steps.length - 1 ? 'Done' : 'Next';
 
     const resolvedTarget = typeof step.resolveTarget === 'function' ? step.resolveTarget(activeContext) : null;
+    const highlightTargets = typeof step.resolveHighlightTargets === 'function'
+      ? step.resolveHighlightTargets(activeContext)
+      : resolvedTarget;
     const placement = step.panelPlacement || step.arrowPlacement || 'below';
     activePanelPlacement = placement;
-    applyHighlight(resolvedTarget);
+    activeCutoutTargets = normalizeTargets(highlightTargets);
+    activeCutoutPadding = Number.isFinite(step.cutoutPadding) ? step.cutoutPadding : 10;
+    applyHighlight(activeCutoutTargets);
     updateArrow(resolvedTarget, step.arrowPlacement || placement);
     updateCoachPosition(resolvedTarget, placement);
+    updateDimCutout(activeCutoutTargets, activeCutoutPadding);
   };
 
   const markFirstImport = () => {
@@ -662,8 +780,10 @@ export function createCanvasCoachController({
     if (activeArrowTarget) {
       updateArrow(activeArrowTarget, activeArrowPlacement);
       updateCoachPosition(activeArrowTarget, activePanelPlacement);
+      updateDimCutout(activeCutoutTargets, activeCutoutPadding);
     } else {
       setFixedPosition();
+      clearDimCutout();
     }
   };
   window.addEventListener('resize', syncVisibleArrow);

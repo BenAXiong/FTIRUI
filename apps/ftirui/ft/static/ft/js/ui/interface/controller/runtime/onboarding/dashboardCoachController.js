@@ -251,6 +251,12 @@ export function createDashboardCoachController({
   const dimLayer = document.createElement('div');
   dimLayer.className = 'workspace-coach-dim-layer';
   dimLayer.hidden = true;
+  dimLayer.innerHTML = `
+    <div class="workspace-coach-dim-segment workspace-coach-dim-top"></div>
+    <div class="workspace-coach-dim-segment workspace-coach-dim-left"></div>
+    <div class="workspace-coach-dim-segment workspace-coach-dim-right"></div>
+    <div class="workspace-coach-dim-segment workspace-coach-dim-bottom"></div>
+  `;
   document.body.appendChild(dimLayer);
 
   const tabsEl = root.querySelector('[data-workspace-coach-tabs]');
@@ -262,6 +268,10 @@ export function createDashboardCoachController({
   const nextBtn = root.querySelector('[data-workspace-coach-next]');
   const closeBtn = root.querySelector('[data-workspace-coach-close]');
   const arrowEl = arrowLayer.querySelector('[data-workspace-coach-arrow]');
+  const dimTopEl = dimLayer.querySelector('.workspace-coach-dim-top');
+  const dimLeftEl = dimLayer.querySelector('.workspace-coach-dim-left');
+  const dimRightEl = dimLayer.querySelector('.workspace-coach-dim-right');
+  const dimBottomEl = dimLayer.querySelector('.workspace-coach-dim-bottom');
   const launcherToggleBtn = launcher?.querySelector('[data-workspace-coach-launcher-toggle]') || null;
   const launcherCard = launcher?.querySelector('[data-workspace-coach-launcher-card]') || null;
   const launcherCloseBtn = launcher?.querySelector('[data-workspace-coach-launcher-close]') || null;
@@ -318,6 +328,55 @@ export function createDashboardCoachController({
     arrowEl.style.top = '0px';
     arrowEl.style.transform = 'translateX(-50%)';
     delete arrowEl.dataset.direction;
+  };
+
+  const clearDimCutout = () => {
+    [dimTopEl, dimLeftEl, dimRightEl, dimBottomEl].forEach((segment) => {
+      if (!segment) return;
+      segment.style.left = '0px';
+      segment.style.top = '0px';
+      segment.style.width = '0px';
+      segment.style.height = '0px';
+    });
+  };
+
+  const updateDimCutout = (target) => {
+    if (!(target instanceof Element)) {
+      clearDimCutout();
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      clearDimCutout();
+      return;
+    }
+    const pad = 10;
+    const left = Math.max(0, Math.round(rect.left - pad));
+    const top = Math.max(0, Math.round(rect.top - pad));
+    const right = Math.min(window.innerWidth, Math.round(rect.right + pad));
+    const bottom = Math.min(window.innerHeight, Math.round(rect.bottom + pad));
+    const width = Math.max(0, right - left);
+    const height = Math.max(0, bottom - top);
+
+    dimTopEl.style.left = '0px';
+    dimTopEl.style.top = '0px';
+    dimTopEl.style.width = '100vw';
+    dimTopEl.style.height = `${top}px`;
+
+    dimBottomEl.style.left = '0px';
+    dimBottomEl.style.top = `${bottom}px`;
+    dimBottomEl.style.width = '100vw';
+    dimBottomEl.style.height = `${Math.max(0, window.innerHeight - bottom)}px`;
+
+    dimLeftEl.style.left = '0px';
+    dimLeftEl.style.top = `${top}px`;
+    dimLeftEl.style.width = `${left}px`;
+    dimLeftEl.style.height = `${height}px`;
+
+    dimRightEl.style.left = `${right}px`;
+    dimRightEl.style.top = `${top}px`;
+    dimRightEl.style.width = `${Math.max(0, window.innerWidth - right)}px`;
+    dimRightEl.style.height = `${height}px`;
   };
 
   const setFixedPosition = () => {
@@ -460,6 +519,7 @@ export function createDashboardCoachController({
     clearHighlight();
     clearArrow();
     dimLayer.hidden = true;
+    clearDimCutout();
     root.classList.remove('is-visible');
     window.setTimeout(() => {
       if (!isOpen) root.hidden = true;
@@ -495,6 +555,7 @@ export function createDashboardCoachController({
     applyHighlight(target);
     updateArrow(target, step.arrowPlacement || placement);
     updateCoachPosition(target, placement);
+    updateDimCutout(target);
     syncLauncherVisibility();
   };
 
@@ -566,8 +627,10 @@ export function createDashboardCoachController({
     if (activeArrowTarget) {
       updateArrow(activeArrowTarget, activeArrowPlacement);
       updateCoachPosition(activeArrowTarget, activePanelPlacement);
+      updateDimCutout(activeArrowTarget);
     } else {
       setFixedPosition();
+      clearDimCutout();
     }
   };
   window.addEventListener('resize', syncArrow);

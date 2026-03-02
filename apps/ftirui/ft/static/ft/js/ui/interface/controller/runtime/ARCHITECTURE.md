@@ -312,6 +312,9 @@ Onboarding file structure rule:
     - `fixed`
     - `anchored`
   - keep the replay launcher fixed even when the coach card itself is anchored near targets
+- known current polish gap:
+  - dashboard tutorial dim/cutout framing is still visually rough around some small targets
+  - treat that as future onboarding UI polish, not as a reason to rework the controller architecture
 
 Current placeholder billing flow:
 - `/plans/` is the temporary plan-selection page

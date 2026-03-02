@@ -72,6 +72,7 @@ For each item:
 - [ ] Decide whether the guest-only visual differences should stay, be reduced, or be generalized to first-time users.
 - [ ] Review overlay copy for final product voice.
 - [ ] Review whether the DnD onboarding button styling is final or temporary.
+- [ ] Polish onboarding dim/cutout behavior, especially for dashboard tutorial steps where the current cutout is visually too large or awkward around small targets (esp. dashboard and cnavas hb).
 
 ## Test / Dev Convenience Surfaces
 

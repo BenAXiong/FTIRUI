@@ -2598,6 +2598,9 @@ body.workspace-canvas-locked .workspace-browser .drag-handle[data-readonly-disab
   inset:0;
   z-index:1317;
   pointer-events:none;
+}
+.workspace-coach-dim-segment{
+  position:absolute;
   background:rgba(2, 6, 23, .34);
   backdrop-filter:saturate(.88) blur(1px);
 }
