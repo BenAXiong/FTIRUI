@@ -263,6 +263,11 @@ export function createCanvasCoachController({
   `;
   document.body.appendChild(arrowLayer);
 
+  const dimLayer = document.createElement('div');
+  dimLayer.className = 'workspace-coach-dim-layer';
+  dimLayer.hidden = true;
+  document.body.appendChild(dimLayer);
+
   const tabsEl = root.querySelector('[data-workspace-coach-tabs]');
   const kickerEl = root.querySelector('[data-workspace-coach-kicker]');
   const titleEl = root.querySelector('[data-workspace-coach-title]');
@@ -493,6 +498,7 @@ export function createCanvasCoachController({
     activeContext = {};
     clearHighlight();
     clearArrow();
+    dimLayer.hidden = true;
     root.classList.remove('is-visible');
     window.setTimeout(() => {
       if (!activeFlowId) {
@@ -537,6 +543,7 @@ export function createCanvasCoachController({
     }
 
     root.hidden = false;
+    dimLayer.hidden = false;
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
       window.requestAnimationFrame(() => root.classList.add('is-visible'));
     } else {
@@ -698,6 +705,7 @@ export function createCanvasCoachController({
       setFixedPosition();
       window.removeEventListener('resize', syncVisibleArrow);
       window.removeEventListener('scroll', syncVisibleArrow, true);
+      dimLayer.remove();
       arrowLayer.remove();
       launcher.remove();
       root.remove();

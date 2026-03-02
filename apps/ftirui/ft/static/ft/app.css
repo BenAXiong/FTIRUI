@@ -2549,7 +2549,7 @@ body.workspace-canvas-locked .workspace-browser .drag-handle[data-readonly-disab
 .workspace-coach-target--active{
   --workspace-guest-border-angle: 0deg;
   position:relative;
-  z-index:1;
+  z-index:1318 !important;
   isolation:isolate;
   box-shadow:
     0 0 0 8px color-mix(in srgb, var(--bs-primary, #0d6efd) 18%, transparent),
@@ -2592,6 +2592,14 @@ body.workspace-canvas-locked .workspace-browser .drag-handle[data-readonly-disab
   inset:0;
   z-index:1319;
   pointer-events:none;
+}
+.workspace-coach-dim-layer{
+  position:fixed;
+  inset:0;
+  z-index:1317;
+  pointer-events:none;
+  background:rgba(2, 6, 23, .34);
+  backdrop-filter:saturate(.88) blur(1px);
 }
 .workspace-coach-arrow{
   position:absolute;

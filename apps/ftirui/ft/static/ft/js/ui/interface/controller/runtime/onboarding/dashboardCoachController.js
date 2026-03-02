@@ -248,6 +248,11 @@ export function createDashboardCoachController({
   `;
   document.body.appendChild(arrowLayer);
 
+  const dimLayer = document.createElement('div');
+  dimLayer.className = 'workspace-coach-dim-layer';
+  dimLayer.hidden = true;
+  document.body.appendChild(dimLayer);
+
   const tabsEl = root.querySelector('[data-workspace-coach-tabs]');
   const kickerEl = root.querySelector('[data-workspace-coach-kicker]');
   const titleEl = root.querySelector('[data-workspace-coach-title]');
@@ -454,6 +459,7 @@ export function createDashboardCoachController({
     activeFlowId = null;
     clearHighlight();
     clearArrow();
+    dimLayer.hidden = true;
     root.classList.remove('is-visible');
     window.setTimeout(() => {
       if (!isOpen) root.hidden = true;
@@ -467,6 +473,7 @@ export function createDashboardCoachController({
     const step = steps[activeStepIndex];
     if (!step) return;
     root.hidden = false;
+    dimLayer.hidden = false;
     window.requestAnimationFrame(() => root.classList.add('is-visible'));
     tabsEl.innerHTML = steps.map((item, index) => `
       <button type="button"
@@ -580,6 +587,7 @@ export function createDashboardCoachController({
       clearHighlight();
       clearArrow();
       setFixedPosition();
+      dimLayer.remove();
       launcher?.remove();
       arrowLayer.remove();
       root.remove();
