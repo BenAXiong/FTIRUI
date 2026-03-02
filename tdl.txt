@@ -17,8 +17,13 @@ MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
         - [x] Doc
     - [-] Polish tier-based UI: quotas, lock badges styling, instructions and warnings
         - [x] Migrate guest locked canvases too
-        - [-] Locked canvas styling: in tree keep only icon and highlight, ?
-        - [ ] Non-guests: land on dash and show tips if no content yet
+        - [x] Locked canvas styling: in tree keep only icon and highlight, ?
+        - [-] Non-guests: land on dash + tutos & tips if no content yet (drafts)
+            - [x] Case 1: Guest Canvas 4-step tuto + 3 tips
+            - [-] Case 2: Guest Dash
+            - [ ] Case 3: Free Canvas
+            - [ ] Case 4: Free Dash
+            - [ ] Options to turn everything off till polished
         - [ ] Display non-paid quotas (dash or popup?)
         - [ ] Design account perks UI
 
@@ -60,6 +65,7 @@ Phase x – Bugs & technical debt
 - [ ] Md notes: cursor and selection reset on rendering
 - [ ] SS fix formulas not updating when moving col
 - [ ] Cross-app unredo @@
+- [ ] future-proofing -- https://www.notion.so/limco/MLIR-218c1ed3f80b808faad8dd1bc6fb200d?source=copy_link#317c1ed3f80b801dba81ec9cc59f0a03
 - [ ] see full list
 
 Phase x – More features...
@@ -88,6 +94,7 @@ Phase x – Extra details
 - [ ] (post-MVP?) add % system (add institution, ORCID, connections, etc)
 
 Phase x – (nondev)
+* TA and specific usage: for thosewho want lightning speed formatting and accurate no-code styling
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),
 * list priority info: what would make them use it? - formating, papers vs PR, techs, live mode...?
 YT channel and wow tutos (super fast + tricks for specific plots like XRD)

@@ -2355,6 +2355,7 @@ export function createPanelDomFacade({
         snapshotBtn.className = 'btn btn-outline-secondary workspace-panel-action-btn workspace-panel-action-btn-popover';
         snapshotBtn.innerHTML = '<i class="bi bi-camera"></i>';
         snapshotBtn.title = 'Snapshot options';
+        snapshotBtn.dataset.panelAction = 'snapshot';
         snapshotBtn.setAttribute('aria-expanded', 'false');
         snapshotBtn.dataset.snapshotFormat = 'png';
         snapshotBtn.dataset.snapshotResolution = '2x';

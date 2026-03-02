@@ -1,5 +1,3 @@
-$env:WORKSPACE_LEGACY_ENABLED = "false"
-___________________________________
 Misc improvements
 
 s1/s2 mechnism: review optimal flow. Enable access to all features even when filtered by tag
@@ -97,6 +95,7 @@ Future work
 - .ben = binned/basic/? experiment notebook
 - custom tags (based on existing)
 - pub/PR mode: specific QoL additions, eg auto placement and seq for Fig letters (a.) and styling
+- faving options: when options become plentiful and too hierarchical, enable pinning some to the top
 
 Future explorations
 - [ ] Next tech = XRD & CV?

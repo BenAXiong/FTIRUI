@@ -47,7 +47,8 @@ export function createIoFacade({
     focusPanel = () => {},
     arrangePanels = () => false,
     createSection = () => null,
-    findSectionByName: lookupSectionByName = () => null
+    findSectionByName: lookupSectionByName = () => null,
+    onImportSuccess = () => {}
   } = actions;
 
   const {
@@ -998,6 +999,12 @@ export function createIoFacade({
           ? 'Demo files added to workspace.'
           : 'Files added to workspace.';
     showToast(message, 'success');
+    onImportSuccess({
+      origin,
+      importMode,
+      ingestedCount,
+      panelIds: createdPanelIds.slice()
+    });
 
     if (failures.length) {
       const label = failures.length === 1

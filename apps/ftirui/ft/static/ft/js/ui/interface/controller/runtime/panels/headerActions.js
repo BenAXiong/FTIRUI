@@ -44,6 +44,10 @@ export function createHeaderActions(context = {}) {
   const openDataTab = typeof sidebarApi.openDataTab === 'function'
     ? sidebarApi.openDataTab
     : (() => {});
+  const hooks = context.hooks || {};
+  const onExportSuccess = typeof hooks.onExportSuccess === 'function'
+    ? hooks.onExportSuccess
+    : (() => {});
 
   const safeEnsureArray = (value) => (Array.isArray(value) ? value : (typeof value === 'undefined' || value === null ? [] : [value]));
   const sanitizeSeriesValue = (value) => {
@@ -1357,6 +1361,11 @@ export function createHeaderActions(context = {}) {
             link.href = url;
             link.download = `${safeName}.${format}`;
             link.click();
+            onExportSuccess({
+              panelId,
+              format,
+              filename: link.download
+            });
           })
           .catch((error) => {
             console.error('Export failed:', error);

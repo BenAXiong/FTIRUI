@@ -13,6 +13,7 @@ The workspace runtime is intentionally organised as a collection of small facade
 * `io/facade.js` owns file ingest/export, drag/drop behaviour, and toolbar wiring. It receives the runtime state to validate panel ids, compute sequence counters, and determine whether the workspace has active panels.
 * `persistence/facade.js` (introduced earlier) centralises autosave, snapshot menu, and undo/redo buttons.
 * `thumbnails/canvasThumbnailController.js` captures workspace screenshots on close and sends them to the dashboard thumbnail API.
+* `onboarding/canvasCoachController.js` owns lightweight in-canvas tutorials and efficiency tips. It is fed by explicit runtime success hooks (`io/facade.js` import success, `headerActions.js` export success) and must not infer milestone events from generic DOM mutations.
 * `preferences/facade.js` encapsulates UI preference storage (panel pin/collapse) so the runtime never touches `localStorage`/`sessionStorage` directly.
 * `browser/facade.js` renders the folder tree and attaches tree interactions.
 * `panels/panelDomFacade.js` builds panel shells, header controls, and popovers. It accepts runtime actions and callbacks so panel wiring lives outside of `registerPanel`.
@@ -243,6 +244,21 @@ Payment / upgrade hooks currently wired:
   - routes upgrade CTAs
   - warns on duplication / overflow-related canvas creation flows
 - `templates/ft/workspace/components/canvas_card.html` read-only overlay uses the same plans hook for `Upgrade`
+
+Guest canvas onboarding:
+- current first-pass onboarding is intentionally scoped to the guest canvas only
+- source of truth is `onboarding/canvasCoachController.js`
+- trigger rules:
+  - first successful file import on guest canvas -> 4-step "first graph" coach
+  - first successful plot export on guest canvas OR 10 minutes after first successful import -> 3-step efficiency coach
+- the controller persists seen-state in local browser storage
+- the controller also owns the manual replay launcher for guest canvas review
+  - users can replay the first-graph coach and efficiency tips from the UI without clearing storage
+  - reset/replay must update both persisted storage and in-memory controller state
+- important: import/export hooks must stay explicit
+  - import success is emitted from `io/facade.js` after payload ingest and arrange complete
+  - export success is emitted from `panels/headerActions.js` after the file download is triggered
+- do not reimplement onboarding triggers by watching toast text, panel count, or generic DOM changes
 
 Current placeholder billing flow:
 - `/plans/` is the temporary plan-selection page

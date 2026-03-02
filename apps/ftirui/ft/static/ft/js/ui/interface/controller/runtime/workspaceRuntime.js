@@ -68,6 +68,7 @@ import { createGraphTypeController } from './toolbar/graphTypeController.js';
 import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.js';
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createCanvasThumbnailController } from './thumbnails/canvasThumbnailController.js';
+import { createCanvasCoachController } from './onboarding/canvasCoachController.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
 import { findPeaks, buildPeakOverlays, buildPeakTableRows, DEFAULT_PEAK_OPTIONS } from '../../../../workspace/canvas/analysis/peakDetection.js';
 
@@ -423,6 +424,7 @@ let activePanelId = null;
 let peakMarkingController = null;
 let panelTagController = null;
 let canvasThumbnailController = null;
+let canvasCoachController = null;
 let browserFacade = null;
 let browserTabsController = null;
 let browserSearchController = null;
@@ -1618,6 +1620,8 @@ export function initWorkspaceRuntime(context = {}) {
   activePanelId = null;
   browserFacade?.teardown?.();
   browserFacade = null;
+  canvasCoachController?.teardown?.();
+  canvasCoachController = null;
   browserTabsController?.teardown?.();
   browserTabsController = null;
   browserSearchController?.teardown?.();
@@ -3274,6 +3278,13 @@ const recordOperation = (entry) => {
     };
 
   const getPanelContent = (panelId) => panelsModel.getPanelContent(panelId) || null;
+
+  canvasCoachController = createCanvasCoachController({
+    getActivePanelId: () => activePanelId,
+    getPanelDom,
+    hasPanels: () => panelDomRegistry.size > 0,
+    isGuest: () => !userAuthenticated
+  });
 
   const Plot = createPlotFacade({
     getPanelDom,
@@ -5292,6 +5303,11 @@ const toggleDataTabFromHeader = (panelId) => {
       openDataTab: (panelId) => {
         toggleDataTabFromHeader(panelId);
       }
+    },
+    hooks: {
+      onExportSuccess: ({ panelId }) => {
+        canvasCoachController?.handleExportSuccess?.({ panelId });
+      }
     }
   });
 
@@ -6011,7 +6027,10 @@ const toggleDataTabFromHeader = (panelId) => {
       focusPanel: focusPanelById,
       arrangePanels: arrangePanelsByIds,
       createSection,
-      findSectionByName
+      findSectionByName,
+      onImportSuccess: ({ panelIds = [] } = {}) => {
+        canvasCoachController?.handleImportSuccess?.({ panelIds });
+      }
     },
     history: {
       history,
@@ -8050,6 +8069,8 @@ const toggleDataTabFromHeader = (panelId) => {
       panelLockController = null;
       canvasThumbnailController?.teardown?.();
       canvasThumbnailController = null;
+      canvasCoachController?.teardown?.();
+      canvasCoachController = null;
       unitsToggleController?.teardown?.();
       unitsToggleController = null;
       multiTraceController?.teardown?.();
