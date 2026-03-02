@@ -461,6 +461,8 @@ function initWorkspaceTitleEditor() {
     startEdit();
   });
   titleEl.addEventListener('keydown', (event) => {
+    if (titleEl.dataset.editing === 'true') return;
+    if (event.target && event.target !== titleEl) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       startEdit();
@@ -479,7 +481,6 @@ function initReadonlyCanvasOverlay() {
   const canvasId = body.dataset.activeCanvasId || '';
   const confirmBtn = overlay.querySelector('[data-readonly-confirm]');
   const upgradeBtn = overlay.querySelector('[data-readonly-upgrade]');
-  const refreshBtn = overlay.querySelector('[data-readonly-refresh]');
 
   const dismissOverlay = () => {
     wrapper?.setAttribute('data-readonly-overlay-dismissed', 'true');
@@ -519,9 +520,6 @@ function initReadonlyCanvasOverlay() {
       source: 'locked-canvas-overlay',
       next: window.location.pathname + window.location.search,
     });
-  });
-  refreshBtn?.addEventListener('click', () => {
-    void refreshAccess();
   });
 
   document.addEventListener('visibilitychange', () => {
