@@ -532,6 +532,144 @@ function initReadonlyCanvasOverlay() {
 
 initReadonlyCanvasOverlay();
 
+function initReadonlyCanvasUiGuards() {
+  const body = document.body;
+  if (!body || body.dataset.activeCanvasLocked !== 'true') return;
+
+  body.classList.add('workspace-canvas-locked');
+
+  const browserRoot = document.getElementById('c_panel');
+  const browserToggle = document.getElementById('c_panel_toggle');
+  const readonlyDisabledAttr = 'data-readonly-disabled';
+  const allowedBrowserSelector = '.workspace-browser-tab, .toggle, #c_project_tree_toggle';
+
+  const markDisabled = (el) => {
+    if (!el) return;
+    el.setAttribute('aria-disabled', 'true');
+    el.setAttribute(readonlyDisabledAttr, 'true');
+    if (typeof el.tabIndex === 'number') {
+      el.tabIndex = -1;
+    }
+    if ('disabled' in el) {
+      el.disabled = true;
+    }
+  };
+
+  const markReadonlyInput = (el) => {
+    if (!el) return;
+    el.readOnly = true;
+    el.setAttribute('aria-disabled', 'true');
+    el.setAttribute(readonlyDisabledAttr, 'true');
+    el.tabIndex = -1;
+  };
+
+  const isAllowedBrowserControl = (el) => {
+    if (!el || typeof el.matches !== 'function') return false;
+    if (el === browserToggle) return true;
+    return el.matches(allowedBrowserSelector) || !!el.closest(allowedBrowserSelector);
+  };
+
+  const closeOpenReadonlyPopovers = () => {
+    document.querySelectorAll('.workspace-panel-popover.is-open').forEach((el) => {
+      el.classList.remove('is-open');
+    });
+    document.querySelectorAll('.workspace-panel-actions-overflow-panel.is-open').forEach((el) => {
+      el.classList.remove('is-open');
+    });
+    document
+      .querySelectorAll('.workspace-panel-action-btn.is-active, .workspace-panel-popover-btn.is-active')
+      .forEach((el) => el.classList.remove('is-active'));
+    document
+      .querySelectorAll('.workspace-panel-action-btn[aria-expanded="true"], .workspace-panel-popover-btn[aria-expanded="true"]')
+      .forEach((el) => el.setAttribute('aria-expanded', 'false'));
+  };
+
+  const applyReadonlyGuards = () => {
+    closeOpenReadonlyPopovers();
+
+    document
+      .querySelectorAll('#workspace_hud_menu_toggle, #c_history_undo, #c_history_redo, [data-history-action="undo"], [data-history-action="redo"]')
+      .forEach((el) => markDisabled(el));
+
+    document
+      .querySelectorAll('.workspace-panel-action-btn, .workspace-panel-actions-overflow')
+      .forEach((el) => markDisabled(el));
+
+    document
+      .querySelectorAll('.workspace-panel-popover button, .workspace-panel-popover input, .workspace-panel-popover select, .workspace-panel-popover textarea, .workspace-panel-popover-tab, .workspace-panel-actions-overflow-panel button')
+      .forEach((el) => {
+        if (el.matches('input, textarea')) {
+          markReadonlyInput(el);
+          return;
+        }
+        markDisabled(el);
+      });
+
+    document.querySelectorAll('.workspace-panel-plot .modebar-btn').forEach((el) => {
+      el.setAttribute('aria-disabled', 'true');
+      el.setAttribute(readonlyDisabledAttr, 'true');
+      el.tabIndex = -1;
+    });
+
+    if (browserRoot) {
+      browserRoot.querySelectorAll('button, input, select, textarea').forEach((el) => {
+        if (isAllowedBrowserControl(el)) return;
+        if (el.matches('.rename')) {
+          markReadonlyInput(el);
+          return;
+        }
+        markDisabled(el);
+      });
+
+      browserRoot.querySelectorAll('[draggable="true"], .drag-handle').forEach((el) => {
+        el.setAttribute('draggable', 'false');
+        el.setAttribute('aria-disabled', 'true');
+        el.setAttribute(readonlyDisabledAttr, 'true');
+        if (typeof el.tabIndex === 'number') {
+          el.tabIndex = -1;
+        }
+      });
+
+      browserRoot.querySelectorAll('.rename').forEach((el) => markReadonlyInput(el));
+    }
+  };
+
+  const blockBrowserReadonlyInteractions = (event) => {
+    if (!browserRoot) return;
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target || !browserRoot.contains(target)) return;
+    if (isAllowedBrowserControl(target)) return;
+    if (
+      target.closest(
+        '.btn-icon, .trace-info-icon, .trace-remove, .drag-handle, .rename, .panel-toolbar button, .panel-toolbar input, .panel-toolbar select, .panel-toolbar textarea, .dropdown-menu'
+      )
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
+  browserRoot?.addEventListener('click', blockBrowserReadonlyInteractions, true);
+  browserRoot?.addEventListener('dblclick', blockBrowserReadonlyInteractions, true);
+  browserRoot?.addEventListener('pointerdown', blockBrowserReadonlyInteractions, true);
+  browserRoot?.addEventListener(
+    'dragstart',
+    (event) => {
+      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+      if (!target || !browserRoot.contains(target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    true
+  );
+
+  const observer = new MutationObserver(() => applyReadonlyGuards());
+  observer.observe(document.body, { childList: true, subtree: true });
+  applyReadonlyGuards();
+}
+
+initReadonlyCanvasUiGuards();
+
 function initWorkspaceHudMenu() {
   if (!isWorkspacePage) return;
   const root = document.querySelector('.workspace-hud-menu');

@@ -93,8 +93,10 @@ export function createToolbarShortcutsController({
   documentRoot = typeof document !== 'undefined' ? document : null
 } = {}) {
   if (!documentRoot || typeof documentRoot.addEventListener !== 'function') return null;
+  const isReadonlyCanvas = () => documentRoot?.body?.dataset?.activeCanvasLocked === 'true';
   const historyButtons = resolveHistoryButtons({ undoButton, redoButton, documentRoot });
   const handler = (event) => {
+    if (isReadonlyCanvas()) return;
     const historyAction = resolveHistoryAction(event);
     if (historyAction && !isEditableTarget(event.target)) {
       const historyButton = historyAction === 'undo' ? historyButtons.undo : historyButtons.redo;

@@ -2,22 +2,24 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 - [-] Phase 8 - Landing
     - [x] Research Django user db features and analytics priorities + log in Notion
-    - [-] Guests landing, UI, migration to account
+    - [-] Guests landing, UI, migration to account, upgrade flow
         - [x] land on canvas with rainbow DnD and instructions
         - [x] provide same feature as signed-in users with different quotas
         - [x] implement guess-to-account migration
         - [x] deal with extra canvas when quotas are exceeded
-        - [-] add badge, styling and read-only view for locked canvases
-        - [-] wire upgrade worflow from CTA to plans to payment UI
-        - [-] wire upgrade worflow from payment to paid plan
+        - [x] add badge, styling and read-only view for locked canvases
+        - [-] wire upgrade workflow from CTA to plans to payment UI
+        - [ ] wire upgrade workflow from payment to paid plan
         - [ ] migrate guest locked canvases too
         - [ ] enable login with identifiers for testing
         - [ ] display guest quotas (dash or popup?)
-        - [ ] fix new graphs trace colors
     - [ ] Logged-in users landing and quotas, CTA, instructions 
         - [ ] Land on dash and show tips if no content yet
         - [ ] Implement free-tier quotas
         - [ ] Design account perks UI
+    - [ ] Extra admins accounts
+        - [ ] Create admin IDs for guest, LI & paid
+        - [ ] 
 
 - [-] Phase 9 - Payment
     - [-] Research payment methods
@@ -42,6 +44,7 @@ Phase 0 – Planning
 Phase 1 – Optimize features & UI/UX for "Workflow_1_MVP"
 - [ ] Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
 - [ ] Dash band: remove coming soon overlay and make card 0.1 opacity + disabled cursor
+- [ ] fix new graphs trace colors
 - [ ] see notion
 
 Phase x – Data collection
@@ -80,6 +83,7 @@ Phase x – Extra details
 - [ ] (post-MVP?) Improve graph previews and layout without hurting performances
 - [ ] (post-MVP?) figure out graph from SS behavior when multiple targets selected (flexible sequence)
 - [ ] (post-MVP?) ss templates: minimal, customs... for hidden rows, styles...?
+- [ ] (post-MVP?) add % system (add institution, ORCID, connections, etc)
 
 Phase x – (nondev)
 * think early adopters plan: custom dev and support, pref price per license or lab package (5-10-20...),

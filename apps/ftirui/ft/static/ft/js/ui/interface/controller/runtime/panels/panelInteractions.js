@@ -59,6 +59,8 @@ export function createPanelInteractions({
 
   const minWidth = dimensions.minWidth ?? 0;
   const minHeight = dimensions.minHeight ?? 0;
+  const isReadonlyCanvas = () =>
+    typeof document !== 'undefined' && document.body?.dataset?.activeCanvasLocked === 'true';
 
   const attach = (panelId) => {
     if (!panelId) return;
@@ -190,7 +192,7 @@ export function createPanelInteractions({
         inertia: false,
         allowFrom: '.workspace-panel-header',
         ignoreFrom: '.workspace-panel-body, .workspace-panel-actions, .workspace-panel-actions *',
-        cursorChecker: () => (isPinned() ? 'default' : 'move'),
+        cursorChecker: () => ((isPinned() || isReadonlyCanvas()) ? 'default' : 'move'),
         modifiers: [
           interact.modifiers.restrictRect({
             restriction: canvas,
@@ -199,11 +201,11 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
-            if (rootEl.classList.contains('is-fullscreen') || isPinned()) return;
+            if (rootEl.classList.contains('is-fullscreen') || isPinned() || isReadonlyCanvas()) return;
             beginInteraction('drag');
           },
           move: (event) => {
-            if (isPinned()) return;
+            if (isPinned() || isReadonlyCanvas()) return;
             if (!runtime?.dragSnapshot) return;
             const snapshot = runtime.dragSnapshot;
             const previous = snapshot.current || snapshot.initial;
@@ -217,7 +219,7 @@ export function createPanelInteractions({
             dom?.runtime?.refreshActionOverflow?.();
           },
           end: () => {
-            if (isPinned()) return;
+            if (isPinned() || isReadonlyCanvas()) return;
             finalizeInteraction('drag');
           }
         }
@@ -226,7 +228,7 @@ export function createPanelInteractions({
         edges: { left: true, right: true, bottom: true, top: true },
         inertia: false,
         margin: 10,
-        cursorChecker: (action) => (isPinned() ? 'default' : resolveResizeCursor(action)),
+        cursorChecker: (action) => ((isPinned() || isReadonlyCanvas()) ? 'default' : resolveResizeCursor(action)),
         modifiers: [
           interact.modifiers.restrictEdges({
             outer: canvas,
@@ -238,11 +240,11 @@ export function createPanelInteractions({
         ],
         listeners: {
           start: () => {
-            if (rootEl.classList.contains('is-fullscreen') || isPinned()) return;
+            if (rootEl.classList.contains('is-fullscreen') || isPinned() || isReadonlyCanvas()) return;
             beginInteraction('resize');
           },
           move: (event) => {
-            if (isPinned()) return;
+            if (isPinned() || isReadonlyCanvas()) return;
             if (!runtime?.dragSnapshot) return;
             const snapshot = runtime.dragSnapshot;
             const previous = snapshot.current || snapshot.initial;
@@ -260,7 +262,7 @@ export function createPanelInteractions({
             }
           },
           end: () => {
-            if (isPinned()) return;
+            if (isPinned() || isReadonlyCanvas()) return;
             finalizeInteraction('resize');
           }
         }

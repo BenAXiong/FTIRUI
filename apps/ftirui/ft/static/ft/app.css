@@ -2228,6 +2228,35 @@ body[data-user-authenticated='false'] .workspace-empty.is-visible{
   pointer-events:none;
   user-select:none;
 }
+body.workspace-canvas-locked .workspace-panel-plot .modebar,
+body.workspace-canvas-locked .workspace-panel-plot .modebar-container{
+  pointer-events:none !important;
+}
+body.workspace-canvas-locked .workspace-panel-plot .modebar{
+  opacity:.42;
+}
+body.workspace-canvas-locked .workspace-panel-plot .modebar-btn,
+body.workspace-canvas-locked .workspace-panel-action-btn[data-readonly-disabled="true"],
+body.workspace-canvas-locked .workspace-panel-actions-overflow[data-readonly-disabled="true"],
+body.workspace-canvas-locked .workspace-panel-popover [data-readonly-disabled="true"],
+body.workspace-canvas-locked .workspace-panel-actions-overflow-panel [data-readonly-disabled="true"],
+body.workspace-canvas-locked .workspace-browser [data-readonly-disabled="true"],
+body.workspace-canvas-locked #workspace_hud_menu_toggle[data-readonly-disabled="true"],
+body.workspace-canvas-locked #c_history_undo[data-readonly-disabled="true"],
+body.workspace-canvas-locked #c_history_redo[data-readonly-disabled="true"],
+body.workspace-canvas-locked [data-history-action][data-readonly-disabled="true"]{
+  opacity:.45 !important;
+  cursor:not-allowed !important;
+  pointer-events:none !important;
+  box-shadow:none !important;
+}
+body.workspace-canvas-locked .workspace-browser .rename[aria-disabled="true"]{
+  pointer-events:none;
+  cursor:default;
+}
+body.workspace-canvas-locked .workspace-browser .drag-handle[data-readonly-disabled="true"]{
+  opacity:.35;
+}
 .workspace-canvas-readonly__card{
   width:min(520px, calc(100% - 2rem));
   padding:1.1rem 1.25rem;

@@ -476,8 +476,10 @@ const lockedPlotConfig = {
   editable: false,
   staticPlot: true
 };
+const isWorkspaceReadonlyCanvas = () =>
+  typeof document !== 'undefined' && document.body?.dataset?.activeCanvasLocked === 'true';
 const resolvePlotConfig = (figure) => (
-  figure?.layout?.meta?.workspacePanel?.editLocked === true
+  figure?.layout?.meta?.workspacePanel?.editLocked === true || isWorkspaceReadonlyCanvas()
     ? lockedPlotConfig
     : plotConfig
 );

@@ -2248,6 +2248,14 @@ const clearProjectDropIndicators = () => {
         const ensured = await ensureProject();
         project = ensured.project;
       }
+      if (!confirmCreateCanvasQuotaImpact()) {
+        window.showAppToast?.({
+          title: 'Canvas creation cancelled',
+          message: 'No new canvas was created.',
+          variant: 'info'
+        });
+        return;
+      }
       const payload = await createCanvas(project.id, {
         title: 'Untitled canvas',
         state: createEmptyWorkspaceSnapshot()
@@ -2499,6 +2507,13 @@ const clearProjectDropIndicators = () => {
       ? `"${canvasTitle}" is already read-only because your free canvas quota was exceeded. Duplicating it is still allowed, but the oldest overflow canvas will remain locked until you delete another canvas or upgrade.`
       : `Duplicating "${canvasTitle}" will exceed your free canvas quota. The oldest canvas will become locked and read-only until you delete another canvas or upgrade.`;
     return window.confirm(`${message}\n\nYou can still adjust this later in the dashboard.`);
+  };
+
+  const confirmCreateCanvasQuotaImpact = () => {
+    if (!willNewCanvasOverflowQuota()) return true;
+    return window.confirm(
+      'Creating a new canvas will exceed your free canvas quota. The oldest canvas will become locked and read-only until you delete another canvas or upgrade.\n\nYou can still adjust this later in the dashboard.'
+    );
   };
 
   const notifyQuotaLockedCanvas = (canvas) => {

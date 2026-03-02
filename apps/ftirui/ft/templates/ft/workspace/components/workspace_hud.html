@@ -1,12 +1,14 @@
 <div class="workspace-hud" aria-hidden="false">
   <div class="workspace-hud__slot workspace-hud__slot--left">
     <div class="workspace-hud-card workspace-hud-card--primary">
-      <div class="workspace-hud-card__brand">
+      <a href="{{ dashboard_entry_url|default:request.path }}"
+         class="workspace-hud-card__brand workspace-hud-card__brand-link"
+         title="Return to dashboard">
         <span class="workspace-hud-logo" aria-hidden="true">
           <i class="bi bi-graph-up"></i>
         </span>
         <span class="workspace-hud-label">sci<sup>2</sup></span>
-      </div>
+      </a>
       <div class="workspace-hud-card__title">
         <div class="workspace-canvas-title-group">
           <span class="workspace-canvas-title badge rounded-pill"
@@ -100,6 +102,7 @@
                   type="button"
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
+                  {% if active_canvas_locked %}disabled aria-disabled="true"{% endif %}
                   aria-label="Workspace tools">
             <i class="bi bi-three-dots-vertical"></i>
           </button>

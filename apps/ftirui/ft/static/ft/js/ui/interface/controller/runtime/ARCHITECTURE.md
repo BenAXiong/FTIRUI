@@ -210,6 +210,58 @@ Quota behavior:
   - they are placeholder pages and must not be treated as real billing integration
 - there is no billing/subscription model in this repo yet, so do not pretend plan-aware quota enforcement exists unless that backend signal is added first
 
+Payment / upgrade hooks currently wired:
+- backend quota and lock responses are machine-readable:
+  - `workspace_limit_reached`
+  - `canvas_quota_locked`
+- those responses include `upgrade_url`, currently pointing at the placeholder plans route
+- `context_processors.py` injects current limit values into the shell:
+  - `workspace_section_limit`
+  - `workspace_project_limit`
+  - `workspace_canvas_limit`
+- `templates/ft/layouts/app_shell.html` exposes the current frontend upgrade/payment hooks on `<body>`:
+  - `data-plans-url`
+  - `data-checkout-url`
+  - the three workspace limit values
+- `static/ft/app.js` exposes `window.openAppPlansPage(...)`
+  - this is the canonical placeholder redirect hook until real billing exists
+- `static/ft/js/ui/dashboard/initDashboard.js` is the quota-aware dashboard entry point
+  - handles `DashboardApiError`
+  - routes upgrade CTAs
+  - warns on duplication / overflow-related canvas creation flows
+- `templates/ft/workspace/components/canvas_card.html` read-only overlay uses the same plans hook for `Upgrade`
+
+Current placeholder billing flow:
+- `/plans/` is the temporary plan-selection page
+- `/plans/checkout/` is the temporary payment/review page
+- current implementation goal is only flow validation:
+  - route shape
+  - CTA wiring
+  - quota-related copy
+- they must stay replaceable without touching the dashboard/workspace upgrade entry points
+
+Locked canvas frontend guardrails:
+- locked canvases are openable but must remain read-only
+- backend is the source of truth for write blocking
+- frontend must still proactively disable obvious controls so the UI matches backend policy
+- current allowlist in locked mode:
+  - back-to-dashboard button
+  - left HUD brand link
+  - share button
+  - browser tabs
+  - browser collapse / project-tree collapse toggles
+- current denylist in locked mode:
+  - panel header buttons
+  - panel popover controls
+  - Plotly modebar buttons
+  - browser row action buttons
+  - trace drag / rename affordances
+  - undo / redo controls and shortcuts
+- when changing locked/read-only behavior, do not rely on CSS alone:
+  - browser lives outside the canvas wrapper subtree
+  - several controls are rendered dynamically after hydrate
+  - interaction guards therefore need both DOM mutation re-application and keyboard shortcut gating
+
 ### 2. Legacy/dev workspace activation path (STALE, DO NOT REUSE)
 
 This is the old logic that historically controlled whether the Workspace pane/tab was available inside the full shell.

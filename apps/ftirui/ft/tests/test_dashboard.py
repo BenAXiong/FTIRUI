@@ -385,6 +385,22 @@ class DashboardApiTests(TestCase):
         )
         self.assertEqual(unlocked_patch.status_code, 200)
 
+    def test_locked_canvas_workspace_page_marks_readonly_shell(self):
+        url = f"/api/dashboard/projects/{self.project.id}/canvases/"
+        for index in range(3):
+            resp = self.client.post(
+                url,
+                data=json.dumps({"title": f"Analysis {index + 1}", "state": {"order": [str(index)]}}),
+                content_type="application/json",
+            )
+            self.assertEqual(resp.status_code, 201, resp.content)
+
+        page = self.client.get(f"/workspace/?canvas={self.canvas.id}")
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'data-active-canvas-locked="true"')
+        self.assertContains(page, 'data-readonly-upgrade')
+        self.assertContains(page, 'workspace_hud_menu_toggle')
+
     def test_plans_and_checkout_placeholder_pages_render(self):
         plans = self.client.get("/plans/")
         self.assertEqual(plans.status_code, 200)
