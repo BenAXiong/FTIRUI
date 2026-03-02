@@ -173,8 +173,12 @@ Migration policy:
     - exactly 1 default canvas
     - empty canvas state
     - no extra plot sessions
-- non-pristine guest work should migrate only if the authenticated account has room under quota
-- if migration would exceed quota, guest work is staged for later resolution instead of being silently merged
+ - non-pristine guest work should migrate into the authenticated account by default
+ - canvas overflow is not a migration blocker anymore
+   - migrated guest canvases can exceed the authenticated free canvas quota
+   - normal canvas quota-lock policy then marks the excess canvases read-only
+ - project/section overflow is still a migration blocker
+   - if adoption would exceed those structural limits, guest work is staged for later resolution instead of being silently merged
 - current staging signal is exposed through `api_me.pending_guest_workspace_adoption`
 
 Local autosave namespace rule:

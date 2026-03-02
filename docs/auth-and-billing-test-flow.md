@@ -236,8 +236,10 @@ Guest-to-account continuity is already implemented at the backend workspace-owne
 
 Current rules:
 - pristine untouched guest bootstrap should not migrate
-- meaningful guest work migrates into the signed-in account if under quota
-- if migration would exceed quota, the work is staged instead of silently merged
+- meaningful guest work migrates into the signed-in account by default
+- guest canvases are allowed to migrate even if they overflow the authenticated free canvas quota
+  - the normal post-migration free quota policy then locks the excess canvases read-only
+- guest migration is staged only when the adoption would exceed structural limits such as project/section capacity
 
 This matters because auth and billing work must not reintroduce a split where:
 - guests use local-only workspace state

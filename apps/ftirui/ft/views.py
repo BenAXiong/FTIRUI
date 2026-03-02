@@ -365,7 +365,7 @@ def _compute_guest_adoption_delta(user, guest_sections, guest_projects, guest_ca
     return {
         "sections": 0 if has_target_section or not guest_sections else 1,
         "projects": 0 if has_target_project or not guest_projects else 1,
-        "canvases": len(guest_canvases),
+        "canvases": 0,
     }
 
 

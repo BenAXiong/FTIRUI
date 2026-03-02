@@ -172,7 +172,7 @@ class DashboardApiTests(TestCase):
         self.assertFalse(WorkspaceCanvas.objects.filter(owner=target_user).exists())
         self.assertNotIn("ft_guest_workspace_owner_id", self.client.session)
 
-    def test_guest_workspace_at_quota_is_staged_not_adopted(self):
+    def test_guest_workspace_canvas_overflow_is_adopted_and_excess_locks(self):
         self.client.logout()
         self.client.get("/")
         guest_owner = self._guest_owner()
@@ -180,30 +180,63 @@ class DashboardApiTests(TestCase):
         guest_canvas.state_json = self._canvas_state("Guest staged", trace_id="guest-stage")
         guest_canvas.state_size = len(json.dumps(guest_canvas.state_json))
         guest_canvas.save(update_fields=["state_json", "state_size", "updated_at"])
+        guest_project = WorkspaceProject.objects.get(owner=guest_owner)
+        guest_canvas_2 = WorkspaceCanvas.objects.create(
+            owner=guest_owner,
+            project=guest_project,
+            title="Guest Canvas 2",
+            state_json={"guest": 2},
+            state_size=10,
+        )
+        guest_canvas_3 = WorkspaceCanvas.objects.create(
+            owner=guest_owner,
+            project=guest_project,
+            title="Guest Canvas 3",
+            state_json={"guest": 3},
+            state_size=10,
+        )
+        guest_canvas_4 = WorkspaceCanvas.objects.create(
+            owner=guest_owner,
+            project=guest_project,
+            title="Guest Canvas 4",
+            state_json={"guest": 4},
+            state_size=10,
+        )
+        guest_canvas_5 = WorkspaceCanvas.objects.create(
+            owner=guest_owner,
+            project=guest_project,
+            title="Guest Canvas 5",
+            state_json={"guest": 5},
+            state_size=10,
+        )
 
         quota_user = User.objects.create_user(username="quota-user", password="secret")
-        quota_section = WorkspaceSection.objects.create(owner=quota_user, name="Owned")
-        quota_project = WorkspaceProject.objects.create(owner=quota_user, section=quota_section, title="Folder")
-        for index in range(3):
-            WorkspaceCanvas.objects.create(
-                owner=quota_user,
-                project=quota_project,
-                title=f"Canvas {index + 1}",
-                state_json={"index": index},
-                state_size=10,
-            )
 
         self.assertTrue(self.client.login(username="quota-user", password="secret"))
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
 
         guest_canvas.refresh_from_db()
-        self.assertEqual(guest_canvas.owner, guest_owner)
-        self.assertEqual(WorkspaceCanvas.objects.filter(owner=quota_user).count(), 3)
+        guest_canvas_2.refresh_from_db()
+        guest_canvas_3.refresh_from_db()
+        guest_canvas_4.refresh_from_db()
+        guest_canvas_5.refresh_from_db()
+        self.assertEqual(guest_canvas.owner, quota_user)
+        self.assertEqual(guest_canvas_2.owner, quota_user)
+        self.assertEqual(guest_canvas_3.owner, quota_user)
+        self.assertEqual(guest_canvas_4.owner, quota_user)
+        self.assertEqual(guest_canvas_5.owner, quota_user)
+        self.assertEqual(WorkspaceCanvas.objects.filter(owner=quota_user).count(), 5)
+        self.assertEqual(WorkspaceProject.objects.filter(owner=quota_user).count(), 1)
+        self.assertEqual(WorkspaceSection.objects.filter(owner=quota_user).count(), 1)
+        listing = self.client.get("/api/dashboard/sections/?include=full")
+        canvases = listing.json()["items"][0]["projects"][0]["canvases"]
+        locked = [canvas for canvas in canvases if canvas.get("quota_locked")]
+        self.assertEqual(len(locked), 2)
 
         me = self.client.get("/api/me/")
         self.assertEqual(me.status_code, 200)
-        self.assertTrue(me.json()["pending_guest_workspace_adoption"])
+        self.assertFalse(me.json()["pending_guest_workspace_adoption"])
         self.assertNotIn("ft_guest_workspace_owner_id", self.client.session)
 
     def test_logout_after_adoption_bootstraps_fresh_guest_workspace(self):
@@ -238,17 +271,16 @@ class DashboardApiTests(TestCase):
         guest_canvas.state_size = len(json.dumps(guest_canvas.state_json))
         guest_canvas.save(update_fields=["state_json", "state_size", "updated_at"])
 
+        guest_section = WorkspaceSection.objects.get(owner=guest_owner)
+        WorkspaceProject.objects.create(
+            owner=guest_owner,
+            section=guest_section,
+            title="Extra Folder",
+        )
+
         quota_user = User.objects.create_user(username="quota-fresh", password="secret")
         quota_section = WorkspaceSection.objects.create(owner=quota_user, name="Owned")
-        quota_project = WorkspaceProject.objects.create(owner=quota_user, section=quota_section, title="Folder")
-        for index in range(3):
-            WorkspaceCanvas.objects.create(
-                owner=quota_user,
-                project=quota_project,
-                title=f"Canvas {index + 1}",
-                state_json={"index": index},
-                state_size=10,
-            )
+        WorkspaceProject.objects.create(owner=quota_user, section=quota_section, title="Folder")
 
         self.assertTrue(self.client.login(username="quota-fresh", password="secret"))
         self.client.get("/")
