@@ -1702,9 +1702,11 @@ export function initWorkspaceRuntime(context = {}) {
       document.querySelector('[data-workspace-canvas-title]')?.textContent ||
       'Untitled Canvas'
   );
-  let cloudSyncEnabled = !!activeCanvasId;
+  const activeCanvasLocked =
+    typeof document !== 'undefined' && document.body?.dataset?.activeCanvasLocked === 'true';
+  let cloudSyncEnabled = !!activeCanvasId && !activeCanvasLocked;
   const updateCloudSyncState = () => {
-    const next = !!activeCanvasId;
+    const next = !!activeCanvasId && !activeCanvasLocked;
     if (next === cloudSyncEnabled) return;
     cloudSyncEnabled = next;
     if (!cloudSyncEnabled && remoteSyncTimer) {
@@ -1715,11 +1717,11 @@ export function initWorkspaceRuntime(context = {}) {
   canvasThumbnailController = createCanvasThumbnailController({
     canvasWrapper,
     getActiveCanvasId: () => getActiveCanvasIdFromContext(),
-    canCapture: () => cloudSyncEnabled,
+    canCapture: () => cloudSyncEnabled && !activeCanvasLocked,
     saveThumbnail: saveCanvasThumbnail,
     beforeNavigate: async () => {
       persistence?.handleBeforeUnload?.();
-      if (cloudSyncEnabled && activeCanvasId) {
+      if (cloudSyncEnabled && activeCanvasId && !activeCanvasLocked) {
         await flushRemoteSync();
       }
     }

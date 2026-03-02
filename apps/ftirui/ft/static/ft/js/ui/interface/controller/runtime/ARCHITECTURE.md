@@ -195,6 +195,19 @@ Quota behavior:
   - `FT_WORKSPACE_FREE_SECTION_LIMIT`
   - `FT_WORKSPACE_FREE_PROJECT_LIMIT`
   - `FT_WORKSPACE_FREE_CANVAS_LIMIT`
+- current canvas overflow policy is:
+  - creating a new canvas is allowed
+  - the oldest excess canvas becomes `quota_locked`
+  - `quota_locked` means read-only, not hidden or deleted
+  - locked canvases remain visible in dashboard payloads and can still be opened for viewing
+  - write endpoints (`PATCH`/state save/version create/thumbnail save) must stay blocked for locked canvases
+- duplication of a locked canvas is still allowed
+  - the dashboard must warn before duplication if that action will keep the workspace over quota
+  - the resulting duplicate still goes through the same overflow rule (`quota_locked` oldest canvas)
+- temporary upgrade flow routes now exist for UI work only:
+  - `/plans/`
+  - `/plans/checkout/`
+  - they are placeholder pages and must not be treated as real billing integration
 - there is no billing/subscription model in this repo yet, so do not pretend plan-aware quota enforcement exists unless that backend signal is added first
 
 ### 2. Legacy/dev workspace activation path (STALE, DO NOT REUSE)

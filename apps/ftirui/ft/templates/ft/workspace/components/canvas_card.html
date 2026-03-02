@@ -1,7 +1,7 @@
 <div class="plot-b-main">
   <div class="card workspace-card workspace-canvas-card">
     <div class="card-body workspace-card-body workspace-canvas-card-body">
-      <div class="workspace-canvas-wrapper">
+      <div class="workspace-canvas-wrapper{% if active_canvas_locked %} is-readonly{% endif %}">
         {% include 'ft/workspace/components/canvas_toolbar.html' %}
         <div id="c_canvas_root" class="workspace-canvas" role="region" aria-live="polite">
           <div id="c_canvas_empty" class="workspace-empty">
@@ -134,6 +134,30 @@
           </div>
           <div class="workspace-tech-side-panel-inner" data-tech-side-panel-body></div>
         </aside>
+        {% if active_canvas_locked %}
+          <div class="workspace-canvas-readonly" data-workspace-canvas-readonly>
+            <div class="workspace-canvas-readonly__card">
+              <div class="workspace-canvas-readonly__icon">
+                <i class="bi bi-lock-fill" aria-hidden="true"></i>
+              </div>
+              <div class="workspace-canvas-readonly__title">Read-only canvas</div>
+              <div class="workspace-canvas-readonly__copy">
+                This canvas exceeds the free canvas quota. You can view it, but editing is disabled until you delete an older canvas or upgrade.
+              </div>
+              <div class="workspace-canvas-readonly__actions">
+                <button type="button" class="btn btn-primary btn-sm" data-readonly-upgrade>
+                  Upgrade
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-readonly-refresh>
+                  Refresh access
+                </button>
+                <button type="button" class="btn btn-outline-light btn-sm" data-readonly-confirm>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

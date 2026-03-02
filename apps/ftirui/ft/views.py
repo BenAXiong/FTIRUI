@@ -214,7 +214,11 @@ def _workspace_limit_response(kind: str, limit: int):
     suffix = "" if limit == 1 else "s"
     return JsonResponse(
         {
-            "error": f"{label.capitalize()} limit reached ({limit} {label}{suffix})."
+            "error": f"{label.capitalize()} limit reached ({limit} {label}{suffix}).",
+            "code": "workspace_limit_reached",
+            "kind": kind,
+            "limit": limit,
+            "upgrade_url": reverse("ft:plans"),
         },
         status=403,
     )
@@ -239,6 +243,47 @@ def _workspace_delta_fits_limits(limits, counts, delta):
         if counts.get(kind, 0) + max(int(increment or 0), 0) > limit:
             return False
     return True
+
+
+def _get_quota_locked_canvases(owner, *, identity=None):
+    limits = _get_workspace_limits(identity or owner)
+    limit = limits.get("canvases")
+    if limit is None:
+        return []
+    canvases = list(
+        WorkspaceCanvas.objects.filter(owner=owner)
+        .order_by("created_at", "id")
+    )
+    overflow = len(canvases) - limit
+    if overflow <= 0:
+        return []
+    return canvases[:overflow]
+
+
+def _get_quota_locked_canvas_ids(owner, *, identity=None):
+    return {canvas.id for canvas in _get_quota_locked_canvases(owner, identity=identity)}
+
+
+def _is_canvas_quota_locked(owner, canvas, *, identity=None):
+    if not owner or not canvas:
+        return False
+    return canvas.id in _get_quota_locked_canvas_ids(owner, identity=identity)
+
+
+def _quota_locked_canvas_response(canvas):
+    title = getattr(canvas, "title", None) or "Untitled Canvas"
+    return JsonResponse(
+        {
+            "error": f'Canvas "{title}" is locked because your canvas quota was exceeded.',
+            "code": "canvas_quota_locked",
+            "upgrade_url": reverse("ft:plans"),
+        },
+        status=423,
+    )
+
+
+def _is_write_blocked_for_locked_canvas(request_method: str) -> bool:
+    return request_method.upper() not in {"GET", "HEAD", "OPTIONS"}
 
 
 def _ensure_workspace_bootstrap(owner):
@@ -489,6 +534,7 @@ def index(request):
     initial_shell_pane = requested_pane or ("dashboard" if request.user.is_authenticated else "workspace")
     dashboard_entry_url = f"{reverse('ft:home')}?pane=dashboard"
     active_canvas = None
+    active_canvas_locked = False
     requested_canvas_id = None
     if not request.user.is_authenticated:
         owner = _resolve_workspace_owner(request, create_guest=True)
@@ -496,12 +542,14 @@ def index(request):
         requested_canvas_id = str(bootstrap["canvas"].id)
         if initial_shell_pane == "workspace":
             active_canvas = bootstrap["canvas"]
+            active_canvas_locked = _is_canvas_quota_locked(owner, active_canvas, identity=request)
     context = {
         "workspace_only": False,
         "canvas_focused_shell": request.user.is_authenticated is False and initial_shell_pane == "workspace",
         "workspace_pane_active": initial_shell_pane == "workspace",
         "initial_shell_pane": initial_shell_pane,
         "active_canvas": active_canvas,
+        "active_canvas_locked": active_canvas_locked,
         "requested_canvas_id": requested_canvas_id,
         "dashboard_entry_url": dashboard_entry_url,
     }
@@ -537,6 +585,7 @@ def workspace_page(request):
         "workspace_pane_active": True,
         "initial_shell_pane": "workspace",
         "active_canvas": canvas,
+        "active_canvas_locked": _is_canvas_quota_locked(owner, canvas, identity=request) if canvas and owner else False,
         "requested_canvas_id": requested_canvas_id,
         "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
     }
@@ -552,10 +601,115 @@ def profile(request):
         "canvas_focused_shell": False,
         "workspace_pane_active": False,
         "initial_shell_pane": "dashboard",
+        "active_canvas_locked": False,
         "profile_page": True,
         "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
     }
     return render(request, "ft/profile/detail.html", context)
+
+
+def plans_page(request):
+    next_path = request.GET.get("next") or request.META.get("HTTP_REFERER") or reverse("ft:home")
+    current_plan = "free"
+    context = {
+        "workspace_only": False,
+        "canvas_focused_shell": False,
+        "workspace_pane_active": False,
+        "initial_shell_pane": "dashboard",
+        "active_canvas": None,
+        "active_canvas_locked": False,
+        "plans_page": True,
+        "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
+        "plans_next_url": next_path,
+        "plans_current_plan": current_plan,
+        "plans": [
+            {
+                "slug": "free",
+                "eyebrow": "Current baseline",
+                "title": "Free",
+                "price": "$0",
+                "subtitle": "Good for trying the workflow",
+                "description": "Guest users get 1 project and 1 canvas. Signed-in free users get 1 project and 3 canvases.",
+                "features": [
+                    "Core plotting and dashboard workflow",
+                    "Guest onboarding on the canvas",
+                    "Quota-locked canvases stay viewable",
+                    "Same workspace model as paid accounts",
+                ],
+                "cta_label": "Current plan",
+                "is_current": True,
+                "is_featured": False,
+            },
+            {
+                "slug": "pro",
+                "eyebrow": "Recommended",
+                "title": "Pro",
+                "price": "$19",
+                "subtitle": "Unlimited workspace for individual work",
+                "description": "Temporary pricing page. Final subscription and tax logic will replace this route later.",
+                "features": [
+                    "Unlimited projects, folders, and canvases",
+                    "No quota locks or free-tier overflow rules",
+                    "Same workspace UI, no gated editing",
+                    "Future billing route will plug into this flow",
+                ],
+                "cta_label": "Continue to payment",
+                "is_current": False,
+                "is_featured": True,
+            },
+            {
+                "slug": "team",
+                "eyebrow": "Placeholder",
+                "title": "Team",
+                "price": "$49",
+                "subtitle": "Unlimited workspace plus team billing later",
+                "description": "This is a stub so the upgrade path can already be tested end-to-end.",
+                "features": [
+                    "Unlimited everything",
+                    "Future shared billing and seat management",
+                    "Future admin controls",
+                    "Same upgrade route shape as the final product",
+                ],
+                "cta_label": "Continue to payment",
+                "is_current": False,
+                "is_featured": False,
+            },
+        ],
+    }
+    return render(request, "ft/plans/index.html", context)
+
+
+def checkout_placeholder_page(request):
+    plan = (request.GET.get("plan") or "pro").strip().lower()
+    next_path = request.GET.get("next") or reverse("ft:home")
+    catalog = {
+        "pro": {
+            "title": "Pro",
+            "price": "$19 / month",
+            "summary": "Unlimited projects, folders, and canvases.",
+        },
+        "team": {
+            "title": "Team",
+            "price": "$49 / month",
+            "summary": "Unlimited workspace plus future team billing controls.",
+        },
+    }
+    selected = catalog.get(plan, catalog["pro"])
+    context = {
+        "workspace_only": False,
+        "canvas_focused_shell": False,
+        "workspace_pane_active": False,
+        "initial_shell_pane": "dashboard",
+        "active_canvas": None,
+        "active_canvas_locked": False,
+        "plans_page": True,
+        "checkout_page": True,
+        "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
+        "checkout_plan_slug": plan if plan in catalog else "pro",
+        "checkout_plan": selected,
+        "plans_next_url": next_path,
+    }
+    return render(request, "ft/plans/checkout.html", context)
 
 @require_http_methods(["POST"])
 def preview(request):
@@ -1074,7 +1228,12 @@ def _isoformat(value):
         return None
     return timezone.localtime(value).isoformat()
 
-def _serialize_canvas(canvas):
+def _serialize_canvas(canvas, *, identity=None, locked_ids=None):
+    quota_locked = False
+    if locked_ids is not None:
+        quota_locked = canvas.id in locked_ids
+    else:
+        quota_locked = _is_canvas_quota_locked(canvas.owner, canvas, identity=identity)
     return {
         "id": str(canvas.id),
         "project_id": str(canvas.project_id),
@@ -1086,6 +1245,7 @@ def _serialize_canvas(canvas):
         "tags": list(getattr(canvas, "tags", []) or []),
         "updated": _isoformat(canvas.updated_at),
         "created": _isoformat(canvas.created_at),
+        "quota_locked": quota_locked,
     }
 
 
@@ -1095,7 +1255,7 @@ def _parse_tags_value(value):
         raise ValueError("Tags must be provided as a list of strings.")
     return tags
 
-def _serialize_project(project, *, include_canvases=False):
+def _serialize_project(project, *, include_canvases=False, identity=None):
     data = {
         "id": str(project.id),
         "section_id": str(project.section_id),
@@ -1107,10 +1267,14 @@ def _serialize_project(project, *, include_canvases=False):
         "canvas_count": project.canvases.count(),
     }
     if include_canvases:
-        data["canvases"] = [_serialize_canvas(canvas) for canvas in project.canvases.order_by("-updated_at")]
+        locked_ids = _get_quota_locked_canvas_ids(project.owner, identity=identity)
+        data["canvases"] = [
+            _serialize_canvas(canvas, identity=identity, locked_ids=locked_ids)
+            for canvas in project.canvases.order_by("-updated_at")
+        ]
     return data
 
-def _serialize_section(section, *, include_projects=False):
+def _serialize_section(section, *, include_projects=False, identity=None):
     data = {
         "id": str(section.id),
         "name": section.name,
@@ -1124,7 +1288,7 @@ def _serialize_section(section, *, include_projects=False):
     if include_projects:
         projects = section.projects.select_related("section").prefetch_related("canvases")
         data["projects"] = [
-            _serialize_project(project, include_canvases=True)
+            _serialize_project(project, include_canvases=True, identity=identity)
             for project in projects.order_by("position", "created_at")
         ]
     return data
@@ -1202,7 +1366,7 @@ def api_dashboard_sections(request, workspace_owner):
         include = request.GET.get("include") == "full"
         sections = WorkspaceSection.objects.filter(owner=user).order_by("-is_pinned", "position", "created_at")
         return JsonResponse(
-            {"items": [_serialize_section(section, include_projects=include) for section in sections]}
+            {"items": [_serialize_section(section, include_projects=include, identity=request) for section in sections]}
         )
     # POST
     try:
@@ -1229,7 +1393,7 @@ def api_dashboard_sections(request, workspace_owner):
         color=payload.get("color") or "",
         position=max(position, 0),
     )
-    return JsonResponse(_serialize_section(section, include_projects=True), status=201)
+    return JsonResponse(_serialize_section(section, include_projects=True, identity=request), status=201)
 
 @require_http_methods(["PATCH", "DELETE"])
 @_require_workspace_owner
@@ -1271,7 +1435,7 @@ def api_dashboard_section_detail(request, section_id, workspace_owner):
     if update_fields:
         update_fields.append("updated_at")
         section.save(update_fields=update_fields)
-    return JsonResponse(_serialize_section(section, include_projects=True))
+    return JsonResponse(_serialize_section(section, include_projects=True, identity=request))
 
 @require_http_methods(["GET", "POST"])
 @_require_workspace_owner
@@ -1283,7 +1447,7 @@ def api_dashboard_section_projects(request, section_id, workspace_owner):
 
     if request.method == "GET":
         projects = section.projects.prefetch_related("canvases").order_by("position", "created_at")
-        return JsonResponse({"items": [_serialize_project(project, include_canvases=True) for project in projects]})
+        return JsonResponse({"items": [_serialize_project(project, include_canvases=True, identity=request) for project in projects]})
 
     try:
         payload = _json_body(request)
@@ -1310,7 +1474,7 @@ def api_dashboard_section_projects(request, section_id, workspace_owner):
         cover_thumbnail=payload.get("cover_thumbnail") or "",
         position=max(position, 0),
     )
-    return JsonResponse(_serialize_project(project, include_canvases=True), status=201)
+    return JsonResponse(_serialize_project(project, include_canvases=True, identity=request), status=201)
 
 @require_http_methods(["GET", "PATCH", "DELETE"])
 @_require_workspace_owner
@@ -1322,7 +1486,7 @@ def api_dashboard_project_detail(request, project_id, workspace_owner):
 
     if request.method == "GET":
         project = WorkspaceProject.objects.prefetch_related("canvases").get(id=project.id)
-        return JsonResponse(_serialize_project(project, include_canvases=True))
+        return JsonResponse(_serialize_project(project, include_canvases=True, identity=request))
 
     if request.method == "DELETE":
         project.delete()
@@ -1359,7 +1523,7 @@ def api_dashboard_project_detail(request, project_id, workspace_owner):
     if update_fields:
         update_fields.append("updated_at")
         project.save(update_fields=update_fields)
-    return JsonResponse(_serialize_project(project, include_canvases=True))
+    return JsonResponse(_serialize_project(project, include_canvases=True, identity=request))
 
 @require_http_methods(["GET", "POST"])
 @_require_workspace_owner
@@ -1371,7 +1535,8 @@ def api_dashboard_project_canvases(request, project_id, workspace_owner):
 
     if request.method == "GET":
         canvases = project.canvases.order_by("-updated_at")
-        return JsonResponse({"items": [_serialize_canvas(canvas) for canvas in canvases]})
+        locked_ids = _get_quota_locked_canvas_ids(user, identity=request)
+        return JsonResponse({"items": [_serialize_canvas(canvas, identity=request, locked_ids=locked_ids) for canvas in canvases]})
 
     try:
         payload = _json_body(request)
@@ -1384,9 +1549,7 @@ def api_dashboard_project_canvases(request, project_id, workspace_owner):
         raw_state = {}
     state, state_size = _compute_state_size(raw_state if isinstance(raw_state, dict) else {})
 
-    limit_error = _check_workspace_quota(request, user, "canvases")
-    if limit_error:
-        return limit_error
+    previously_locked_ids = _get_quota_locked_canvas_ids(user, identity=request)
 
     if "tags" in payload:
         try:
@@ -1407,7 +1570,18 @@ def api_dashboard_project_canvases(request, project_id, workspace_owner):
         autosave_token=payload.get("autosave_token") or "",
         tags=tags,
     )
-    return JsonResponse(_serialize_canvas(canvas), status=201)
+    locked_canvases = _get_quota_locked_canvases(user, identity=request)
+    locked_ids = {item.id for item in locked_canvases}
+    newly_locked = [item for item in locked_canvases if item.id not in previously_locked_ids]
+    response = _serialize_canvas(canvas, identity=request, locked_ids=locked_ids)
+    if newly_locked:
+        response["quota_lock_notice"] = {
+            "count": len(newly_locked),
+            "locked_canvas_ids": [str(item.id) for item in newly_locked],
+            "locked_canvas_titles": [item.title or "Untitled Canvas" for item in newly_locked],
+            "message": "Canvas quota exceeded. The oldest canvas is now locked and read-only on the free tier.",
+        }
+    return JsonResponse(response, status=201)
 
 @require_http_methods(["GET", "PATCH", "DELETE"])
 @_require_workspace_owner
@@ -1418,13 +1592,16 @@ def api_dashboard_canvas_detail(request, canvas_id, workspace_owner):
         return JsonResponse({"error": "Canvas not found"}, status=404)
 
     if request.method == "GET":
-        data = _serialize_canvas(canvas)
-        data["project"] = _serialize_project(canvas.project, include_canvases=False)
+        data = _serialize_canvas(canvas, identity=request)
+        data["project"] = _serialize_project(canvas.project, include_canvases=False, identity=request)
         return JsonResponse(data)
 
     if request.method == "DELETE":
         canvas.delete()
         return HttpResponse(status=204)
+
+    if _is_canvas_quota_locked(user, canvas, identity=request):
+        return _quota_locked_canvas_response(canvas)
 
     try:
         payload = _json_body(request)
@@ -1460,7 +1637,7 @@ def api_dashboard_canvas_detail(request, canvas_id, workspace_owner):
     if update_fields:
         update_fields.append("updated_at")
         canvas.save(update_fields=update_fields)
-    return JsonResponse(_serialize_canvas(canvas))
+    return JsonResponse(_serialize_canvas(canvas, identity=request))
 
 @require_http_methods(["GET", "PUT"])
 @_require_workspace_owner
@@ -1469,6 +1646,8 @@ def api_dashboard_canvas_state(request, canvas_id, workspace_owner):
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
+    if _is_canvas_quota_locked(user, canvas, identity=request) and _is_write_blocked_for_locked_canvas(request.method):
+        return _quota_locked_canvas_response(canvas)
 
     if request.method == "GET":
         return JsonResponse(
@@ -1499,7 +1678,7 @@ def api_dashboard_canvas_state(request, canvas_id, workspace_owner):
         canvas.thumbnail_url = payload.get("thumbnail_url") or ""
     canvas.autosave_token = payload.get("autosave_token") or canvas.autosave_token
     canvas.save(update_fields=["state_json", "state_size", "version_label", "thumbnail_url", "autosave_token", "updated_at"])
-    return JsonResponse(_serialize_canvas(canvas))
+    return JsonResponse(_serialize_canvas(canvas, identity=request))
 
 
 @require_http_methods(["POST"])
@@ -1509,6 +1688,8 @@ def api_dashboard_canvas_thumbnail(request, canvas_id, workspace_owner):
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
+    if _is_canvas_quota_locked(user, canvas, identity=request):
+        return _quota_locked_canvas_response(canvas)
 
     try:
         payload = _json_body(request)
@@ -1540,6 +1721,8 @@ def api_dashboard_canvas_versions(request, canvas_id, workspace_owner):
     canvas = _get_canvas_for_user(user, canvas_id)
     if not canvas:
         return JsonResponse({"error": "Canvas not found"}, status=404)
+    if _is_canvas_quota_locked(user, canvas, identity=request) and _is_write_blocked_for_locked_canvas(request.method):
+        return _quota_locked_canvas_response(canvas)
 
     if request.method == "GET":
         versions = canvas.versions.order_by("-created_at")

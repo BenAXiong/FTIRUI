@@ -115,13 +115,21 @@ class DashboardApiTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(project_resp.status_code, 403)
+        self.assertEqual(project_resp.json()["code"], "workspace_limit_reached")
+        self.assertIn("upgrade_url", project_resp.json())
 
         canvas_resp = self.client.post(
             f"/api/dashboard/projects/{project.id}/canvases/",
             data=json.dumps({"title": "Another canvas", "state": {}}),
             content_type="application/json",
         )
-        self.assertEqual(canvas_resp.status_code, 403)
+        self.assertEqual(canvas_resp.status_code, 201)
+        canvas_payload = canvas_resp.json()
+        self.assertIn("quota_lock_notice", canvas_payload)
+        listing = self.client.get("/api/dashboard/sections/?include=full")
+        canvases = listing.json()["items"][0]["projects"][0]["canvases"]
+        locked = [canvas for canvas in canvases if canvas.get("quota_locked")]
+        self.assertEqual(len(locked), 1)
 
     def test_guest_workspace_is_adopted_after_login(self):
         self.client.logout()
@@ -145,6 +153,7 @@ class DashboardApiTests(TestCase):
         adopted_section = WorkspaceSection.objects.get(owner=adopted_user)
         self.assertEqual(adopted_section.name, "Untitled Project")
         self.assertEqual(adopted_project.title, "Untitled Folder")
+        self.assertNotIn("ft_guest_workspace_owner_id", self.client.session)
 
     def test_pristine_guest_workspace_is_not_migrated_on_login(self):
         self.client.logout()
@@ -160,6 +169,7 @@ class DashboardApiTests(TestCase):
         pristine_canvas.refresh_from_db()
         self.assertEqual(pristine_canvas.owner, guest_owner)
         self.assertFalse(WorkspaceCanvas.objects.filter(owner=target_user).exists())
+        self.assertNotIn("ft_guest_workspace_owner_id", self.client.session)
 
     def test_guest_workspace_at_quota_is_staged_not_adopted(self):
         self.client.logout()
@@ -193,6 +203,64 @@ class DashboardApiTests(TestCase):
         me = self.client.get("/api/me/")
         self.assertEqual(me.status_code, 200)
         self.assertTrue(me.json()["pending_guest_workspace_adoption"])
+        self.assertNotIn("ft_guest_workspace_owner_id", self.client.session)
+
+    def test_logout_after_adoption_bootstraps_fresh_guest_workspace(self):
+        self.client.logout()
+        self.client.get("/")
+        guest_owner = self._guest_owner()
+        guest_canvas = WorkspaceCanvas.objects.get(owner=guest_owner)
+        guest_canvas.state_json = self._canvas_state("Guest migrated", trace_id="guest-fresh")
+        guest_canvas.state_size = len(json.dumps(guest_canvas.state_json))
+        guest_canvas.save(update_fields=["state_json", "state_size", "updated_at"])
+
+        adopted_user = User.objects.create_user(username="adopted-fresh", password="secret")
+        self.assertTrue(self.client.login(username="adopted-fresh", password="secret"))
+        self.client.get("/")
+        self.client.logout()
+
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        fresh_guest_owner = self._guest_owner()
+        self.assertNotEqual(fresh_guest_owner.pk, guest_owner.pk)
+        self.assertEqual(WorkspaceCanvas.objects.filter(owner=fresh_guest_owner).count(), 1)
+        fresh_canvas = WorkspaceCanvas.objects.get(owner=fresh_guest_owner)
+        self.assertEqual(fresh_canvas.title, "Untitled Canvas")
+        self.assertEqual(fresh_canvas.state_json, {})
+
+    def test_logout_after_staged_adoption_bootstraps_fresh_guest_workspace(self):
+        self.client.logout()
+        self.client.get("/")
+        guest_owner = self._guest_owner()
+        guest_canvas = WorkspaceCanvas.objects.get(owner=guest_owner)
+        guest_canvas.state_json = self._canvas_state("Guest staged", trace_id="guest-stage-fresh")
+        guest_canvas.state_size = len(json.dumps(guest_canvas.state_json))
+        guest_canvas.save(update_fields=["state_json", "state_size", "updated_at"])
+
+        quota_user = User.objects.create_user(username="quota-fresh", password="secret")
+        quota_section = WorkspaceSection.objects.create(owner=quota_user, name="Owned")
+        quota_project = WorkspaceProject.objects.create(owner=quota_user, section=quota_section, title="Folder")
+        for index in range(3):
+            WorkspaceCanvas.objects.create(
+                owner=quota_user,
+                project=quota_project,
+                title=f"Canvas {index + 1}",
+                state_json={"index": index},
+                state_size=10,
+            )
+
+        self.assertTrue(self.client.login(username="quota-fresh", password="secret"))
+        self.client.get("/")
+        self.client.logout()
+
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        fresh_guest_owner = self._guest_owner()
+        self.assertNotEqual(fresh_guest_owner.pk, guest_owner.pk)
+        self.assertEqual(WorkspaceCanvas.objects.filter(owner=fresh_guest_owner).count(), 1)
+        fresh_canvas = WorkspaceCanvas.objects.get(owner=fresh_guest_owner)
+        self.assertEqual(fresh_canvas.title, "Untitled Canvas")
+        self.assertEqual(fresh_canvas.state_json, {})
 
     def test_list_sections_with_projects(self):
         resp = self.client.get("/api/dashboard/sections/?include=full")
@@ -225,6 +293,106 @@ class DashboardApiTests(TestCase):
         self.assertLessEqual(len(data["tags"]), 5)
         created = WorkspaceCanvas.objects.get(id=data["id"])
         self.assertEqual(created.tags, data["tags"])
+
+    def test_create_canvas_beyond_quota_locks_oldest_canvas(self):
+        url = f"/api/dashboard/projects/{self.project.id}/canvases/"
+        created_payloads = []
+        for index in range(3):
+            resp = self.client.post(
+                url,
+                data=json.dumps({"title": f"Analysis {index + 1}", "state": {"order": [str(index)]}}),
+                content_type="application/json",
+            )
+            self.assertEqual(resp.status_code, 201, resp.content)
+            created_payloads.append(resp.json())
+
+        overflow_payload = created_payloads[-1]
+        self.assertIn("quota_lock_notice", overflow_payload)
+        self.assertFalse(overflow_payload["quota_locked"])
+
+        listing = self.client.get("/api/dashboard/sections/?include=full")
+        self.assertEqual(listing.status_code, 200)
+        canvases = listing.json()["items"][0]["projects"][0]["canvases"]
+        locked = [canvas for canvas in canvases if canvas.get("quota_locked")]
+        self.assertEqual(len(locked), 1)
+        self.assertEqual(locked[0]["id"], str(self.canvas.id))
+
+        locked_state = self.client.get(f"/api/dashboard/canvases/{self.canvas.id}/state/")
+        self.assertEqual(locked_state.status_code, 200)
+        self.assertIn("state", locked_state.json())
+
+        locked_state_put = self.client.put(
+            f"/api/dashboard/canvases/{self.canvas.id}/state/",
+            data=json.dumps({"state": {"order": []}}),
+            content_type="application/json",
+        )
+        self.assertEqual(locked_state_put.status_code, 423)
+        self.assertEqual(locked_state_put.json()["code"], "canvas_quota_locked")
+        self.assertIn("upgrade_url", locked_state_put.json())
+
+        locked_versions = self.client.get(f"/api/dashboard/canvases/{self.canvas.id}/versions/")
+        self.assertEqual(locked_versions.status_code, 200)
+        self.assertIn("items", locked_versions.json())
+
+        locked_versions_post = self.client.post(
+            f"/api/dashboard/canvases/{self.canvas.id}/versions/",
+            data=json.dumps({"label": "blocked"}),
+            content_type="application/json",
+        )
+        self.assertEqual(locked_versions_post.status_code, 423)
+        self.assertEqual(locked_versions_post.json()["code"], "canvas_quota_locked")
+
+        locked_patch = self.client.patch(
+            f"/api/dashboard/canvases/{self.canvas.id}/",
+            data=json.dumps({"title": "Blocked rename"}),
+            content_type="application/json",
+        )
+        self.assertEqual(locked_patch.status_code, 423)
+        self.assertEqual(locked_patch.json()["code"], "canvas_quota_locked")
+
+    def test_deleting_canvas_below_quota_unlocks_oldest_canvas(self):
+        url = f"/api/dashboard/projects/{self.project.id}/canvases/"
+        created_ids = []
+        for index in range(3):
+            resp = self.client.post(
+                url,
+                data=json.dumps({"title": f"Analysis {index + 1}", "state": {"order": [str(index)]}}),
+                content_type="application/json",
+            )
+            self.assertEqual(resp.status_code, 201, resp.content)
+            created_ids.append(resp.json()["id"])
+
+        locked_patch = self.client.patch(
+            f"/api/dashboard/canvases/{self.canvas.id}/",
+            data=json.dumps({"title": "Still blocked"}),
+            content_type="application/json",
+        )
+        self.assertEqual(locked_patch.status_code, 423)
+
+        delete_resp = self.client.delete(f"/api/dashboard/canvases/{created_ids[-1]}/")
+        self.assertEqual(delete_resp.status_code, 204)
+
+        listing = self.client.get("/api/dashboard/sections/?include=full")
+        self.assertEqual(listing.status_code, 200)
+        canvases = listing.json()["items"][0]["projects"][0]["canvases"]
+        unlocked = next(canvas for canvas in canvases if canvas["id"] == str(self.canvas.id))
+        self.assertFalse(unlocked["quota_locked"])
+
+        unlocked_patch = self.client.patch(
+            f"/api/dashboard/canvases/{self.canvas.id}/",
+            data=json.dumps({"title": "Unlocked again"}),
+            content_type="application/json",
+        )
+        self.assertEqual(unlocked_patch.status_code, 200)
+
+    def test_plans_and_checkout_placeholder_pages_render(self):
+        plans = self.client.get("/plans/")
+        self.assertEqual(plans.status_code, 200)
+        self.assertContains(plans, "Choose a plan")
+
+        checkout = self.client.get("/plans/checkout/?plan=pro")
+        self.assertEqual(checkout.status_code, 200)
+        self.assertContains(checkout, "Review your Pro upgrade")
 
     def test_canvas_version_detail_includes_state(self):
         url = f"/api/dashboard/canvases/{self.canvas.id}/versions/"

@@ -12,8 +12,12 @@
           <span class="workspace-canvas-title badge rounded-pill"
                 data-workspace-canvas-title
                 data-canvas-id="{% if active_canvas %}{{ active_canvas.id }}{% endif %}"
-                {% if active_canvas or not request.user.is_authenticated %}title="Rename canvas"{% endif %}
-                aria-disabled="{% if active_canvas or not request.user.is_authenticated %}false{% else %}true{% endif %}"
+                {% if active_canvas_locked %}
+                  title="Canvas is read-only"
+                {% elif active_canvas or not request.user.is_authenticated %}
+                  title="Rename canvas"
+                {% endif %}
+                aria-disabled="{% if active_canvas_locked %}true{% elif active_canvas or not request.user.is_authenticated %}false{% else %}true{% endif %}"
                 role="button"
                 tabindex="0">
             {% if active_canvas %}
@@ -22,6 +26,12 @@
               Untitled Canvas
             {% endif %}
           </span>
+          {% if active_canvas_locked %}
+            <span class="workspace-canvas-lock-pill" title="This canvas is read-only because it exceeds the free canvas quota.">
+              <i class="bi bi-lock-fill" aria-hidden="true"></i>
+              <span>Read only</span>
+            </span>
+          {% endif %}
           <div class="workspace-canvas-tooltip" role="tooltip">
             <div class="workspace-canvas-tooltip-row">
               <span class="workspace-canvas-tooltip-label">Project</span>

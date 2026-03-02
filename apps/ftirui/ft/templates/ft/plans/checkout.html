@@ -1,0 +1,66 @@
+{% extends 'ft/layouts/app_shell.html' %}
+
+{% block title %}Checkout · scisci{% endblock %}
+
+{% block body_class %}bg-body app-frame app-plans-page{% endblock %}
+
+{% block page_body %}
+  <main class="plans-shell plans-shell--checkout">
+    <header class="plans-hero">
+      <div>
+        <p class="plans-kicker">Payment placeholder</p>
+        <h1 class="plans-title">Review your {{ checkout_plan.title }} upgrade.</h1>
+        <p class="plans-subtitle">
+          This is a fake checkout page so the routing, CTA placement, and quota messaging can be tested before real billing is implemented.
+        </p>
+      </div>
+      <div class="plans-hero-actions">
+        <a class="btn btn-outline-secondary" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}">Back to plans</a>
+      </div>
+    </header>
+
+    <section class="checkout-grid">
+      <article class="plan-card is-featured">
+        <div class="plan-card__eyebrow">Selected plan</div>
+        <h2 class="plan-card__title">{{ checkout_plan.title }}</h2>
+        <div class="plan-card__price">{{ checkout_plan.price }}</div>
+        <p class="plan-card__description">{{ checkout_plan.summary }}</p>
+        <ul class="plan-card__features">
+          <li>Routing is already in place.</li>
+          <li>No real payment or quota change is executed yet.</li>
+          <li>The final checkout backend can replace this page later.</li>
+        </ul>
+      </article>
+
+      <section class="checkout-card" aria-label="Placeholder payment form">
+        <div class="checkout-card__note">Temporary payment form</div>
+        <h2 class="checkout-card__title">Confirm the upgrade flow.</h2>
+        <div class="checkout-card__field">
+          <label for="checkout_name">Name on card</label>
+          <input id="checkout_name" type="text" class="form-control" placeholder="Ada Lovelace">
+        </div>
+        <div class="checkout-card__field">
+          <label for="checkout_email">Billing email</label>
+          <input id="checkout_email" type="email" class="form-control" placeholder="name@example.com">
+        </div>
+        <div class="checkout-card__row">
+          <div class="checkout-card__field">
+            <label for="checkout_card">Card number</label>
+            <input id="checkout_card" type="text" class="form-control" placeholder="4242 4242 4242 4242">
+          </div>
+          <div class="checkout-card__field">
+            <label for="checkout_exp">Expiry</label>
+            <input id="checkout_exp" type="text" class="form-control" placeholder="12/34">
+          </div>
+        </div>
+        <div class="checkout-card__actions">
+          <a class="btn btn-light" href="{{ plans_next_url|default:'/' }}">Return without upgrading</a>
+          <button type="button" class="btn btn-primary" disabled>Payment integration pending</button>
+        </div>
+        <p class="checkout-card__footnote">
+          The real checkout implementation will replace this page and apply the final quota logic.
+        </p>
+      </section>
+    </section>
+  </main>
+{% endblock %}

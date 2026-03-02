@@ -1,7 +1,7 @@
 import { el } from './js/ui/utils/dom.js';
 import { initDashboard } from './js/ui/dashboard/initDashboard.js';
 import { mountWorkspace } from './js/ui/workspace/initControls.js';
-import { updateCanvas } from './js/services/dashboard.js';
+import { fetchCanvasDetail, updateCanvas } from './js/services/dashboard.js';
 import { getWorkspaceTagColor } from './js/ui/utils/tagColors.js';
 
 // Option A likely already initializes somewhere else.
@@ -118,6 +118,21 @@ function showAppToast({ title = '', message = '', variant = 'primary', delay = 4
 }
 
 window.showAppToast = showAppToast;
+
+function buildPlansUrl({ plan = '', source = '', next = '' } = {}) {
+  const base = document.body?.dataset?.plansUrl || '/plans/';
+  const url = new URL(base, window.location.origin);
+  if (plan) url.searchParams.set('plan', plan);
+  if (source) url.searchParams.set('source', source);
+  if (next) url.searchParams.set('next', next);
+  return url.toString();
+}
+
+function openPlansPage(options = {}) {
+  window.location.assign(buildPlansUrl(options));
+}
+
+window.openAppPlansPage = openPlansPage;
 const AUTH_STORAGE_KEY = 'ftir:last-auth';
 
 const userStatusCard = el('user_status');
@@ -324,6 +339,7 @@ function initWorkspaceTitleEditor() {
   const titleEl = document.querySelector('[data-workspace-canvas-title]');
   if (!titleEl) return;
   const canEditLocally = document.body?.dataset?.userAuthenticated !== 'true';
+  const isLocked = document.body?.dataset?.activeCanvasLocked === 'true';
   const getCanvasId = () =>
     titleEl.dataset.canvasId ||
     document.body?.dataset?.activeCanvasId ||
@@ -339,7 +355,7 @@ function initWorkspaceTitleEditor() {
   };
   applyDisplayValue(titleEl.textContent);
   const baseId = getCanvasId();
-  if (!baseId && !canEditLocally) {
+  if (isLocked || (!baseId && !canEditLocally)) {
     titleEl.setAttribute('aria-disabled', 'true');
     return;
   }
@@ -453,6 +469,68 @@ function initWorkspaceTitleEditor() {
 }
 
 initWorkspaceTitleEditor();
+
+function initReadonlyCanvasOverlay() {
+  const body = document.body;
+  if (!body || body.dataset.activeCanvasLocked !== 'true') return;
+  const overlay = document.querySelector('[data-workspace-canvas-readonly]');
+  if (!overlay) return;
+  const wrapper = overlay.closest('.workspace-canvas-wrapper');
+  const canvasId = body.dataset.activeCanvasId || '';
+  const confirmBtn = overlay.querySelector('[data-readonly-confirm]');
+  const upgradeBtn = overlay.querySelector('[data-readonly-upgrade]');
+  const refreshBtn = overlay.querySelector('[data-readonly-refresh]');
+
+  const dismissOverlay = () => {
+    wrapper?.setAttribute('data-readonly-overlay-dismissed', 'true');
+    overlay.hidden = true;
+  };
+
+  const refreshAccess = async ({ silent = false } = {}) => {
+    if (!canvasId) return;
+    try {
+      const detail = await fetchCanvasDetail(canvasId);
+      if (!detail?.quota_locked) {
+        window.location.reload();
+        return;
+      }
+      if (!silent) {
+        window.showAppToast?.({
+          title: 'Canvas still locked',
+          message: 'Delete an older canvas or upgrade, then refresh access again.',
+          variant: 'warning'
+        });
+      }
+    } catch (err) {
+      if (!silent) {
+        window.showAppToast?.({
+          title: 'Unable to refresh access',
+          message: err?.message || String(err),
+          variant: 'danger'
+        });
+      }
+    }
+  };
+
+  confirmBtn?.addEventListener('click', dismissOverlay);
+  upgradeBtn?.addEventListener('click', () => {
+    openPlansPage({
+      plan: 'pro',
+      source: 'locked-canvas-overlay',
+      next: window.location.pathname + window.location.search,
+    });
+  });
+  refreshBtn?.addEventListener('click', () => {
+    void refreshAccess();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || body.dataset.activeCanvasLocked !== 'true') return;
+    void refreshAccess({ silent: true });
+  });
+}
+
+initReadonlyCanvasOverlay();
 
 function initWorkspaceHudMenu() {
   if (!isWorkspacePage) return;

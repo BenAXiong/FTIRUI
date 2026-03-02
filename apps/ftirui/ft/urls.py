@@ -6,6 +6,8 @@ app_name = "ft"
 urlpatterns = [
     path("", views.index, name="home"),
     path("workspace/", views.workspace_page, name="workspace"),
+    path("plans/", views.plans_page, name="plans"),
+    path("plans/checkout/", views.checkout_placeholder_page, name="checkout_placeholder"),
     path("profile/", views.profile, name="profile"),
 
     # JSON endpoints for Plotly + table preview

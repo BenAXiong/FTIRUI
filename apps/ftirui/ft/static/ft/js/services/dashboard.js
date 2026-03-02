@@ -1,5 +1,23 @@
 import { getCsrfToken } from '../lib/csrf.js';
 
+export class DashboardApiError extends Error {
+  constructor(message, { status = 0, data = null, url = '' } = {}) {
+    super(message || 'Request failed');
+    this.name = 'DashboardApiError';
+    this.status = status;
+    this.data = data;
+    this.url = url;
+  }
+}
+
+export function isWorkspaceQuotaError(error) {
+  return error?.data?.code === 'workspace_limit_reached';
+}
+
+export function isCanvasQuotaLockedError(error) {
+  return error?.data?.code === 'canvas_quota_locked';
+}
+
 async function request(url, { method = 'GET', body, expectJson = true } = {}) {
   const headers = new Headers();
   if (method !== 'GET' && method !== 'HEAD') {
@@ -17,14 +35,18 @@ async function request(url, { method = 'GET', body, expectJson = true } = {}) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     let detail = text;
+    let parsed = null;
     try {
-      const parsed = JSON.parse(text);
+      parsed = JSON.parse(text);
       detail = parsed?.error || parsed?.message || text;
-      if (expectJson) return Promise.reject(new Error(detail || `HTTP ${resp.status}`));
     } catch {
       /* ignore */
     }
-    throw new Error(detail || `HTTP ${resp.status}`);
+    throw new DashboardApiError(detail || `HTTP ${resp.status}`, {
+      status: resp.status,
+      data: parsed,
+      url,
+    });
   }
 
   if (!expectJson) return null;
@@ -74,6 +96,10 @@ export async function updateCanvas(canvasId, payload) {
   return request(`/api/dashboard/canvases/${canvasId}/`, { method: 'PATCH', body: payload });
 }
 
+export async function fetchCanvasDetail(canvasId) {
+  return request(`/api/dashboard/canvases/${canvasId}/`);
+}
+
 export async function deleteCanvas(canvasId) {
   return request(`/api/dashboard/canvases/${canvasId}/`, { method: 'DELETE', expectJson: false });
 }
@@ -102,13 +128,18 @@ export async function saveCanvasThumbnail(canvasId, payload, { keepalive = false
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     let detail = text;
+    let parsed = null;
     try {
-      const parsed = JSON.parse(text);
+      parsed = JSON.parse(text);
       detail = parsed?.error || parsed?.message || text;
     } catch {
       /* ignore */
     }
-    throw new Error(detail || `HTTP ${resp.status}`);
+    throw new DashboardApiError(detail || `HTTP ${resp.status}`, {
+      status: resp.status,
+      data: parsed,
+      url: `/api/dashboard/canvases/${canvasId}/thumbnail/`,
+    });
   }
 
   return resp.json();

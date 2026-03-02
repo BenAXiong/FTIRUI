@@ -1,0 +1,48 @@
+{% extends 'ft/layouts/app_shell.html' %}
+
+{% block title %}Plans · scisci{% endblock %}
+
+{% block body_class %}bg-body app-frame app-plans-page{% endblock %}
+
+{% block page_body %}
+  <main class="plans-shell">
+    <header class="plans-hero">
+      <div>
+        <p class="plans-kicker">Upgrade</p>
+        <h1 class="plans-title">Choose a plan that removes quota friction.</h1>
+        <p class="plans-subtitle">
+          These pages are temporary placeholders for the future billing flow. They are already wired so upgrade and quota paths can be tested safely.
+        </p>
+      </div>
+      <div class="plans-hero-actions">
+        <a class="btn btn-outline-secondary" href="{{ plans_next_url|default:'/' }}">Back</a>
+      </div>
+    </header>
+
+    <section class="plans-grid" aria-label="Available plans">
+      {% for plan in plans %}
+        <article class="plan-card{% if plan.is_featured %} is-featured{% endif %}{% if plan.is_current %} is-current{% endif %}">
+          <div class="plan-card__eyebrow">{{ plan.eyebrow }}</div>
+          <h2 class="plan-card__title">{{ plan.title }}</h2>
+          <p class="plan-card__subtitle">{{ plan.subtitle }}</p>
+          <div class="plan-card__price">{{ plan.price }}</div>
+          <p class="plan-card__description">{{ plan.description }}</p>
+
+          {% if plan.is_current %}
+            <button type="button" class="btn btn-outline-light plan-card__cta" disabled>{{ plan.cta_label }}</button>
+          {% else %}
+            <a class="btn btn-light plan-card__cta" href="{% url 'ft:checkout_placeholder' %}?plan={{ plan.slug }}&next={{ plans_next_url|urlencode }}">
+              {{ plan.cta_label }}
+            </a>
+          {% endif %}
+
+          <ul class="plan-card__features">
+            {% for feature in plan.features %}
+              <li>{{ feature }}</li>
+            {% endfor %}
+          </ul>
+        </article>
+      {% endfor %}
+    </section>
+  </main>
+{% endblock %}

@@ -8,8 +8,10 @@ import {
   updateProject,
   deleteProject,
   updateCanvas,
+  fetchCanvasDetail,
   deleteCanvas,
-  fetchCanvasState
+  fetchCanvasState,
+  isWorkspaceQuotaError
 } from '../../services/dashboard.js';
 
 const LIST_SORT_STORAGE_KEY = 'ftir.dashboard.listSort.v1';
@@ -1043,10 +1045,11 @@ const clearProjectDropIndicators = () => {
         } else {
           canvases.forEach((canvas) => {
             const canvasRow = document.createElement('div');
-            canvasRow.className = 'sidebar-folder-item';
+            canvasRow.className = `sidebar-folder-item${canvas.quota_locked ? ' is-quota-locked' : ''}`;
             canvasRow.dataset.canvasEntry = canvas.id;
             const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'sidebar');
             const canvasFavorite = Boolean(canvas.is_favorite);
+            const canvasReadOnly = isCanvasReadOnly(canvas);
             const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
             const isSidebarInline = isEditingCanvas && state.editingCanvasContext === 'sidebar';
             if (!isSidebarInline) {
@@ -1074,7 +1077,7 @@ const clearProjectDropIndicators = () => {
               : `
                 <button
                   type="button"
-                  class="sidebar-folder-link"
+                  class="sidebar-folder-link${canvas.quota_locked ? ' is-quota-locked' : ''}"
                   data-action="sidebar-open-canvas"
                   data-canvas="${canvas.id}"
                   data-folder="${folder.id}"
@@ -1084,14 +1087,15 @@ const clearProjectDropIndicators = () => {
               `;
             canvasRow.innerHTML = `
                 ${canvasLabelMarkup}
+                ${renderCanvasLockBadge({ quotaLocked: Boolean(canvas.quota_locked) }, { compact: true })}
                 <div class="sidebar-folder-item-actions${canvasMenuOpen ? ' is-menu-open' : ''}">
                   <button type="button" class="sidebar-folder-icon" data-action="canvas-duplicate" data-context="sidebar" data-canvas="${canvas.id}" title="Duplicate canvas">
                     <i class="bi bi-files"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon${canvasFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="sidebar" data-canvas="${canvas.id}" title="Favorite canvas" aria-pressed="${canvasFavorite}" data-favorite="${canvasFavorite ? '1' : '0'}">
+                  <button type="button" class="sidebar-folder-icon${canvasFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="sidebar" data-canvas="${canvas.id}" aria-pressed="${canvasFavorite}" data-favorite="${canvasFavorite ? '1' : '0'}"${actionDisabledAttrs(canvasReadOnly, 'Favorite canvas')}>
                     <i class="bi bi-star"></i>
                   </button>
-                  <button type="button" class="sidebar-folder-icon" data-action="canvas-rename" data-context="sidebar" data-canvas="${canvas.id}" title="Rename canvas">
+                  <button type="button" class="sidebar-folder-icon" data-action="canvas-rename" data-context="sidebar" data-canvas="${canvas.id}"${actionDisabledAttrs(canvasReadOnly, 'Rename canvas')}>
                     <i class="bi bi-pencil"></i>
                   </button>
                   <div class="table-menu-anchor">
@@ -1107,11 +1111,11 @@ const clearProjectDropIndicators = () => {
                     <i class="bi bi-files"></i>
                     <span>Duplicate canvas</span>
                   </button>
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-context="sidebar" data-canvas="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item${canvasReadOnly ? ' is-disabled' : ''}" data-action="canvas-menu-rename" data-context="sidebar" data-canvas="${canvas.id}"${menuDisabledAttrs(canvasReadOnly, 'Rename canvas')}>
                     <i class="bi bi-pencil"></i>
                     <span>Rename canvas</span>
                   </button>
-                  <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-context="sidebar" data-canvas="${canvas.id}">
+                  <button type="button" class="sidebar-menu-item${canvasReadOnly ? ' is-disabled' : ''}" data-action="canvas-menu-move" data-context="sidebar" data-canvas="${canvas.id}"${menuDisabledAttrs(canvasReadOnly, 'Move canvas')}>
                     <i class="bi bi-arrow-left-right"></i>
                     <span>Move to folder</span>
                   </button>
@@ -1253,9 +1257,17 @@ const clearProjectDropIndicators = () => {
     if (!action || !trigger) return false;
     const canvasId = trigger.dataset.canvas;
     const context = trigger.dataset.context || 'sidebar';
+    const owner = canvasId ? findCanvasOwner(canvasId) : null;
+    const canvasReadOnly = isCanvasReadOnly(owner?.canvas);
     const stop = () => {
       event?.preventDefault?.();
       event?.stopPropagation?.();
+    };
+    const guardReadOnly = () => {
+      if (!canvasReadOnly) return false;
+      stop();
+      notifyQuotaLockedCanvas(owner?.canvas || { title: 'Untitled canvas' });
+      return true;
     };
     if (action === 'canvas-duplicate' && canvasId) {
       stop();
@@ -1264,12 +1276,14 @@ const clearProjectDropIndicators = () => {
       return true;
     }
     if (action === 'canvas-favorite' && canvasId) {
+      if (guardReadOnly()) return true;
       stop();
       closeCanvasMenu();
       void handleToggleCanvasFavorite(canvasId);
       return true;
     }
     if (action === 'canvas-rename' && canvasId) {
+      if (guardReadOnly()) return true;
       stop();
       beginCanvasRename(canvasId, context);
       return true;
@@ -1280,6 +1294,7 @@ const clearProjectDropIndicators = () => {
       return true;
     }
     if (action === 'canvas-edit-tags' && canvasId) {
+      if (guardReadOnly()) return true;
       stop();
       void promptCanvasTags(canvasId);
       return true;
@@ -1297,11 +1312,13 @@ const clearProjectDropIndicators = () => {
       return true;
     }
     if (action === 'canvas-menu-rename' && canvasId) {
+      if (guardReadOnly()) return true;
       stop();
       beginCanvasRename(canvasId, context);
       return true;
     }
     if (action === 'canvas-menu-move' && canvasId) {
+      if (guardReadOnly()) return true;
       stop();
       closeCanvasMenu();
       void handleMoveCanvas(canvasId);
@@ -1455,7 +1472,8 @@ const clearProjectDropIndicators = () => {
             updated: canvas.updated,
             folderName: project.title || 'Untitled folder',
             projectTitle: section.name || 'Untitled project',
-            owner: canvas.owner || 'You'
+            owner: canvas.owner || 'You',
+            quotaLocked: Boolean(canvas.quota_locked)
           });
         });
       });
@@ -1481,10 +1499,12 @@ const clearProjectDropIndicators = () => {
       state.latestCanvases.forEach((canvas) => {
         const card = document.createElement('button');
         card.type = 'button';
-        card.className = 'latest-card';
+        card.className = `latest-card${canvas.quotaLocked ? ' is-quota-locked' : ''}`;
         card.dataset.canvas = canvas.id;
         card.innerHTML = `
-          <div class="latest-card-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}></div>
+          <div class="latest-card-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}>
+            ${renderCanvasLockBadge(canvas, { compact: true })}
+          </div>
           <div class="latest-card-title">${escapeHtml(canvas.title)}</div>
           <div class="latest-card-time">${formatRelative(canvas.updated)}</div>
           <div class="latest-card-meta">
@@ -1511,7 +1531,8 @@ const clearProjectDropIndicators = () => {
               tags: canvas.tags || [],
               type: canvas.type || '',
               isFavorite: Boolean(canvas.is_favorite),
-              thumbnailUrl: canvas.thumbnail_url || ''
+              thumbnailUrl: canvas.thumbnail_url || '',
+              quotaLocked: Boolean(canvas.quota_locked)
             });
           });
         });
@@ -1550,6 +1571,28 @@ const clearProjectDropIndicators = () => {
     const day = formatModifiedDay(canvas.updated);
     return `Modified by ${owner} • ${day}`;
   };
+
+  const renderCanvasLockBadge = (canvas, { compact = false } = {}) => {
+    if (!canvas?.quotaLocked) return '';
+    return `
+      <span class="dashboard-canvas-lock-badge${compact ? ' is-compact' : ''}" title="This canvas is read-only because it exceeds the free canvas quota.">
+        <i class="bi bi-lock-fill" aria-hidden="true"></i>
+        <span>${compact ? 'Locked' : 'Read only'}</span>
+      </span>
+    `;
+  };
+
+  const isCanvasReadOnly = (canvas) => Boolean(canvas?.quota_locked || canvas?.quotaLocked);
+
+  const actionDisabledAttrs = (disabled, label) =>
+    disabled
+      ? ` disabled aria-disabled="true" title="${escapeAttribute(label)} disabled while canvas is read-only"`
+      : '';
+
+  const menuDisabledAttrs = (disabled, label) =>
+    disabled
+      ? ` aria-disabled="true" tabindex="-1" title="${escapeAttribute(label)} disabled while canvas is read-only"`
+      : '';
 
   const formatFullTimestamp = (iso) => {
     if (!iso) return 'Unknown date';
@@ -1668,6 +1711,10 @@ const clearProjectDropIndicators = () => {
   const promptCanvasTags = async (canvasId) => {
     const owner = findCanvasOwner(canvasId);
     if (!owner) return;
+    if (isCanvasReadOnly(owner.canvas)) {
+      notifyQuotaLockedCanvas(owner.canvas);
+      return;
+    }
     const currentTags = Array.isArray(owner.canvas.tags) ? owner.canvas.tags : [];
     const available = Array.from(
       new Set([...(window.dashboardTagOptions || DEFAULT_TAG_OPTIONS)].map((tag) => `${tag}`))
@@ -1888,6 +1935,7 @@ const clearProjectDropIndicators = () => {
       .map((canvas) => {
         const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'list');
         const isFavorite = Boolean(canvas.isFavorite);
+        const canvasReadOnly = isCanvasReadOnly(canvas);
         const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
         const showInline = isEditingCanvas && state.editingCanvasContext === 'list';
         const fullDateTime = formatFullTimestamp(canvas.updated);
@@ -1909,13 +1957,16 @@ const clearProjectDropIndicators = () => {
             </div>
           `
           : `
-            <button type="button" class="dashboard-list-name" data-action="open-canvas" data-canvas="${canvas.id}" title="${escapeHtml(fullDateTime)}">
-              <span class="dashboard-list-name-title">${escapeHtml(canvas.title)}</span>
+            <button type="button" class="dashboard-list-name${canvas.quotaLocked ? ' is-quota-locked' : ''}" data-action="open-canvas" data-canvas="${canvas.id}" title="${escapeHtml(fullDateTime)}">
+              <span class="dashboard-list-name-title-row">
+                <span class="dashboard-list-name-title">${escapeHtml(canvas.title)}</span>
+                ${renderCanvasLockBadge(canvas, { compact: true })}
+              </span>
               <span class="dashboard-list-name-meta">${formatModifiedSummary(canvas)}</span>
             </button>
           `;
         return `
-            <tr>
+            <tr class="${canvas.quotaLocked ? 'is-quota-locked' : ''}">
               <td class="cell-name">
                 <div class="cell-name-content">
                   <span class="dashboard-list-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}></span>
@@ -1931,7 +1982,7 @@ const clearProjectDropIndicators = () => {
                   data-action="canvas-edit-tags"
                   data-context="list"
                   data-canvas="${canvas.id}"
-                  title="Edit tags"
+                  ${actionDisabledAttrs(canvasReadOnly, 'Edit tags')}
                 >
                   <i class="bi bi-pencil"></i>
                 </button>
@@ -1942,7 +1993,7 @@ const clearProjectDropIndicators = () => {
             <td class="cell-owner cell-meta">${escapeHtml(canvas.owner)}</td>
             <td class="table-actions">
               <div class="table-action-buttons">
-                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="list" data-canvas="${canvas.id}" title="Rename canvas">
+                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="list" data-canvas="${canvas.id}"${actionDisabledAttrs(canvasReadOnly, 'Rename canvas')}>
                   <i class="bi bi-pencil"></i>
                 </button>
                 <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="list" data-canvas="${canvas.id}" title="Duplicate canvas">
@@ -1951,7 +2002,7 @@ const clearProjectDropIndicators = () => {
                 <button type="button" class="table-icon-btn" data-action="canvas-share" data-context="list" data-canvas="${canvas.id}" title="Share canvas">
                   <i class="bi bi-share"></i>
                 </button>
-                <button type="button" class="table-icon-btn${isFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="list" data-canvas="${canvas.id}" title="Favorite canvas" aria-pressed="${isFavorite}" data-favorite="${isFavorite ? '1' : '0'}">
+                <button type="button" class="table-icon-btn${isFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="list" data-canvas="${canvas.id}" aria-pressed="${isFavorite}" data-favorite="${isFavorite ? '1' : '0'}"${actionDisabledAttrs(canvasReadOnly, 'Favorite canvas')}>
                   <i class="bi bi-star"></i>
                 </button>
                 <div class="table-menu-anchor">
@@ -1967,11 +2018,11 @@ const clearProjectDropIndicators = () => {
                       <i class="bi bi-files"></i>
                       <span>Duplicate canvas</span>
                     </button>
-                    <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-context="list" data-canvas="${canvas.id}">
+                    <button type="button" class="sidebar-menu-item${canvasReadOnly ? ' is-disabled' : ''}" data-action="canvas-menu-rename" data-context="list" data-canvas="${canvas.id}"${menuDisabledAttrs(canvasReadOnly, 'Rename canvas')}>
                       <i class="bi bi-pencil"></i>
                       <span>Rename canvas</span>
                     </button>
-                    <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-context="list" data-canvas="${canvas.id}">
+                    <button type="button" class="sidebar-menu-item${canvasReadOnly ? ' is-disabled' : ''}" data-action="canvas-menu-move" data-context="list" data-canvas="${canvas.id}"${menuDisabledAttrs(canvasReadOnly, 'Move canvas')}>
                       <i class="bi bi-arrow-left-right"></i>
                       <span>Move to folder</span>
                     </button>
@@ -2022,6 +2073,7 @@ const clearProjectDropIndicators = () => {
       .map((canvas) => {
         const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'gallery');
         const isFavorite = Boolean(canvas.isFavorite);
+        const canvasReadOnly = isCanvasReadOnly(canvas);
         const isEditingCanvas = idsMatch(state.editingCanvasId, canvas.id);
         const showInline = isEditingCanvas && state.editingCanvasContext === 'gallery';
         const titleBlock = showInline
@@ -2043,19 +2095,22 @@ const clearProjectDropIndicators = () => {
           `
           : `<div class="dashboard-gallery-title">${escapeHtml(canvas.title)}</div>`;
           return `
-            <article class="dashboard-gallery-card">
-              <div class="dashboard-gallery-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}></div>
+            <article class="dashboard-gallery-card${canvas.quotaLocked ? ' is-quota-locked' : ''}">
+              <div class="dashboard-gallery-thumb" aria-hidden="true"${resolveThumbnailStyle(canvas)}>
+                ${renderCanvasLockBadge(canvas, { compact: true })}
+              </div>
               ${titleBlock}
+              ${showInline ? '' : renderCanvasLockBadge(canvas)}
               <div class="dashboard-gallery-meta">${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}</div>
             <div class="table-actions">
               <div class="table-action-buttons">
                 <button type="button" class="table-icon-btn" data-action="canvas-duplicate" data-context="gallery" data-canvas="${canvas.id}" title="Duplicate canvas">
                   <i class="bi bi-files"></i>
                 </button>
-                <button type="button" class="table-icon-btn${isFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="gallery" data-canvas="${canvas.id}" title="Favorite canvas" aria-pressed="${isFavorite}" data-favorite="${isFavorite ? '1' : '0'}">
+                <button type="button" class="table-icon-btn${isFavorite ? ' is-active' : ''}" data-action="canvas-favorite" data-context="gallery" data-canvas="${canvas.id}" aria-pressed="${isFavorite}" data-favorite="${isFavorite ? '1' : '0'}"${actionDisabledAttrs(canvasReadOnly, 'Favorite canvas')}>
                   <i class="bi bi-star"></i>
                 </button>
-                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="gallery" data-canvas="${canvas.id}" title="Rename canvas">
+                <button type="button" class="table-icon-btn" data-action="canvas-rename" data-context="gallery" data-canvas="${canvas.id}"${actionDisabledAttrs(canvasReadOnly, 'Rename canvas')}>
                   <i class="bi bi-pencil"></i>
                 </button>
                 <div class="table-menu-anchor">
@@ -2071,11 +2126,11 @@ const clearProjectDropIndicators = () => {
                       <i class="bi bi-files"></i>
                       <span>Duplicate canvas</span>
                     </button>
-                    <button type="button" class="sidebar-menu-item" data-action="canvas-menu-rename" data-context="gallery" data-canvas="${canvas.id}">
+                    <button type="button" class="sidebar-menu-item${canvasReadOnly ? ' is-disabled' : ''}" data-action="canvas-menu-rename" data-context="gallery" data-canvas="${canvas.id}"${menuDisabledAttrs(canvasReadOnly, 'Rename canvas')}>
                       <i class="bi bi-pencil"></i>
                       <span>Rename canvas</span>
                     </button>
-                    <button type="button" class="sidebar-menu-item" data-action="canvas-menu-move" data-context="gallery" data-canvas="${canvas.id}">
+                    <button type="button" class="sidebar-menu-item${canvasReadOnly ? ' is-disabled' : ''}" data-action="canvas-menu-move" data-context="gallery" data-canvas="${canvas.id}"${menuDisabledAttrs(canvasReadOnly, 'Move canvas')}>
                       <i class="bi bi-arrow-left-right"></i>
                       <span>Move to folder</span>
                     </button>
@@ -2212,9 +2267,13 @@ const clearProjectDropIndicators = () => {
       state.activeProjectId = project.id;
       computeLatestCanvases();
       render();
+      notifyQuotaLockNotice(payload);
       navigateToCanvas(payload.id);
     } catch (err) {
       console.warn('Failed to create canvas', err);
+      if (handleWorkspaceQuotaError(err, { title: 'Canvas quota reached', source: 'dashboard-create-canvas' })) {
+        return;
+      }
       window.showAppToast?.({
         title: 'Unable to create canvas',
         message: err?.message || String(err),
@@ -2337,6 +2396,135 @@ const clearProjectDropIndicators = () => {
     return null;
   };
 
+  const getLockedCanvasIds = () => {
+    const ids = new Set();
+    (state.sections || []).forEach((section) => {
+      (section.projects || []).forEach((project) => {
+        (project.canvases || []).forEach((canvas) => {
+          if (Boolean(canvas.quota_locked)) {
+            ids.add(String(canvas.id));
+          }
+        });
+      });
+    });
+    return ids;
+  };
+
+  const getWorkspaceLimit = (kind) => {
+    const body = document.body;
+    if (!body) return null;
+    const keyMap = {
+      sections: 'workspaceSectionLimit',
+      projects: 'workspaceProjectLimit',
+      canvases: 'workspaceCanvasLimit',
+    };
+    const raw = body.dataset?.[keyMap[kind]];
+    if (raw === undefined || raw === null || raw === '') return null;
+    const limit = Number(raw);
+    return Number.isFinite(limit) ? limit : null;
+  };
+
+  const getWorkspaceUsageCounts = () => {
+    const sections = state.sections || [];
+    let projects = 0;
+    let canvases = 0;
+    sections.forEach((section) => {
+      const folders = section.projects || [];
+      projects += folders.length;
+      folders.forEach((project) => {
+        canvases += (project.canvases || []).length;
+      });
+    });
+    return {
+      sections: sections.length,
+      projects,
+      canvases,
+    };
+  };
+
+  const openPlansPage = ({ source = 'quota-warning' } = {}) => {
+    window.openAppPlansPage?.({
+      plan: 'pro',
+      source,
+      next: window.location.pathname + window.location.search,
+    });
+  };
+
+  const offerUpgradeRedirect = ({ title, message, source }) => {
+    window.showAppToast?.({
+      title,
+      message,
+      variant: 'warning',
+      delay: 5200,
+    });
+    const confirmed = window.confirm(`${message}\n\nOpen plans page now?`);
+    if (confirmed) {
+      openPlansPage({ source });
+    }
+  };
+
+  const handleWorkspaceQuotaError = (err, { title = 'Limit reached', source = 'quota-limit' } = {}) => {
+    if (!isWorkspaceQuotaError(err)) return false;
+    const detail = err?.data || {};
+    const kind = detail.kind || 'workspace';
+    const limit = detail.limit;
+    const labels = {
+      sections: 'project',
+      projects: 'folder',
+      canvases: 'canvas',
+    };
+    const label = labels[kind] || kind;
+    const limitSuffix = typeof limit === 'number' ? ` (${limit})` : '';
+    const message =
+      detail.error ||
+      `Your free ${label} quota${limitSuffix} has been reached. Upgrade to keep creating more ${label}s.`;
+    offerUpgradeRedirect({
+      title,
+      message,
+      source,
+    });
+    return true;
+  };
+
+  const willNewCanvasOverflowQuota = () => {
+    const limit = getWorkspaceLimit('canvases');
+    if (limit === null) return false;
+    const counts = getWorkspaceUsageCounts();
+    return counts.canvases + 1 > limit;
+  };
+
+  const confirmDuplicateQuotaImpact = (canvasTitle, { sourceLocked = false } = {}) => {
+    if (!sourceLocked && !willNewCanvasOverflowQuota()) return true;
+    const message = sourceLocked
+      ? `"${canvasTitle}" is already read-only because your free canvas quota was exceeded. Duplicating it is still allowed, but the oldest overflow canvas will remain locked until you delete another canvas or upgrade.`
+      : `Duplicating "${canvasTitle}" will exceed your free canvas quota. The oldest canvas will become locked and read-only until you delete another canvas or upgrade.`;
+    return window.confirm(`${message}\n\nYou can still adjust this later in the dashboard.`);
+  };
+
+  const notifyQuotaLockedCanvas = (canvas) => {
+    const title = canvas?.title || 'Untitled canvas';
+    window.showAppToast?.({
+      title: 'Read-only canvas',
+      message: `"${title}" is read-only because your canvas quota was exceeded. Delete an older canvas or open Plans to edit it again.`,
+      variant: 'warning'
+    });
+  };
+
+  const notifyQuotaLockNotice = (payload) => {
+    const notice = payload?.quota_lock_notice;
+    if (!notice) return;
+    const titles = Array.isArray(notice.locked_canvas_titles) ? notice.locked_canvas_titles.filter(Boolean) : [];
+    const firstTitle = titles[0] || 'Untitled canvas';
+    const message = titles.length > 1
+      ? `${titles.length} older canvases are now read-only. "${firstTitle}" is one of them. Upgrade to remove the quota lock.`
+      : `The oldest canvas, "${firstTitle}", is now read-only. Upgrade to remove the quota lock.`;
+    window.showAppToast?.({
+      title: 'Canvas quota exceeded',
+      message,
+      variant: 'warning'
+    });
+  };
+
   const resolveSectionName = (section) => {
     if (typeof section?.name === 'string' && section.name.trim()) {
       return section.name.trim();
@@ -2454,6 +2642,9 @@ const clearProjectDropIndicators = () => {
         variant: 'success'
       });
     } catch (err) {
+      if (handleWorkspaceQuotaError(err, { title: 'Project quota reached', source: 'dashboard-create-project' })) {
+        return;
+      }
       window.showAppToast?.({
         title: 'Unable to create project',
         message: err?.message || String(err),
@@ -2464,6 +2655,10 @@ const clearProjectDropIndicators = () => {
 
   const navigateToCanvas = (canvasId) => {
     if (!canvasId) return;
+    const owner = findCanvasOwner(canvasId);
+    if (owner?.canvas?.quota_locked) {
+      notifyQuotaLockedCanvas(owner.canvas);
+    }
     const target = new URL(workspaceRoute, window.location.origin);
     target.searchParams.set('canvas', canvasId);
     if (state.devMode) {
@@ -2503,6 +2698,9 @@ const clearProjectDropIndicators = () => {
         variant: 'success'
       });
     } catch (err) {
+      if (handleWorkspaceQuotaError(err, { title: 'Folder quota reached', source: 'dashboard-create-folder' })) {
+        return;
+      }
       window.showAppToast?.({
         title: 'Unable to create folder',
         message: err?.message || String(err),
@@ -2770,6 +2968,7 @@ const clearProjectDropIndicators = () => {
       applyViewContext(viewContext);
       render();
       updateMainTitle();
+      notifyQuotaLockNotice(newCanvas);
       const targetFolder =
         findFolder(targetFolderId) || { title: 'Project updated' };
       window.showAppToast?.({
@@ -3457,6 +3656,10 @@ const clearProjectDropIndicators = () => {
   const handleRenameCanvas = async (canvasId, nextTitle) => {
     const owner = findCanvasOwner(canvasId);
     if (!owner) return;
+    if (isCanvasReadOnly(owner.canvas)) {
+      notifyQuotaLockedCanvas(owner.canvas);
+      return;
+    }
     const currentTitle = owner.canvas?.title || 'Untitled canvas';
     const trimmed = nextTitle?.trim();
     if (!trimmed) {
@@ -3500,6 +3703,14 @@ const clearProjectDropIndicators = () => {
       return;
     }
     const baseTitle = owner.canvas?.title || 'Untitled canvas';
+    if (!confirmDuplicateQuotaImpact(baseTitle, { sourceLocked: Boolean(owner.canvas?.quota_locked) })) {
+      window.showAppToast?.({
+        title: 'Duplication cancelled',
+        message: 'No new canvas was created.',
+        variant: 'info'
+      });
+      return;
+    }
     const duplicateTitle = generateDuplicateTitle(owner.project, baseTitle);
     const viewContext = getActiveViewContext();
     try {
@@ -3516,11 +3727,15 @@ const clearProjectDropIndicators = () => {
         message: `${baseTitle} → ${newCanvas?.title || duplicateTitle}`,
         variant: 'success'
       });
+      notifyQuotaLockNotice(newCanvas);
       await loadSections();
       applyViewContext(viewContext);
       render();
       updateMainTitle();
     } catch (err) {
+      if (handleWorkspaceQuotaError(err, { title: 'Canvas quota reached', source: 'dashboard-duplicate-canvas' })) {
+        return;
+      }
       window.showAppToast?.({
         title: 'Unable to duplicate canvas',
         message: err?.message || String(err),
@@ -3537,6 +3752,10 @@ const clearProjectDropIndicators = () => {
         message: 'Refresh the dashboard and try again.',
         variant: 'warning'
       });
+      return;
+    }
+    if (isCanvasReadOnly(owner.canvas)) {
+      notifyQuotaLockedCanvas(owner.canvas);
       return;
     }
     const canvasTitle = owner.canvas.title || 'Untitled canvas';
@@ -3576,6 +3795,10 @@ const clearProjectDropIndicators = () => {
       });
       return;
     }
+    if (isCanvasReadOnly(owner.canvas)) {
+      notifyQuotaLockedCanvas(owner.canvas);
+      return;
+    }
     const nextState = !owner.canvas.is_favorite;
     const viewContext = getActiveViewContext();
     try {
@@ -3601,6 +3824,7 @@ const clearProjectDropIndicators = () => {
   const handleDeleteCanvas = async (canvasId) => {
     const owner = findCanvasOwner(canvasId);
     const title = owner?.canvas?.title || 'Untitled canvas';
+    const lockedBefore = getLockedCanvasIds();
     const confirmed = window.confirm(
       `Delete canvas "${title}"? This cannot be undone and removes all autosaves.`
     );
@@ -3617,6 +3841,18 @@ const clearProjectDropIndicators = () => {
       applyViewContext(viewContext);
       render();
       updateMainTitle();
+      const lockedAfter = getLockedCanvasIds();
+      const unlockedIds = [...lockedBefore].filter((id) => !lockedAfter.has(id) && !idsMatch(id, canvasId));
+      if (unlockedIds.length) {
+        window.showAppToast?.({
+          title: 'Canvas unlocked',
+          message:
+            unlockedIds.length > 1
+              ? `${unlockedIds.length} canvases are editable again.`
+              : 'An older canvas is editable again.',
+          variant: 'success'
+        });
+      }
     } catch (err) {
       window.showAppToast?.({
         title: 'Unable to delete canvas',
