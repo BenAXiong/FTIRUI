@@ -15,14 +15,12 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Enable login with identifiers for testing
         - [x] Create admin IDs free & paid users
         - [x] Doc
-    - [ ] Polish tier-based UI: quotas, lock badges and styling
-        - [ ] ***Migrate guest locked canvases too
+    - [-] Polish tier-based UI: quotas, lock badges and styling
+        - [-] Migrate guest locked canvases too
         - [ ] Non-guests: land on dash and show tips if no content yet
         - [ ] (tree keep only icon and highlight)
         - [ ] Display non-paid quotas (dash or popup?)
         - [ ] Design account perks UI
-
-***Is there currently a mechanism to migrate several locked canvases from guest accounts to free plans? I've tested a guest and created 3 canvases (2 locked ok), then only 1/3 got migrated after account creation 
 
 - [-] Phase 9 - Payment
     - [-] Research payment methods

@@ -257,6 +257,8 @@ Auth / billing implementation note:
 - runtime-shell/quota behavior is documented here because it directly affects dashboard/workspace state flow
 - account creation, identifier login, and fake billing activation workflow are documented separately in:
   - `docs/auth-and-billing-test-flow.md`
+- temporary/test-only surfaces that must be removed, replaced, or revalidated before launch are tracked in:
+  - `docs/mvp-prelaunch-trim-checklist.md`
 - do not duplicate detailed login/signup rules in multiple docs; keep this file focused on:
   - shell selection
   - guest workspace ownership

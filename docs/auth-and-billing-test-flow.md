@@ -4,6 +4,7 @@ This document is the source of truth for account login/signup behavior, fake bil
 
 It complements, but does not replace:
 - `apps/ftirui/ft/static/ft/js/ui/interface/controller/runtime/ARCHITECTURE.md`
+- `docs/mvp-prelaunch-trim-checklist.md`
 
 That runtime architecture document covers:
 - shell selection
@@ -16,6 +17,10 @@ This document covers:
 - how free vs paid test accounts are created
 - how plan state is activated
 - how to test quotas safely
+
+The trim checklist covers:
+- which temporary/test-only billing and auth surfaces must be removed or replaced before launch
+- which quota/migration/product decisions are still open
 
 ## Product-Level Summary
 
