@@ -144,6 +144,9 @@ const userDropdownName = userStatusCard ? userStatusCard.querySelector('[data-dr
 const userDropdownEmail = userStatusCard ? userStatusCard.querySelector('[data-dropdown-email]') : null;
 const userPlanPill = userStatusCard ? userStatusCard.querySelector('[data-user-plan-pill]') : null;
 const userUpgradeLink = userStatusCard ? userStatusCard.querySelector('[data-upgrade-link]') : null;
+const userQuotaRow = userStatusCard ? userStatusCard.querySelector('[data-user-quota-row]') : null;
+const userQuotaDivider = userStatusCard ? userStatusCard.querySelector('[data-user-quota-divider]') : null;
+const userQuotaNote = userStatusCard ? userStatusCard.querySelector('[data-user-quota-note]') : null;
 
 userSignInLink?.addEventListener('click', () => {
   showAppToast({
@@ -172,6 +175,9 @@ function applyUserStatus(data) {
   const avatarEl = userStatusCard.querySelector('[data-user-avatar]') || userStatusCard.querySelector('.user-avatar');
   const signInBtn = el('user_sign_in');
   const signOutBtn = el('user_sign_out');
+  const canvasLimit = document.body?.dataset?.workspaceCanvasLimit || '';
+  const canvasLimitNumber = Number(canvasLimit);
+  const hasFiniteCanvasLimit = Number.isFinite(canvasLimitNumber) && canvasLimitNumber > 0;
 
   if (data.authenticated) {
     if (nameEl) nameEl.textContent = data.username || 'Account';
@@ -218,6 +224,15 @@ function applyUserStatus(data) {
         userPlanPill.classList.add('is-paid');
       }
     }
+    if (userQuotaRow && userQuotaDivider && userQuotaNote) {
+      const isPaid = data.billing_status === 'active' && String(data.plan || 'free').toLowerCase() !== 'free';
+      const showQuotaNote = !isPaid && hasFiniteCanvasLimit;
+      userQuotaRow.classList.toggle('d-none', !showQuotaNote);
+      userQuotaDivider.classList.toggle('d-none', !showQuotaNote);
+      userQuotaNote.textContent = showQuotaNote
+        ? `${canvasLimitNumber} editable canvases on the free plan`
+        : '';
+    }
     userStatusCard.dataset.authenticated = '1';
   } else {
     if (nameEl) nameEl.textContent = 'Guest';
@@ -250,6 +265,11 @@ function applyUserStatus(data) {
       userPlanPill.textContent = '';
       userPlanPill.classList.add('d-none');
       userPlanPill.classList.remove('is-paid');
+    }
+    if (userQuotaRow && userQuotaDivider && userQuotaNote) {
+      userQuotaRow.classList.add('d-none');
+      userQuotaDivider.classList.add('d-none');
+      userQuotaNote.textContent = '';
     }
     userStatusCard.dataset.authenticated = '0';
   }

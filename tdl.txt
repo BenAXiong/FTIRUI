@@ -18,16 +18,18 @@ MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
     - [-] Polish tier-based UI: quotas, lock badges styling, instructions and warnings
         - [x] Migrate guest locked canvases too
         - [x] Locked canvas styling: in tree keep only icon and highlight, ?
-        - [-] Non-guests: land on dash + tutos & tips if no content yet (drafts)
+        - [x] Non-guests: land on dash + tutos & tips if no content yet (drafts)
             - [x] Case 1: Guest Canvas 4-step tuto + 3 tips
             - [x] Case 2: Guest Dash
             - [x] Case 3: Free Canvas
             - [x] Case 4: Free Dash
             - [x] Adapt all cards positions
-            - [-] Dim rest of interface
-            - [ ] Options to turn everything off till polished
-        - [ ] Display non-paid quotas (dash or popup?)
-        - [ ] Design account perks UI
+            - [x] Dim rest of interface
+            - [x] Options to turn everything off till polished
+        - [-] Display non-paid quotas (dash or popup?)
+        - [ ] Design plans UI (draft)
+            - [ ] 
+            - [ ] 
 
 - [-] Phase 9 - Payment
     - [-] Research payment methods

@@ -72,6 +72,12 @@
             <span class="visually-hidden">Open user menu</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="user_menu_toggle">
+            <li class="d-none" data-user-quota-row>
+              <div class="dropdown-item-text small text-body-secondary" data-user-quota-note></div>
+            </li>
+            <li class="d-none" data-user-quota-divider>
+              <hr class="dropdown-divider">
+            </li>
             <li>
               <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'ft:profile' %}" data-profile-link>
                 <i class="bi bi-person-badge"></i>
