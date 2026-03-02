@@ -128,6 +128,9 @@ class DashboardApiTests(TestCase):
         self.client.get("/")
         guest_owner = self._guest_owner()
         guest_canvas = WorkspaceCanvas.objects.get(owner=guest_owner)
+        guest_canvas.state_json = self._canvas_state("Guest migrated", trace_id="guest-1")
+        guest_canvas.state_size = len(json.dumps(guest_canvas.state_json))
+        guest_canvas.save(update_fields=["state_json", "state_size", "updated_at"])
 
         adopted_user = User.objects.create_user(username="adopted", password="secret")
         self.assertTrue(self.client.login(username="adopted", password="secret"))
@@ -142,6 +145,54 @@ class DashboardApiTests(TestCase):
         adopted_section = WorkspaceSection.objects.get(owner=adopted_user)
         self.assertEqual(adopted_section.name, "Untitled Project")
         self.assertEqual(adopted_project.title, "Untitled Folder")
+
+    def test_pristine_guest_workspace_is_not_migrated_on_login(self):
+        self.client.logout()
+        self.client.get("/")
+        guest_owner = self._guest_owner()
+        pristine_canvas = WorkspaceCanvas.objects.get(owner=guest_owner)
+
+        target_user = User.objects.create_user(username="fresh-account", password="secret")
+        self.assertTrue(self.client.login(username="fresh-account", password="secret"))
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+
+        pristine_canvas.refresh_from_db()
+        self.assertEqual(pristine_canvas.owner, guest_owner)
+        self.assertFalse(WorkspaceCanvas.objects.filter(owner=target_user).exists())
+
+    def test_guest_workspace_at_quota_is_staged_not_adopted(self):
+        self.client.logout()
+        self.client.get("/")
+        guest_owner = self._guest_owner()
+        guest_canvas = WorkspaceCanvas.objects.get(owner=guest_owner)
+        guest_canvas.state_json = self._canvas_state("Guest staged", trace_id="guest-stage")
+        guest_canvas.state_size = len(json.dumps(guest_canvas.state_json))
+        guest_canvas.save(update_fields=["state_json", "state_size", "updated_at"])
+
+        quota_user = User.objects.create_user(username="quota-user", password="secret")
+        quota_section = WorkspaceSection.objects.create(owner=quota_user, name="Owned")
+        quota_project = WorkspaceProject.objects.create(owner=quota_user, section=quota_section, title="Folder")
+        for index in range(3):
+            WorkspaceCanvas.objects.create(
+                owner=quota_user,
+                project=quota_project,
+                title=f"Canvas {index + 1}",
+                state_json={"index": index},
+                state_size=10,
+            )
+
+        self.assertTrue(self.client.login(username="quota-user", password="secret"))
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+
+        guest_canvas.refresh_from_db()
+        self.assertEqual(guest_canvas.owner, guest_owner)
+        self.assertEqual(WorkspaceCanvas.objects.filter(owner=quota_user).count(), 3)
+
+        me = self.client.get("/api/me/")
+        self.assertEqual(me.status_code, 200)
+        self.assertTrue(me.json()["pending_guest_workspace_adoption"])
 
     def test_list_sections_with_projects(self):
         resp = self.client.get("/api/dashboard/sections/?include=full")

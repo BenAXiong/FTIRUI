@@ -59,6 +59,7 @@ THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
 DEMOS_DIR = BASE_DIR / "ft" / "static" / "ft" / "demos"
 GUEST_WORKSPACE_OWNER_SESSION_KEY = "ft_guest_workspace_owner_id"
 GUEST_WORKSPACE_OWNER_COOKIE_KEY = "ft_guest_workspace_owner_id"
+GUEST_WORKSPACE_PENDING_ADOPTIONS_SESSION_KEY = "ft_guest_workspace_pending_adoptions"
 GUEST_WORKSPACE_OWNER_PREFIX = "guest-workspace-"
 DEFAULT_GUEST_SECTION_NAME = "Untitled Project"
 DEFAULT_GUEST_PROJECT_NAME = "Untitled Folder"
@@ -91,6 +92,12 @@ def _mark_guest_owner_cookie(request, owner_id):
 def _mark_guest_owner_cookie_for_clear(request):
     setattr(request, "_ft_guest_owner_cookie_value", None)
     setattr(request, "_ft_guest_owner_cookie_clear", True)
+
+
+def _clear_guest_owner_binding(request):
+    request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
+    request.session.modified = True
+    _mark_guest_owner_cookie_for_clear(request)
 
 
 def _finalize_workspace_response(request, response):
@@ -171,14 +178,30 @@ def _resolve_workspace_owner(request, *, create_guest=False):
     return _get_or_create_guest_workspace_owner(request)
 
 
-def _get_workspace_limits(request):
-    if request.user.is_authenticated:
+def _identity_is_authenticated(identity) -> bool:
+    if identity is None:
+        return False
+    if hasattr(identity, "user"):
+        return bool(getattr(identity.user, "is_authenticated", False))
+    return bool(getattr(identity, "is_authenticated", False))
+
+
+def _get_workspace_limits(identity):
+    if _identity_is_authenticated(identity):
         return {
             "sections": getattr(settings, "FT_WORKSPACE_FREE_SECTION_LIMIT", AUTH_WORKSPACE_LIMITS["sections"]),
             "projects": getattr(settings, "FT_WORKSPACE_FREE_PROJECT_LIMIT", AUTH_WORKSPACE_LIMITS["projects"]),
             "canvases": getattr(settings, "FT_WORKSPACE_FREE_CANVAS_LIMIT", AUTH_WORKSPACE_LIMITS["canvases"]),
         }
     return dict(GUEST_WORKSPACE_LIMITS)
+
+
+def _get_workspace_usage(owner):
+    return {
+        "sections": WorkspaceSection.objects.filter(owner=owner).count(),
+        "projects": WorkspaceProject.objects.filter(owner=owner).count(),
+        "canvases": WorkspaceCanvas.objects.filter(owner=owner).count(),
+    }
 
 
 def _workspace_limit_response(kind: str, limit: int):
@@ -202,14 +225,20 @@ def _check_workspace_quota(request, owner, kind: str):
     limit = limits.get(kind)
     if limit is None:
         return None
-    counts = {
-        "sections": WorkspaceSection.objects.filter(owner=owner).count(),
-        "projects": WorkspaceProject.objects.filter(owner=owner).count(),
-        "canvases": WorkspaceCanvas.objects.filter(owner=owner).count(),
-    }
+    counts = _get_workspace_usage(owner)
     if counts.get(kind, 0) >= limit:
         return _workspace_limit_response(kind, limit)
     return None
+
+
+def _workspace_delta_fits_limits(limits, counts, delta):
+    for kind, increment in (delta or {}).items():
+        limit = limits.get(kind)
+        if limit is None:
+            continue
+        if counts.get(kind, 0) + max(int(increment or 0), 0) > limit:
+            return False
+    return True
 
 
 def _ensure_workspace_bootstrap(owner):
@@ -252,9 +281,7 @@ def _ensure_workspace_bootstrap(owner):
 def _cleanup_guest_workspace_owner(request, guest_owner):
     if not guest_owner:
         return
-    request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
-    request.session.modified = True
-    _mark_guest_owner_cookie_for_clear(request)
+    _clear_guest_owner_binding(request)
     has_workspace = (
         WorkspaceSection.objects.filter(owner=guest_owner).exists()
         or WorkspaceProject.objects.filter(owner=guest_owner).exists()
@@ -265,6 +292,73 @@ def _cleanup_guest_workspace_owner(request, guest_owner):
         guest_owner.delete()
 
 
+def _get_pending_guest_adoptions(request):
+    raw = request.session.get(GUEST_WORKSPACE_PENDING_ADOPTIONS_SESSION_KEY)
+    return raw if isinstance(raw, dict) else {}
+
+
+def _set_pending_guest_adoption(request, user, guest_owner):
+    pending = _get_pending_guest_adoptions(request)
+    pending[str(user.pk)] = str(guest_owner.pk)
+    request.session[GUEST_WORKSPACE_PENDING_ADOPTIONS_SESSION_KEY] = pending
+    request.session.modified = True
+
+
+def _clear_pending_guest_adoption(request, user):
+    pending = _get_pending_guest_adoptions(request)
+    if str(user.pk) in pending:
+        pending.pop(str(user.pk), None)
+        request.session[GUEST_WORKSPACE_PENDING_ADOPTIONS_SESSION_KEY] = pending
+        request.session.modified = True
+
+
+def _is_pristine_guest_canvas(canvas):
+    if not canvas:
+        return True
+    state_json = canvas.state_json if isinstance(canvas.state_json, dict) else {}
+    return (
+        canvas.title == DEFAULT_GUEST_CANVAS_TITLE
+        and not state_json
+        and not (canvas.thumbnail_url or "").strip()
+        and not (canvas.version_label or "").strip()
+        and not (canvas.autosave_token or "").strip()
+        and canvas.is_favorite is False
+    )
+
+
+def _is_pristine_guest_workspace(guest_sections, guest_projects, guest_canvases, guest_sessions):
+    if guest_sessions:
+        return False
+    if len(guest_sections) != 1 or len(guest_projects) != 1 or len(guest_canvases) != 1:
+        return False
+    section = guest_sections[0]
+    project = guest_projects[0]
+    canvas = guest_canvases[0]
+    if section.name != DEFAULT_GUEST_SECTION_NAME:
+        return False
+    if (section.description or "").strip():
+        return False
+    if (section.color or "").strip():
+        return False
+    if project.title != DEFAULT_GUEST_PROJECT_NAME:
+        return False
+    if (project.summary or "").strip():
+        return False
+    if (project.cover_thumbnail or "").strip():
+        return False
+    return _is_pristine_guest_canvas(canvas)
+
+
+def _compute_guest_adoption_delta(user, guest_sections, guest_projects, guest_canvases):
+    has_target_section = WorkspaceSection.objects.filter(owner=user).exists()
+    has_target_project = WorkspaceProject.objects.filter(owner=user).exists()
+    return {
+        "sections": 0 if has_target_section or not guest_sections else 1,
+        "projects": 0 if has_target_project or not guest_projects else 1,
+        "canvases": len(guest_canvases),
+    }
+
+
 def _adopt_guest_workspace_if_needed(request, user):
     if not user or not getattr(user, "is_authenticated", False):
         return False
@@ -272,19 +366,16 @@ def _adopt_guest_workspace_if_needed(request, user):
     if not guest_owner_id:
         return False
     if str(guest_owner_id) == str(user.pk):
-        request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
-        request.session.modified = True
+        _clear_guest_owner_binding(request)
         return False
     UserModel = get_user_model()
     try:
         guest_owner = UserModel.objects.get(pk=guest_owner_id)
     except UserModel.DoesNotExist:
-        request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
-        request.session.modified = True
+        _clear_guest_owner_binding(request)
         return False
     if not _is_guest_workspace_owner(guest_owner):
-        request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
-        request.session.modified = True
+        _clear_guest_owner_binding(request)
         return False
 
     guest_sections = list(WorkspaceSection.objects.filter(owner=guest_owner).order_by("position", "created_at"))
@@ -293,6 +384,19 @@ def _adopt_guest_workspace_if_needed(request, user):
     guest_sessions = list(PlotSession.objects.filter(owner=guest_owner).order_by("created_at"))
     if not guest_sections and not guest_projects and not guest_canvases and not guest_sessions:
         _cleanup_guest_workspace_owner(request, guest_owner)
+        return False
+
+    if _is_pristine_guest_workspace(guest_sections, guest_projects, guest_canvases, guest_sessions):
+        _clear_pending_guest_adoption(request, user)
+        _cleanup_guest_workspace_owner(request, guest_owner)
+        return False
+
+    target_limits = _get_workspace_limits(user)
+    target_usage = _get_workspace_usage(user)
+    adoption_delta = _compute_guest_adoption_delta(user, guest_sections, guest_projects, guest_canvases)
+    if not _workspace_delta_fits_limits(target_limits, target_usage, adoption_delta):
+        _set_pending_guest_adoption(request, user, guest_owner)
+        _clear_guest_owner_binding(request)
         return False
 
     with transaction.atomic():
@@ -342,6 +446,7 @@ def _adopt_guest_workspace_if_needed(request, user):
                 continue
             section.delete()
 
+    _clear_pending_guest_adoption(request, user)
     _cleanup_guest_workspace_owner(request, guest_owner)
     return True
 
@@ -1532,6 +1637,7 @@ def api_me(request):
         avatar_url = f"https://www.gravatar.com/avatar/{digest}?s=96&d=identicon"
 
     session_count = PlotSession.objects.filter(owner=user).count()
+    pending_guest_adoption = str(user.pk) in _get_pending_guest_adoptions(request)
     return _finalize_workspace_response(request, JsonResponse(
         {
             "authenticated": True,
@@ -1539,6 +1645,7 @@ def api_me(request):
             "email": email,
             "avatar": avatar_url,
             "session_count": session_count,
+            "pending_guest_workspace_adoption": pending_guest_adoption,
             "login_url": urls["login"],
             "logout_url": urls["logout"],
         }

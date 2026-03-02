@@ -4175,11 +4175,17 @@ const toggleDataTabFromHeader = (panelId) => {
   };
 
   let emptyOverlayRevealFrame = null;
+  let hydrationPending = false;
   const updateEmptyOverlayVisibility = (hasPanels) => {
     if (!emptyOverlay) return;
     if (emptyOverlayRevealFrame) {
       window.cancelAnimationFrame(emptyOverlayRevealFrame);
       emptyOverlayRevealFrame = null;
+    }
+    if (hydrationPending && !hasPanels) {
+      emptyOverlay.classList.remove('is-visible');
+      emptyOverlay.style.display = 'none';
+      return;
     }
     if (hasPanels) {
       emptyOverlay.classList.remove('is-visible');
@@ -6308,12 +6314,17 @@ const toggleDataTabFromHeader = (panelId) => {
   };
 
   if (shouldHydrateDashboardCanvas) {
+    hydrationPending = true;
     history?.clear?.();
     updateCanvasState();
     renderBrowser();
     void hydrateDashboardCanvasState(activeCanvasId, {
       fallbackSnapshot: saved,
       hadSnapshotOnBoot
+    }).finally(() => {
+      hydrationPending = false;
+      updateCanvasState();
+      renderBrowser();
     });
   } else if (saved) {
     restoreSnapshot(saved, { skipHistory: true });

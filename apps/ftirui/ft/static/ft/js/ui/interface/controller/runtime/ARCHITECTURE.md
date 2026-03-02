@@ -51,26 +51,37 @@ Each facade exposes a minimal API back to the controller (`panelsFacade` returns
 
 ## Shell / Landing Flow
 
-The current product direction is a single full shell containing both Dashboard and Workspace panes.
+The product currently uses two shell presentations. Do not collapse them conceptually:
 
-- Guests and authenticated users both render the same full shell (`ft/base.html` with tabs/panes present).
-- Initial landing is selected by server context via `initial_shell_pane`:
-  - guests: `"workspace"`
-  - authenticated users: `"dashboard"`
-  - direct `/workspace/` entry: `"workspace"`
-- Do not use `workspace_only` for new behavior. Treat it as sunset/compatibility only.
-- Do not reuse the old `?dev=true` / "workspace-only" shortcut path for product routing.
+1. Full shell
+- used for Dashboard and tabbed navigation
+- authenticated users land here on `/`
+- guests can reach it explicitly via `/?pane=dashboard`
+
+2. Canvas-focused shell
+- used for the HUD + no-top-tabs canvas experience
+- guests land here by default on `/`
+- direct canvas opening also uses it via `/workspace/?canvas=<id>`
+
+Operational rule:
+- both shells are rendered through `ft/base.html`
+- the route/context decides which presentation is active
+- do not treat this as "one full shell for everyone" when reasoning about routing or hydration
+
+Compatibility rule:
+- do not use `workspace_only` for new product behavior
+- do not reuse the old `?dev=true` / legacy workspace shortcut path for product routing
 
 ### Important inconsistency to remember
 
-`WORKSPACE_LEGACY_ENABLED` is now a misleading name.
+`WORKSPACE_LEGACY_ENABLED` is a misleading leftover.
 
-- The current full-shell Workspace pane is considered first-class and should remain available regardless of that legacy setting.
-- The setting/name still exists in `ft/context_processors.py`, but it should no longer be treated as the switch for whether the modern Workspace pane exists in the shell.
+- It should not be treated as the switch for whether the modern Workspace UI exists.
+- The name still exists in `ft/context_processors.py`, so touching shell logic without checking that file is risky.
 - Future cleanup:
   - rename/remove `WORKSPACE_LEGACY_ENABLED`
   - remove dead `workspace_only` template branches once no routes depend on them
-  - replace remaining `workspace_pane_active` compatibility plumbing with `initial_shell_pane` everywhere
+  - replace remaining `workspace_pane_active` compatibility plumbing with explicit shell intent
 
 ## Critical Distinction: Canvas-Focused Shell vs Legacy Dev Workspace
 
@@ -153,6 +164,18 @@ Important semantic note:
 Why this matters:
 - title rename, autosave, dashboard listing, canvas open, thumbnails, and back-to-dashboard state flush must all target the same real canvas identity
 - do not reintroduce a split where guest canvas state is "local only" while authenticated canvas state is model-backed
+
+Migration policy:
+- pristine guest bootstrap work should not be migrated into a newly authenticated account
+  - definition in current code:
+    - exactly 1 default section
+    - exactly 1 default folder/project
+    - exactly 1 default canvas
+    - empty canvas state
+    - no extra plot sessions
+- non-pristine guest work should migrate only if the authenticated account has room under quota
+- if migration would exceed quota, guest work is staged for later resolution instead of being silently merged
+- current staging signal is exposed through `api_me.pending_guest_workspace_adoption`
 
 Local autosave namespace rule:
 - source of truth for server-backed canvases is still the backend canvas state
