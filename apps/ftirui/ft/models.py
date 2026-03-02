@@ -155,3 +155,40 @@ class WorkspaceCanvasVersion(models.Model):
 
     def __str__(self):
         return self.label or f"Snapshot {self.id}"
+
+
+class WorkspaceSubscription(models.Model):
+    PLAN_FREE = "free"
+    PLAN_PRO = "pro"
+    PLAN_TEAM = "team"
+    PLAN_CHOICES = [
+        (PLAN_FREE, "Free"),
+        (PLAN_PRO, "Pro"),
+        (PLAN_TEAM, "Team"),
+    ]
+
+    STATUS_INACTIVE = "inactive"
+    STATUS_ACTIVE = "active"
+    STATUS_CHOICES = [
+        (STATUS_INACTIVE, "Inactive"),
+        (STATUS_ACTIVE, "Active"),
+    ]
+
+    owner = models.OneToOneField(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name="workspace_subscription",
+    )
+    plan = models.CharField(max_length=16, choices=PLAN_CHOICES, default=PLAN_FREE)
+    billing_status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_INACTIVE)
+    billing_provider = models.CharField(max_length=32, blank=True, default="")
+    activated_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["plan", "billing_status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.owner} · {self.plan} ({self.billing_status})"

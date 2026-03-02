@@ -15,7 +15,7 @@ from django.contrib.auth import get_user
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
@@ -46,6 +46,14 @@ from .models import (
 )
 from .sessions_repository import SessionStorageError, SessionTooLargeError
 from .tagging import generate_placeholder_tags, normalize_tags
+from .workspace_policy import (
+    activate_test_subscription,
+    get_workspace_limits,
+    get_workspace_plan_state,
+    get_workspace_usage,
+    identity_is_authenticated,
+    is_guest_workspace_owner,
+)
 
 BASE_DIR = Path(__file__).resolve().parents[1]          # apps/ftirui
 REPO_ROOT = BASE_DIR.parent                              # mlirui/
@@ -60,20 +68,9 @@ DEMOS_DIR = BASE_DIR / "ft" / "static" / "ft" / "demos"
 GUEST_WORKSPACE_OWNER_SESSION_KEY = "ft_guest_workspace_owner_id"
 GUEST_WORKSPACE_OWNER_COOKIE_KEY = "ft_guest_workspace_owner_id"
 GUEST_WORKSPACE_PENDING_ADOPTIONS_SESSION_KEY = "ft_guest_workspace_pending_adoptions"
-GUEST_WORKSPACE_OWNER_PREFIX = "guest-workspace-"
 DEFAULT_GUEST_SECTION_NAME = "Untitled Project"
 DEFAULT_GUEST_PROJECT_NAME = "Untitled Folder"
 DEFAULT_GUEST_CANVAS_TITLE = "Untitled Canvas"
-GUEST_WORKSPACE_LIMITS = {
-    "sections": 1,
-    "projects": 1,
-    "canvases": 1,
-}
-AUTH_WORKSPACE_LIMITS = {
-    "sections": 1,
-    "projects": 1,
-    "canvases": 3,
-}
 
 
 def _ensure_session_key(request) -> str:
@@ -132,20 +129,13 @@ def _read_guest_owner_id(request):
     return owner_id
 
 
-def _is_guest_workspace_owner(user) -> bool:
-    if not user:
-        return False
-    username = getattr(user, "get_username", lambda: getattr(user, "username", ""))() or ""
-    return username.startswith(GUEST_WORKSPACE_OWNER_PREFIX)
-
-
 def _get_or_create_guest_workspace_owner(request):
     UserModel = get_user_model()
     owner_id = _read_guest_owner_id(request)
     if owner_id:
       try:
           owner = UserModel.objects.get(id=owner_id)
-          if _is_guest_workspace_owner(owner):
+          if is_guest_workspace_owner(owner):
               _mark_guest_owner_cookie(request, owner.pk)
               return owner
       except UserModel.DoesNotExist:
@@ -153,7 +143,7 @@ def _get_or_create_guest_workspace_owner(request):
           _mark_guest_owner_cookie_for_clear(request)
 
     session_key = _ensure_session_key(request)
-    username = f"{GUEST_WORKSPACE_OWNER_PREFIX}{session_key}"
+    username = f"guest-workspace-{session_key}"
     owner, created = UserModel.objects.get_or_create(
         username=username,
         defaults={
@@ -178,32 +168,6 @@ def _resolve_workspace_owner(request, *, create_guest=False):
     return _get_or_create_guest_workspace_owner(request)
 
 
-def _identity_is_authenticated(identity) -> bool:
-    if identity is None:
-        return False
-    if hasattr(identity, "user"):
-        return bool(getattr(identity.user, "is_authenticated", False))
-    return bool(getattr(identity, "is_authenticated", False))
-
-
-def _get_workspace_limits(identity):
-    if _identity_is_authenticated(identity):
-        return {
-            "sections": getattr(settings, "FT_WORKSPACE_FREE_SECTION_LIMIT", AUTH_WORKSPACE_LIMITS["sections"]),
-            "projects": getattr(settings, "FT_WORKSPACE_FREE_PROJECT_LIMIT", AUTH_WORKSPACE_LIMITS["projects"]),
-            "canvases": getattr(settings, "FT_WORKSPACE_FREE_CANVAS_LIMIT", AUTH_WORKSPACE_LIMITS["canvases"]),
-        }
-    return dict(GUEST_WORKSPACE_LIMITS)
-
-
-def _get_workspace_usage(owner):
-    return {
-        "sections": WorkspaceSection.objects.filter(owner=owner).count(),
-        "projects": WorkspaceProject.objects.filter(owner=owner).count(),
-        "canvases": WorkspaceCanvas.objects.filter(owner=owner).count(),
-    }
-
-
 def _workspace_limit_response(kind: str, limit: int):
     labels = {
         "sections": "section",
@@ -225,11 +189,11 @@ def _workspace_limit_response(kind: str, limit: int):
 
 
 def _check_workspace_quota(request, owner, kind: str):
-    limits = _get_workspace_limits(request)
+    limits = get_workspace_limits(request)
     limit = limits.get(kind)
     if limit is None:
         return None
-    counts = _get_workspace_usage(owner)
+    counts = get_workspace_usage(owner)
     if counts.get(kind, 0) >= limit:
         return _workspace_limit_response(kind, limit)
     return None
@@ -246,7 +210,7 @@ def _workspace_delta_fits_limits(limits, counts, delta):
 
 
 def _get_quota_locked_canvases(owner, *, identity=None):
-    limits = _get_workspace_limits(identity or owner)
+    limits = get_workspace_limits(identity or owner)
     limit = limits.get("canvases")
     if limit is None:
         return []
@@ -419,7 +383,7 @@ def _adopt_guest_workspace_if_needed(request, user):
     except UserModel.DoesNotExist:
         _clear_guest_owner_binding(request)
         return False
-    if not _is_guest_workspace_owner(guest_owner):
+    if not is_guest_workspace_owner(guest_owner):
         _clear_guest_owner_binding(request)
         return False
 
@@ -436,8 +400,8 @@ def _adopt_guest_workspace_if_needed(request, user):
         _cleanup_guest_workspace_owner(request, guest_owner)
         return False
 
-    target_limits = _get_workspace_limits(user)
-    target_usage = _get_workspace_usage(user)
+    target_limits = get_workspace_limits(user)
+    target_usage = get_workspace_usage(user)
     adoption_delta = _compute_guest_adoption_delta(user, guest_sections, guest_projects, guest_canvases)
     if not _workspace_delta_fits_limits(target_limits, target_usage, adoption_delta):
         _set_pending_guest_adoption(request, user, guest_owner)
@@ -610,7 +574,8 @@ def profile(request):
 
 def plans_page(request):
     next_path = request.GET.get("next") or request.META.get("HTTP_REFERER") or reverse("ft:home")
-    current_plan = "free"
+    plan_state = get_workspace_plan_state(request)
+    current_plan = plan_state["plan"]
     context = {
         "workspace_only": False,
         "canvas_focused_shell": False,
@@ -622,6 +587,7 @@ def plans_page(request):
         "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
         "plans_next_url": next_path,
         "plans_current_plan": current_plan,
+        "plans_billing_status": plan_state["billing_status"],
         "plans": [
             {
                 "slug": "free",
@@ -637,7 +603,7 @@ def plans_page(request):
                     "Same workspace model as paid accounts",
                 ],
                 "cta_label": "Current plan",
-                "is_current": True,
+                "is_current": current_plan == "free",
                 "is_featured": False,
             },
             {
@@ -654,7 +620,7 @@ def plans_page(request):
                     "Future billing route will plug into this flow",
                 ],
                 "cta_label": "Continue to payment",
-                "is_current": False,
+                "is_current": current_plan == "pro",
                 "is_featured": True,
             },
             {
@@ -671,7 +637,7 @@ def plans_page(request):
                     "Same upgrade route shape as the final product",
                 ],
                 "cta_label": "Continue to payment",
-                "is_current": False,
+                "is_current": current_plan == "team",
                 "is_featured": False,
             },
         ],
@@ -679,6 +645,7 @@ def plans_page(request):
     return render(request, "ft/plans/index.html", context)
 
 
+@require_http_methods(["GET", "POST"])
 def checkout_placeholder_page(request):
     plan = (request.GET.get("plan") or "pro").strip().lower()
     next_path = request.GET.get("next") or reverse("ft:home")
@@ -695,6 +662,28 @@ def checkout_placeholder_page(request):
         },
     }
     selected = catalog.get(plan, catalog["pro"])
+    auth_user = request.user if request.user.is_authenticated else None
+    plan_state = get_workspace_plan_state(request)
+    current_plan = plan_state["plan"]
+    activation_error = None
+    activation_success = None
+
+    if request.method == "POST":
+        if not auth_user:
+            activation_error = "Sign in before activating a test subscription."
+        elif request.POST.get("test_bypass") != "on":
+            activation_error = "Confirm the test-billing checkbox to activate the placeholder subscription."
+        else:
+            subscription = activate_test_subscription(auth_user, plan)
+            activation_success = f'{subscription.plan.capitalize()} test subscription activated.'
+            if next_path:
+                target = next_path
+                joiner = "&" if "?" in target else "?"
+                return _finalize_workspace_response(
+                    request,
+                    HttpResponseRedirect(f"{target}{joiner}billing=test-upgraded"),
+                )
+
     context = {
         "workspace_only": False,
         "canvas_focused_shell": False,
@@ -708,6 +697,12 @@ def checkout_placeholder_page(request):
         "checkout_plan_slug": plan if plan in catalog else "pro",
         "checkout_plan": selected,
         "plans_next_url": next_path,
+        "plans_current_plan": current_plan,
+        "plans_billing_status": plan_state["billing_status"],
+        "checkout_activation_error": activation_error,
+        "checkout_activation_success": activation_success,
+        "checkout_requires_auth": not bool(auth_user),
+        "checkout_login_url": _build_login_urls(request, next_path=request.get_full_path())["login"],
     }
     return render(request, "ft/plans/checkout.html", context)
 
@@ -1821,6 +1816,7 @@ def api_me(request):
 
     session_count = PlotSession.objects.filter(owner=user).count()
     pending_guest_adoption = str(user.pk) in _get_pending_guest_adoptions(request)
+    plan_state = get_workspace_plan_state(user)
     return _finalize_workspace_response(request, JsonResponse(
         {
             "authenticated": True,
@@ -1829,6 +1825,9 @@ def api_me(request):
             "avatar": avatar_url,
             "session_count": session_count,
             "pending_guest_workspace_adoption": pending_guest_adoption,
+            "plan": plan_state["plan"],
+            "billing_status": plan_state["billing_status"],
+            "is_unlimited": plan_state["is_unlimited"],
             "login_url": urls["login"],
             "logout_url": urls["logout"],
         }

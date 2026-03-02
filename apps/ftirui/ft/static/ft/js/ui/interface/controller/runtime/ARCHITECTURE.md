@@ -208,7 +208,12 @@ Quota behavior:
   - `/plans/`
   - `/plans/checkout/`
   - they are placeholder pages and must not be treated as real billing integration
-- there is no billing/subscription model in this repo yet, so do not pretend plan-aware quota enforcement exists unless that backend signal is added first
+- there is now a temporary backend subscription model:
+  - `WorkspaceSubscription`
+  - current plans: `free`, `pro`, `team`
+  - current statuses: `inactive`, `active`
+  - it exists only to exercise quota/payment flows safely before real billing is integrated
+  - do not couple real provider logic directly to this placeholder model without an explicit migration plan
 
 Payment / upgrade hooks currently wired:
 - backend quota and lock responses are machine-readable:
@@ -219,10 +224,14 @@ Payment / upgrade hooks currently wired:
   - `workspace_section_limit`
   - `workspace_project_limit`
   - `workspace_canvas_limit`
+  - `workspace_plan`
+  - `workspace_billing_status`
 - `templates/ft/layouts/app_shell.html` exposes the current frontend upgrade/payment hooks on `<body>`:
   - `data-plans-url`
   - `data-checkout-url`
   - the three workspace limit values
+  - `data-workspace-plan`
+  - `data-workspace-billing-status`
 - `static/ft/app.js` exposes `window.openAppPlansPage(...)`
   - this is the canonical placeholder redirect hook until real billing exists
 - `static/ft/js/ui/dashboard/initDashboard.js` is the quota-aware dashboard entry point
@@ -234,10 +243,14 @@ Payment / upgrade hooks currently wired:
 Current placeholder billing flow:
 - `/plans/` is the temporary plan-selection page
 - `/plans/checkout/` is the temporary payment/review page
-- current implementation goal is only flow validation:
+- current implementation goal is flow validation plus temporary quota switching:
   - route shape
   - CTA wiring
   - quota-related copy
+- `POST /plans/checkout/?plan=<slug>` with the test-billing checkbox active upgrades the current authenticated account into a placeholder paid state
+  - current implementation uses `workspace_policy.activate_test_subscription(...)`
+  - `pro` and `team` currently both resolve to unlimited workspace limits
+  - guest users are not upgraded through this test checkout path; they must sign in first
 - they must stay replaceable without touching the dashboard/workspace upgrade entry points
 
 Locked canvas frontend guardrails:

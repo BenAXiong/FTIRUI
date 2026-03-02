@@ -1,5 +1,7 @@
 from django.conf import settings
 
+from .workspace_policy import get_workspace_limits, get_workspace_plan_state
+
 
 def feature_flags(request):
     """
@@ -16,17 +18,8 @@ def feature_flags(request):
 
     shortcut_enabled = getattr(settings, "WORKSPACE_DEV_SHORTCUT_ENABLED", True)
     dev_mode_active = dev_override
-    auth_workspace_limits = {
-        "sections": getattr(settings, "FT_WORKSPACE_FREE_SECTION_LIMIT", 1),
-        "projects": getattr(settings, "FT_WORKSPACE_FREE_PROJECT_LIMIT", 1),
-        "canvases": getattr(settings, "FT_WORKSPACE_FREE_CANVAS_LIMIT", 3),
-    }
-    guest_workspace_limits = {
-        "sections": 1,
-        "projects": 1,
-        "canvases": 1,
-    }
-    active_limits = auth_workspace_limits if request.user.is_authenticated else guest_workspace_limits
+    active_limits = get_workspace_limits(request)
+    plan_state = get_workspace_plan_state(request)
 
     return {
         "workspace_tab_enabled": workspace_enabled,
@@ -38,4 +31,6 @@ def feature_flags(request):
         "workspace_section_limit": active_limits["sections"],
         "workspace_project_limit": active_limits["projects"],
         "workspace_canvas_limit": active_limits["canvases"],
+        "workspace_plan": plan_state["plan"],
+        "workspace_billing_status": plan_state["billing_status"],
     }

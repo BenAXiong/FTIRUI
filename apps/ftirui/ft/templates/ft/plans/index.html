@@ -29,10 +29,10 @@
           <p class="plan-card__description">{{ plan.description }}</p>
 
           {% if plan.is_current %}
-            <button type="button" class="btn btn-outline-light plan-card__cta" disabled>{{ plan.cta_label }}</button>
+            <button type="button" class="btn btn-outline-light plan-card__cta" disabled>Current plan</button>
           {% else %}
             <a class="btn btn-light plan-card__cta" href="{% url 'ft:checkout_placeholder' %}?plan={{ plan.slug }}&next={{ plans_next_url|urlencode }}">
-              {{ plan.cta_label }}
+              {% if request.user.is_authenticated %}{{ plan.cta_label }}{% else %}Review test upgrade{% endif %}
             </a>
           {% endif %}
 

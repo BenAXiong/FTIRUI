@@ -9,7 +9,7 @@ from ..management.commands.seed_dashboard_demo import (
     SECTION_NAME as DEMO_SECTION_NAME,
     SAMPLE_CANVASES as DEMO_SAMPLE_CANVASES,
 )
-from ..models import WorkspaceCanvas, WorkspaceProject, WorkspaceSection
+from ..models import WorkspaceCanvas, WorkspaceProject, WorkspaceSection, WorkspaceSubscription
 
 User = get_user_model()
 
@@ -409,6 +409,49 @@ class DashboardApiTests(TestCase):
         checkout = self.client.get("/plans/checkout/?plan=pro")
         self.assertEqual(checkout.status_code, 200)
         self.assertContains(checkout, "Review your Pro upgrade")
+
+    def test_checkout_test_activation_sets_unlimited_plan(self):
+        response = self.client.post(
+            "/plans/checkout/?plan=pro&next=/",
+            data={"test_bypass": "on"},
+            follow=False,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("billing=test-upgraded", response["Location"])
+
+        subscription = WorkspaceSubscription.objects.get(owner=self.user)
+        self.assertEqual(subscription.plan, WorkspaceSubscription.PLAN_PRO)
+        self.assertEqual(subscription.billing_status, WorkspaceSubscription.STATUS_ACTIVE)
+
+        me = self.client.get("/api/me/")
+        self.assertEqual(me.status_code, 200)
+        payload = me.json()
+        self.assertEqual(payload["plan"], "pro")
+        self.assertEqual(payload["billing_status"], "active")
+        self.assertTrue(payload["is_unlimited"])
+
+    def test_paid_plan_create_canvas_does_not_lock_oldest_canvas(self):
+        WorkspaceSubscription.objects.create(
+            owner=self.user,
+            plan=WorkspaceSubscription.PLAN_PRO,
+            billing_status=WorkspaceSubscription.STATUS_ACTIVE,
+            billing_provider="test_checkout",
+        )
+
+        url = f"/api/dashboard/projects/{self.project.id}/canvases/"
+        for index in range(6):
+            resp = self.client.post(
+                url,
+                data=json.dumps({"title": f"Unlimited {index + 1}", "state": {"order": [str(index)]}}),
+                content_type="application/json",
+            )
+            self.assertEqual(resp.status_code, 201, resp.content)
+            self.assertNotIn("quota_lock_notice", resp.json())
+
+        listing = self.client.get("/api/dashboard/sections/?include=full")
+        canvases = listing.json()["items"][0]["projects"][0]["canvases"]
+        locked = [canvas for canvas in canvases if canvas.get("quota_locked")]
+        self.assertEqual(locked, [])
 
     def test_canvas_version_detail_includes_state(self):
         url = f"/api/dashboard/canvases/{self.canvas.id}/versions/"

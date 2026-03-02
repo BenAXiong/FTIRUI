@@ -35,31 +35,58 @@
       <section class="checkout-card" aria-label="Placeholder payment form">
         <div class="checkout-card__note">Temporary payment form</div>
         <h2 class="checkout-card__title">Confirm the upgrade flow.</h2>
-        <div class="checkout-card__field">
-          <label for="checkout_name">Name on card</label>
-          <input id="checkout_name" type="text" class="form-control" placeholder="Ada Lovelace">
-        </div>
-        <div class="checkout-card__field">
-          <label for="checkout_email">Billing email</label>
-          <input id="checkout_email" type="email" class="form-control" placeholder="name@example.com">
-        </div>
-        <div class="checkout-card__row">
+        {% if checkout_activation_success %}
+          <div class="alert alert-success" role="status">{{ checkout_activation_success }}</div>
+        {% endif %}
+        {% if checkout_activation_error %}
+          <div class="alert alert-warning" role="alert">{{ checkout_activation_error }}</div>
+        {% endif %}
+        {% if checkout_requires_auth %}
+          <p class="checkout-card__footnote">
+            Sign in first to activate the test subscription and exercise the paid quota flow on a real account.
+          </p>
+          <div class="checkout-card__actions">
+            <a class="btn btn-light" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}">Back to plans</a>
+            <a class="btn btn-primary" href="{{ checkout_login_url }}">Sign in</a>
+          </div>
+        {% else %}
+        <form method="post">
+          {% csrf_token %}
           <div class="checkout-card__field">
-            <label for="checkout_card">Card number</label>
-            <input id="checkout_card" type="text" class="form-control" placeholder="4242 4242 4242 4242">
+            <label for="checkout_name">Name on card</label>
+            <input id="checkout_name" name="checkout_name" type="text" class="form-control" placeholder="Ada Lovelace">
           </div>
           <div class="checkout-card__field">
-            <label for="checkout_exp">Expiry</label>
-            <input id="checkout_exp" type="text" class="form-control" placeholder="12/34">
+            <label for="checkout_email">Billing email</label>
+            <input id="checkout_email" name="checkout_email" type="email" class="form-control" placeholder="name@example.com">
           </div>
-        </div>
-        <div class="checkout-card__actions">
-          <a class="btn btn-light" href="{{ plans_next_url|default:'/' }}">Return without upgrading</a>
-          <button type="button" class="btn btn-primary" disabled>Payment integration pending</button>
-        </div>
-        <p class="checkout-card__footnote">
-          The real checkout implementation will replace this page and apply the final quota logic.
-        </p>
+          <div class="checkout-card__row">
+            <div class="checkout-card__field">
+              <label for="checkout_card">Card number</label>
+              <input id="checkout_card" name="checkout_card" type="text" class="form-control" placeholder="4242 4242 4242 4242">
+            </div>
+            <div class="checkout-card__field">
+              <label for="checkout_exp">Expiry</label>
+              <input id="checkout_exp" name="checkout_exp" type="text" class="form-control" placeholder="12/34">
+            </div>
+          </div>
+          <label class="form-check checkout-card__check">
+            <input class="form-check-input" type="checkbox" name="test_bypass">
+            <span class="form-check-label">This is a test billing flow. Activate {{ checkout_plan.title }} without real payment.</span>
+          </label>
+          <div class="checkout-card__actions">
+            <a class="btn btn-light" href="{{ plans_next_url|default:'/' }}">Return without upgrading</a>
+            {% if plans_current_plan == checkout_plan_slug and plans_billing_status == 'active' %}
+              <button type="button" class="btn btn-outline-light" disabled>Already active</button>
+            {% else %}
+              <button type="submit" class="btn btn-primary">Activate {{ checkout_plan.title }} (test)</button>
+            {% endif %}
+          </div>
+          <p class="checkout-card__footnote">
+            The real checkout implementation will replace this page and apply the final quota logic.
+          </p>
+        </form>
+        {% endif %}
       </section>
     </section>
   </main>
