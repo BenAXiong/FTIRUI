@@ -143,6 +143,7 @@ const userDropdownMenu = userStatusCard ? userStatusCard.querySelector('[data-us
 const userDropdownName = userStatusCard ? userStatusCard.querySelector('[data-dropdown-name]') : null;
 const userDropdownEmail = userStatusCard ? userStatusCard.querySelector('[data-dropdown-email]') : null;
 const userPlanPill = userStatusCard ? userStatusCard.querySelector('[data-user-plan-pill]') : null;
+const userUpgradeLink = userStatusCard ? userStatusCard.querySelector('[data-upgrade-link]') : null;
 
 userSignInLink?.addEventListener('click', () => {
   showAppToast({
@@ -204,6 +205,11 @@ function applyUserStatus(data) {
     if (userDropdownEmail) {
       userDropdownEmail.textContent = (data.email || '').trim() || (data.username || 'Signed in');
     }
+    if (userUpgradeLink) {
+      const isPaid = data.billing_status === 'active' && String(data.plan || 'free').toLowerCase() !== 'free';
+      userUpgradeLink.classList.toggle('d-none', isPaid);
+      userUpgradeLink.href = buildPlansUrl({ source: 'user-menu', next: window.location.pathname + window.location.search });
+    }
     if (userPlanPill) {
       const plan = String(data.plan || 'free').toUpperCase();
       userPlanPill.textContent = plan;
@@ -236,6 +242,9 @@ function applyUserStatus(data) {
     }
     if (userDropdownEmail) {
       userDropdownEmail.textContent = 'Not signed in';
+    }
+    if (userUpgradeLink) {
+      userUpgradeLink.classList.add('d-none');
     }
     if (userPlanPill) {
       userPlanPill.textContent = '';

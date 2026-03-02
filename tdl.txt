@@ -11,10 +11,10 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] wire upgrade workflow : CTA to plans to payment UI
         - [x] wire upgrade workflow : payment to paid plan
         - [x] wire upgrade workflow : cancel subscription
-    - [-] Admin
-        - [-] Enable login with identifiers for testing
-        - [ ] Create admin IDs for guest, LI & paid
-        - [ ] Doc
+    - [x] Admin
+        - [x] Enable login with identifiers for testing
+        - [x] Create admin IDs free & paid users
+        - [x] Doc
     - [ ] Polish tier-based UI: quotas, lock badges and styling
         - [ ] ***Migrate guest locked canvases too
         - [ ] Non-guests: land on dash and show tips if no content yet

@@ -253,6 +253,17 @@ Current placeholder billing flow:
   - guest users are not upgraded through this test checkout path; they must sign in first
 - they must stay replaceable without touching the dashboard/workspace upgrade entry points
 
+Auth / billing implementation note:
+- runtime-shell/quota behavior is documented here because it directly affects dashboard/workspace state flow
+- account creation, identifier login, and fake billing activation workflow are documented separately in:
+  - `docs/auth-and-billing-test-flow.md`
+- do not duplicate detailed login/signup rules in multiple docs; keep this file focused on:
+  - shell selection
+  - guest workspace ownership
+  - migration policy
+  - quota lock/read-only behavior
+  - upgrade hook entry points
+
 Locked canvas frontend guardrails:
 - locked canvases are openable but must remain read-only
 - backend is the source of truth for write blocking
