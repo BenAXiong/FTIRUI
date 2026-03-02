@@ -9,8 +9,8 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] deal with extra canvas when quotas are exceeded
         - [x] add badge, styling and read-only view for locked canvases
         - [x] wire upgrade workflow : CTA to plans to payment UI
-        - [-] wire upgrade workflow : payment to paid plan
-        - [ ] wire upgrade workflow : cancel subbscription
+        - [x] wire upgrade workflow : payment to paid plan
+        - [-] wire upgrade workflow : cancel subbscription
         - [ ] migrate guest locked canvases too
         - [ ] enable login with identifiers for testing
         - [ ] display guest quotas (dash or popup?)

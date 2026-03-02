@@ -8,6 +8,7 @@ urlpatterns = [
     path("workspace/", views.workspace_page, name="workspace"),
     path("plans/", views.plans_page, name="plans"),
     path("plans/checkout/", views.checkout_placeholder_page, name="checkout_placeholder"),
+    path("plans/downgrade/", views.downgrade_subscription, name="downgrade_subscription"),
     path("profile/", views.profile, name="profile"),
 
     # JSON endpoints for Plotly + table preview

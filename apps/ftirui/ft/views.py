@@ -43,6 +43,7 @@ from .models import (
     WorkspaceProject,
     WorkspaceCanvas,
     WorkspaceCanvasVersion,
+    WorkspaceSubscription,
 )
 from .sessions_repository import SessionStorageError, SessionTooLargeError
 from .tagging import generate_placeholder_tags, normalize_tags
@@ -705,6 +706,19 @@ def checkout_placeholder_page(request):
         "checkout_login_url": _build_login_urls(request, next_path=request.get_full_path())["login"],
     }
     return render(request, "ft/plans/checkout.html", context)
+
+
+@require_http_methods(["POST"])
+@login_required
+def downgrade_subscription(request):
+    subscription, _ = WorkspaceSubscription.objects.get_or_create(owner=request.user)
+    subscription.plan = WorkspaceSubscription.PLAN_FREE
+    subscription.billing_status = WorkspaceSubscription.STATUS_INACTIVE
+    subscription.billing_provider = "test_checkout"
+    subscription.activated_at = None
+    subscription.save(update_fields=["plan", "billing_status", "billing_provider", "activated_at", "updated_at"])
+    next_path = request.POST.get("next") or reverse("ft:profile")
+    return HttpResponseRedirect(next_path)
 
 @require_http_methods(["POST"])
 def preview(request):

@@ -95,6 +95,26 @@ table.preview-table { font-variant-numeric: tabular-nums; }
 .workspace-user-pill i.bi-chevron-down{
   font-size:.7rem;
 }
+.workspace-plan-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:2.2rem;
+  padding:.15rem .45rem;
+  border-radius:999px;
+  background:rgba(148, 163, 184, .14);
+  color:rgba(226, 232, 240, .9);
+  border:1px solid rgba(148, 163, 184, .3);
+  font-size:.68rem;
+  font-weight:700;
+  letter-spacing:.06em;
+  line-height:1;
+}
+.workspace-plan-pill.is-paid{
+  background:rgba(37, 99, 235, .18);
+  border-color:rgba(59, 130, 246, .45);
+  color:#cfe0ff;
+}
 
 /* --------------------------------------------------------------------------
    Dashboard

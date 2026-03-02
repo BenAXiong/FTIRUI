@@ -142,6 +142,7 @@ const userSignOutLink = el('user_sign_out');
 const userDropdownMenu = userStatusCard ? userStatusCard.querySelector('[data-user-dropdown]') : null;
 const userDropdownName = userStatusCard ? userStatusCard.querySelector('[data-dropdown-name]') : null;
 const userDropdownEmail = userStatusCard ? userStatusCard.querySelector('[data-dropdown-email]') : null;
+const userPlanPill = userStatusCard ? userStatusCard.querySelector('[data-user-plan-pill]') : null;
 
 userSignInLink?.addEventListener('click', () => {
   showAppToast({
@@ -203,6 +204,14 @@ function applyUserStatus(data) {
     if (userDropdownEmail) {
       userDropdownEmail.textContent = (data.email || '').trim() || (data.username || 'Signed in');
     }
+    if (userPlanPill) {
+      const plan = String(data.plan || 'free').toUpperCase();
+      userPlanPill.textContent = plan;
+      userPlanPill.classList.remove('d-none', 'is-paid');
+      if (data.billing_status === 'active' && String(data.plan || 'free').toLowerCase() !== 'free') {
+        userPlanPill.classList.add('is-paid');
+      }
+    }
     userStatusCard.dataset.authenticated = '1';
   } else {
     if (nameEl) nameEl.textContent = 'Guest';
@@ -227,6 +236,11 @@ function applyUserStatus(data) {
     }
     if (userDropdownEmail) {
       userDropdownEmail.textContent = 'Not signed in';
+    }
+    if (userPlanPill) {
+      userPlanPill.textContent = '';
+      userPlanPill.classList.add('d-none');
+      userPlanPill.classList.remove('is-paid');
     }
     userStatusCard.dataset.authenticated = '0';
   }

@@ -453,6 +453,28 @@ class DashboardApiTests(TestCase):
         locked = [canvas for canvas in canvases if canvas.get("quota_locked")]
         self.assertEqual(locked, [])
 
+    def test_downgrade_subscription_returns_account_to_free(self):
+        WorkspaceSubscription.objects.create(
+            owner=self.user,
+            plan=WorkspaceSubscription.PLAN_PRO,
+            billing_status=WorkspaceSubscription.STATUS_ACTIVE,
+            billing_provider="test_checkout",
+        )
+
+        response = self.client.post("/plans/downgrade/", data={"next": "/profile/"}, follow=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/profile/")
+
+        subscription = WorkspaceSubscription.objects.get(owner=self.user)
+        self.assertEqual(subscription.plan, WorkspaceSubscription.PLAN_FREE)
+        self.assertEqual(subscription.billing_status, WorkspaceSubscription.STATUS_INACTIVE)
+
+        me = self.client.get("/api/me/")
+        payload = me.json()
+        self.assertEqual(payload["plan"], "free")
+        self.assertEqual(payload["billing_status"], "inactive")
+        self.assertFalse(payload["is_unlimited"])
+
     def test_canvas_version_detail_includes_state(self):
         url = f"/api/dashboard/canvases/{self.canvas.id}/versions/"
         create = self.client.post(
