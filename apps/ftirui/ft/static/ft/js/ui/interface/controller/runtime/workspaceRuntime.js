@@ -481,6 +481,13 @@ const readDatasetBool = (value) => {
   return value === 'true' || value === '1';
 };
 
+const buildWorkspaceStorageNamespace = ({ canvasId = null, authenticated = false } = {}) => {
+  if (canvasId) {
+    return `ftir.workspace.canvas.${canvasId}.v1`;
+  }
+  return `ftir.workspace.shell.${authenticated ? 'auth' : 'guest'}.v1`;
+};
+
 const setDropTarget = (element) => {
   if (currentDropTarget === element) return;
   if (currentDropTarget) {
@@ -1673,8 +1680,14 @@ export function initWorkspaceRuntime(context = {}) {
   };
   syncGuestSessionClass();
   const activeCanvasId = getActiveCanvasIdFromContext();
+  storage.setNamespace?.(
+    buildWorkspaceStorageNamespace({
+      canvasId: activeCanvasId,
+      authenticated: userAuthenticated
+    })
+  );
   const applyWorkspaceTitleValue = (value) => {
-    const next = typeof value === 'string' && value.trim() ? value.trim() : 'Untitled canvas';
+    const next = typeof value === 'string' && value.trim() ? value.trim() : 'Untitled Canvas';
     if (typeof document !== 'undefined' && document.body) {
       document.body.dataset.activeCanvasTitle = next;
     }
@@ -1687,7 +1700,7 @@ export function initWorkspaceRuntime(context = {}) {
   applyWorkspaceTitleValue(
     document.body?.dataset?.activeCanvasTitle ||
       document.querySelector('[data-workspace-canvas-title]')?.textContent ||
-      'Untitled canvas'
+      'Untitled Canvas'
   );
   let cloudSyncEnabled = !!activeCanvasId;
   const updateCloudSyncState = () => {
@@ -1724,6 +1737,12 @@ export function initWorkspaceRuntime(context = {}) {
       if (next === userAuthenticated) return;
       userAuthenticated = next;
       syncGuestSessionClass();
+      storage.setNamespace?.(
+        buildWorkspaceStorageNamespace({
+          canvasId: activeCanvasId,
+          authenticated: userAuthenticated
+        })
+      );
       updateCloudSyncState();
     };
     workspaceTitleChangeHandler = (event) => {
@@ -5003,8 +5022,12 @@ const toggleDataTabFromHeader = (panelId) => {
     const normalizedTitle = normalizedTitleBase || defaultTitle;
     const sequenceOffset = panelDomRegistry.size * 24;
     const gutter = 36;
-    const defaultWidth = Number.isFinite(incomingState.width) ? incomingState.width : 1000;
-    const defaultHeight = Number.isFinite(incomingState.height) ? incomingState.height : 300;
+    const defaultWidth = Number.isFinite(incomingState.width)
+      ? incomingState.width
+      : (panelType?.id === 'plot' ? 1500 : 1000);
+    const defaultHeight = Number.isFinite(incomingState.height)
+      ? incomingState.height
+      : (panelType?.id === 'plot' ? 360 : 300);
     const resolveAutoX = () => {
       if (useModelState && Number.isFinite(incomingState.x)) {
         return incomingState.x;
@@ -5744,18 +5767,8 @@ const toggleDataTabFromHeader = (panelId) => {
     peakMarkingController.handleActivePanelChange(getActivePanelId?.() || null);
   }
 
-  const handleArrangeRequest = (mode, { includeNonPlots = arrangeIncludeAllPanels } = {}) => {
-    const panels = gatherVisiblePanelsByType({ includeNonPlots });
-    if (!panels.length) {
-      showToast(includeNonPlots ? 'No panels available to arrange.' : 'No graphs available to arrange.', 'info');
-      return;
-    }
+  const buildArrangeGeometries = (panels, mode, { preserveSize = false } = {}) => {
     const metrics = computeCommonPanelSizing(panels);
-    const label = mode === 'stack'
-      ? 'stack'
-      : mode === 'cascade'
-        ? 'cascade'
-        : 'tile';
     const padding = 24;
     const viewportOffsetX = Math.round(metrics.canvas.width * 0.20);
     const viewportOffsetY = Math.round(metrics.canvas.height * 0.06);
@@ -5765,6 +5778,28 @@ const toggleDataTabFromHeader = (panelId) => {
       Math.max(padding, Math.min(value, axis - size - padding));
     const clampX = (value, width = metrics.width) => clampAxis(value, width, metrics.canvas.width);
     const clampY = (value, height = metrics.height) => clampAxis(value, height, metrics.canvas.height);
+    const resolvePanelSize = (panel) => {
+      if (!preserveSize) {
+        return { width: metrics.width, height: metrics.height };
+      }
+      const sourceWidth = panel?.geometry?.width ?? panel?.width;
+      const sourceHeight = panel?.geometry?.height ?? panel?.height;
+      return {
+        width: Math.max(200, Math.min(coerceNumber(sourceWidth, metrics.width), metrics.canvas.width - padding * 2)),
+        height: Math.max(160, Math.min(coerceNumber(sourceHeight, metrics.height), metrics.canvas.height - padding * 2))
+      };
+    };
+    if (mode === 'center' && panels.length === 1) {
+      const panel = panels[0];
+      const { width, height } = resolvePanelSize(panel);
+      return [{
+        panelId: panel.id,
+        x: clampX(Math.round((metrics.canvas.width - width) / 2), width),
+        y: clampY(Math.round((metrics.canvas.height - height) / 2), height),
+        width,
+        height
+      }];
+    }
     let geometries = [];
     if (mode === 'stack') {
       const x = clampX(originX);
@@ -5778,44 +5813,84 @@ const toggleDataTabFromHeader = (panelId) => {
       }));
     } else if (mode === 'cascade') {
       geometries = panels.map((panel, idx) => {
+        const { width, height } = resolvePanelSize(panel);
         const offsetX = metrics.cascadeOffset.x * idx;
         const offsetY = metrics.cascadeOffset.y * idx;
-        const x = clampX(originX + offsetX);
-        const y = clampY(originY + offsetY);
+        const x = clampX(originX + offsetX, width);
+        const y = clampY(originY + offsetY, height);
         return {
           panelId: panel.id,
           x,
           y,
-          width: metrics.width,
-          height: metrics.height
+          width,
+          height
         };
       });
     } else {
       const gutter = metrics.tile.gutter;
-      const columns = Math.max(1, metrics.tile.columns);
-      let col = 0;
-      let row = 0;
-      geometries = panels.map((panel) => {
-        const availableWidth = Math.max(metrics.width, Math.floor((metrics.canvas.width - gutter * (columns + 1)) / columns));
-        const adjustedWidth = Math.max(200, Math.min(metrics.width, availableWidth));
-        const adjustedHeight = metrics.height;
-        const x = clampX(originX + col * (adjustedWidth + gutter), adjustedWidth);
-        const y = clampY(originY + row * (adjustedHeight + gutter), adjustedHeight);
-        col += 1;
-        if (col >= columns) {
-          col = 0;
-          row += 1;
-        }
-        return {
-          panelId: panel.id,
-          x: clampX(x),
-          y: clampY(y),
-          width: adjustedWidth,
-          height: adjustedHeight
-        };
-      });
+      if (preserveSize) {
+        let cursorX = padding;
+        let cursorY = originY;
+        let rowHeight = 0;
+        geometries = panels.map((panel) => {
+          const { width, height } = resolvePanelSize(panel);
+          if (cursorX > padding && cursorX + width > metrics.canvas.width - padding) {
+            cursorX = padding;
+            cursorY += rowHeight + gutter;
+            rowHeight = 0;
+          }
+          const geometry = {
+            panelId: panel.id,
+            x: clampX(cursorX, width),
+            y: clampY(cursorY, height),
+            width,
+            height
+          };
+          cursorX += width + gutter;
+          rowHeight = Math.max(rowHeight, height);
+          return geometry;
+        });
+      } else {
+        const columns = Math.max(1, metrics.tile.columns);
+        let col = 0;
+        let row = 0;
+        geometries = panels.map((panel) => {
+          const availableWidth = Math.max(metrics.width, Math.floor((metrics.canvas.width - gutter * (columns + 1)) / columns));
+          const adjustedWidth = Math.max(200, Math.min(metrics.width, availableWidth));
+          const adjustedHeight = metrics.height;
+          const x = clampX(originX + col * (adjustedWidth + gutter), adjustedWidth);
+          const y = clampY(originY + row * (adjustedHeight + gutter), adjustedHeight);
+          col += 1;
+          if (col >= columns) {
+            col = 0;
+            row += 1;
+          }
+          return {
+            panelId: panel.id,
+            x: clampX(x),
+            y: clampY(y),
+            width: adjustedWidth,
+            height: adjustedHeight
+          };
+        });
+      }
     }
-    pushHistory({ label: `Arrange panels (${label})` });
+    return geometries;
+  };
+
+  const applyArrangeLayout = (panels, mode, { pushToHistory = true, showSuccessToast = true, preserveSize = false } = {}) => {
+    if (!panels.length) return false;
+    const label = mode === 'stack'
+      ? 'stack'
+      : mode === 'cascade'
+        ? 'cascade'
+        : mode === 'center'
+          ? 'center'
+          : 'tile';
+    const geometries = buildArrangeGeometries(panels, mode, { preserveSize });
+    if (pushToHistory) {
+      pushHistory({ label: `Arrange panels (${label})` });
+    }
     geometries.forEach((geometry, idx) => {
       const normalized = applyPanelGeometry(geometry.panelId, geometry, { persistNormalized: true });
       panelsModel.setPanelGeometry(geometry.panelId, normalized || geometry);
@@ -5826,7 +5901,28 @@ const toggleDataTabFromHeader = (panelId) => {
     updateHistoryButtons();
     updateCanvasState();
     renderBrowser();
-    showToast(`Arranged ${panels.length} panel${panels.length === 1 ? '' : 's'} in ${label} layout.`, 'success');
+    if (showSuccessToast) {
+      showToast(`Arranged ${panels.length} panel${panels.length === 1 ? '' : 's'} in ${label} layout.`, 'success');
+    }
+    return true;
+  };
+
+  const arrangePanelsByIds = (panelIds = [], { mode = null, includeNonPlots = true, pushToHistory = false, showSuccessToast = false, preserveSize = false } = {}) => {
+    const wanted = new Set((Array.isArray(panelIds) ? panelIds : []).filter(Boolean));
+    if (!wanted.size) return false;
+    const panels = gatherVisiblePanelsByType({ includeNonPlots }).filter((panel) => wanted.has(panel.id));
+    if (!panels.length) return false;
+    const resolvedMode = mode || (panels.length === 1 ? 'center' : 'tile');
+    return applyArrangeLayout(panels, resolvedMode, { pushToHistory, showSuccessToast, preserveSize });
+  };
+
+  const handleArrangeRequest = (mode, { includeNonPlots = arrangeIncludeAllPanels } = {}) => {
+    const panels = gatherVisiblePanelsByType({ includeNonPlots });
+    if (!panels.length) {
+      showToast(includeNonPlots ? 'No panels available to arrange.' : 'No graphs available to arrange.', 'info');
+      return;
+    }
+    applyArrangeLayout(panels, mode, { pushToHistory: true, showSuccessToast: true });
   };
 
   alignStackBtn?.addEventListener('click', () => handleArrangeRequest('stack'));
@@ -5905,6 +6001,7 @@ const toggleDataTabFromHeader = (panelId) => {
       renderBrowser,
       updateCanvasState,
       focusPanel: focusPanelById,
+      arrangePanels: arrangePanelsByIds,
       createSection,
       findSectionByName
     },

@@ -83,6 +83,12 @@ class DashboardApiTests(TestCase):
         self.assertEqual(WorkspaceSection.objects.filter(owner=owner).count(), 1)
         self.assertEqual(WorkspaceProject.objects.filter(owner=owner).count(), 1)
         self.assertEqual(WorkspaceCanvas.objects.filter(owner=owner).count(), 1)
+        section = WorkspaceSection.objects.get(owner=owner)
+        project = WorkspaceProject.objects.get(owner=owner)
+        canvas = WorkspaceCanvas.objects.get(owner=owner)
+        self.assertEqual(section.name, "Untitled Project")
+        self.assertEqual(project.title, "Untitled Folder")
+        self.assertEqual(canvas.title, "Untitled Canvas")
 
     def test_guest_sections_api_returns_bootstrapped_workspace(self):
         self.client.logout()
@@ -116,6 +122,26 @@ class DashboardApiTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(canvas_resp.status_code, 403)
+
+    def test_guest_workspace_is_adopted_after_login(self):
+        self.client.logout()
+        self.client.get("/")
+        guest_owner = self._guest_owner()
+        guest_canvas = WorkspaceCanvas.objects.get(owner=guest_owner)
+
+        adopted_user = User.objects.create_user(username="adopted", password="secret")
+        self.assertTrue(self.client.login(username="adopted", password="secret"))
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+
+        guest_canvas.refresh_from_db()
+        self.assertEqual(guest_canvas.owner, adopted_user)
+        self.assertEqual(WorkspaceProject.objects.filter(owner=adopted_user).count(), 1)
+        self.assertEqual(WorkspaceCanvas.objects.filter(owner=adopted_user).count(), 1)
+        adopted_project = WorkspaceProject.objects.get(owner=adopted_user)
+        adopted_section = WorkspaceSection.objects.get(owner=adopted_user)
+        self.assertEqual(adopted_section.name, "Untitled Project")
+        self.assertEqual(adopted_project.title, "Untitled Folder")
 
     def test_list_sections_with_projects(self):
         resp = self.client.get("/api/dashboard/sections/?include=full")

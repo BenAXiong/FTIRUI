@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib.auth import get_user
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -21,6 +22,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.urls import reverse
+from django.core.signing import BadSignature
 
 import pandas as pd 
 import numpy as np
@@ -56,14 +58,20 @@ THUMBNAILS_DIR = MEDIA_ROOT / "thumbnails" / "canvases"
 THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
 DEMOS_DIR = BASE_DIR / "ft" / "static" / "ft" / "demos"
 GUEST_WORKSPACE_OWNER_SESSION_KEY = "ft_guest_workspace_owner_id"
+GUEST_WORKSPACE_OWNER_COOKIE_KEY = "ft_guest_workspace_owner_id"
 GUEST_WORKSPACE_OWNER_PREFIX = "guest-workspace-"
-DEFAULT_GUEST_SECTION_NAME = "Workspace"
-DEFAULT_GUEST_PROJECT_NAME = "Project"
-DEFAULT_GUEST_CANVAS_TITLE = "Untitled canvas"
+DEFAULT_GUEST_SECTION_NAME = "Untitled Project"
+DEFAULT_GUEST_PROJECT_NAME = "Untitled Folder"
+DEFAULT_GUEST_CANVAS_TITLE = "Untitled Canvas"
 GUEST_WORKSPACE_LIMITS = {
     "sections": 1,
     "projects": 1,
     "canvases": 1,
+}
+AUTH_WORKSPACE_LIMITS = {
+    "sections": 1,
+    "projects": 1,
+    "canvases": 3,
 }
 
 
@@ -75,6 +83,48 @@ def _ensure_session_key(request) -> str:
     return session_key
 
 
+def _mark_guest_owner_cookie(request, owner_id):
+    setattr(request, "_ft_guest_owner_cookie_value", str(owner_id))
+    setattr(request, "_ft_guest_owner_cookie_clear", False)
+
+
+def _mark_guest_owner_cookie_for_clear(request):
+    setattr(request, "_ft_guest_owner_cookie_value", None)
+    setattr(request, "_ft_guest_owner_cookie_clear", True)
+
+
+def _finalize_workspace_response(request, response):
+    if not response:
+        return response
+    if getattr(request, "_ft_guest_owner_cookie_clear", False):
+        response.delete_cookie(GUEST_WORKSPACE_OWNER_COOKIE_KEY)
+    else:
+        cookie_value = getattr(request, "_ft_guest_owner_cookie_value", None)
+        if cookie_value:
+            response.set_signed_cookie(
+                GUEST_WORKSPACE_OWNER_COOKIE_KEY,
+                cookie_value,
+                max_age=60 * 60 * 24 * 30,
+                httponly=True,
+                samesite="Lax",
+            )
+    return response
+
+
+def _read_guest_owner_id(request):
+    owner_id = request.session.get(GUEST_WORKSPACE_OWNER_SESSION_KEY)
+    if owner_id:
+        return owner_id
+    try:
+        owner_id = request.get_signed_cookie(GUEST_WORKSPACE_OWNER_COOKIE_KEY, default=None)
+    except BadSignature:
+        owner_id = None
+    if owner_id:
+        request.session[GUEST_WORKSPACE_OWNER_SESSION_KEY] = owner_id
+        request.session.modified = True
+    return owner_id
+
+
 def _is_guest_workspace_owner(user) -> bool:
     if not user:
         return False
@@ -84,14 +134,16 @@ def _is_guest_workspace_owner(user) -> bool:
 
 def _get_or_create_guest_workspace_owner(request):
     UserModel = get_user_model()
-    owner_id = request.session.get(GUEST_WORKSPACE_OWNER_SESSION_KEY)
+    owner_id = _read_guest_owner_id(request)
     if owner_id:
       try:
           owner = UserModel.objects.get(id=owner_id)
           if _is_guest_workspace_owner(owner):
+              _mark_guest_owner_cookie(request, owner.pk)
               return owner
       except UserModel.DoesNotExist:
           request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
+          _mark_guest_owner_cookie_for_clear(request)
 
     session_key = _ensure_session_key(request)
     username = f"{GUEST_WORKSPACE_OWNER_PREFIX}{session_key}"
@@ -106,11 +158,13 @@ def _get_or_create_guest_workspace_owner(request):
         owner.save(update_fields=["password"])
     request.session[GUEST_WORKSPACE_OWNER_SESSION_KEY] = owner.pk
     request.session.modified = True
+    _mark_guest_owner_cookie(request, owner.pk)
     return owner
 
 
 def _resolve_workspace_owner(request, *, create_guest=False):
     if request.user.is_authenticated:
+        _adopt_guest_workspace_if_needed(request, request.user)
         return request.user
     if not create_guest:
         return None
@@ -120,9 +174,9 @@ def _resolve_workspace_owner(request, *, create_guest=False):
 def _get_workspace_limits(request):
     if request.user.is_authenticated:
         return {
-            "sections": getattr(settings, "FT_WORKSPACE_FREE_SECTION_LIMIT", None),
-            "projects": getattr(settings, "FT_WORKSPACE_FREE_PROJECT_LIMIT", None),
-            "canvases": getattr(settings, "FT_WORKSPACE_FREE_CANVAS_LIMIT", None),
+            "sections": getattr(settings, "FT_WORKSPACE_FREE_SECTION_LIMIT", AUTH_WORKSPACE_LIMITS["sections"]),
+            "projects": getattr(settings, "FT_WORKSPACE_FREE_PROJECT_LIMIT", AUTH_WORKSPACE_LIMITS["projects"]),
+            "canvases": getattr(settings, "FT_WORKSPACE_FREE_CANVAS_LIMIT", AUTH_WORKSPACE_LIMITS["canvases"]),
         }
     return dict(GUEST_WORKSPACE_LIMITS)
 
@@ -194,6 +248,103 @@ def _ensure_workspace_bootstrap(owner):
         "canvas": canvas,
     }
 
+
+def _cleanup_guest_workspace_owner(request, guest_owner):
+    if not guest_owner:
+        return
+    request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
+    request.session.modified = True
+    _mark_guest_owner_cookie_for_clear(request)
+    has_workspace = (
+        WorkspaceSection.objects.filter(owner=guest_owner).exists()
+        or WorkspaceProject.objects.filter(owner=guest_owner).exists()
+        or WorkspaceCanvas.objects.filter(owner=guest_owner).exists()
+        or PlotSession.objects.filter(owner=guest_owner).exists()
+    )
+    if not has_workspace:
+        guest_owner.delete()
+
+
+def _adopt_guest_workspace_if_needed(request, user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    guest_owner_id = _read_guest_owner_id(request)
+    if not guest_owner_id:
+        return False
+    if str(guest_owner_id) == str(user.pk):
+        request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
+        request.session.modified = True
+        return False
+    UserModel = get_user_model()
+    try:
+        guest_owner = UserModel.objects.get(pk=guest_owner_id)
+    except UserModel.DoesNotExist:
+        request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
+        request.session.modified = True
+        return False
+    if not _is_guest_workspace_owner(guest_owner):
+        request.session.pop(GUEST_WORKSPACE_OWNER_SESSION_KEY, None)
+        request.session.modified = True
+        return False
+
+    guest_sections = list(WorkspaceSection.objects.filter(owner=guest_owner).order_by("position", "created_at"))
+    guest_projects = list(WorkspaceProject.objects.filter(owner=guest_owner).order_by("position", "created_at"))
+    guest_canvases = list(WorkspaceCanvas.objects.filter(owner=guest_owner).order_by("created_at"))
+    guest_sessions = list(PlotSession.objects.filter(owner=guest_owner).order_by("created_at"))
+    if not guest_sections and not guest_projects and not guest_canvases and not guest_sessions:
+        _cleanup_guest_workspace_owner(request, guest_owner)
+        return False
+
+    with transaction.atomic():
+        target_section = WorkspaceSection.objects.filter(owner=user).order_by("position", "created_at").first()
+        if not target_section:
+            target_section, _ = WorkspaceSection.objects.get_or_create(
+                owner=user,
+                name=guest_sections[0].name if guest_sections else DEFAULT_GUEST_SECTION_NAME,
+                defaults={
+                    "description": guest_sections[0].description if guest_sections else "",
+                    "color": guest_sections[0].color if guest_sections else "",
+                    "position": _next_position(WorkspaceSection.objects.filter(owner=user)),
+                },
+            )
+
+        target_project = WorkspaceProject.objects.filter(owner=user).order_by("position", "created_at").first()
+        if not target_project:
+            source_project = guest_projects[0] if guest_projects else None
+            target_project, _ = WorkspaceProject.objects.get_or_create(
+                owner=user,
+                section=target_section,
+                title=source_project.title if source_project else DEFAULT_GUEST_PROJECT_NAME,
+                defaults={
+                    "summary": source_project.summary if source_project else "",
+                    "position": _next_position(target_section.projects.all()),
+                    "cover_thumbnail": source_project.cover_thumbnail if source_project else "",
+                },
+            )
+
+        for project in guest_projects:
+            if project.id == target_project.id:
+                continue
+            WorkspaceCanvas.objects.filter(project=project).update(project=target_project, owner=user)
+            project.delete()
+
+        WorkspaceCanvas.objects.filter(owner=guest_owner).update(owner=user, project=target_project)
+        PlotSession.objects.filter(owner=guest_owner).update(owner=user)
+
+        target_project.owner = user
+        target_project.section = target_section
+        target_project.save(update_fields=["owner", "section", "updated_at"])
+        target_section.owner = user
+        target_section.save(update_fields=["owner", "updated_at"])
+
+        for section in guest_sections:
+            if section.id == target_section.id:
+                continue
+            section.delete()
+
+    _cleanup_guest_workspace_owner(request, guest_owner)
+    return True
+
 # Helper: coerce y to fractional Transmittance [0..1]
 def _to_fractional_T(y: np.ndarray) -> np.ndarray:
     y = np.asarray(y, dtype=np.float32)
@@ -249,7 +400,7 @@ def index(request):
         "requested_canvas_id": requested_canvas_id,
         "dashboard_entry_url": dashboard_entry_url,
     }
-    return render(request, "ft/base.html", context)
+    return _finalize_workspace_response(request, render(request, "ft/base.html", context))
 
 
 @ensure_csrf_cookie
@@ -284,7 +435,7 @@ def workspace_page(request):
         "requested_canvas_id": requested_canvas_id,
         "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
     }
-    return render(request, "ft/base.html", context)
+    return _finalize_workspace_response(request, render(request, "ft/base.html", context))
 
 
 @login_required
@@ -890,7 +1041,8 @@ def _require_workspace_owner(view_func):
         if not owner:
             return JsonResponse({"error": "Authentication required"}, status=401)
         kwargs["workspace_owner"] = owner
-        return view_func(request, *args, **kwargs)
+        response = view_func(request, *args, **kwargs)
+        return _finalize_workspace_response(request, response)
     return _wrapped
 
 
@@ -1121,7 +1273,7 @@ def api_dashboard_project_canvases(request, project_id, workspace_owner):
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
-    title = (payload.get("title") or "").strip() or "Untitled canvas"
+    title = (payload.get("title") or "").strip() or "Untitled Canvas"
     raw_state = payload.get("state")
     if raw_state is None:
         raw_state = {}
@@ -1361,13 +1513,15 @@ def api_me(request):
     user = get_user(request)
     urls = _build_login_urls(request, next_path=request.GET.get("next") or "/")
     if not user.is_authenticated:
-        return JsonResponse(
+        return _finalize_workspace_response(request, JsonResponse(
             {
                 "authenticated": False,
                 "login_url": urls["login"],
                 "logout_url": urls["logout"],
             }
-        )
+        ))
+
+    _adopt_guest_workspace_if_needed(request, user)
 
     email = (getattr(user, "email", "") or "").strip().lower()
     avatar_url = None
@@ -1378,7 +1532,7 @@ def api_me(request):
         avatar_url = f"https://www.gravatar.com/avatar/{digest}?s=96&d=identicon"
 
     session_count = PlotSession.objects.filter(owner=user).count()
-    return JsonResponse(
+    return _finalize_workspace_response(request, JsonResponse(
         {
             "authenticated": True,
             "username": getattr(user, "get_full_name", lambda: user.get_username())() or user.get_username(),
@@ -1388,7 +1542,7 @@ def api_me(request):
             "login_url": urls["login"],
             "logout_url": urls["logout"],
         }
-    )
+    ))
 
 # --- REPLACE old preview() with this JSON-contract version ---
 @require_http_methods(["POST"])

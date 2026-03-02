@@ -1,7 +1,7 @@
 <button id="c_panel_toggle" class="btn btn-sm btn-outline-secondary panel-toggle panel-toggle-float" type="button" aria-expanded="false" aria-pressed="false" title="Pin browser" aria-label="Pin browser">
   <i class="bi bi-chevron-double-right"></i>
 </button>
-<aside id="c_panel" class="plot-b-panel workspace-browser{% if not request.user.is_authenticated and not active_canvas %} collapsed{% endif %}" aria-label="Group browser">
+<aside id="c_panel" class="plot-b-panel workspace-browser{% if not request.user.is_authenticated %} collapsed{% endif %}" aria-label="Group browser">
   <div class="panel-header panel-header--tabs" role="presentation">
     <div class="btn-group btn-group-sm workspace-browser-tabs" role="tablist" aria-label="Browser views">
       <button type="button" class="btn btn-outline-secondary workspace-browser-tab is-active" data-browser-tab="canvas" aria-selected="true" aria-controls="c_browser_tab_canvas">

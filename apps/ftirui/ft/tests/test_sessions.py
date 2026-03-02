@@ -34,15 +34,15 @@ class SessionApiTests(TestCase):
         self.assertFalse(payload["authenticated"])
         self.assertIn(settings.LOGIN_URL, payload["login_url"])
 
-    def test_anonymous_access_is_rejected(self):
+    def test_anonymous_session_create_bootstraps_guest_storage(self):
         self.client.logout()
         resp = self.client.post(
             "/api/session/",
             data=json.dumps({"title": "anon", "state": {"global": {}}}),
             content_type="application/json",
         )
-        self.assertEqual(resp.status_code, 401)
-        self.assertEqual(PlotSession.objects.count(), 0)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(PlotSession.objects.count(), 1)
 
     def test_create_list_get_update_delete_roundtrip(self):
         payload = {
@@ -132,4 +132,3 @@ class SessionApiTests(TestCase):
             )
         self.assertEqual(resp.status_code, 413)
         self.assertIn("too large", resp.json()["error"])
-

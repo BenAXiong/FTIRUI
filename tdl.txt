@@ -3,13 +3,16 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 - [-] Phase 8 - Landing
     - [x] Research Django user db features and analytics priorities + log in Notion
     - [-] Rework landing for guests features
-      - [x] land on canvas with rainbow DnD and instructions
-      - [x] provide same feature as signed-in users with different quotas
-      - [-] implement guess-to-account migration
+        - [x] land on canvas with rainbow DnD and instructions
+        - [x] provide same feature as signed-in users with different quotas
+        - [-] implement guess-to-account migration
+        - [ ] enable login with identifiers for testing
+        - [ ] display guest quotas (dash or popup?)
+        - [ ] fix new graphs trace colors
     - [ ] Rework landing for new users
         - [ ] Land on dash and show tips if no content yet
         - [ ] Implement free-tier quotas
-        - [ ] 
+        - [ ] Design account perks UI
 
 - [-] Phase 9 - Payment
     - [-] Research payment methods

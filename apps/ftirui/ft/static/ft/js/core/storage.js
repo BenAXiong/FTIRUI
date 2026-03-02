@@ -1,4 +1,4 @@
-const NAMESPACE_KEY = 'ftir.workspace.v1';
+const DEFAULT_NAMESPACE_KEY = 'ftir.workspace.v1';
 import { cloneContentPayload, normalizeContentPayload } from '../workspace/canvas/state/contentStore.js';
 
 const APP_ID = 'ftir.workspace';
@@ -173,6 +173,9 @@ let cachedStorage;
 let cachedStorageType = null;
 let pendingSnapshot = null;
 let debounceTimer = null;
+let namespaceKey = DEFAULT_NAMESPACE_KEY;
+
+const getLegacyNamespaceKeys = () => (namespaceKey === DEFAULT_NAMESPACE_KEY ? LEGACY_NAMESPACE_KEYS : []);
 
 
 const isDevMode = () => {
@@ -224,7 +227,7 @@ const resolveStorage = () => {
 
   for (const desiredType of preference) {
     const match = candidates.find((item) => item.type === desiredType);
-    if (match && testWritable(match.target, `${NAMESPACE_KEY}::probe`)) {
+    if (match && testWritable(match.target, `${namespaceKey}::probe`)) {
       cachedStorage = match.target;
       cachedStorageType = desiredType;
       return cachedStorage;
@@ -232,7 +235,7 @@ const resolveStorage = () => {
   }
 
   // Fallback to any writable option.
-  const fallback = candidates.find((item) => testWritable(item.target, `${NAMESPACE_KEY}::probe`));
+  const fallback = candidates.find((item) => testWritable(item.target, `${namespaceKey}::probe`));
   if (fallback) {
     cachedStorage = fallback.target;
     cachedStorageType = fallback.type;
@@ -256,7 +259,7 @@ const commitPayload = (payload) => {
   const storage = resolveStorage();
   if (!storage) return false;
   try {
-    storage.setItem(NAMESPACE_KEY, JSON.stringify(payload));
+    storage.setItem(namespaceKey, JSON.stringify(payload));
     return true;
   } catch (err) {
     console.warn('[storage] Failed to persist workspace snapshot', err);
@@ -333,7 +336,19 @@ export const migrate = (payload) => {
   };
 };
 
-export const getNamespace = () => NAMESPACE_KEY;
+export const setNamespace = (nextNamespace) => {
+  const normalized = typeof nextNamespace === 'string' && nextNamespace.trim()
+    ? nextNamespace.trim()
+    : DEFAULT_NAMESPACE_KEY;
+  if (normalized === namespaceKey) return namespaceKey;
+  namespaceKey = normalized;
+  resetPending();
+  cachedStorage = null;
+  cachedStorageType = null;
+  return namespaceKey;
+};
+
+export const getNamespace = () => namespaceKey;
 
 export const getStorageType = () => cachedStorageType;
 
@@ -342,8 +357,8 @@ export const hasSnapshot = () => {
   const storage = resolveStorage();
   if (!storage) return false;
   try {
-    if (storage.getItem(NAMESPACE_KEY) != null) return true;
-    return LEGACY_NAMESPACE_KEYS.some((key) => storage.getItem(key) != null);
+    if (storage.getItem(namespaceKey) != null) return true;
+    return getLegacyNamespaceKeys().some((key) => storage.getItem(key) != null);
   } catch {
     return false;
   }
@@ -354,7 +369,7 @@ export const clear = () => {
   resetPending();
   if (!storage) return false;
   let removed = false;
-  const keys = [NAMESPACE_KEY, ...LEGACY_NAMESPACE_KEYS];
+  const keys = [namespaceKey, ...getLegacyNamespaceKeys()];
   keys.forEach((key) => {
     try {
       if (storage.getItem(key) != null) {
@@ -411,12 +426,12 @@ export const load = () => {
       }
     };
   }
-  let sourceKey = NAMESPACE_KEY;
+  let sourceKey = namespaceKey;
   let raw = null;
   try {
     raw = storage.getItem(sourceKey);
     if (!raw) {
-      for (const legacyKey of LEGACY_NAMESPACE_KEYS) {
+      for (const legacyKey of getLegacyNamespaceKeys()) {
         const legacyRaw = storage.getItem(legacyKey);
         if (legacyRaw) {
           raw = legacyRaw;
@@ -449,10 +464,10 @@ export const load = () => {
     const snapshot = cloneSnapshot(migrated.data);
     const timestamp = Number(payload.timestamp) || null;
 
-    if (sourceKey !== NAMESPACE_KEY) {
+    if (sourceKey !== namespaceKey) {
       try {
         const rewritePayload = composePayload(snapshot, timestamp ?? Date.now());
-        storage.setItem(NAMESPACE_KEY, JSON.stringify(rewritePayload));
+        storage.setItem(namespaceKey, JSON.stringify(rewritePayload));
       } catch (rewriteErr) {
         console.warn('[storage] Failed to rewrite legacy snapshot', rewriteErr);
       }

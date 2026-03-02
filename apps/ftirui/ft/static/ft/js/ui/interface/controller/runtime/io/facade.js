@@ -45,6 +45,7 @@ export function createIoFacade({
     renderBrowser = () => {},
     updateCanvasState = () => {},
     focusPanel = () => {},
+    arrangePanels = () => false,
     createSection = () => null,
     findSectionByName: lookupSectionByName = () => null
   } = actions;
@@ -88,7 +89,7 @@ export function createIoFacade({
     decodeName = (value) => value
   } = utils;
 
-  const MULTI_IMPORT_PREF_KEY = 'ftirui.workspace.multiImportPref.v1';
+  const MULTI_IMPORT_PREF_KEY = 'ftirui.workspace.multiImportPref.v2';
   const canUsePreferenceStorage = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
   const readMultiImportPreference = () => {
     if (!canUsePreferenceStorage) return null;
@@ -734,12 +735,12 @@ export function createIoFacade({
 
       const title = document.createElement('h3');
       title.className = 'workspace-import-choice-title';
-      title.textContent = 'How to plot these data?';
+      title.textContent = 'How should these files be plotted?';
       panel.appendChild(title);
 
       const hint = document.createElement('p');
       hint.className = 'workspace-import-choice-hint';
-      hint.textContent = 'Reorganize your data at any time from the browser.';
+      hint.textContent = 'You can tweak this very easily later in the left browser.';
       panel.appendChild(hint);
 
       const actionsRow = document.createElement('div');
@@ -753,7 +754,7 @@ export function createIoFacade({
       rememberInput.className = 'form-check-input';
       rememberWrapper.appendChild(rememberInput);
       const rememberCopy = document.createElement('span');
-      rememberCopy.textContent = 'Do not ask me again';
+      rememberCopy.textContent = 'Remember my choice and do not ask again';
       rememberWrapper.appendChild(rememberCopy);
       const rememberNote = document.createElement('span');
       rememberNote.className = 'workspace-import-choice-remember-note';
@@ -768,8 +769,8 @@ export function createIoFacade({
         return btn;
       };
 
-      const separateBtn = makeButton('Separate graphs', 'btn btn-primary workspace-import-choice-btn');
-      const combinedBtn = makeButton('Same graph', 'btn btn-outline-secondary workspace-import-choice-btn');
+      const separateBtn = makeButton('Plot in separate panels', 'btn btn-primary workspace-import-choice-btn');
+      const combinedBtn = makeButton('Merge data in same graph', 'btn btn-outline-secondary workspace-import-choice-btn');
       actionsRow.appendChild(separateBtn);
       actionsRow.appendChild(combinedBtn);
       panel.appendChild(rememberWrapper);
@@ -857,7 +858,7 @@ export function createIoFacade({
     const safeFiles = Array.from(files || []).filter(Boolean);
     if (!safeFiles.length) return;
 
-    const shouldPrompt = origin === 'browse' && safeFiles.length > 1;
+    const shouldPrompt = (origin === 'browse' || origin === 'drop') && safeFiles.length > 1;
     let importMode = 'separate';
     if (shouldPrompt) {
       if (cachedMultiImportPreference) {
@@ -933,6 +934,7 @@ export function createIoFacade({
 
     let historyPushed = false;
     let lastPanelId = null;
+    const createdPanelIds = [];
     const ensureHistory = () => {
       if (!historyPushed) {
         pushHistory();
@@ -945,6 +947,7 @@ export function createIoFacade({
       const panelId = ingestPanel(normalizedPayloads, { skipHistory: true, skipPersist: true });
       if (panelId) {
         lastPanelId = panelId;
+        createdPanelIds.push(panelId);
       }
     } else {
       for (const payload of normalizedPayloads) {
@@ -952,8 +955,25 @@ export function createIoFacade({
         const panelId = ingestPanel(payload, { skipHistory: true, skipPersist: true });
         if (panelId) {
           lastPanelId = panelId;
+          createdPanelIds.push(panelId);
         }
       }
+    }
+
+    if (createdPanelIds.length === 1) {
+      arrangePanels(createdPanelIds, {
+        mode: 'center',
+        pushToHistory: false,
+        showSuccessToast: false,
+        preserveSize: true
+      });
+    } else if (createdPanelIds.length > 1) {
+      arrangePanels(createdPanelIds, {
+        mode: 'tile',
+        pushToHistory: false,
+        showSuccessToast: false,
+        preserveSize: true
+      });
     }
 
     persist();

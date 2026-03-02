@@ -330,7 +330,7 @@ function initWorkspaceTitleEditor() {
     window.__ACTIVE_CANVAS_ID ||
     '';
   const applyDisplayValue = (value) => {
-    const next = (value || '').trim() || 'Untitled canvas';
+    const next = (value || '').trim() || 'Untitled Canvas';
     titleEl.dataset.displayValue = next;
     titleEl.textContent = next;
     if (document.body?.dataset) {
@@ -349,7 +349,7 @@ function initWorkspaceTitleEditor() {
     const canvasId = getCanvasId();
     if ((!canvasId && !canEditLocally) || titleEl.dataset.editing === 'true') return;
     titleEl.dataset.editing = 'true';
-    const original = titleEl.dataset.displayValue || titleEl.textContent?.trim() || 'Untitled canvas';
+    const original = titleEl.dataset.displayValue || titleEl.textContent?.trim() || 'Untitled Canvas';
     const input = document.createElement('input');
     input.type = 'text';
     input.value = original;
@@ -371,7 +371,7 @@ function initWorkspaceTitleEditor() {
       if (saving) return;
       const raw = input.value || '';
       const trimmed = raw.trim();
-      const nextTitle = trimmed || 'Untitled canvas';
+      const nextTitle = trimmed || 'Untitled Canvas';
       if (nextTitle === original) {
         finish(original);
         return;

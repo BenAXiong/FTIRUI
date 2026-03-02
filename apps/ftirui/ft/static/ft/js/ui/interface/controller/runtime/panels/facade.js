@@ -358,8 +358,8 @@ export function createPanelsFacade({
   };
 
   const ingestPayloadAsPanel = (payload, {
-    width = 720,
-    height = 320,
+    width = 620,
+    height = 340,
     skipHistory = false,
     skipPersist = false,
     sectionId = defaultSectionId

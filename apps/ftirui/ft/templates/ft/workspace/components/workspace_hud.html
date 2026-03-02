@@ -17,9 +17,9 @@
                 role="button"
                 tabindex="0">
             {% if active_canvas %}
-              {{ active_canvas.title|default:"Untitled canvas" }}
+              {{ active_canvas.title|default:"Untitled Canvas" }}
             {% else %}
-              Untitled canvas
+              Untitled Canvas
             {% endif %}
           </span>
           <div class="workspace-canvas-tooltip" role="tooltip">
@@ -27,9 +27,9 @@
               <span class="workspace-canvas-tooltip-label">Project</span>
               <span class="workspace-canvas-tooltip-value">
                 {% if active_canvas %}
-                  {{ active_canvas.project.section.name|default_if_none:"Project"|default:"Project" }}
+                  {{ active_canvas.project.section.name|default_if_none:"Untitled Project"|default:"Untitled Project" }}
                 {% else %}
-                  Project
+                  Untitled Project
                 {% endif %}
               </span>
             </div>
@@ -37,9 +37,9 @@
               <span class="workspace-canvas-tooltip-label">Folder</span>
               <span class="workspace-canvas-tooltip-value">
                 {% if active_canvas %}
-                  {{ active_canvas.project.title|default_if_none:"Folder"|default:"Folder" }}
+                  {{ active_canvas.project.title|default_if_none:"Untitled Folder"|default:"Untitled Folder" }}
                 {% else %}
-                  Folder
+                  Untitled Folder
                 {% endif %}
               </span>
             </div>

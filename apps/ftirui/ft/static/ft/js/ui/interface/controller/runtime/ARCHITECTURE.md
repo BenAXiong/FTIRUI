@@ -138,9 +138,30 @@ Bootstrap behavior:
   - 1 default canvas
 - the guest canvas is then passed into the canvas-focused shell as `active_canvas`
 
+Default names:
+- section (rendered in Dashboard as the top-level "project"): `Untitled Project`
+- project (rendered in Dashboard as the folder): `Untitled Folder`
+- canvas: `Untitled Canvas`
+
+Important semantic note:
+- backend model names do not match the dashboard labels one-to-one
+- `WorkspaceSection.name` is rendered as the top-level dashboard project label
+- `WorkspaceProject.title` is rendered as the folder label
+- `WorkspaceCanvas.title` is the canvas title
+- do not use placeholder names like `Workspace` / `Project` for guest bootstrap unless you explicitly want those labels visible in the dashboard tree
+
 Why this matters:
 - title rename, autosave, dashboard listing, canvas open, thumbnails, and back-to-dashboard state flush must all target the same real canvas identity
 - do not reintroduce a split where guest canvas state is "local only" while authenticated canvas state is model-backed
+
+Local autosave namespace rule:
+- source of truth for server-backed canvases is still the backend canvas state
+- local storage is only a fallback / autosave layer and must be scoped by canvas identity
+- current runtime uses:
+  - `ftir.workspace.canvas.<canvasId>.v1` for canvas pages
+  - shell-scoped fallback namespaces only when no active canvas exists
+- do not revert to one global local-storage workspace key
+- a global autosave key causes cross-account and post-logout leakage because hydration can restore the wrong fallback snapshot into a different owner/canvas
 
 Quota behavior:
 - guest quotas are enforced server-side in `views.py`
@@ -423,3 +444,25 @@ Trace colors are driven by the active workspace theme, with a fallback to payloa
 Primary references:
 - `workspaceRuntime.js` (`TRACE_PALETTE_ROWS`, `setActiveTracePalette`, `applyTracePaletteToFigure`, theme menu wiring)
 - `panels/facade.js` (`createTraceFromPayload`)
+
+## New Graph Default Sizing
+
+There are two separate default-size paths for new graph panels. Do not change only one and assume new imports will follow it.
+
+- **Common import/create path:** `panels/facade.js` -> `ingestPayloadAsPanel(...)`
+  - This is the main path used by file browse, drag/drop, and most payload-driven graph creation.
+  - Current defaults live in the function signature `width = 1080`, `height = 384`.
+- **Runtime fallback path:** `workspaceRuntime.js` -> `registerPanel(...)`
+  - This is the lower-level fallback when a plot panel is registered without an explicit width/height.
+  - Current plot fallback defaults are `1500 x 360`.
+
+Important arrange interaction:
+
+- After file ingest, `io/facade.js` centers a single new panel or tiles multiple new panels.
+- If that arrangement path does not preserve the created geometry, it will silently shrink panels to the generic arrange size from `computeCommonPanelSizing()`.
+- The preserve-size path in `workspaceRuntime.js` must read panel dimensions from `panel.geometry.width` / `panel.geometry.height` when arranging records returned by `gatherVisiblePanelsByType()`.
+
+Practical rule:
+
+- If you want to tweak the usual imported/new graph size, edit `ingestPayloadAsPanel(...)` in `panels/facade.js`.
+- Keep the `registerPanel(...)` plot fallback in `workspaceRuntime.js` aligned unless you intentionally want direct/manual plot creation to behave differently.

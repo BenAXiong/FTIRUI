@@ -102,7 +102,7 @@ export function createPersistenceFacade({
       ...base,
       workspaceTitle:
         (typeof document !== 'undefined' && document.body?.dataset?.activeCanvasTitle) ||
-        'Untitled canvas',
+        'Untitled Canvas',
       figures: hasFigures ? figures : null
     };
   };
