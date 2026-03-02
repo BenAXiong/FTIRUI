@@ -292,6 +292,10 @@ Onboarding file structure rule:
 - keep one controller per surface for now:
   - `onboarding/canvasCoachController.js`
   - `onboarding/dashboardCoachController.js`
+- global kill switch:
+  - `onboarding/config.js` -> `ENABLE_ALL_COACH_FEATURES`
+  - use this when polishing/tutorial review requires all coach UI to disappear without tearing out imports, hooks, or replay launchers one by one
+  - leave this as the single source of truth; do not add scattered per-surface emergency disables unless they are truly surface-specific
 - keep the flow definitions grouped by audience and state inside the surface controller until the files become hard to scan:
   - guest canvas
   - free canvas
@@ -306,12 +310,15 @@ Onboarding file structure rule:
   - `onboarding/flows/dashboardFree.js`
 - do not collapse all onboarding flows into one giant controller keyed by page name; that becomes brittle fast
 - coach panel positioning is now intentionally reversible per surface:
-  - canvas coach mode is set in `workspaceRuntime.js` via `CANVAS_COACH_POSITION_MODE`
-  - dashboard coach mode is set in `ui/dashboard/initDashboard.js` via `DASHBOARD_COACH_POSITION_MODE`
+  - both are sourced from `onboarding/config.js`
+  - canvas coach mode is consumed in `workspaceRuntime.js` via `CANVAS_COACH_POSITION_MODE`
+  - dashboard coach mode is consumed in `ui/dashboard/initDashboard.js` via `DASHBOARD_COACH_POSITION_MODE`
   - supported modes:
     - `fixed`
     - `anchored`
   - keep the replay launcher fixed even when the coach card itself is anchored near targets
+- guest dashboard replay launcher toggle is also sourced from `onboarding/config.js`:
+  - `ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER`
 - known current polish gap:
   - dashboard tutorial dim/cutout framing is still visually rough around some small targets
   - treat that as future onboarding UI polish, not as a reason to rework the controller architecture

@@ -69,6 +69,7 @@ import { registerTechPlaceholderHandlers } from './toolbar/techToolbarHandlers.j
 import { createPeakDefaultsController } from './peaks/peakDefaultsController.js';
 import { createCanvasThumbnailController } from './thumbnails/canvasThumbnailController.js';
 import { createCanvasCoachController } from './onboarding/canvasCoachController.js';
+import { ENABLE_ALL_COACH_FEATURES, CANVAS_COACH_POSITION_MODE } from './onboarding/config.js';
 import { createZipBuilder } from '../../../utils/zipBuilder.js';
 import { findPeaks, buildPeakOverlays, buildPeakTableRows, DEFAULT_PEAK_OPTIONS } from '../../../../workspace/canvas/analysis/peakDetection.js';
 
@@ -447,7 +448,6 @@ let userStatusHandler = null;
 let workspaceTitleChangeHandler = null;
 let workspaceBackNavigationHandler = null;
 const REMOTE_SYNC_DELAY_MS = 5000;
-const CANVAS_COACH_POSITION_MODE = 'anchored';
 
 const getActiveCanvasIdFromContext = () => {
   if (typeof document !== 'undefined') {
@@ -3284,14 +3284,16 @@ const recordOperation = (entry) => {
 
   const getPanelContent = (panelId) => panelsModel.getPanelContent(panelId) || null;
 
-  canvasCoachController = createCanvasCoachController({
-    getActivePanelId: () => activePanelId,
-    getPanelDom,
-    hasPanels: () => panelDomRegistry.size > 0,
-    isGuest: () => !userAuthenticated,
-    isFreeUser: () => userAuthenticated && workspacePlan === 'free',
-    positionMode: CANVAS_COACH_POSITION_MODE
-  });
+  canvasCoachController = ENABLE_ALL_COACH_FEATURES
+    ? createCanvasCoachController({
+      getActivePanelId: () => activePanelId,
+      getPanelDom,
+      hasPanels: () => panelDomRegistry.size > 0,
+      isGuest: () => !userAuthenticated,
+      isFreeUser: () => userAuthenticated && workspacePlan === 'free',
+      positionMode: CANVAS_COACH_POSITION_MODE
+    })
+    : null;
 
   const Plot = createPlotFacade({
     getPanelDom,

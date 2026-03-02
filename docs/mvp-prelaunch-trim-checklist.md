@@ -73,6 +73,7 @@ For each item:
 - [ ] Review overlay copy for final product voice.
 - [ ] Review whether the DnD onboarding button styling is final or temporary.
 - [ ] Polish onboarding dim/cutout behavior, especially for dashboard tutorial steps where the current cutout is visually too large or awkward around small targets (esp. dashboard and cnavas hb).
+- [ ] Before launch, review whether `onboarding/config.js -> ENABLE_ALL_COACH_FEATURES` should remain as an internal polish switch, move to a safer release-only toggle, or be removed.
 
 ## Test / Dev Convenience Surfaces
 

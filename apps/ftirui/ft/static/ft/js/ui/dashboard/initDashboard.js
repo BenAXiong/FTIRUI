@@ -14,11 +14,14 @@ import {
   isWorkspaceQuotaError
 } from '../../services/dashboard.js';
 import { createDashboardCoachController } from '../interface/controller/runtime/onboarding/dashboardCoachController.js';
+import {
+  ENABLE_ALL_COACH_FEATURES,
+  ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER,
+  DASHBOARD_COACH_POSITION_MODE
+} from '../interface/controller/runtime/onboarding/config.js';
 
 const LIST_SORT_STORAGE_KEY = 'ftir.dashboard.listSort.v1';
 const LIST_THUMBNAIL_STORAGE_KEY = 'ftir.dashboard.listThumbnails.v1';
-const ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER = true;
-const DASHBOARD_COACH_POSITION_MODE = 'anchored';
 const DEFAULT_TAG_OPTIONS = ['FT-IR', 'NMR', 'XPS', 'Abs', 'MS', 'XRD', 'Multiple'];
 const TAG_COLOR_PALETTE = [
   '#1f77b4',
@@ -170,25 +173,27 @@ export function initDashboard() {
     listSort: readStoredListSort(),
     showThumbnails: readThumbnailPreference()
   };
-  const dashboardCoachController = createDashboardCoachController({
-    isGuest: () => document.body?.dataset?.userAuthenticated !== 'true',
-    isFreeUser: () =>
-      document.body?.dataset?.userAuthenticated === 'true'
-      && String(document.body?.dataset?.workspacePlan || 'free').toLowerCase() === 'free',
-    hasAnyCanvas: () => {
-      const sections = Array.isArray(state.sections) ? state.sections : [];
-      return sections.some((section) =>
-        Array.isArray(section.projects)
-        && section.projects.some((project) => Array.isArray(project.canvases) && project.canvases.length > 0)
-      );
-    },
-    isVisible: () =>
-      !!dashboardPane?.classList.contains('show') ||
-      !!dashboardPane?.classList.contains('active') ||
-      !!root.getClientRects()?.length,
-    positionMode: DASHBOARD_COACH_POSITION_MODE,
-    enableLauncher: ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER
-  });
+  const dashboardCoachController = ENABLE_ALL_COACH_FEATURES
+    ? createDashboardCoachController({
+      isGuest: () => document.body?.dataset?.userAuthenticated !== 'true',
+      isFreeUser: () =>
+        document.body?.dataset?.userAuthenticated === 'true'
+        && String(document.body?.dataset?.workspacePlan || 'free').toLowerCase() === 'free',
+      hasAnyCanvas: () => {
+        const sections = Array.isArray(state.sections) ? state.sections : [];
+        return sections.some((section) =>
+          Array.isArray(section.projects)
+          && section.projects.some((project) => Array.isArray(project.canvases) && project.canvases.length > 0)
+        );
+      },
+      isVisible: () =>
+        !!dashboardPane?.classList.contains('show') ||
+        !!dashboardPane?.classList.contains('active') ||
+        !!root.getClientRects()?.length,
+      positionMode: DASHBOARD_COACH_POSITION_MODE,
+      enableLauncher: ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER
+    })
+    : null;
   const ROOT_FOLDER_SUMMARY = '__ftir_root__';
   const ROOT_FOLDER_LABEL = 'Untitled folder';
 
