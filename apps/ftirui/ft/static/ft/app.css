@@ -1280,6 +1280,9 @@ body.dashboard-overlay-open {
   letter-spacing: .05em;
   color: var(--bs-secondary-color);
 }
+.dashboard-table thead th.dashboard-latest-header-cell {
+  text-transform: none;
+}
 .dashboard-table .table-actions {
   position: relative;
   text-align: right;
@@ -1307,10 +1310,25 @@ body.dashboard-overlay-open {
 .table-sort-btn:is(:hover, :focus-visible) {
   color: var(--bs-primary);
 }
+.table-sort-btn.is-disabled {
+  opacity: .58;
+  pointer-events: none;
+  cursor: default;
+}
 .table-sort-btn .table-sort-icon {
   display: inline-flex;
   align-items: center;
   font-size: .85em;
+}
+.table-sort-btn .table-sort-icon--neutral {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  line-height: .72;
+  font-size: .74em;
+}
+.table-sort-btn .table-sort-icon--neutral .bi:last-child {
+  margin-top: -.22em;
 }
 .table-menu-anchor {
   position: relative;

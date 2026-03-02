@@ -95,13 +95,14 @@ export function initDashboard() {
 
   const readStoredListSort = () => {
     if (typeof window === 'undefined' || !window.localStorage) {
-      return { field: 'title', direction: 'asc' };
+      return null;
     }
     try {
       const raw = window.localStorage.getItem(LIST_SORT_STORAGE_KEY);
-      if (!raw) return { field: 'title', direction: 'asc' };
+      if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.field === 'string' && typeof parsed.direction === 'string') {
+        if (parsed.direction === 'none') return null;
         return {
           field: parsed.field,
           direction: parsed.direction === 'desc' ? 'desc' : 'asc'
@@ -110,7 +111,7 @@ export function initDashboard() {
     } catch {
       /* ignore */
     }
-    return { field: 'title', direction: 'asc' };
+    return null;
   };
 
   const readThumbnailPreference = () => {
@@ -1541,10 +1542,15 @@ const clearProjectDropIndicators = () => {
   };
 
   const getListSortConfig = () => {
-    const sort = state.listSort || { field: 'title', direction: 'asc' };
+    const sort = state.listSort;
+    if (!sort || typeof sort.field !== 'string' || typeof sort.direction !== 'string') {
+      return null;
+    }
     const allowed = new Set(['title', 'projectTitle', 'folderName', 'updated', 'owner']);
-    const field = allowed.has(sort.field) ? sort.field : 'title';
-    const direction = sort.direction === 'desc' ? 'desc' : 'asc';
+    const field = allowed.has(sort.field) ? sort.field : null;
+    if (!field) return null;
+    const direction = sort.direction === 'desc' ? 'desc' : sort.direction === 'asc' ? 'asc' : null;
+    if (!direction) return null;
     return { field, direction };
   };
 
@@ -1808,13 +1814,21 @@ const clearProjectDropIndicators = () => {
   };
 
   const renderListHeaderCell = (label, field, extraClass = '') => {
+    if (state.sidebarView === 'latest') {
+      return `<th class="${extraClass} dashboard-latest-header-cell"><span class="table-sort-btn is-disabled" aria-disabled="true">${label}</span></th>`;
+    }
     const sortConfig = getListSortConfig();
-    const isActive = sortConfig.field === field;
-    const iconClass = isActive
+    const isActive = Boolean(sortConfig && sortConfig.field === field);
+    const iconMarkup = isActive
       ? sortConfig.direction === 'asc'
-        ? 'bi-caret-up-fill'
-        : 'bi-caret-down-fill'
-      : 'bi-caret-up';
+        ? '<i class="bi bi-caret-up-fill" aria-hidden="true"></i>'
+        : '<i class="bi bi-caret-down-fill" aria-hidden="true"></i>'
+      : `
+          <span class="table-sort-icon table-sort-icon--neutral" aria-hidden="true">
+            <i class="bi bi-caret-up"></i>
+            <i class="bi bi-caret-down"></i>
+          </span>
+        `;
     return `
       <th class="${extraClass}">
         <button
@@ -1824,12 +1838,45 @@ const clearProjectDropIndicators = () => {
           data-sort="${field}"
         >
           <span class="table-sort-label">${label}</span>
-          <span class="table-sort-icon">
-            <i class="bi ${iconClass}" aria-hidden="true"></i>
-          </span>
+          ${iconMarkup}
         </button>
       </th>
     `;
+  };
+
+  const sortCanvasesForCurrentView = (canvases) => {
+    const rows = [...canvases];
+    if (state.sidebarView === 'latest') {
+      rows.sort((a, b) => {
+        const aTime = new Date(a.updated || 0).getTime();
+        const bTime = new Date(b.updated || 0).getTime();
+        return bTime - aTime;
+      });
+      return rows;
+    }
+    const sortConfig = getListSortConfig();
+    if (!sortConfig) {
+      rows.sort((a, b) => {
+        const aTime = new Date(a.updated || 0).getTime();
+        const bTime = new Date(b.updated || 0).getTime();
+        return bTime - aTime;
+      });
+      return rows;
+    }
+    rows.sort((a, b) => {
+      const { field, direction } = sortConfig;
+      const dir = direction === 'desc' ? -1 : 1;
+      if (field === 'updated') {
+        const timeA = new Date(a.updated || 0).getTime();
+        const timeB = new Date(b.updated || 0).getTime();
+        return (timeA - timeB) * dir;
+      }
+      const valueA = (a[field] || '').toString().toLowerCase();
+      const valueB = (b[field] || '').toString().toLowerCase();
+      if (valueA === valueB) return 0;
+      return valueA > valueB ? dir : -dir;
+    });
+    return rows;
   };
 
   const getActiveViewContext = () => {
@@ -1917,22 +1964,7 @@ const clearProjectDropIndicators = () => {
       listContainer.innerHTML = '';
       return;
     }
-    const sortConfig = getListSortConfig();
-    const rows = [...canvases]
-      .sort((a, b) => {
-        const { field, direction } = sortConfig;
-        const dir = direction === 'desc' ? -1 : 1;
-        if (field === 'updated') {
-          const timeA = new Date(a.updated || 0).getTime();
-          const timeB = new Date(b.updated || 0).getTime();
-          return (timeA - timeB) * dir;
-        }
-        const valueA = (a[field] || '').toString().toLowerCase();
-        const valueB = (b[field] || '').toString().toLowerCase();
-        if (valueA === valueB) return 0;
-        return valueA > valueB ? dir : -dir;
-      })
-      .map((canvas) => {
+    const rows = sortCanvasesForCurrentView(canvases).map((canvas) => {
         const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'list');
         const isFavorite = Boolean(canvas.isFavorite);
         const canvasReadOnly = isCanvasReadOnly(canvas);
@@ -2069,7 +2101,7 @@ const clearProjectDropIndicators = () => {
       galleryContainer.innerHTML = '';
       return;
     }
-    galleryContainer.innerHTML = canvases
+    galleryContainer.innerHTML = sortCanvasesForCurrentView(canvases)
       .map((canvas) => {
         const canvasMenuOpen = isCanvasMenuOpen(canvas.id, 'gallery');
         const isFavorite = Boolean(canvas.isFavorite);
@@ -3368,6 +3400,10 @@ const clearProjectDropIndicators = () => {
     if (!trigger) return;
     const action = trigger.dataset.action;
     if (action === 'list-sort' && trigger.dataset.sort) {
+      if (state.sidebarView === 'latest') {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
       updateListSort(trigger.dataset.sort);
       render();
@@ -3541,16 +3577,24 @@ const clearProjectDropIndicators = () => {
 
   const updateListSort = (field) => {
     if (!field) return;
-    const current = state.listSort || { field: 'title', direction: 'asc' };
-    const nextDirection =
-      current.field === field ? (current.direction === 'asc' ? 'desc' : 'asc') : 'asc';
-    state.listSort = { field, direction: nextDirection };
+    const current = state.listSort;
+    if (!current || current.field !== field) {
+      state.listSort = { field, direction: 'asc' };
+    } else if (current.direction === 'asc') {
+      state.listSort = { field, direction: 'desc' };
+    } else {
+      state.listSort = null;
+    }
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        window.localStorage.setItem(
-          LIST_SORT_STORAGE_KEY,
-          JSON.stringify(state.listSort)
-        );
+        if (state.listSort) {
+          window.localStorage.setItem(
+            LIST_SORT_STORAGE_KEY,
+            JSON.stringify(state.listSort)
+          );
+        } else {
+          window.localStorage.removeItem(LIST_SORT_STORAGE_KEY);
+        }
       } catch {
         /* ignore */
       }

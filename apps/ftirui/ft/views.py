@@ -217,7 +217,7 @@ def _get_quota_locked_canvases(owner, *, identity=None):
         return []
     canvases = list(
         WorkspaceCanvas.objects.filter(owner=owner)
-        .order_by("created_at", "id")
+        .order_by("updated_at", "created_at", "id")
     )
     overflow = len(canvases) - limit
     if overflow <= 0:

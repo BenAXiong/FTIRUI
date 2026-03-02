@@ -92,6 +92,72 @@
         font-weight: 600;
         letter-spacing: .01em;
       }
+      .auth-form {
+        margin-bottom: 1.25rem;
+      }
+      .auth-divider {
+        display: flex;
+        align-items: center;
+        gap: .85rem;
+        margin: 1.4rem 0 1.1rem;
+        color: var(--bs-secondary-color);
+        font-size: .82rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .auth-divider::before,
+      .auth-divider::after {
+        content: "";
+        flex: 1 1 auto;
+        height: 1px;
+        background: rgba(var(--bs-body-color-rgb), .12);
+      }
+      .auth-field + .auth-field {
+        margin-top: .95rem;
+      }
+      .auth-field label {
+        display: block;
+        font-size: .88rem;
+        font-weight: 600;
+        margin-bottom: .35rem;
+      }
+      .auth-field input[type="text"],
+      .auth-field input[type="password"] {
+        width: 100%;
+        border-radius: .85rem;
+        border: 1px solid rgba(var(--bs-body-color-rgb), .12);
+        background: rgba(var(--bs-body-color-rgb), .03);
+        color: inherit;
+        padding: .8rem .95rem;
+        outline: none;
+      }
+      .auth-field input:focus {
+        border-color: rgba(13,110,253,.45);
+        box-shadow: 0 0 0 .18rem rgba(13,110,253,.15);
+      }
+      .auth-field-errors,
+      .auth-error-list {
+        list-style: none;
+        margin: .45rem 0 0;
+        padding: 0;
+        color: var(--bs-danger);
+        font-size: .82rem;
+      }
+      .auth-remember {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        margin-top: .9rem;
+        color: var(--bs-secondary-color);
+        font-size: .88rem;
+      }
+      .auth-submit {
+        width: 100%;
+        margin-top: 1rem;
+        border-radius: .9rem;
+        padding: .8rem 1rem;
+        font-weight: 600;
+      }
       .auth-footer {
         margin-top: 1.75rem;
         font-size: .85rem;
@@ -124,8 +190,71 @@
       </div>
       <h1 class="auth-title">{% trans "Welcome back" %}</h1>
       <p class="auth-subtitle">
-        {% trans "Connect with a provider to sync FTIR sessions in the cloud." %}
+        {% trans "Sign in with your email or username, or use a provider to sync FTIR sessions in the cloud." %}
       </p>
+
+      <form method="post" action="{% url 'account_login' %}" class="auth-form" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <ul class="auth-error-list">
+            {% for error in form.non_field_errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <div class="auth-field">
+          <label for="id_login">{% trans "Email or username" %}</label>
+          <input
+            id="id_login"
+            name="login"
+            type="text"
+            autocomplete="username"
+            value="{{ form.login.value|default_if_none:'' }}"
+            placeholder="{% trans 'name@example.com or scientist_01' %}"
+            required
+          >
+          {% if form.login.errors %}
+            <ul class="auth-field-errors">
+              {% for error in form.login.errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="auth-field">
+          <label for="id_password">{% trans "Password" %}</label>
+          <input
+            id="id_password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="{% trans 'Enter your password' %}"
+            required
+          >
+          {% if form.password.errors %}
+            <ul class="auth-field-errors">
+              {% for error in form.password.errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <label class="auth-remember" for="id_remember">
+          <input
+            id="id_remember"
+            name="remember"
+            type="checkbox"
+            {% if form.remember.value %}checked{% endif %}
+          >
+          <span>{% trans "Keep me signed in" %}</span>
+        </label>
+        {% if redirect_field_value %}
+          <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+        {% endif %}
+        <button type="submit" class="btn btn-primary auth-submit">{% trans "Sign in" %}</button>
+      </form>
+
+      <div class="auth-divider">{% trans "Or" %}</div>
 
       <div class="d-grid gap-3">
         <a class="provider-button google" href="{% provider_login_url 'google' process='login' %}">
@@ -143,6 +272,8 @@
       </div>
 
       <div class="auth-footer">
+        <a href="{% url 'account_signup' %}">{% trans "Create an account" %}</a>
+        ·
         {% trans "We only request your profile and email to attach sessions to your account." %}
         <br/>
         <a href="mailto:support@example.com">{% trans "Need assistance?" %}</a>

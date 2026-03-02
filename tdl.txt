@@ -2,7 +2,7 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
 
 - [-] Phase 8 - User tiers: landing, migration, differential UI, quotas, read-only, upgrade
     - [x] Research Django user db features and analytics priorities + log in Notion
-    - [-] Guests landing, UI, migration to account, upgrade flow
+    - [x] Guests landing, UI, migration to account, upgrade flow
         - [x] land on canvas with rainbow DnD and instructions
         - [x] provide same feature as signed-in users with different quotas
         - [x] implement guess-to-account migration
@@ -10,20 +10,19 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] add badge, styling and read-only view for locked canvases
         - [x] wire upgrade workflow : CTA to plans to payment UI
         - [x] wire upgrade workflow : payment to paid plan
-        - [-] wire upgrade workflow : cancel subbscription
-        - [ ] migrate guest locked canvases too
-        - [ ] enable login with identifiers for testing
-        - [ ] display guest quotas (dash or popup?)
-    - [ ] Logged-in users landing and quotas, CTA, instructions 
-        - [ ] Land on dash and show tips if no content yet
-        - [ ] Implement free-tier quotas
-        - [ ] Design account perks UI
-    - [ ] Extra admins accounts
+        - [x] wire upgrade workflow : cancel subscription
+    - [-] Admin
+        - [-] Enable login with identifiers for testing
         - [ ] Create admin IDs for guest, LI & paid
-        - [ ] 
-    - [ ] Polish lock badges and styling
+        - [ ] Doc
+    - [ ] Polish tier-based UI: quotas, lock badges and styling
+        - [ ] ***Migrate guest locked canvases too
+        - [ ] Non-guests: land on dash and show tips if no content yet
         - [ ] (tree keep only icon and highlight)
-        - [ ] 
+        - [ ] Display non-paid quotas (dash or popup?)
+        - [ ] Design account perks UI
+
+***Is there currently a mechanism to migrate several locked canvases from guest accounts to free plans? I've tested a guest and created 3 canvases (2 locked ok), then only 1/3 got migrated after account creation 
 
 - [-] Phase 9 - Payment
     - [-] Research payment methods

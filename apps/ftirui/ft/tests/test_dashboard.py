@@ -3,6 +3,7 @@ import json
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
 
 from ..management.commands.seed_dashboard_demo import (
     PROJECT_NAME as DEMO_PROJECT_NAME,
@@ -474,6 +475,44 @@ class DashboardApiTests(TestCase):
         self.assertEqual(payload["plan"], "free")
         self.assertEqual(payload["billing_status"], "inactive")
         self.assertFalse(payload["is_unlimited"])
+
+    def test_downgrade_locks_least_recently_updated_canvases(self):
+        WorkspaceSubscription.objects.create(
+            owner=self.user,
+            plan=WorkspaceSubscription.PLAN_PRO,
+            billing_status=WorkspaceSubscription.STATUS_ACTIVE,
+            billing_provider="test_checkout",
+        )
+
+        url = f"/api/dashboard/projects/{self.project.id}/canvases/"
+        created_ids = []
+        for index in range(4):
+            resp = self.client.post(
+                url,
+                data=json.dumps({"title": f"Canvas {index + 1}", "state": {"order": [str(index)]}}),
+                content_type="application/json",
+            )
+            self.assertEqual(resp.status_code, 201, resp.content)
+            created_ids.append(resp.json()["id"])
+
+        recent_canvas = WorkspaceCanvas.objects.get(id=created_ids[0])
+        recent_canvas.title = "Recently revisited"
+        recent_canvas.save(update_fields=["title", "updated_at"])
+
+        downgrade = self.client.post("/plans/downgrade/", data={"next": "/profile/"}, follow=False)
+        self.assertEqual(downgrade.status_code, 302)
+
+        listing = self.client.get("/api/dashboard/sections/?include=full")
+        self.assertEqual(listing.status_code, 200)
+        canvases = listing.json()["items"][0]["projects"][0]["canvases"]
+        locked_ids = {canvas["id"] for canvas in canvases if canvas.get("quota_locked")}
+
+        ordered = list(
+            WorkspaceCanvas.objects.filter(owner=self.user).order_by("updated_at", "created_at", "id")
+        )
+        expected_locked_ids = {str(canvas.id) for canvas in ordered[:-3]}
+        self.assertEqual(locked_ids, expected_locked_ids)
+        self.assertNotIn(str(recent_canvas.id), locked_ids)
 
     def test_canvas_version_detail_includes_state(self):
         url = f"/api/dashboard/canvases/{self.canvas.id}/versions/"
