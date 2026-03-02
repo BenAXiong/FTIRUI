@@ -134,6 +134,10 @@ export function createIoFacade({
 
   const getMultiImportPreference = () => cachedMultiImportPreference;
 
+  if (typeof window !== 'undefined') {
+    window.__FTIR_CLEAR_MULTI_IMPORT_PREFERENCE = clearMultiImportPreference;
+  }
+
   const findSectionIdByName = (name, parentId = null) => {
     if (typeof lookupSectionByName !== 'function') return null;
     const result = lookupSectionByName(name, parentId);

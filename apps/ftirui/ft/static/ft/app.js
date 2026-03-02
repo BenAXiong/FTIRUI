@@ -291,6 +291,9 @@ async function refreshUserStatus(options = {}) {
           variant: 'success'
         });
       } else {
+        if (typeof window.__FTIR_CLEAR_MULTI_IMPORT_PREFERENCE === 'function') {
+          window.__FTIR_CLEAR_MULTI_IMPORT_PREFERENCE();
+        }
         showAppToast({
           title: 'Signed out',
           message: 'Cloud features paused. Local autosave continues offline.',

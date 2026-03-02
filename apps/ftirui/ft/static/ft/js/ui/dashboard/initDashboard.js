@@ -1583,7 +1583,7 @@ const clearProjectDropIndicators = () => {
     return `
       <span class="dashboard-canvas-lock-badge${compact ? ' is-compact' : ''}" title="This canvas is read-only because it exceeds the free canvas quota.">
         <i class="bi bi-lock-fill" aria-hidden="true"></i>
-        <span>${compact ? 'Locked' : 'Read only'}</span>
+        ${compact ? '' : '<span>Read only</span>'}
       </span>
     `;
   };
@@ -1991,8 +1991,8 @@ const clearProjectDropIndicators = () => {
           : `
             <button type="button" class="dashboard-list-name${canvas.quotaLocked ? ' is-quota-locked' : ''}" data-action="open-canvas" data-canvas="${canvas.id}" title="${escapeHtml(fullDateTime)}">
               <span class="dashboard-list-name-title-row">
-                <span class="dashboard-list-name-title">${escapeHtml(canvas.title)}</span>
                 ${renderCanvasLockBadge(canvas, { compact: true })}
+                <span class="dashboard-list-name-title">${escapeHtml(canvas.title)}</span>
               </span>
               <span class="dashboard-list-name-meta">${formatModifiedSummary(canvas)}</span>
             </button>
@@ -2132,7 +2132,6 @@ const clearProjectDropIndicators = () => {
                 ${renderCanvasLockBadge(canvas, { compact: true })}
               </div>
               ${titleBlock}
-              ${showInline ? '' : renderCanvasLockBadge(canvas)}
               <div class="dashboard-gallery-meta">${formatRelative(canvas.updated)} • ${escapeHtml(canvas.projectTitle)}</div>
             <div class="table-actions">
               <div class="table-action-buttons">

@@ -1,4 +1,4 @@
-MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
+MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
 
 - [-] Phase 8 - User tiers: landing, migration, differential UI, quotas, read-only, upgrade
     - [x] Research Django user db features and analytics priorities + log in Notion
@@ -15,10 +15,10 @@ MVP Part 4/5 -- Worspace: HUD, Toolbars & tech features
         - [x] Enable login with identifiers for testing
         - [x] Create admin IDs free & paid users
         - [x] Doc
-    - [-] Polish tier-based UI: quotas, lock badges and styling
-        - [-] Migrate guest locked canvases too
+    - [-] Polish tier-based UI: quotas, lock badges styling, instructions and warnings
+        - [x] Migrate guest locked canvases too
+        - [-] Locked canvas styling: in tree keep only icon and highlight, ?
         - [ ] Non-guests: land on dash and show tips if no content yet
-        - [ ] (tree keep only icon and highlight)
         - [ ] Display non-paid quotas (dash or popup?)
         - [ ] Design account perks UI
 
@@ -46,6 +46,7 @@ Phase 1 – Optimize features & UI/UX for "Workflow_1_MVP"
 - [ ] Check workflow: add "manual" data from spreadsheet to existing exp (exp th vs exp)
 - [ ] Dash band: remove coming soon overlay and make card 0.1 opacity + disabled cursor
 - [ ] fix new graphs trace colors
+- [ ] tags! (own section?)
 - [ ] see notion
 
 Phase x – Data collection
