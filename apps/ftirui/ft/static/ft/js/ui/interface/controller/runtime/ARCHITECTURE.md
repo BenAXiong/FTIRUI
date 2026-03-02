@@ -305,6 +305,13 @@ Onboarding file structure rule:
   - `onboarding/flows/dashboardGuest.js`
   - `onboarding/flows/dashboardFree.js`
 - do not collapse all onboarding flows into one giant controller keyed by page name; that becomes brittle fast
+- coach panel positioning is now intentionally reversible per surface:
+  - canvas coach mode is set in `workspaceRuntime.js` via `CANVAS_COACH_POSITION_MODE`
+  - dashboard coach mode is set in `ui/dashboard/initDashboard.js` via `DASHBOARD_COACH_POSITION_MODE`
+  - supported modes:
+    - `fixed`
+    - `anchored`
+  - keep the replay launcher fixed even when the coach card itself is anchored near targets
 
 Current placeholder billing flow:
 - `/plans/` is the temporary plan-selection page

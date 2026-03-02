@@ -163,7 +163,8 @@ export function createCanvasCoachController({
   getPanelDom = () => null,
   hasPanels = () => false,
   isGuest = () => false,
-  isFreeUser = () => false
+  isFreeUser = () => false,
+  positionMode = 'fixed'
 } = {}) {
   if (typeof document === 'undefined' || !document.body) {
     return {
@@ -193,6 +194,7 @@ export function createCanvasCoachController({
   let tipsTimer = null;
   let activeArrowTarget = null;
   let activeArrowPlacement = 'below';
+  let activePanelPlacement = 'below';
   let launcherOpen = false;
 
   const root = document.createElement('aside');
@@ -322,11 +324,94 @@ export function createCanvasCoachController({
   const clearArrow = () => {
     activeArrowTarget = null;
     activeArrowPlacement = 'below';
+    activePanelPlacement = 'below';
     arrowLayer.hidden = true;
     arrowEl.style.left = '0px';
     arrowEl.style.top = '0px';
     arrowEl.style.transform = 'translateX(-50%)';
     delete arrowEl.dataset.direction;
+  };
+
+  const setFixedPosition = () => {
+    root.classList.remove('is-anchored');
+    root.style.left = '';
+    root.style.top = '';
+    root.style.right = '';
+    root.style.bottom = '';
+  };
+
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const buildPlacementCandidates = (preferred) => {
+    const fallback = {
+      above: ['below', 'right', 'left'],
+      below: ['above', 'right', 'left'],
+      left: ['right', 'above', 'below'],
+      right: ['left', 'above', 'below']
+    };
+    return [preferred, ...(fallback[preferred] || ['below', 'above', 'right', 'left'])].filter(
+      (value, index, array) => array.indexOf(value) === index
+    );
+  };
+
+  const computeCoachRect = (targetRect, cardRect, placement, gap, padding) => {
+    const width = cardRect.width || root.offsetWidth || 420;
+    const height = cardRect.height || root.offsetHeight || 260;
+    let left = padding;
+    let top = padding;
+    if (placement === 'above') {
+      left = targetRect.left + (targetRect.width / 2) - (width / 2);
+      top = targetRect.top - gap - height;
+    } else if (placement === 'below') {
+      left = targetRect.left + (targetRect.width / 2) - (width / 2);
+      top = targetRect.bottom + gap;
+    } else if (placement === 'left') {
+      left = targetRect.left - gap - width;
+      top = targetRect.top + (targetRect.height / 2) - (height / 2);
+    } else if (placement === 'right') {
+      left = targetRect.right + gap;
+      top = targetRect.top + (targetRect.height / 2) - (height / 2);
+    }
+    return {
+      left,
+      top,
+      width,
+      height,
+      fits:
+        left >= padding
+        && top >= padding
+        && left + width <= window.innerWidth - padding
+        && top + height <= window.innerHeight - padding
+    };
+  };
+
+  const updateCoachPosition = (target, placement = 'below') => {
+    if (positionMode !== 'anchored' || !(target instanceof Element)) {
+      setFixedPosition();
+      return;
+    }
+    const targetRect = target.getBoundingClientRect();
+    if (!targetRect.width || !targetRect.height) {
+      setFixedPosition();
+      return;
+    }
+    root.classList.add('is-anchored');
+    root.style.right = 'auto';
+    root.style.bottom = 'auto';
+    const gap = 18;
+    const padding = 16;
+    const cardRect = root.getBoundingClientRect();
+    const candidates = buildPlacementCandidates(placement);
+    let chosen = computeCoachRect(targetRect, cardRect, candidates[0], gap, padding);
+    for (const candidate of candidates) {
+      const next = computeCoachRect(targetRect, cardRect, candidate, gap, padding);
+      chosen = next;
+      if (next.fits) break;
+    }
+    const maxLeft = Math.max(padding, window.innerWidth - chosen.width - padding);
+    const maxTop = Math.max(padding, window.innerHeight - chosen.height - padding);
+    root.style.left = `${Math.round(clamp(chosen.left, padding, maxLeft))}px`;
+    root.style.top = `${Math.round(clamp(chosen.top, padding, maxTop))}px`;
   };
 
   const applyHighlight = (element) => {
@@ -480,8 +565,11 @@ export function createCanvasCoachController({
     nextBtn.textContent = activeStepIndex === flow.steps.length - 1 ? 'Done' : 'Next';
 
     const resolvedTarget = typeof step.resolveTarget === 'function' ? step.resolveTarget(activeContext) : null;
+    const placement = step.panelPlacement || step.arrowPlacement || 'below';
+    activePanelPlacement = placement;
     applyHighlight(resolvedTarget);
-    updateArrow(resolvedTarget, step.arrowPlacement || 'below');
+    updateArrow(resolvedTarget, step.arrowPlacement || placement);
+    updateCoachPosition(resolvedTarget, placement);
   };
 
   const markFirstImport = () => {
@@ -563,8 +651,13 @@ export function createCanvasCoachController({
   };
 
   const syncVisibleArrow = () => {
-    if (root.hidden || !activeArrowTarget) return;
-    updateArrow(activeArrowTarget, activeArrowPlacement);
+    if (root.hidden) return;
+    if (activeArrowTarget) {
+      updateArrow(activeArrowTarget, activeArrowPlacement);
+      updateCoachPosition(activeArrowTarget, activePanelPlacement);
+    } else {
+      setFixedPosition();
+    }
   };
   window.addEventListener('resize', syncVisibleArrow);
   window.addEventListener('scroll', syncVisibleArrow, true);
@@ -602,6 +695,7 @@ export function createCanvasCoachController({
       clearTipsTimer();
       clearHighlight();
       clearArrow();
+      setFixedPosition();
       window.removeEventListener('resize', syncVisibleArrow);
       window.removeEventListener('scroll', syncVisibleArrow, true);
       arrowLayer.remove();

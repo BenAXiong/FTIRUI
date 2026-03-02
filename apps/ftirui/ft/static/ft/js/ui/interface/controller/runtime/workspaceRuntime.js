@@ -447,6 +447,7 @@ let userStatusHandler = null;
 let workspaceTitleChangeHandler = null;
 let workspaceBackNavigationHandler = null;
 const REMOTE_SYNC_DELAY_MS = 5000;
+const CANVAS_COACH_POSITION_MODE = 'anchored';
 
 const getActiveCanvasIdFromContext = () => {
   if (typeof document !== 'undefined') {
@@ -3288,7 +3289,8 @@ const recordOperation = (entry) => {
     getPanelDom,
     hasPanels: () => panelDomRegistry.size > 0,
     isGuest: () => !userAuthenticated,
-    isFreeUser: () => userAuthenticated && workspacePlan === 'free'
+    isFreeUser: () => userAuthenticated && workspacePlan === 'free',
+    positionMode: CANVAS_COACH_POSITION_MODE
   });
 
   const Plot = createPlotFacade({

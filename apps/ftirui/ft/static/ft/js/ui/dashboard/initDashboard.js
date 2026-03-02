@@ -18,6 +18,7 @@ import { createDashboardCoachController } from '../interface/controller/runtime/
 const LIST_SORT_STORAGE_KEY = 'ftir.dashboard.listSort.v1';
 const LIST_THUMBNAIL_STORAGE_KEY = 'ftir.dashboard.listThumbnails.v1';
 const ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER = true;
+const DASHBOARD_COACH_POSITION_MODE = 'anchored';
 const DEFAULT_TAG_OPTIONS = ['FT-IR', 'NMR', 'XPS', 'Abs', 'MS', 'XRD', 'Multiple'];
 const TAG_COLOR_PALETTE = [
   '#1f77b4',
@@ -185,6 +186,7 @@ export function initDashboard() {
       !!dashboardPane?.classList.contains('show') ||
       !!dashboardPane?.classList.contains('active') ||
       !!root.getClientRects()?.length,
+    positionMode: DASHBOARD_COACH_POSITION_MODE,
     enableLauncher: ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER
   });
   const ROOT_FOLDER_SUMMARY = '__ftir_root__';

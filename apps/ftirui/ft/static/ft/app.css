@@ -2368,6 +2368,10 @@ body.workspace-canvas-locked .workspace-browser .drag-handle[data-readonly-disab
   transform:translateY(0);
   pointer-events:auto;
 }
+.workspace-coach.is-anchored{
+  right:auto;
+  bottom:auto;
+}
 .workspace-coach-card{
   --workspace-guest-border-angle: 0deg;
   position:relative;
@@ -2543,11 +2547,45 @@ body.workspace-canvas-locked .workspace-browser .drag-handle[data-readonly-disab
   flex:1 1 auto;
 }
 .workspace-coach-target--active{
+  --workspace-guest-border-angle: 0deg;
   position:relative;
   z-index:1;
-  box-shadow:0 0 0 2px color-mix(in srgb, var(--bs-primary, #0d6efd) 70%, transparent),
-             0 0 0 8px color-mix(in srgb, var(--bs-primary, #0d6efd) 14%, transparent);
+  isolation:isolate;
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, var(--bs-primary, #0d6efd) 18%, transparent),
+    0 0 18px rgba(76, 201, 240, .18);
   border-radius:.75rem;
+}
+.workspace-coach-target--active::after{
+  content:'';
+  position:absolute;
+  inset:-3px;
+  padding:3px;
+  border-radius:inherit;
+  background:
+    conic-gradient(
+      from var(--workspace-guest-border-angle),
+      rgba(255, 77, 109, .92) 0deg,
+      rgba(255, 183, 3, .9) 60deg,
+      rgba(128, 237, 153, .9) 120deg,
+      rgba(76, 201, 240, .9) 190deg,
+      rgba(123, 97, 255, .92) 255deg,
+      rgba(255, 78, 205, .92) 315deg,
+      rgba(255, 77, 109, .92) 360deg
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite:exclude;
+  animation:
+    workspaceGuestRainbowOrbit 3.8s linear infinite,
+    workspaceCoachTargetPulse 1.75s ease-in-out infinite;
+  pointer-events:none;
+  opacity:.95;
 }
 .workspace-coach-arrow-layer{
   position:fixed;
@@ -2650,6 +2688,20 @@ body.workspace-canvas-locked .workspace-browser .drag-handle[data-readonly-disab
   52%{opacity:.84;filter:drop-shadow(0 0 10px rgba(13,110,253,.28));}
   76%{opacity:1;filter:drop-shadow(0 0 4px rgba(13,110,253,.14));}
   100%{opacity:.9;filter:drop-shadow(0 0 8px rgba(13,110,253,.22));}
+}
+@keyframes workspaceCoachTargetPulse{
+  0%{
+    opacity:.72;
+    filter:drop-shadow(0 0 4px rgba(123, 97, 255, .14));
+  }
+  50%{
+    opacity:1;
+    filter:drop-shadow(0 0 12px rgba(76, 201, 240, .28));
+  }
+  100%{
+    opacity:.8;
+    filter:drop-shadow(0 0 6px rgba(255, 77, 109, .16));
+  }
 }
 .workspace-coach-launcher{
   position:fixed;
