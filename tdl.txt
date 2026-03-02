@@ -23,6 +23,7 @@ MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
             - [-] Case 2: Guest Dash
             - [ ] Case 3: Free Canvas
             - [ ] Case 4: Free Dash
+            - [ ] Adapt all cards positions
             - [ ] Options to turn everything off till polished
         - [ ] Display non-paid quotas (dash or popup?)
         - [ ] Design account perks UI

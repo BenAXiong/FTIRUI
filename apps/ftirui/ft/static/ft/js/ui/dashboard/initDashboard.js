@@ -13,9 +13,11 @@ import {
   fetchCanvasState,
   isWorkspaceQuotaError
 } from '../../services/dashboard.js';
+import { createDashboardCoachController } from '../interface/controller/runtime/onboarding/dashboardCoachController.js';
 
 const LIST_SORT_STORAGE_KEY = 'ftir.dashboard.listSort.v1';
 const LIST_THUMBNAIL_STORAGE_KEY = 'ftir.dashboard.listThumbnails.v1';
+const ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER = true;
 const DEFAULT_TAG_OPTIONS = ['FT-IR', 'NMR', 'XPS', 'Abs', 'MS', 'XRD', 'Multiple'];
 const TAG_COLOR_PALETTE = [
   '#1f77b4',
@@ -87,6 +89,7 @@ export function initDashboard() {
   const thumbnailToggleBtn = root.querySelector('[data-action="dashboard-toggle-thumbnails"]');
   const thumbnailToggleLabel = thumbnailToggleBtn?.querySelector('[data-thumb-toggle-label]');
   const thumbnailToggleIndicator = thumbnailToggleBtn?.querySelector('[data-thumb-toggle-indicator]');
+  const dashboardPane = document.getElementById('dashboard');
 
   const workspaceTabEnabled =
     document.body?.dataset?.workspaceTabEnabled === 'true';
@@ -166,6 +169,14 @@ export function initDashboard() {
     listSort: readStoredListSort(),
     showThumbnails: readThumbnailPreference()
   };
+  const dashboardCoachController = createDashboardCoachController({
+    isGuest: () => document.body?.dataset?.userAuthenticated !== 'true',
+    isVisible: () =>
+      !!dashboardPane?.classList.contains('show') ||
+      !!dashboardPane?.classList.contains('active') ||
+      !!root.getClientRects()?.length,
+    enableLauncher: ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER
+  });
   const ROOT_FOLDER_SUMMARY = '__ftir_root__';
   const ROOT_FOLDER_LABEL = 'Untitled folder';
 
@@ -2234,6 +2245,7 @@ const clearProjectDropIndicators = () => {
       updateFolderOptions();
       computeLatestCanvases();
       render();
+      dashboardCoachController?.handleDataReady?.();
     } catch (err) {
       console.warn('Dashboard load failed', err);
       window.showAppToast?.({

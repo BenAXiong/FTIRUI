@@ -260,6 +260,24 @@ Guest canvas onboarding:
   - export success is emitted from `panels/headerActions.js` after the file download is triggered
 - do not reimplement onboarding triggers by watching toast text, panel count, or generic DOM changes
 
+Guest dashboard onboarding:
+- source of truth is `onboarding/dashboardCoachController.js`
+- current trigger rule:
+  - first successful dashboard data load while viewing the dashboard as a guest -> guest dashboard intro coach
+- optional replay launcher is enabled from `ui/dashboard/initDashboard.js`
+  - `ENABLE_GUEST_DASHBOARD_TIPS_LAUNCHER`
+  - disable there if the launcher should be removed without changing controller internals
+- keep dashboard onboarding separate from canvas onboarding
+  - dashboard tips are about organization, quotas, reopening work, and account upgrade
+  - canvas tips are about plotting, styling, export, and sharing
+
+Onboarding file structure rule:
+- keep one controller per surface for now:
+  - `onboarding/canvasCoachController.js`
+  - `onboarding/dashboardCoachController.js`
+- when case count grows further, extract shared UI/arrow/storage helpers into a small internal onboarding helper module
+- do not collapse all onboarding flows into one giant controller keyed by page name; that becomes brittle fast
+
 Current placeholder billing flow:
 - `/plans/` is the temporary plan-selection page
 - `/plans/checkout/` is the temporary payment/review page
