@@ -81,6 +81,18 @@ def _media_subdir(*parts: str) -> Path:
     return path
 
 
+def _media_storage_payload() -> dict:
+    transient = bool(getattr(settings, "MEDIA_STORAGE_TRANSIENT", False))
+    return {
+        "media_storage_transient": transient,
+        "media_storage_notice": (
+            "Generated files and server-stored extras are temporary on this alpha deployment."
+            if transient
+            else ""
+        ),
+    }
+
+
 def _ensure_session_key(request) -> str:
     session_key = request.session.session_key
     if not session_key:
@@ -1125,12 +1137,12 @@ def notes(request):
 
     if request.method == "GET":
         text = notes_path.read_text(encoding="utf-8") if notes_path.exists() else ""
-        return JsonResponse({"text": text})
+        return JsonResponse({"text": text, **_media_storage_payload()})
 
     # POST: save
     text = request.POST.get("text", "")
     notes_path.write_text(text, encoding="utf-8")
-    return JsonResponse({"ok": True})
+    return JsonResponse({"ok": True, **_media_storage_payload()})
 
 
 @require_http_methods(["GET"])

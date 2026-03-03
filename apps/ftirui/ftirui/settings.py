@@ -14,6 +14,7 @@ import sys, os
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # \mlirui\apps\ftirui
 APPS_DIR = BASE_DIR.parent
@@ -46,9 +47,25 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-not-secret")
 # DEBUG = True
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
-# ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
-# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-ALLOWED_HOSTS = ["*"]  # Simple for demos; you can lock down later
+
+def _env_list(key: str, default: list[str] | None = None) -> list[str]:
+    raw = os.getenv(key)
+    if raw is None:
+        return list(default or [])
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+_local_hosts = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", default=_local_hosts if DEBUG else [])
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+if not DEBUG:
+    if SECRET_KEY == "dev-not-secret":
+        raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is false.")
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured("ALLOWED_HOSTS must be set when DEBUG is false.")
 
 # 2) Static files (WhiteNoise)
 
@@ -214,6 +231,7 @@ def _env_flag(key: str, default: bool = False) -> bool:
 
 
 SERVE_MEDIA_FILES = _env_flag("SERVE_MEDIA_FILES", default=True)
+MEDIA_STORAGE_TRANSIENT = _env_flag("MEDIA_STORAGE_TRANSIENT", default=not DEBUG)
 WORKSPACE_LEGACY_ENABLED = _env_flag("WORKSPACE_LEGACY_ENABLED", default=os.getenv("DEBUG", "true").lower() == "true")
 WORKSPACE_DEV_SHORTCUT_ENABLED = _env_flag("WORKSPACE_DEV_SHORTCUT_ENABLED", default=True)
 DASHBOARD_V2_ENABLED = _env_flag("DASHBOARD_V2_ENABLED", default=True)
@@ -254,7 +272,23 @@ SOCIALACCOUNT_PROVIDERS = {
 
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 
-# 4) CSRF for Render domain (helps with form/POST calls)
-CSRF_TRUSTED_ORIGINS = [
-    "https://*.onrender.com",
+_local_csrf_origins = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
+CSRF_TRUSTED_ORIGINS = _env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=_local_csrf_origins if DEBUG else [],
+)
+
+if RENDER_EXTERNAL_HOSTNAME:
+    render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    if render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_origin)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "3600" if not DEBUG else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG

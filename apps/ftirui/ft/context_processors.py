@@ -33,4 +33,11 @@ def feature_flags(request):
         "workspace_canvas_limit": active_limits["canvases"],
         "workspace_plan": plan_state["plan"],
         "workspace_billing_status": plan_state["billing_status"],
+        "media_storage_transient": bool(getattr(settings, "MEDIA_STORAGE_TRANSIENT", False)),
+        "media_storage_notice": (
+            "Alpha storage note: generated files and server-stored extras are temporary on this deployment. "
+            "Download converted files immediately and expect thumbnails or shared notes to reset after a restart."
+            if getattr(settings, "MEDIA_STORAGE_TRANSIENT", False)
+            else ""
+        ),
     }

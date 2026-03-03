@@ -10,32 +10,33 @@ Use this as the execution tracker. Tick each item only when the code/config/docs
 
 - [x] 0. Implementation start
   - Started: `26/03/03 18:45`
-- [ ] 1. Add real production database configuration
-  - Completed:
+- [x] 1. Add real production database configuration
+  - Completed: `26/03/03 21:20`
   - Progress: `26/03/03 18:54`
   - [x] Add `DATABASE_URL` support in Django settings
   - [x] Keep SQLite as local-dev fallback only
   - [x] Update `.env.example`
-  - [ ] Verify migrations and core workspace/auth flows against Postgres
-- [ ] 2. Tighten production settings and secrets handling
-  - Completed:
-  - [ ] Replace wildcard `ALLOWED_HOSTS` with env-driven configuration
-  - [ ] Move `CSRF_TRUSTED_ORIGINS` to env-driven configuration
-  - [ ] Confirm `DEBUG=false` deploy behavior
-  - [ ] Confirm `SECRET_KEY` and other required env vars are documented
-  - [ ] Run Django deployment checks
+  - [x] Verify migrations and core workspace/auth flows against Postgres
+- [x] 2. Tighten production settings and secrets handling
+  - Completed: `26/03/03 21:20`
+  - [x] Replace wildcard `ALLOWED_HOSTS` with env-driven configuration
+  - [x] Move `CSRF_TRUSTED_ORIGINS` to env-driven configuration
+  - [x] Confirm `DEBUG=false` deploy behavior
+  - [x] Confirm `SECRET_KEY` and other required env vars are documented
+  - [x] Run Django deployment checks
 - [ ] 3. Decide the free-tier media strategy explicitly
   - Completed:
-  - [ ] Inventory all user-visible features that depend on `MEDIA_ROOT`
-  - [ ] Mark each as `must work`, `can degrade`, or `hide until Starter`
-  - [ ] Implement graceful fallback or temporary gating for unstable free-tier file features
+  - Progress: `26/03/03 21:26`
+  - [x] Inventory all user-visible features that depend on `MEDIA_ROOT`
+  - [x] Mark each as `must work`, `can degrade`, or `hide until Starter`
+  - [x] Implement graceful fallback or temporary gating for unstable free-tier file features
   - [ ] Verify dashboard/workspace behavior after restart/redeploy scenarios
 - [ ] 4. Add an alpha-specific deployment checklist and smoke pass
   - Completed:
   - [ ] Write the deployment runbook
-  - [ ] Run manual smoke coverage on the deployed alpha
+  - [x] Run manual smoke coverage on the deployed alpha
   - [ ] Verify behavior after cold start
-  - [ ] Verify behavior after redeploy
+  - [x] Verify behavior after redeploy
 - [ ] 5. Add free-tier operational guardrails
   - Completed:
   - [ ] Record Render Postgres expiry date
@@ -46,6 +47,9 @@ Use this as the execution tracker. Tick each item only when the code/config/docs
   - [ ] Implement PostHog first pass
   - [ ] Replace placeholder checkout with real transactions
   - [ ] Connect final billing truth to workspace entitlements
+  - Estimated total for steps 1 to 6:
+    `22.5 to 49.5 hours` on the lean alpha path
+    `27.5 to 59.5+ hours` if object storage is added before alpha
 
 ## Goal
 
@@ -178,6 +182,28 @@ Repo touch points:
 - `apps/ftirui/ft/views.py`
 - dashboard/workspace templates and UI
 - any feature flags used to hide unstable features
+
+Current alpha decision (`26/03/03 21:26`):
+
+- `Canvas thumbnails`: `must work`
+- Handling:
+  keep enabled because they materially improve dashboard scanning, but treat them as temporary Render-free media.
+
+- `Converted file downloads`: `can degrade`
+- Handling:
+  keep available for immediate use only and message them as temporary outputs rather than durable stored assets.
+
+- `Server notes.md`: `hide until Starter` as a relied-on persistence feature
+- Handling:
+  do not treat the server notes endpoint as dependable user document storage during alpha.
+
+- `Uploads and converted scratch files under MEDIA_ROOT`: `can degrade`
+- Handling:
+  keep them only as transient processing/storage for the current session and avoid promising persistence across restarts.
+
+- `Filesystem-based import/migration helpers`: `hide until Starter` for user-facing scope
+- Handling:
+  these are operational utilities, not alpha-user features, so no extra free-tier adaptation work is justified now.
 
 Estimate:
 

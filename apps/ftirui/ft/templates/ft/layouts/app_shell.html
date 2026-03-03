@@ -45,6 +45,11 @@
         data-requested-canvas-id="{% if requested_canvas_id %}{{ requested_canvas_id }}{% endif %}">
     <div class="container-fluid app-frame-main {% if workspace_only or canvas_focused_shell %}workspace-frame{% else %}py-3 px-3 px-lg-4{% endif %}">
       {% block page_header %}{% endblock %}
+      {% if media_storage_notice %}
+        <div class="alert alert-warning small py-2 px-3 mb-3" role="status" data-alpha-storage-notice>
+          <i class="bi bi-exclamation-triangle me-2"></i>{{ media_storage_notice }}
+        </div>
+      {% endif %}
       {% block page_body %}{% endblock %}
     </div>
 

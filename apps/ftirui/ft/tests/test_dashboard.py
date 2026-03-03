@@ -654,6 +654,12 @@ class DashboardApiTests(TestCase):
         returned_titles = sorted(canvas["title"] for canvas in project_payload.get("canvases", []))
         self.assertEqual(returned_titles, expected_titles)
 
+    @override_settings(MEDIA_STORAGE_TRANSIENT=True)
+    def test_workspace_shell_renders_alpha_storage_notice(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Alpha storage note:")
+
     def test_canvas_thumbnail_upload_is_served_from_media_url(self):
         tiny_png = (
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
@@ -675,6 +681,14 @@ class DashboardApiTests(TestCase):
                 self.assertEqual(media_response.status_code, 200)
                 self.assertEqual(media_response["Content-Type"], "image/png")
                 media_response.close()
+
+    @override_settings(MEDIA_STORAGE_TRANSIENT=True)
+    def test_notes_endpoint_reports_transient_media_storage(self):
+        response = self.client.get("/notes/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["media_storage_transient"])
+        self.assertIn("temporary", payload["media_storage_notice"])
 
     def test_snapshot_create_with_custom_state_and_restore(self):
         inline_state = self._canvas_state("Snapshot inline", trace_id="inline-1")
