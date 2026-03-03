@@ -4,21 +4,29 @@ MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
     - [x] Plans UI
         - [x] Simplify and improve UI, l
         - [x] Draft features and prices
-    - [-] Payment UI
+    - [x] Payment UI
         - [x] Revamp checkout UI
         - [x] Add dynamic info
         - [x] Transition page for payment status + wiring back to dashboard
-        - [-] Check wiring: CTA - form - transaction - verif - destination
-    - [ ] Enable transactions  
+        - [x] Check wiring: CTA - form - transaction - verif - destination
+    - [-] Deployment
+            - [ ] Research and compare
+            - [ ] Plan of actions for Render compatibility: free vs starter tier
+            - [ ] 
+
+- [-] Phase 10 - Publish
+    - [-] Analytics
+            - [x] Research and compare options
+            - [ ] PostHog initiation
+            - [ ] 
+            - [ ] 
+            - [ ] 
+    - [-] Transactions  
         - [-] Research payment methods
-        - [ ] Implement
-
-- [ ] Phase 10 - Publish
-    - [ ] research building and hosting
-            - [ ] 
-    - [ ] build
-            - [ ] 
-
+        - [ ] Implement  
+    - [-] ?Hosting
+            - [ ]     
+            - [ ]   
 MVP Part 5/5 -- Polishing
 
 Phase 0 – Planning

@@ -20,6 +20,11 @@ For each item:
 - [ ] Replace `/plans/checkout/` fake checkout flow with real billing provider integration.
 - [ ] Remove the `test_bypass` checkbox from checkout.
 - [ ] Remove any “temporary placeholder” or “fake billing” language from plans/checkout UI.
+- [ ] Decide final checkout country/region behavior:
+  - full country list or simplified region set
+  - whether region changes address fields
+  - whether region affects tax/VAT wording
+  - avoid implying global billing logic before it actually exists
 - [ ] Confirm final plan matrix:
   - guest
   - authenticated free

@@ -183,6 +183,15 @@ Pages:
 - `/plans/`
 - `/plans/checkout/`
 
+Checkout region/address note:
+- the current checkout country/region field is still placeholder UX, not real billing-country logic
+- do not expand it into a full global country list until it also drives:
+  - address field variants
+  - postal code semantics
+  - tax/VAT wording
+  - final provider-side billing behavior
+- until then, keep the field visually simple and do not imply region-specific pricing or payment availability
+
 Model:
 - `WorkspaceSubscription`
 - file: `apps/ftirui/ft/models.py`
