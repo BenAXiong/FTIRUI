@@ -24,16 +24,17 @@ Use this as the execution tracker. Tick each item only when the code/config/docs
   - [x] Confirm `DEBUG=false` deploy behavior
   - [x] Confirm `SECRET_KEY` and other required env vars are documented
   - [x] Run Django deployment checks
-- [ ] 3. Decide the free-tier media strategy explicitly
-  - Completed:
+- [x] 3. Decide the free-tier media strategy explicitly
+  - Completed: `26/03/03 21:47`
   - Progress: `26/03/03 21:26`
   - [x] Inventory all user-visible features that depend on `MEDIA_ROOT`
   - [x] Mark each as `must work`, `can degrade`, or `hide until Starter`
   - [x] Implement graceful fallback or temporary gating for unstable free-tier file features
-  - [ ] Verify dashboard/workspace behavior after restart/redeploy scenarios
+  - [x] Verify dashboard/workspace behavior after restart/redeploy scenarios
 - [ ] 4. Add an alpha-specific deployment checklist and smoke pass
   - Completed:
-  - [ ] Write the deployment runbook
+  - Progress: `26/03/03 21:47`
+  - [x] Write the deployment runbook
   - [x] Run manual smoke coverage on the deployed alpha
   - [ ] Verify behavior after cold start
   - [x] Verify behavior after redeploy
@@ -367,5 +368,6 @@ That gives you a credible alpha on Render free while keeping the upgrade path to
 
 - Render pricing: <https://render.com/pricing>
 - Render free tier docs: <https://render.com/docs/free>
+- Alpha runbook: `docs/render-free-alpha-runbook.md`
 - Existing analytics plan: `docs/routing-and-analytics-implementation-plan.md`
 - Existing auth/billing placeholder plan: `docs/auth-and-billing-test-flow.md`
