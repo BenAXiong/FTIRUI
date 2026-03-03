@@ -191,8 +191,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles"   # output for collectstatic (prod)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Media (user outputs)
-# MEDIA_URL = '/media/'
-# MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -213,6 +213,7 @@ def _env_flag(key: str, default: bool = False) -> bool:
     return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 
+SERVE_MEDIA_FILES = _env_flag("SERVE_MEDIA_FILES", default=True)
 WORKSPACE_LEGACY_ENABLED = _env_flag("WORKSPACE_LEGACY_ENABLED", default=os.getenv("DEBUG", "true").lower() == "true")
 WORKSPACE_DEV_SHORTCUT_ENABLED = _env_flag("WORKSPACE_DEV_SHORTCUT_ENABLED", default=True)
 DASHBOARD_V2_ENABLED = _env_flag("DASHBOARD_V2_ENABLED", default=True)

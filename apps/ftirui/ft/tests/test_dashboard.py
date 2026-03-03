@@ -1,8 +1,9 @@
 import json
+import tempfile
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from ..management.commands.seed_dashboard_demo import (
@@ -652,6 +653,28 @@ class DashboardApiTests(TestCase):
         self.assertEqual(project_payload["canvas_count"], expected_count)
         returned_titles = sorted(canvas["title"] for canvas in project_payload.get("canvases", []))
         self.assertEqual(returned_titles, expected_titles)
+
+    def test_canvas_thumbnail_upload_is_served_from_media_url(self):
+        tiny_png = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
+            "/w8AAgMBgJ1qN8sAAAAASUVORK5CYII="
+        )
+        with tempfile.TemporaryDirectory() as media_dir:
+            with override_settings(MEDIA_ROOT=media_dir, MEDIA_URL="/media/", SERVE_MEDIA_FILES=True):
+                response = self.client.post(
+                    f"/api/dashboard/canvases/{self.canvas.id}/thumbnail/",
+                    data=json.dumps({"thumbnail": f"data:image/png;base64,{tiny_png}"}),
+                    content_type="application/json",
+                )
+
+                self.assertEqual(response.status_code, 200, response.content)
+                payload = response.json()
+                self.assertTrue(payload["thumbnail_url"].startswith("/media/thumbnails/canvases/"))
+
+                media_response = self.client.get(payload["thumbnail_url"])
+                self.assertEqual(media_response.status_code, 200)
+                self.assertEqual(media_response["Content-Type"], "image/png")
+                media_response.close()
 
     def test_snapshot_create_with_custom_state_and_restore(self):
         inline_state = self._canvas_state("Snapshot inline", trace_id="inline-1")

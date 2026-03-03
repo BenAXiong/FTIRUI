@@ -60,12 +60,6 @@ from .workspace_policy import (
 BASE_DIR = Path(__file__).resolve().parents[1]          # apps/ftirui
 REPO_ROOT = BASE_DIR.parent                              # mlirui/
 LOGS_DIR = REPO_ROOT / "logs"
-MEDIA_ROOT = Path(settings.MEDIA_ROOT)
-MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
-SESSIONS_DIR = MEDIA_ROOT / "sessions"
-SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-THUMBNAILS_DIR = MEDIA_ROOT / "thumbnails" / "canvases"
-THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
 DEMOS_DIR = BASE_DIR / "ft" / "static" / "ft" / "demos"
 GUEST_WORKSPACE_OWNER_SESSION_KEY = "ft_guest_workspace_owner_id"
 GUEST_WORKSPACE_OWNER_COOKIE_KEY = "ft_guest_workspace_owner_id"
@@ -73,6 +67,18 @@ GUEST_WORKSPACE_PENDING_ADOPTIONS_SESSION_KEY = "ft_guest_workspace_pending_adop
 DEFAULT_GUEST_SECTION_NAME = "Untitled Project"
 DEFAULT_GUEST_PROJECT_NAME = "Untitled Folder"
 DEFAULT_GUEST_CANVAS_TITLE = "Untitled Canvas"
+
+
+def _media_root() -> Path:
+    root = Path(settings.MEDIA_ROOT)
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def _media_subdir(*parts: str) -> Path:
+    path = _media_root().joinpath(*parts)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _ensure_session_key(request) -> str:
@@ -942,7 +948,7 @@ def convert(request):
     header_row = int(header_row) if (header_row not in (None, "", "null") and not no_header) else None
 
     # Persist uploads to disk
-    uploads_dir = MEDIA_ROOT / "uploads"
+    uploads_dir = _media_subdir("uploads")
     uploads_dir.mkdir(parents=True, exist_ok=True)
     saved_paths: List[Path] = []
     for up in files:
@@ -953,7 +959,7 @@ def convert(request):
         saved_paths.append(out)
 
     # Convert
-    converted_dir = MEDIA_ROOT / "converted"
+    converted_dir = _media_subdir("converted")
     converted_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -1114,7 +1120,7 @@ def plot_image(request):
 
 @require_http_methods(["GET", "POST"])
 def notes(request):
-    notes_path = MEDIA_ROOT / "notes.md"
+    notes_path = _media_root() / "notes.md"
     notes_path.parent.mkdir(parents=True, exist_ok=True)
 
     if request.method == "GET":
@@ -1856,7 +1862,7 @@ def api_dashboard_canvas_thumbnail(request, canvas_id, workspace_owner):
         return JsonResponse({"error": str(exc)}, status=400)
 
     filename = f"canvas_{canvas.id}.{ext}"
-    target_path = THUMBNAILS_DIR / filename
+    target_path = _media_subdir("thumbnails", "canvases") / filename
     target_path.write_bytes(raw)
 
     thumbnail_url = f"{settings.MEDIA_URL}thumbnails/canvases/{filename}"
