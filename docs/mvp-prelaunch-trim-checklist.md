@@ -16,6 +16,8 @@ For each item:
 
 ## Billing / Plans
 
+- Reference strategy doc:
+  - `docs/lemonsqueezy-billing-strategy.md`
 - [ ] Replace `/plans/` placeholder content with final plan copy, pricing, and entitlements.
 - [ ] Replace `/plans/checkout/` fake checkout flow with real billing provider integration.
 - [ ] Remove the `test_bypass` checkbox from checkout.
