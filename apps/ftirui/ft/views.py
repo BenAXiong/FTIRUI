@@ -1993,6 +1993,7 @@ def api_me(request):
     return _finalize_workspace_response(request, JsonResponse(
         {
             "authenticated": True,
+            "user_id": str(user.pk),
             "username": getattr(user, "get_full_name", lambda: user.get_username())() or user.get_username(),
             "email": email,
             "avatar": avatar_url,

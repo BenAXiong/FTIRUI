@@ -22,6 +22,7 @@ class SessionApiTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         payload = resp.json()
         self.assertTrue(payload["authenticated"])
+        self.assertEqual(payload["user_id"], str(self.user.id))
         self.assertEqual(payload["username"], "tester")
         self.assertIn("login_url", payload)
         self.assertIn("logout_url", payload)

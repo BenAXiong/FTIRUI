@@ -3,6 +3,7 @@ import {
   listCanvasVersions,
   fetchCanvasVersion
 } from '../../services/dashboard.js';
+import { captureEvent } from '../../services/analytics.js';
 
 const toast = (options = {}) => window.showAppToast?.(options);
 
@@ -81,6 +82,10 @@ function createController({ bridge, modal }) {
       }
       await bridge.save(version.state, version.label);
       bridge.applyLocal(version.state);
+      captureEvent('snapshot_restored', {
+        canvas_id: bridge.id,
+        restore_source: 'version_list'
+      });
       toast({
         title: 'Snapshot restored',
         message: version.label ? `"${version.label}" applied.` : 'Canvas restored.',

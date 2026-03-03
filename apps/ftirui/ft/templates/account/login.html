@@ -280,5 +280,29 @@
       </div>
     </div>
     <script src="{% static 'ft/bootstrap.bundle.min.js' %}"></script>
+    <script>
+      (function () {
+        const storageKey = 'ftir:pending-login-provider';
+        const writeProvider = function (provider) {
+          try {
+            window.sessionStorage.setItem(storageKey, provider);
+          } catch (err) {
+            console.warn('Unable to persist pending login provider', err);
+          }
+        };
+
+        document.querySelector('form.auth-form')?.addEventListener('submit', function () {
+          writeProvider('password');
+        });
+
+        document.querySelector('.provider-button.google')?.addEventListener('click', function () {
+          writeProvider('google');
+        });
+
+        document.querySelector('.provider-button.github')?.addEventListener('click', function () {
+          writeProvider('github');
+        });
+      })();
+    </script>
   </body>
 </html>

@@ -40,4 +40,7 @@ def feature_flags(request):
             if getattr(settings, "MEDIA_STORAGE_TRANSIENT", False)
             else ""
         ),
+        "posthog_enabled": bool(getattr(settings, "POSTHOG_ENABLED", False) and getattr(settings, "POSTHOG_PUBLIC_KEY", "")),
+        "posthog_public_key": getattr(settings, "POSTHOG_PUBLIC_KEY", ""),
+        "posthog_host": getattr(settings, "POSTHOG_HOST", "https://us.i.posthog.com"),
     }

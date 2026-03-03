@@ -80,6 +80,9 @@ Polishing
 ___________________________________________________________
 Future work
 
+Pro features
+- share template with other users
+
 - Workflow
     - rethink plot types: defaults, changing, etc
     - Papers and reports?

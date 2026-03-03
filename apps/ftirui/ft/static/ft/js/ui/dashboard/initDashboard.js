@@ -13,6 +13,7 @@ import {
   fetchCanvasState,
   isWorkspaceQuotaError
 } from '../../services/dashboard.js';
+import { stashPendingCanvasOpenSource } from '../../services/analytics.js';
 import { createDashboardCoachController } from '../interface/controller/runtime/onboarding/dashboardCoachController.js';
 import {
   ENABLE_ALL_COACH_FEATURES,
@@ -2742,6 +2743,7 @@ const clearProjectDropIndicators = () => {
     if (workspaceTabEnabled) {
       target.hash = 'pane-plotC';
     }
+    stashPendingCanvasOpenSource('dashboard');
     window.location.assign(target.toString());
   };
 

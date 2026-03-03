@@ -288,3 +288,18 @@ Phase 7 – Pre-polishing pass
             - [x] Options to turn everything off till polished
         - [x] Display non-paid quotas (dash or popup?)
 
+- [x] Phase 9 - Payment & Deploy - pricing UI and checkout draft
+    - [x] Plans UI
+        - [x] Simplify and improve UI, l
+        - [x] Draft features and prices
+    - [x] Payment UI
+        - [x] Revamp checkout UI
+        - [x] Add dynamic info
+        - [x] Transition page for payment status + wiring back to dashboard
+        - [x] Check wiring: CTA - form - transaction - verif - destination
+    - [x] Deployment and adaptation to Render requirements
+            - [x] Research and compare
+            - [x] Plan of actions for Render compatibility: free vs starter tier
+            - [x] Deploy
+            - [x] Implement first 5 steps in render-free-alpha-readiness-plan
+

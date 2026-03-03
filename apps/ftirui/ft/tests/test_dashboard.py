@@ -92,6 +92,18 @@ class DashboardApiTests(TestCase):
         self.assertEqual(project.title, "Untitled Folder")
         self.assertEqual(canvas.title, "Untitled Canvas")
 
+    @override_settings(
+        POSTHOG_ENABLED=True,
+        POSTHOG_PUBLIC_KEY="phc_test_key",
+        POSTHOG_HOST="https://us.i.posthog.com",
+    )
+    def test_home_exposes_posthog_dataset_flags(self):
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'data-posthog-enabled="true"')
+        self.assertContains(resp, 'data-posthog-public-key="phc_test_key"')
+        self.assertContains(resp, 'data-posthog-host="https://us.i.posthog.com"')
+
     def test_guest_sections_api_returns_bootstrapped_workspace(self):
         self.client.logout()
         self.client.get("/")

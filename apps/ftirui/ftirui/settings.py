@@ -26,6 +26,8 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
+POSTHOG_PUBLIC_KEY = os.getenv("POSTHOG_PUBLIC_KEY", "").strip()
+POSTHOG_HOST = os.getenv("POSTHOG_HOST", "https://us.i.posthog.com").strip()
 SITE_ID = int(os.getenv("SITE_ID", "1"))
 LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/")
 LOGOUT_REDIRECT_URL = os.getenv("LOGOUT_REDIRECT_URL", "/")
@@ -235,6 +237,7 @@ MEDIA_STORAGE_TRANSIENT = _env_flag("MEDIA_STORAGE_TRANSIENT", default=not DEBUG
 WORKSPACE_LEGACY_ENABLED = _env_flag("WORKSPACE_LEGACY_ENABLED", default=os.getenv("DEBUG", "true").lower() == "true")
 WORKSPACE_DEV_SHORTCUT_ENABLED = _env_flag("WORKSPACE_DEV_SHORTCUT_ENABLED", default=True)
 DASHBOARD_V2_ENABLED = _env_flag("DASHBOARD_V2_ENABLED", default=True)
+POSTHOG_ENABLED = _env_flag("POSTHOG_ENABLED", default=(not DEBUG and bool(POSTHOG_PUBLIC_KEY)))
 
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/")

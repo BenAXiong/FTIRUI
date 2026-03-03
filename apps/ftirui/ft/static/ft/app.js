@@ -3,6 +3,14 @@ import { initDashboard } from './js/ui/dashboard/initDashboard.js';
 import { mountWorkspace } from './js/ui/workspace/initControls.js';
 import { fetchCanvasDetail, updateCanvas } from './js/services/dashboard.js';
 import { getWorkspaceTagColor } from './js/ui/utils/tagColors.js';
+import {
+  captureEvent,
+  consumePendingCanvasOpenSource,
+  consumePendingLoginProvider,
+  identifyAuthenticatedUser,
+  initAnalytics,
+  resetAnalyticsIdentity
+} from './js/services/analytics.js';
 
 // Option A likely already initializes somewhere else.
 // If not, you can do a similar instance for A later.
@@ -85,6 +93,21 @@ const bodyDataset = typeof document !== 'undefined' ? document.body.dataset : {}
 const isWorkspacePage = bodyDataset?.workspacePage === 'true';
 const workspaceTabEnabled = bodyDataset?.workspaceTabEnabled === 'true';
 const dashboardV2Enabled = bodyDataset?.dashboardV2Enabled !== 'false';
+initAnalytics();
+captureEvent('route_resolved', {
+  entry_surface: isWorkspacePage ? 'workspace' : dashboardV2Enabled ? 'dashboard' : 'app',
+  has_canvas_id: Boolean(bodyDataset?.activeCanvasId || bodyDataset?.requestedCanvasId || new URLSearchParams(window.location.search).get('canvas')),
+  dev_override: bodyDataset?.workspaceDev === 'true'
+});
+const pendingCanvasId = bodyDataset?.activeCanvasId || bodyDataset?.requestedCanvasId || '';
+if (pendingCanvasId) {
+  const queryParams = new URLSearchParams(window.location.search);
+  captureEvent('canvas_opened', {
+    canvas_id: pendingCanvasId,
+    open_source: consumePendingCanvasOpenSource() || (queryParams.get('canvas') ? 'direct_link' : 'workspace_resume'),
+    quota_locked: bodyDataset?.activeCanvasLocked === 'true'
+  });
+}
 
 const toastContainer = document.getElementById('app_toasts');
 const toastVariants = {
@@ -304,9 +327,24 @@ async function refreshUserStatus(options = {}) {
     const newAuth = !!data.authenticated;
 
     applyUserStatus(data);
+    captureEvent('auth_state_resolved', {
+      source: options.source || 'boot'
+    });
+    if (newAuth) {
+      identifyAuthenticatedUser({
+        userId: data.user_id,
+        workspacePlan: data.plan,
+        billingStatus: data.billing_status
+      });
+    } else if (prevAuth === true) {
+      resetAnalyticsIdentity();
+    }
 
     if (prevAuth !== undefined && prevAuth !== newAuth) {
       if (newAuth) {
+        captureEvent('login_completed', {
+          provider: consumePendingLoginProvider() || 'unknown'
+        });
         showAppToast({
           title: 'Signed in',
           message: data.username ? `Welcome back, ${data.username}!` : 'Cloud features are now enabled.',
@@ -832,10 +870,10 @@ if (isWorkspacePage) {
 
 window.refreshUserStatus = refreshUserStatus;
 if (userStatusCard) {
-  refreshUserStatus();
+  refreshUserStatus({ source: 'boot' });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-      refreshUserStatus();
+      refreshUserStatus({ source: 'visibility' });
     }
   });
 }
@@ -843,4 +881,23 @@ if (userStatusCard) {
 if (dashboardV2Enabled && document.getElementById('dashboard_root')) {
   initDashboard();
 }
+
+document.addEventListener('click', (event) => {
+  const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+  if (!anchor) return;
+  const checkoutBase = document.body?.dataset?.checkoutUrl || '/plans/checkout/';
+  let anchorUrl;
+  let checkoutUrl;
+  try {
+    anchorUrl = new URL(anchor.href, window.location.origin);
+    checkoutUrl = new URL(checkoutBase, window.location.origin);
+  } catch {
+    return;
+  }
+  if (anchorUrl.pathname !== checkoutUrl.pathname) return;
+  captureEvent('plan_checkout_started', {
+    target_plan: anchorUrl.searchParams.get('plan') || '',
+    entry_point: anchor.closest('.plan-card') ? 'plans_page' : 'profile'
+  });
+});
 

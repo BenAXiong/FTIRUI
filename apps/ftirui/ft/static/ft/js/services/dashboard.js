@@ -1,4 +1,9 @@
 import { getCsrfToken } from '../lib/csrf.js';
+import {
+  captureEvent,
+  toStateSizeBucket,
+  toTraceCountBucket
+} from './analytics.js';
 
 export class DashboardApiError extends Error {
   constructor(message, { status = 0, data = null, url = '' } = {}) {
@@ -88,8 +93,14 @@ export async function deleteProject(projectId) {
   });
 }
 
-export async function createCanvas(projectId, payload) {
-  return request(`/api/dashboard/projects/${projectId}/canvases/`, { method: 'POST', body: payload });
+export async function createCanvas(projectId, payload, options = {}) {
+  const response = await request(`/api/dashboard/projects/${projectId}/canvases/`, { method: 'POST', body: payload });
+  captureEvent('canvas_created', {
+    project_id: String(projectId),
+    canvas_id: response?.id ? String(response.id) : '',
+    source: options.analytics?.source || 'dashboard'
+  });
+  return response;
 }
 
 export async function updateCanvas(canvasId, payload) {
@@ -108,8 +119,15 @@ export async function fetchCanvasState(canvasId) {
   return request(`/api/dashboard/canvases/${canvasId}/state/`);
 }
 
-export async function saveCanvasState(canvasId, payload) {
-  return request(`/api/dashboard/canvases/${canvasId}/state/`, { method: 'PUT', body: payload });
+export async function saveCanvasState(canvasId, payload, options = {}) {
+  const response = await request(`/api/dashboard/canvases/${canvasId}/state/`, { method: 'PUT', body: payload });
+  captureEvent('canvas_saved', {
+    canvas_id: String(canvasId),
+    save_mode: options.analytics?.saveMode || 'autosave',
+    state_size_bucket: toStateSizeBucket(payload?.state),
+    trace_count_bucket: toTraceCountBucket(payload?.state)
+  });
+  return response;
 }
 
 export async function saveCanvasThumbnail(canvasId, payload, { keepalive = false } = {}) {
@@ -150,7 +168,12 @@ export async function listCanvasVersions(canvasId) {
 }
 
 export async function createCanvasVersion(canvasId, payload) {
-  return request(`/api/dashboard/canvases/${canvasId}/versions/`, { method: 'POST', body: payload });
+  const response = await request(`/api/dashboard/canvases/${canvasId}/versions/`, { method: 'POST', body: payload });
+  captureEvent('snapshot_created', {
+    canvas_id: String(canvasId),
+    has_thumbnail: Boolean(payload?.thumbnail_url)
+  });
+  return response;
 }
 
 export async function fetchCanvasVersion(canvasId, versionId) {

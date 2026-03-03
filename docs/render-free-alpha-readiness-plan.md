@@ -11,46 +11,45 @@ Use this as the execution tracker. Tick each item only when the code/config/docs
 - [x] 0. Implementation start
   - Started: `26/03/03 18:45`
 - [x] 1. Add real production database configuration
-  - Completed: `26/03/03 21:20`
+  - Completed: `26/03/03 21:20` | Elapsed: `2h 26m`
   - Progress: `26/03/03 18:54`
   - [x] Add `DATABASE_URL` support in Django settings
   - [x] Keep SQLite as local-dev fallback only
   - [x] Update `.env.example`
   - [x] Verify migrations and core workspace/auth flows against Postgres
 - [x] 2. Tighten production settings and secrets handling
-  - Completed: `26/03/03 21:20`
+  - Completed: `26/03/03 21:20` | Elapsed: `0h 00m`
   - [x] Replace wildcard `ALLOWED_HOSTS` with env-driven configuration
   - [x] Move `CSRF_TRUSTED_ORIGINS` to env-driven configuration
   - [x] Confirm `DEBUG=false` deploy behavior
   - [x] Confirm `SECRET_KEY` and other required env vars are documented
   - [x] Run Django deployment checks
 - [x] 3. Decide the free-tier media strategy explicitly
-  - Completed: `26/03/03 21:47`
+  - Completed: `26/03/03 21:47` | Elapsed: `0h 21m`
   - Progress: `26/03/03 21:26`
   - [x] Inventory all user-visible features that depend on `MEDIA_ROOT`
   - [x] Mark each as `must work`, `can degrade`, or `hide until Starter`
   - [x] Implement graceful fallback or temporary gating for unstable free-tier file features
   - [x] Verify dashboard/workspace behavior after restart/redeploy scenarios
-- [ ] 4. Add an alpha-specific deployment checklist and smoke pass
-  - Completed: `26/03/03 21:54`
+- [x] 4. Add an alpha-specific deployment checklist and smoke pass
+  - Completed: `26/03/03 21:54` | Elapsed: `0h 07m`
   - Progress: `26/03/03 21:47`
   - [x] Write the deployment runbook
   - [x] Run manual smoke coverage on the deployed alpha
   - [x] Verify behavior after cold start
   - [x] Verify behavior after redeploy
 - [x] 5. Add free-tier operational guardrails
-  - Completed: `26/03/03 21:54`
+  - Completed: `26/03/03 21:54` | Elapsed: `0h 00m`
   - [x] Record Render Postgres expiry date
   - [x] Document expected free-tier cold starts and limits
   - [x] Add a simple rollback/recovery note
-- [ ] 6. Keep PostHog and transactions as the next phase, not the alpha blocker
-  - Completed:
-  - [ ] Implement PostHog first pass
-  - [ ] Replace placeholder checkout with real transactions
-  - [ ] Connect final billing truth to workspace entitlements
-  - Estimated total for steps 1 to 6:
-    `22.5 to 49.5 hours` on the lean alpha path
-    `27.5 to 59.5+ hours` if object storage is added before alpha
+
+Next steps after alpha readiness:
+
+- Implement PostHog first pass
+- Replace placeholder checkout with real transactions
+- Connect final billing truth to workspace entitlements
+- Separate implementation planning now lives in `docs/posthog-implementation-plan.md`
 
 ## Goal
 
@@ -116,6 +115,10 @@ Estimate:
 
 - `2 to 4 hours`
 
+Actual elapsed from tracked timestamps:
+
+- `2h 26m`
+
 Carryover to Starter:
 
 - `Yes`
@@ -144,6 +147,10 @@ Repo touch points:
 Estimate:
 
 - `1.5 to 3 hours`
+
+Actual elapsed from tracked timestamps:
+
+- `0h 00m`
 
 Carryover to Starter:
 
@@ -211,6 +218,10 @@ Estimate:
 - `3 to 6 hours` for inventory, fallback handling, and selective feature gating
 - `8 to 16 hours` if you decide to add object storage now instead
 
+Actual elapsed from tracked timestamps:
+
+- `0h 21m`
+
 Carryover to Starter:
 
 - `Partial`
@@ -249,6 +260,10 @@ Estimate:
 
 - `1.5 to 3 hours`
 
+Actual elapsed from tracked timestamps:
+
+- `0h 07m`
+
 Carryover to Starter:
 
 - `Yes`
@@ -273,34 +288,15 @@ Estimate:
 
 - `0.5 to 1.5 hours`
 
+Actual elapsed from tracked timestamps:
+
+- `0h 00m`
+
 Carryover to Starter:
 
 - `Mostly no`
 - The calendar reminder for free-DB expiry is free-tier-only.
 - The general ops notes still help, but they are small.
-
-### 6. Keep PostHog and transactions as the next phase, not the alpha blocker
-
-Why:
-
-- The alpha deployment should validate the product before the billing and analytics stack gets heavier.
-- The repo already has a planning document that points toward PostHog.
-
-Work after the alpha is live:
-
-- implement PostHog using the route/event plan in `docs/routing-and-analytics-implementation-plan.md`
-- replace placeholder checkout with real transactions
-- connect final billing truth to workspace entitlements
-
-Estimate:
-
-- PostHog first pass: `4 to 8 hours`
-- transaction flow replacement: `10 to 24 hours`, depending on provider choice and how much of the current placeholder UX is reused
-
-Carryover to Starter:
-
-- `Yes`
-- This is post-alpha product work, not free-tier adaptation work.
 
 ## Estimated Time Investment
 
@@ -315,6 +311,11 @@ If you choose the lean path and avoid object storage for the temporary free alph
 Total:
 
 - `8.5 to 17.5 hours`
+
+Actual tracked wall-clock for steps 1 to 5:
+
+- `3h 00m` from `26/03/03 18:54` to `26/03/03 21:54`
+- step 2 and step 5 share completion timestamps with adjacent work, so their tracked elapsed times round down at minute resolution
 
 If you decide to add durable object storage before alpha:
 

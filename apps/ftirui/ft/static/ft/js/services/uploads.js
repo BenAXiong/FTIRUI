@@ -1,4 +1,5 @@
 import { getCsrfToken } from '../lib/csrf.js';
+import { captureEvent, detectFileType, toImportCountBucket } from './analytics.js';
 
 function buildUploadFormData(file, inputUnits, extraFields = {}) {
   const fd = new FormData();
@@ -34,5 +35,11 @@ export async function uploadTraceFile(file, inputUnits, extraFields) {
     throw new Error(`HTTP ${resp.status} ${resp.statusText}\n${text.slice(0, 400)}`);
   }
 
-  return resp.json();
+  const payload = await resp.json();
+  captureEvent('file_imported', {
+    source_kind: 'upload',
+    file_type: detectFileType(file?.name || file?.filename || ''),
+    import_count_bucket: toImportCountBucket(1)
+  });
+  return payload;
 }

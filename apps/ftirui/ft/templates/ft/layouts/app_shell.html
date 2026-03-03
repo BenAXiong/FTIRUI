@@ -42,7 +42,10 @@
         data-active-canvas-title="{% if active_canvas %}{{ active_canvas.title|default_if_none:'' }}{% endif %}"
         data-active-canvas-locked="{% if active_canvas_locked %}true{% else %}false{% endif %}"
         data-active-canvas-primary-tag="{% if active_canvas and active_canvas.tags %}{{ active_canvas.tags.0 }}{% endif %}"
-        data-requested-canvas-id="{% if requested_canvas_id %}{{ requested_canvas_id }}{% endif %}">
+        data-requested-canvas-id="{% if requested_canvas_id %}{{ requested_canvas_id }}{% endif %}"
+        data-posthog-enabled="{% if posthog_enabled %}true{% else %}false{% endif %}"
+        data-posthog-public-key="{{ posthog_public_key }}"
+        data-posthog-host="{{ posthog_host }}">
     <div class="container-fluid app-frame-main {% if workspace_only or canvas_focused_shell %}workspace-frame{% else %}py-3 px-3 px-lg-4{% endif %}">
       {% block page_header %}{% endblock %}
       {% if media_storage_notice %}
