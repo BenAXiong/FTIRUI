@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import calendar
 import io
 import re
 import tempfile
@@ -655,6 +656,21 @@ def plans_page(request):
 def checkout_placeholder_page(request):
     plan = (request.GET.get("plan") or "pro").strip().lower()
     next_path = request.GET.get("next") or reverse("ft:home")
+    today = timezone.localdate()
+
+    def add_months(value, months):
+        month_index = value.month - 1 + months
+        year = value.year + month_index // 12
+        month = month_index % 12 + 1
+        day = min(value.day, calendar.monthrange(year, month)[1])
+        return value.replace(year=year, month=month, day=day)
+
+    def format_checkout_date(value):
+        return f"{value.year}/{value.month}/{value.day}"
+
+    monthly_renewal = format_checkout_date(add_months(today, 1))
+    yearly_renewal = format_checkout_date(add_months(today, 12))
+    yearly_savings_pct = round((1 - (48 / (5 * 12))) * 100)
     catalog = {
         "pro": {
             "title": "Pro plan",
@@ -666,7 +682,7 @@ def checkout_placeholder_page(request):
                     "line": "USD 5.00/month + tax",
                     "amount_label": "USD 5",
                     "total_label": "USD 5",
-                    "billing_note": "Your subscription will auto renew on *dynamic date*. You will be charged USD 5.00/month + tax.",
+                    "billing_note": f"Your subscription will auto renew on {monthly_renewal}. You will be charged USD 5.00/month + tax.",
                 },
                 {
                     "slug": "yearly",
@@ -674,8 +690,8 @@ def checkout_placeholder_page(request):
                     "line": "USD 48.00/year + tax",
                     "amount_label": "USD 48",
                     "total_label": "USD 48",
-                    "badge": "Save xx%",
-                    "billing_note": "Your subscription will auto renew on *dynamic date*. You will be charged USD 48.00/year + tax.",
+                    "badge": f"Save {yearly_savings_pct}%",
+                    "billing_note": f"Your subscription will auto renew on {yearly_renewal}. You will be charged USD 48.00/year + tax.",
                 },
             ],
         },
@@ -698,7 +714,7 @@ def checkout_placeholder_page(request):
     requested_cycle = (request.POST.get("billing_cycle") or request.GET.get("cycle") or "").strip().lower()
     selected_option = next(
         (option for option in selected["options"] if option["slug"] == requested_cycle),
-        selected["options"][0],
+        selected["options"][1] if plan == "pro" and len(selected["options"]) > 1 else selected["options"][0],
     )
     auth_user = request.user if request.user.is_authenticated else None
     plan_state = get_workspace_plan_state(request)
