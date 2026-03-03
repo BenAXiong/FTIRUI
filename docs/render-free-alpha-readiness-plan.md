@@ -9,12 +9,13 @@ It is written for the current repo state on March 3, 2026.
 Use this as the execution tracker. Tick each item only when the code/config/docs work is actually complete. Stamp the completion time when each item is done.
 
 - [x] 0. Implementation start
-  - Started: `2026-03-03 18:45:33 +08:00`
+  - Started: `26/03/03 18:45`
 - [ ] 1. Add real production database configuration
   - Completed:
-  - [ ] Add `DATABASE_URL` support in Django settings
-  - [ ] Keep SQLite as local-dev fallback only
-  - [ ] Update `.env.example`
+  - Progress: `26/03/03 18:54`
+  - [x] Add `DATABASE_URL` support in Django settings
+  - [x] Keep SQLite as local-dev fallback only
+  - [x] Update `.env.example`
   - [ ] Verify migrations and core workspace/auth flows against Postgres
 - [ ] 2. Tighten production settings and secrets handling
   - Completed:

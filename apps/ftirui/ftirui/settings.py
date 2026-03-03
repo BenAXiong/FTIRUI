@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import sys, os
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # \mlirui\apps\ftirui
@@ -104,11 +105,50 @@ TEMPLATES = [
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
+
+def _build_sqlite_db(name: str | Path) -> dict:
+    return {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': str(name),
     }
+
+
+def _database_config_from_env() -> dict:
+    raw_url = (os.getenv("DATABASE_URL") or "").strip()
+    if not raw_url:
+        return _build_sqlite_db(BASE_DIR / 'db.sqlite3')
+
+    parsed = urlparse(raw_url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme in {"postgres", "postgresql", "pgsql"}:
+        options = {}
+        query = parse_qs(parsed.query or "", keep_blank_values=True)
+        if query.get("sslmode"):
+            options["sslmode"] = query["sslmode"][-1]
+
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': unquote((parsed.path or '').lstrip('/')),
+            'USER': unquote(parsed.username or ''),
+            'PASSWORD': unquote(parsed.password or ''),
+            'HOST': parsed.hostname or '',
+            'PORT': str(parsed.port or ''),
+            'OPTIONS': options,
+            'CONN_MAX_AGE': int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        }
+
+    if scheme == "sqlite":
+        db_path = unquote(parsed.path or '')
+        if parsed.netloc and parsed.netloc not in {"", "."}:
+            db_path = f"//{parsed.netloc}{db_path}"
+        if not db_path:
+            raise ValueError("DATABASE_URL is missing a SQLite database path.")
+        return _build_sqlite_db(db_path)
+
+    raise ValueError(f"Unsupported DATABASE_URL scheme: {scheme or '<empty>'}")
+
+DATABASES = {
+    'default': _database_config_from_env()
 }
 
 
