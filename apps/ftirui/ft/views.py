@@ -623,8 +623,8 @@ def plans_page(request):
                     "Comment et edit collaborators' work",
                 ],
                 "upcoming_features": [
-                    "Integration with LLMs",
-                    "Real-time collaboration",
+                    "(upcoming) Integration with LLMs",
+                    "(upcoming) Real-time collaboration",
                 ],
                 "cta_label": "Try Scisci",
                 "is_current": current_plan == "pro",
@@ -656,6 +656,7 @@ def plans_page(request):
 def checkout_placeholder_page(request):
     plan = (request.GET.get("plan") or "pro").strip().lower()
     next_path = request.GET.get("next") or reverse("ft:home")
+    dashboard_target = f"{reverse('ft:home')}?pane=dashboard"
     today = timezone.localdate()
 
     def add_months(value, months):
@@ -675,6 +676,7 @@ def checkout_placeholder_page(request):
         "pro": {
             "title": "Pro plan",
             "summary": "Unlimited projects, folders, and canvases.",
+            "default_option": "yearly",
             "options": [
                 {
                     "slug": "monthly",
@@ -698,7 +700,25 @@ def checkout_placeholder_page(request):
         "team": {
             "title": "Lifetime plan",
             "summary": "One payment for permanent access to the paid workspace.",
+            "default_option": "lifetime",
             "options": [
+                {
+                    "slug": "monthly",
+                    "label": "Monthly",
+                    "line": "USD 5.00/month + tax",
+                    "amount_label": "USD 5",
+                    "total_label": "USD 5",
+                    "billing_note": f"Your subscription will auto renew on {monthly_renewal}. You will be charged USD 5.00/month + tax.",
+                },
+                {
+                    "slug": "yearly",
+                    "label": "Yearly",
+                    "line": "USD 48.00/year + tax",
+                    "amount_label": "USD 48",
+                    "total_label": "USD 48",
+                    "badge": f"Save {yearly_savings_pct}%",
+                    "billing_note": f"Your subscription will auto renew on {yearly_renewal}. You will be charged USD 48.00/year + tax.",
+                },
                 {
                     "slug": "lifetime",
                     "label": "Lifetime",
@@ -714,7 +734,10 @@ def checkout_placeholder_page(request):
     requested_cycle = (request.POST.get("billing_cycle") or request.GET.get("cycle") or "").strip().lower()
     selected_option = next(
         (option for option in selected["options"] if option["slug"] == requested_cycle),
-        selected["options"][1] if plan == "pro" and len(selected["options"]) > 1 else selected["options"][0],
+        next(
+            (option for option in selected["options"] if option["slug"] == selected.get("default_option")),
+            selected["options"][0],
+        ),
     )
     auth_user = request.user if request.user.is_authenticated else None
     plan_state = get_workspace_plan_state(request)
@@ -727,16 +750,23 @@ def checkout_placeholder_page(request):
             activation_error = "Sign in before activating a test subscription."
         elif request.POST.get("test_bypass") != "on":
             activation_error = "Confirm the test-billing checkbox to activate the placeholder subscription."
+        elif request.POST.get("test_force_failure") == "on":
+            failed_url = (
+                f"{reverse('ft:checkout_failed')}"
+                f"?plan={quote(plan)}"
+                f"&cycle={quote(selected_option['slug'])}"
+                f"&next={quote(next_path, safe='/?=&')}"
+            )
+            return _finalize_workspace_response(request, HttpResponseRedirect(failed_url))
         else:
             subscription = activate_test_subscription(auth_user, plan)
             activation_success = f'{subscription.plan.capitalize()} test subscription activated.'
-            if next_path:
-                target = next_path
-                joiner = "&" if "?" in target else "?"
-                return _finalize_workspace_response(
-                    request,
-                    HttpResponseRedirect(f"{target}{joiner}billing=test-upgraded"),
-                )
+            success_url = (
+                f"{reverse('ft:checkout_success')}"
+                f"?plan={subscription.plan}"
+                f"&next={quote(dashboard_target, safe='/?=&')}"
+            )
+            return _finalize_workspace_response(request, HttpResponseRedirect(success_url))
 
     context = {
         "workspace_only": False,
@@ -760,6 +790,62 @@ def checkout_placeholder_page(request):
         "checkout_login_url": _build_login_urls(request, next_path=request.get_full_path())["login"],
     }
     return render(request, "ft/plans/checkout.html", context)
+
+
+@require_http_methods(["GET"])
+def checkout_success_page(request):
+    plan = (request.GET.get("plan") or "pro").strip().lower()
+    next_path = request.GET.get("next") or f"{reverse('ft:home')}?pane=dashboard"
+    plan_labels = {
+        "pro": "Pro",
+        "team": "Lifetime",
+    }
+    context = {
+        "workspace_only": False,
+        "canvas_focused_shell": False,
+        "workspace_pane_active": False,
+        "initial_shell_pane": "dashboard",
+        "active_canvas": None,
+        "active_canvas_locked": False,
+        "plans_page": True,
+        "checkout_page": True,
+        "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
+        "checkout_success_page": True,
+        "checkout_success_plan": plan_labels.get(plan, "Pro"),
+        "checkout_success_next_url": next_path,
+    }
+    return render(request, "ft/plans/checkout_success.html", context)
+
+
+@require_http_methods(["GET"])
+def checkout_failed_page(request):
+    plan = (request.GET.get("plan") or "pro").strip().lower()
+    cycle = (request.GET.get("cycle") or "").strip().lower()
+    next_path = request.GET.get("next") or reverse("ft:home")
+    checkout_url = f"{reverse('ft:checkout_placeholder')}?plan={plan}"
+    if cycle:
+        checkout_url = f"{checkout_url}&cycle={cycle}"
+    if next_path:
+        checkout_url = f"{checkout_url}&next={quote(next_path, safe='/?=&')}"
+    plan_labels = {
+        "pro": "Pro",
+        "team": "Lifetime",
+    }
+    context = {
+        "workspace_only": False,
+        "canvas_focused_shell": False,
+        "workspace_pane_active": False,
+        "initial_shell_pane": "dashboard",
+        "active_canvas": None,
+        "active_canvas_locked": False,
+        "plans_page": True,
+        "checkout_page": True,
+        "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
+        "checkout_failed_page": True,
+        "checkout_failed_plan": plan_labels.get(plan, "Pro"),
+        "checkout_failed_back_url": checkout_url,
+    }
+    return render(request, "ft/plans/checkout_failed.html", context)
 
 
 @require_http_methods(["POST"])

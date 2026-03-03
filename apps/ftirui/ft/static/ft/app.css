@@ -9678,22 +9678,22 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   justify-content:center;
 }
 .checkout-flow__back{
-  position:absolute;
-  left:-38vw;
-  top:.15rem;
+  position:fixed;
+  left:1.6rem;
+  top:1.6rem;
+  z-index:20;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  width:2.8rem;
-  height:2.8rem;
-  border:1px solid rgba(148,163,184,.28);
-  border-radius:.8rem;
-  color:#e2e8f0;
+  width:2.5rem;
+  height:2.5rem;
+  border:0;
+  border-radius:999px;
+  color:rgba(226,232,240,.92);
   text-decoration:none;
 }
 .checkout-flow__back:hover{
   color:#fff;
-  border-color:rgba(148,163,184,.42);
   background:rgba(255,255,255,.04);
 }
 .checkout-flow__title{
@@ -9705,7 +9705,7 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
 }
 .checkout-flow__options{
   display:grid;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
+  grid-template-columns:repeat(var(--checkout-option-count, 2), minmax(0, 1fr));
   gap:1rem;
 }
 .checkout-option{
@@ -9713,8 +9713,8 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   display:flex;
   align-items:flex-start;
   gap:.95rem;
-  min-height:8.75rem;
-  padding:1.15rem 1.2rem;
+  min-height:8.2rem;
+  padding:1.05rem 1.15rem;
   border:1px solid rgba(148,163,184,.18);
   border-radius:1rem;
   background:rgba(18,24,36,.76);
@@ -9746,7 +9746,7 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   display:flex;
   flex-direction:column;
   gap:.3rem;
-  padding-top:2.7rem;
+  padding-top:2.45rem;
 }
 .checkout-option__label{
   font-size:1rem;
@@ -9773,7 +9773,7 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   border:1px solid rgba(148,163,184,.18);
   border-radius:1rem;
   background:rgba(24,22,22,.82);
-  padding:1.45rem 1.55rem;
+  padding:1.4rem 1.5rem;
   color:#f8fafc;
 }
 .checkout-panel__title{
@@ -9839,7 +9839,7 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
 .checkout-form{
   display:flex;
   flex-direction:column;
-  gap:1rem;
+  gap:.9rem;
 }
 .checkout-form__field{
   display:flex;
@@ -9857,8 +9857,8 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   border:1px solid rgba(148,163,184,.22);
   color:#f8fafc;
   border-radius:.55rem;
-  padding:.8rem .95rem;
-  min-height:3rem;
+  padding:.72rem .9rem;
+  min-height:2.85rem;
   box-shadow:none;
 }
 .checkout-panel .form-control::placeholder{
@@ -9911,11 +9911,21 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
 }
 .checkout-form__submit.btn{
   width:100%;
-  min-height:3.35rem;
-  margin-top:.2rem;
+  min-height:3.1rem;
+  margin-top:.35rem;
   border-radius:.9rem;
   font-size:1.1rem;
   font-weight:600;
+}
+.checkout-form__submit:disabled{
+  opacity:.56;
+  cursor:not-allowed;
+}
+.checkout-form__submit-hint{
+  margin:-.3rem 0 0;
+  color:#94a3b8;
+  font-size:.84rem;
+  line-height:1.4;
 }
 .checkout-form__actions{
   display:flex;
@@ -9923,8 +9933,8 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
   justify-content:flex-end;
 }
 .checkout-form__devtools{
-  margin-top:1.15rem;
-  padding-top:1rem;
+  margin-top:1.85rem;
+  padding-top:1.2rem;
   border-top:1px solid rgba(148,163,184,.12);
 }
 .checkout-form__devtools summary{
@@ -9936,6 +9946,58 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
 .checkout-form__check--dev{
   margin-top:.8rem;
   color:rgba(226,232,240,.84);
+}
+.checkout-success{
+  width:min(520px, 100%);
+  margin:4.5rem auto 0;
+  padding:2rem 2rem 2.15rem;
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:1.15rem;
+  background:
+    radial-gradient(circle at top, rgba(59,130,246,.08), transparent 44%),
+    rgba(24,22,22,.84);
+  color:#f8fafc;
+  text-align:center;
+  box-shadow:0 18px 40px rgba(2,6,23,.18);
+}
+.checkout-success__icon{
+  font-size:2rem;
+  color:#60a5fa;
+  margin-bottom:.85rem;
+}
+.checkout-success__eyebrow{
+  margin:0 0 .5rem;
+  color:#93c5fd;
+  font-size:.88rem;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.checkout-success__title{
+  margin:0;
+  font-size:2rem;
+  line-height:1.1;
+  font-weight:700;
+}
+.checkout-success__copy{
+  margin:1rem 0 1.2rem;
+  color:#d5dfeb;
+  line-height:1.55;
+}
+.checkout-success__actions{
+  display:flex;
+  justify-content:center;
+}
+.checkout-success__hint{
+  margin:.95rem 0 0;
+  color:#94a3b8;
+  font-size:.92rem;
+}
+.checkout-success--failed .checkout-success__icon{
+  color:#f87171;
+}
+.checkout-success--failed .checkout-success__eyebrow{
+  color:#fca5a5;
 }
 @media (max-width: 1100px){
   .plans-grid,
@@ -9976,6 +10038,7 @@ body.workspace-ghost-mode.workspace-ghost-hover .workspace-hud-fab-container{
     padding-left:3rem;
   }
   .checkout-flow__back{
+    position:absolute;
     left:0;
     top:0;
   }

@@ -1,0 +1,23 @@
+{% extends 'ft/layouts/app_shell.html' %}
+
+{% block title %}Payment not completed · scisci{% endblock %}
+
+{% block body_class %}bg-body app-frame app-plans-page{% endblock %}
+
+{% block page_body %}
+  <main class="plans-shell plans-shell--checkout tex2jax_ignore">
+    <a class="checkout-flow__back" href="{{ checkout_failed_back_url }}" aria-label="Back to checkout">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <section class="checkout-success checkout-success--failed" aria-label="Checkout failed">
+      <div class="checkout-success__icon" aria-hidden="true">
+        <i class="bi bi-x-circle"></i>
+      </div>
+      <p class="checkout-success__eyebrow">{{ checkout_failed_plan }} payment not completed</p>
+      <h1 class="checkout-success__title">Checkout was not completed.</h1>
+      <p class="checkout-success__copy">
+        This placeholder flow did not activate the plan. Go back to checkout when you want to try again.
+      </p>
+    </section>
+  </main>
+{% endblock %}

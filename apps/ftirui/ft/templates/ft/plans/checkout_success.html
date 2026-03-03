@@ -1,0 +1,31 @@
+{% extends 'ft/layouts/app_shell.html' %}
+
+{% block title %}Subscription activated · scisci{% endblock %}
+
+{% block body_class %}bg-body app-frame app-plans-page{% endblock %}
+
+{% block page_body %}
+  <main class="plans-shell plans-shell--checkout tex2jax_ignore">
+    <section class="checkout-success" aria-label="Checkout success">
+      <div class="checkout-success__icon" aria-hidden="true">
+        <i class="bi bi-check2-circle"></i>
+      </div>
+      <p class="checkout-success__eyebrow">{{ checkout_success_plan }} activated</p>
+      <h1 class="checkout-success__title">Your plan is ready.</h1>
+      <p class="checkout-success__copy">
+        Your account now has the paid workspace enabled. You will be returned to the dashboard automatically.
+      </p>
+      <div class="checkout-success__actions">
+        <a class="btn btn-light" href="{{ checkout_success_next_url }}">Back to dashboard</a>
+      </div>
+      <p class="checkout-success__hint">Redirecting in 2 seconds.</p>
+    </section>
+  </main>
+  {{ checkout_success_next_url|json_script:"checkout-success-next-url" }}
+  <script>
+    const checkoutSuccessNextUrl = JSON.parse(document.getElementById('checkout-success-next-url').textContent);
+    window.setTimeout(function () {
+      window.location.href = checkoutSuccessNextUrl;
+    }, 2000);
+  </script>
+{% endblock %}

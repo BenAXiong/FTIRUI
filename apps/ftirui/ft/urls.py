@@ -8,6 +8,8 @@ urlpatterns = [
     path("workspace/", views.workspace_page, name="workspace"),
     path("plans/", views.plans_page, name="plans"),
     path("plans/checkout/", views.checkout_placeholder_page, name="checkout_placeholder"),
+    path("plans/checkout/failed/", views.checkout_failed_page, name="checkout_failed"),
+    path("plans/checkout/success/", views.checkout_success_page, name="checkout_success"),
     path("plans/downgrade/", views.downgrade_subscription, name="downgrade_subscription"),
     path("profile/", views.profile, name="profile"),
 

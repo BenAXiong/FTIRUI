@@ -16,7 +16,7 @@
         </div>
       </header>
 
-      <section class="checkout-flow__options" aria-label="Billing options">
+      <section class="checkout-flow__options" aria-label="Billing options" style="--checkout-option-count: {{ checkout_plan.options|length }};">
         {% for option in checkout_plan.options %}
           <a
             class="checkout-option{% if option.slug == checkout_plan_option.slug %} is-active{% endif %}"
@@ -146,19 +146,30 @@
               <span>You agree that Scisci will charge your selected plan and automatically renew it until you cancel.</span>
             </label>
 
-            <button type="submit" class="btn btn-light checkout-form__submit">
+            <button
+              type="submit"
+              class="btn btn-light checkout-form__submit"
+              id="checkout-submit-btn"
+              data-submit-locked="{% if plans_current_plan == checkout_plan_slug and plans_billing_status == 'active' %}true{% else %}false{% endif %}"
+              disabled
+            >
               {% if plans_current_plan == checkout_plan_slug and plans_billing_status == 'active' %}
                 Already active
               {% else %}
                 Subscribe
               {% endif %}
             </button>
+            <p class="checkout-form__submit-hint">Enable developer test activation below to submit this placeholder checkout.</p>
 
             <details class="checkout-form__devtools">
               <summary>Developer test activation</summary>
               <label class="checkout-form__check checkout-form__check--dev">
-                <input type="checkbox" name="test_bypass">
+                <input type="checkbox" name="test_bypass" id="checkout-test-bypass">
                 <span>Activate {{ checkout_plan.title }} without real payment in this placeholder flow.</span>
+              </label>
+              <label class="checkout-form__check checkout-form__check--dev">
+                <input type="checkbox" name="test_force_failure" id="checkout-test-failure">
+                <span>Simulate payment failure and open the failed-payment placeholder.</span>
               </label>
             </details>
           </form>
@@ -166,4 +177,17 @@
       </section>
     </section>
   </main>
+  <script>
+    (function () {
+      const submitBtn = document.getElementById('checkout-submit-btn');
+      const bypassToggle = document.getElementById('checkout-test-bypass');
+      if (!submitBtn || !bypassToggle) return;
+      const submitLocked = submitBtn.dataset.submitLocked === 'true';
+      const syncSubmitState = function () {
+        submitBtn.disabled = submitLocked || !bypassToggle.checked;
+      };
+      syncSubmitState();
+      bypassToggle.addEventListener('change', syncSubmitState);
+    })();
+  </script>
 {% endblock %}

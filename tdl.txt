@@ -5,13 +5,13 @@ MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
         - [x] Simplify and improve UI, l
         - [x] Draft features and prices
     - [-] Payment UI
-        - [-] Revamp checkout UI
-        - [ ] 
-        - [ ] 
-        - [ ] Check wiring: CTA - form - transaction - verif - destination
+        - [x] Revamp checkout UI
+        - [x] Add dynamic info
+        - [x] Transition page for payment status + wiring back to dashboard
+        - [-] Check wiring: CTA - form - transaction - verif - destination
     - [ ] Enable transactions  
         - [-] Research payment methods
-        - [ ] (do it)
+        - [ ] Implement
 
 - [ ] Phase 10 - Publish
     - [ ] research building and hosting
