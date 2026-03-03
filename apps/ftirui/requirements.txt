@@ -11,3 +11,4 @@ openpyxl>=3.1
 matplotlib>=3.7
 python-dotenv>=1.0
 psycopg[binary]>=3.1
+jcamp>=1.2
