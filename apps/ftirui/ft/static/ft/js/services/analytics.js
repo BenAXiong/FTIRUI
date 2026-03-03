@@ -1,5 +1,3 @@
-import posthog from 'posthog-js';
-
 const LOGIN_PROVIDER_STORAGE_KEY = 'ftir:pending-login-provider';
 const CANVAS_OPEN_SOURCE_STORAGE_KEY = 'ftir:pending-canvas-open-source';
 
@@ -36,6 +34,20 @@ const safeSessionStorage = {
 function getBodyDataset() {
   if (typeof document === 'undefined' || !document.body) return {};
   return document.body.dataset || {};
+}
+
+function getPosthogClient() {
+  if (typeof window === 'undefined') return null;
+  const client = window.posthog;
+  if (!client) return null;
+  if (
+    typeof client.capture !== 'function' ||
+    typeof client.identify !== 'function' ||
+    typeof client.reset !== 'function'
+  ) {
+    return null;
+  }
+  return client;
 }
 
 function trimString(value) {
@@ -81,16 +93,8 @@ export function isAnalyticsEnabled() {
 export function initAnalytics(config = getAnalyticsConfig()) {
   if (state.initialized) return state.enabled;
   state.initialized = true;
-  state.enabled = !!config.enabled;
+  state.enabled = !!config.enabled && !!getPosthogClient();
   if (!state.enabled) return false;
-
-  posthog.init(config.apiKey, {
-    api_host: config.host,
-    autocapture: false,
-    capture_pageview: false,
-    capture_pageleave: false,
-    person_profiles: 'identified_only'
-  });
   return true;
 }
 
@@ -117,19 +121,21 @@ export function getBaseEventProperties(overrides = {}) {
 }
 
 export function captureEvent(name, properties = {}, options = {}) {
-  if (!state.enabled) return false;
+  const client = getPosthogClient();
+  if (!state.enabled || !client) return false;
   const payload = options.includeBaseProperties === false
     ? pruneProperties(properties)
     : getBaseEventProperties(properties);
-  posthog.capture(name, payload);
+  client.capture(name, payload);
   return true;
 }
 
 export function identifyAuthenticatedUser({ userId, workspacePlan = '', billingStatus = '' } = {}) {
   const normalizedUserId = trimString(userId);
-  if (!state.enabled || !normalizedUserId) return false;
+  const client = getPosthogClient();
+  if (!state.enabled || !client || !normalizedUserId) return false;
   if (state.identifiedUserId === normalizedUserId) return true;
-  posthog.identify(normalizedUserId, pruneProperties({
+  client.identify(normalizedUserId, pruneProperties({
     workspace_plan: trimString(workspacePlan).toLowerCase(),
     billing_status: trimString(billingStatus).toLowerCase()
   }));
@@ -138,9 +144,10 @@ export function identifyAuthenticatedUser({ userId, workspacePlan = '', billingS
 }
 
 export function resetAnalyticsIdentity() {
-  if (!state.enabled) return false;
+  const client = getPosthogClient();
+  if (!state.enabled || !client) return false;
   state.identifiedUserId = null;
-  posthog.reset();
+  client.reset();
   return true;
 }
 

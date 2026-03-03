@@ -17,8 +17,5 @@
     "@playwright/test": "^1.56.1",
     "jsdom": "^24.1.0",
     "vitest": "^1.6.0"
-  },
-  "dependencies": {
-    "posthog-js": "^1.357.1"
   }
 }

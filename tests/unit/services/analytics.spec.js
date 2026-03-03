@@ -1,23 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const posthogMock = {
-  init: vi.fn(),
   capture: vi.fn(),
   identify: vi.fn(),
   reset: vi.fn()
 };
 
-vi.mock('posthog-js', () => ({
-  default: posthogMock
-}));
-
 describe('analytics service', () => {
   beforeEach(async () => {
     vi.resetModules();
-    posthogMock.init.mockReset();
     posthogMock.capture.mockReset();
     posthogMock.identify.mockReset();
     posthogMock.reset.mockReset();
+    window.posthog = posthogMock;
     document.body.innerHTML = '';
     document.body.dataset.userAuthenticated = 'false';
     document.body.dataset.workspacePlan = 'free';
@@ -35,13 +30,6 @@ describe('analytics service', () => {
     const analytics = await import('../../../apps/ftirui/ft/static/ft/js/services/analytics.js');
 
     expect(analytics.initAnalytics()).toBe(true);
-    expect(posthogMock.init).toHaveBeenCalledWith(
-      'phc_test_key',
-      expect.objectContaining({
-        api_host: 'https://us.i.posthog.com',
-        capture_pageview: false
-      })
-    );
   });
 
   it('captures base properties without leaking undefined values', async () => {
