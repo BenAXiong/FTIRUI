@@ -764,6 +764,7 @@ def checkout_placeholder_page(request):
             success_url = (
                 f"{reverse('ft:checkout_success')}"
                 f"?plan={subscription.plan}"
+                f"&billing=test-upgraded"
                 f"&next={quote(dashboard_target, safe='/?=&')}"
             )
             return _finalize_workspace_response(request, HttpResponseRedirect(success_url))

@@ -37,9 +37,9 @@ const LINE_STYLE_MAP = {
 };
 
 const LABEL_FORMATTERS = {
-  wavenumber: (peak) => `${peak.x.toFixed(1)}`,
-  'wavenumber-intensity': (peak) => `${peak.x.toFixed(1)} · ${peak.y.toFixed(1)}`,
-  'wavenumber-trace': (peak) => `${peak.x.toFixed(1)} · ${peak.traceLabel || 'Trace'}`,
+  wavenumber: (peak) => `${peak.x.toFixed(1)} cm^-1`,
+  'wavenumber-intensity': (peak) => `${peak.x.toFixed(1)} cm^-1 · ${peak.y.toFixed(1)}`,
+  'wavenumber-trace': (peak) => `${peak.x.toFixed(1)} cm^-1 · ${peak.traceLabel || 'Trace'}`,
   'peak-index': (peak) => {
     const idx = Number.isFinite(peak.displayIndex) ? peak.displayIndex : (Number.isFinite(peak.index) ? peak.index + 1 : '');
     return idx ? `${idx}` : '';
@@ -376,7 +376,7 @@ export function findPeaks(traces = [], rawOptions = {}) {
       }
     );
 
-    const merged = bandCandidates.length ? bandCandidates : baseCandidates;
+    const merged = options.target === 'band' && bandCandidates.length ? bandCandidates : baseCandidates;
     const deduped = dedupeByDistance(merged, options.minDistance);
     const sorted = deduped.slice().sort((a, b) => (b?.prominence || 0) - (a?.prominence || 0));
     results.push(...sorted);
@@ -446,6 +446,10 @@ export function buildPeakOverlays(peaks = [], {
     return markerConfig.symbol || 'circle';
   });
 
+  const markerSymbolValue = markerSymbols.length && markerSymbols.every((symbol) => symbol === markerSymbols[0])
+    ? markerSymbols[0]
+    : markerSymbols;
+
   const markerTrace = safePeaks.length ? {
     type: 'scatter',
     mode: 'markers',
@@ -456,7 +460,7 @@ export function buildPeakOverlays(peaks = [], {
     y: safePeaks.map((peak) => computeMarkerY(peak)),
     marker: {
       size: markerSize ?? markerConfig.size,
-      symbol: markerSymbols,
+      symbol: markerSymbolValue,
       color: overrideColor || safePeaks[0]?.color || '#e85d04',
       line: { width: markerStyle === 'slit' ? 1.5 : 1, color: '#fff' }
     },

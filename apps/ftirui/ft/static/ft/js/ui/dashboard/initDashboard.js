@@ -2739,6 +2739,9 @@ const clearProjectDropIndicators = () => {
     if (state.devMode) {
       target.searchParams.set('dev', 'true');
     }
+    if (workspaceTabEnabled) {
+      target.hash = 'pane-plotC';
+    }
     window.location.assign(target.toString());
   };
 
