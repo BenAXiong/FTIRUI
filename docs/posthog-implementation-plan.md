@@ -10,12 +10,12 @@ Use this as the execution tracker. Tick each item only when the code/config/docs
 
 - [x] 0. Implementation start
   - Started: 26/03/03 22:26
-- [ ] 1. Add PostHog project configuration
-  - Completed:
-  - [ ] Create the PostHog project
-  - [ ] Add project API key and host env vars
+- [x] 1. Add PostHog project configuration
+  - Completed: 26/03/03 23:44
+  - [x] Create the PostHog project
+  - [x] Add project API key and host env vars
   - [x] Decide whether to load PostHog only in production or also in local dev
-  - Note: code-side env wiring is ready; the actual PostHog project and live env values are still pending.
+  - Note: the live Render deployment is now connected to the SciX PostHog project.
 - [x] 2. Add a single frontend analytics wrapper
   - Completed: 26/03/03 22:26
   - [x] Create one `analytics` service wrapper
@@ -32,17 +32,22 @@ Use this as the execution tracker. Tick each item only when the code/config/docs
   - [x] Dashboard and canvas lifecycle events
   - [x] File import and export events
   - [x] Plan / upgrade intent events
-- [ ] 5. Verify identity flow
-  - Completed:
-  - [ ] Anonymous user gets an anonymous distinct id
-  - [ ] Authenticated user is identified after auth state resolves
-  - [ ] Logout resets analytics identity cleanly
-  - Note: the client-side identify/reset flow is wired, but it still needs live verification in a real PostHog project.
-- [ ] 6. Validate event quality
-  - Completed:
-  - [ ] Confirm events appear in PostHog live events
-  - [ ] Confirm event properties are populated consistently
-  - [ ] Confirm no raw canvas JSON, filenames, or sensitive payloads are sent
+- [x] 5. Verify identity flow
+  - Completed: 26/03/03 23:59
+  - [x] Anonymous user gets an anonymous distinct id
+  - [x] Authenticated user is identified after auth state resolves
+  - [x] Logout resets analytics identity cleanly
+- [x] 6. Validate event quality
+  - Completed: 26/03/03 23:59
+  - [x] Confirm events appear in PostHog live events
+  - [x] Confirm event properties are populated consistently
+  - [x] Confirm no raw canvas JSON, filenames, or sensitive payloads are sent
+
+## Time Efficiency Summary
+
+- estimated total: `6 to 12.5 hours`
+- tracked wall-clock from implementation start to final validation: `1h 33m`
+- outcome: the first PostHog slice landed well under the original estimate because the event scope stayed narrow, the app already had good central service seams, and Render deployment/debugging was resolved during implementation rather than requiring a separate rework pass
 
 ## Goal
 
