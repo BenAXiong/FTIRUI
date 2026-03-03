@@ -260,4 +260,31 @@ Phase 7 – Pre-polishing pass
        - [x] note input height
        - [x] panel hb overlap
 
-       
+- [x] Phase 8 - User tiers: landing, migration, differential UI, quotas, read-only, upgrade
+    - [x] Research Django user db features and analytics priorities + log in Notion
+    - [x] Guests landing, UI, migration to account, upgrade flow
+        - [x] land on canvas with rainbow DnD and instructions
+        - [x] provide same feature as signed-in users with different quotas
+        - [x] implement guess-to-account migration
+        - [x] deal with extra canvas when quotas are exceeded
+        - [x] add badge, styling and read-only view for locked canvases
+        - [x] wire upgrade workflow : CTA to plans to payment UI
+        - [x] wire upgrade workflow : payment to paid plan
+        - [x] wire upgrade workflow : cancel subscription
+    - [x] Admin
+        - [x] Enable login with identifiers for testing
+        - [x] Create admin IDs free & paid users
+        - [x] Doc
+    - [x] Polish tier-based UI: quotas, lock badges styling, instructions and warnings
+        - [x] Migrate guest locked canvases too
+        - [x] Locked canvas styling: in tree keep only icon and highlight, ?
+        - [x] Non-guests: land on dash + tutos & tips if no content yet (drafts)
+            - [x] Case 1: Guest Canvas 4-step tuto + 3 tips
+            - [x] Case 2: Guest Dash
+            - [x] Case 3: Free Canvas
+            - [x] Case 4: Free Dash
+            - [x] Adapt all cards positions
+            - [x] Dim rest of interface
+            - [x] Options to turn everything off till polished
+        - [x] Display non-paid quotas (dash or popup?)
+

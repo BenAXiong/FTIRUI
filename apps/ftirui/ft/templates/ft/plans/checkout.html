@@ -6,86 +6,162 @@
 
 {% block page_body %}
   <main class="plans-shell plans-shell--checkout tex2jax_ignore">
-    <header class="plans-hero">
-      <div>
-        <p class="plans-kicker">Payment placeholder</p>
-        <h1 class="plans-title">Review your {{ checkout_plan.title }} upgrade.</h1>
-        <p class="plans-subtitle">
-          This is a fake checkout page so the routing, CTA placement, and quota messaging can be tested before real billing is implemented.
-        </p>
-      </div>
-      <div class="plans-hero-actions">
-        <a class="btn btn-outline-secondary" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}">Back to plans</a>
-      </div>
-    </header>
+    <section class="checkout-flow" aria-label="Placeholder checkout">
+      <header class="checkout-flow__header">
+        <a class="checkout-flow__back" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}" aria-label="Back to plans">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div class="checkout-flow__heading">
+          <h1 class="checkout-flow__title">{{ checkout_plan.title }}</h1>
+        </div>
+      </header>
 
-    <section class="checkout-grid">
-      <article class="plan-card is-featured">
-        <div class="plan-card__eyebrow">Selected plan</div>
-        <h2 class="plan-card__title">{{ checkout_plan.title }}</h2>
-        <div class="plan-card__price">{{ checkout_plan.price }}</div>
-        <p class="plan-card__description">{{ checkout_plan.summary }}</p>
-        <ul class="plan-card__features">
-          <li>Routing is already in place.</li>
-          <li>No real payment or quota change is executed yet.</li>
-          <li>The final checkout backend can replace this page later.</li>
-        </ul>
-      </article>
+      <section class="checkout-flow__options" aria-label="Billing options">
+        {% for option in checkout_plan.options %}
+          <a
+            class="checkout-option{% if option.slug == checkout_plan_option.slug %} is-active{% endif %}"
+            href="?plan={{ checkout_plan_slug }}&cycle={{ option.slug }}&next={{ plans_next_url|urlencode }}"
+          >
+            <span class="checkout-option__radio" aria-hidden="true"></span>
+            <span class="checkout-option__content">
+              <span class="checkout-option__label">{{ option.label }}</span>
+              <span class="checkout-option__line">{{ option.line }}</span>
+            </span>
+            {% if option.badge %}
+              <span class="checkout-option__badge">{{ option.badge }}</span>
+            {% endif %}
+          </a>
+        {% endfor %}
+      </section>
 
-      <section class="checkout-card" aria-label="Placeholder payment form">
-        <div class="checkout-card__note">Temporary payment form</div>
-        <h2 class="checkout-card__title">Confirm the upgrade flow.</h2>
+      <section class="checkout-panel" aria-label="Order details">
+        <h2 class="checkout-panel__title">Order details</h2>
+        <div class="checkout-summary-row">
+          <div>
+            <div class="checkout-summary-row__label">{{ checkout_plan.title }}</div>
+            <div class="checkout-summary-row__sub">{{ checkout_plan_option.label }}</div>
+          </div>
+          <div class="checkout-summary-row__value">{{ checkout_plan_option.amount_label }}</div>
+        </div>
+        <div class="checkout-summary-row is-total">
+          <div class="checkout-summary-row__label">Subtotal</div>
+          <div class="checkout-summary-row__value">{{ checkout_plan_option.amount_label }}</div>
+        </div>
+        <div class="checkout-summary-row is-total">
+          <div class="checkout-summary-row__label">Total due today</div>
+          <div class="checkout-summary-row__value">{{ checkout_plan_option.total_label }}</div>
+        </div>
+      </section>
+
+      <section class="checkout-panel checkout-panel--note" aria-label="Renewal note">
+        <div class="checkout-note">
+          <i class="bi bi-info-circle checkout-note__icon" aria-hidden="true"></i>
+          <p class="checkout-note__text">{{ checkout_plan_option.billing_note }}</p>
+        </div>
+      </section>
+
+      <section class="checkout-panel" aria-label="Payment method">
+        <h2 class="checkout-panel__title">Payment method</h2>
         {% if checkout_activation_success %}
           <div class="alert alert-success" role="status">{{ checkout_activation_success }}</div>
         {% endif %}
         {% if checkout_activation_error %}
           <div class="alert alert-warning" role="alert">{{ checkout_activation_error }}</div>
         {% endif %}
+
         {% if checkout_requires_auth %}
-          <p class="checkout-card__footnote">
-            Sign in first to activate the test subscription and exercise the paid quota flow on a real account.
+          <p class="checkout-panel__copy">
+            Sign in first to activate the placeholder subscription and test paid-plan quotas on a real account.
           </p>
-          <div class="checkout-card__actions">
-            <a class="btn btn-light" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}">Back to plans</a>
-            <a class="btn btn-primary" href="{{ checkout_login_url }}">Sign in</a>
+          <div class="checkout-form__actions">
+            <a class="btn btn-outline-light" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}">Back to plans</a>
+            <a class="btn btn-light" href="{{ checkout_login_url }}">Sign in</a>
           </div>
         {% else %}
-        <form method="post">
-          {% csrf_token %}
-          <div class="checkout-card__field">
-            <label for="checkout_name">Name on card</label>
-            <input id="checkout_name" name="checkout_name" type="text" class="form-control" placeholder="Ada Lovelace">
-          </div>
-          <div class="checkout-card__field">
-            <label for="checkout_email">Billing email</label>
-            <input id="checkout_email" name="checkout_email" type="email" class="form-control" placeholder="name@example.com">
-          </div>
-          <div class="checkout-card__row">
-            <div class="checkout-card__field">
+          <form method="post" class="checkout-form">
+            {% csrf_token %}
+            <input type="hidden" name="billing_cycle" value="{{ checkout_plan_option.slug }}">
+
+            <div class="checkout-form__field">
+              <label for="checkout_name">Full name</label>
+              <input id="checkout_name" name="checkout_name" type="text" class="form-control" placeholder="">
+            </div>
+
+            <div class="checkout-form__field">
+              <label for="checkout_region">Country or region</label>
+              <select id="checkout_region" name="checkout_region" class="form-control form-select">
+                <option value="Taiwan" selected>Taiwan</option>
+                <option value="United States">United States</option>
+                <option value="Japan">Japan</option>
+                <option value="Germany">Germany</option>
+              </select>
+            </div>
+
+            <div class="checkout-form__field">
+              <label for="checkout_postal_code">Postal code</label>
+              <input id="checkout_postal_code" name="checkout_postal_code" type="text" class="form-control" placeholder="">
+            </div>
+
+            <div class="checkout-method-toggle" aria-label="Payment type">
+              <button type="button" class="checkout-method-toggle__option is-active" aria-pressed="true">
+                <i class="bi bi-credit-card-2-front"></i>
+                <span>Card</span>
+              </button>
+            </div>
+
+            <div class="checkout-form__field">
+              <label for="checkout_email">Email</label>
+              <input id="checkout_email" name="checkout_email" type="email" class="form-control" placeholder="name@example.com">
+            </div>
+
+            <div class="checkout-form__field">
               <label for="checkout_card">Card number</label>
-              <input id="checkout_card" name="checkout_card" type="text" class="form-control" placeholder="4242 4242 4242 4242">
+              <input id="checkout_card" name="checkout_card" type="text" class="form-control" placeholder="1234 1234 1234 1234">
             </div>
-            <div class="checkout-card__field">
-              <label for="checkout_exp">Expiry</label>
-              <input id="checkout_exp" name="checkout_exp" type="text" class="form-control" placeholder="12/34">
+
+            <div class="checkout-form__row checkout-form__row--split">
+              <div class="checkout-form__field">
+                <label for="checkout_exp">Expiration date</label>
+                <input id="checkout_exp" name="checkout_exp" type="text" class="form-control" placeholder="MM / YY">
+              </div>
+              <div class="checkout-form__field">
+                <label for="checkout_cvc">Security code</label>
+                <input id="checkout_cvc" name="checkout_cvc" type="text" class="form-control" placeholder="CVC">
+              </div>
             </div>
-          </div>
-          <label class="form-check checkout-card__check">
-            <input class="form-check-input" type="checkbox" name="test_bypass">
-            <span class="form-check-label">This is a test billing flow. Activate {{ checkout_plan.title }} without real payment.</span>
-          </label>
-          <div class="checkout-card__actions">
-            <a class="btn btn-light" href="{{ plans_next_url|default:'/' }}">Return without upgrading</a>
-            {% if plans_current_plan == checkout_plan_slug and plans_billing_status == 'active' %}
-              <button type="button" class="btn btn-outline-light" disabled>Already active</button>
-            {% else %}
-              <button type="submit" class="btn btn-primary">Activate {{ checkout_plan.title }} (test)</button>
-            {% endif %}
-          </div>
-          <p class="checkout-card__footnote">
-            The real checkout implementation will replace this page and apply the final quota logic.
-          </p>
-        </form>
+
+            <label class="checkout-form__check">
+              <input type="checkbox" name="checkout_invoice_name">
+              <span>Use a different name on invoices</span>
+            </label>
+
+            <div class="checkout-form__field">
+              <label for="checkout_vat">Business tax ID (optional)</label>
+              <input id="checkout_vat" name="checkout_vat" type="text" class="form-control" placeholder="12345678">
+              <p class="checkout-form__hint">If you provide a tax ID, the full name above should be your business’s name.</p>
+            </div>
+
+            <label class="checkout-form__check">
+              <input type="checkbox" name="checkout_terms">
+              <span>You agree that Scisci will charge your selected plan and automatically renew it until you cancel.</span>
+            </label>
+
+            <button type="submit" class="btn btn-light checkout-form__submit">
+              {% if plans_current_plan == checkout_plan_slug and plans_billing_status == 'active' %}
+                Already active
+              {% else %}
+                Subscribe
+              {% endif %}
+            </button>
+
+            <details class="checkout-form__devtools">
+              <summary>Developer test activation</summary>
+              <label class="checkout-form__check checkout-form__check--dev">
+                <input type="checkbox" name="test_bypass">
+                <span>Activate {{ checkout_plan.title }} without real payment in this placeholder flow.</span>
+              </label>
+            </details>
+          </form>
         {% endif %}
       </section>
     </section>

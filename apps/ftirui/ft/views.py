@@ -657,17 +657,49 @@ def checkout_placeholder_page(request):
     next_path = request.GET.get("next") or reverse("ft:home")
     catalog = {
         "pro": {
-            "title": "Pro",
-            "price": "$19 / month",
+            "title": "Pro plan",
             "summary": "Unlimited projects, folders, and canvases.",
+            "options": [
+                {
+                    "slug": "monthly",
+                    "label": "Monthly",
+                    "line": "USD 5.00/month + tax",
+                    "amount_label": "USD 5",
+                    "total_label": "USD 5",
+                    "billing_note": "Your subscription will auto renew on *dynamic date*. You will be charged USD 5.00/month + tax.",
+                },
+                {
+                    "slug": "yearly",
+                    "label": "Yearly",
+                    "line": "USD 48.00/year + tax",
+                    "amount_label": "USD 48",
+                    "total_label": "USD 48",
+                    "badge": "Save xx%",
+                    "billing_note": "Your subscription will auto renew on *dynamic date*. You will be charged USD 48.00/year + tax.",
+                },
+            ],
         },
         "team": {
-            "title": "Team",
-            "price": "$49 / month",
-            "summary": "Unlimited workspace plus future team billing controls.",
+            "title": "Lifetime plan",
+            "summary": "One payment for permanent access to the paid workspace.",
+            "options": [
+                {
+                    "slug": "lifetime",
+                    "label": "Lifetime",
+                    "line": "USD 200.00 billed once",
+                    "amount_label": "USD 200",
+                    "total_label": "USD 200",
+                    "billing_note": "This is a one-time payment in the current placeholder flow.",
+                },
+            ],
         },
     }
     selected = catalog.get(plan, catalog["pro"])
+    requested_cycle = (request.POST.get("billing_cycle") or request.GET.get("cycle") or "").strip().lower()
+    selected_option = next(
+        (option for option in selected["options"] if option["slug"] == requested_cycle),
+        selected["options"][0],
+    )
     auth_user = request.user if request.user.is_authenticated else None
     plan_state = get_workspace_plan_state(request)
     current_plan = plan_state["plan"]
@@ -702,6 +734,7 @@ def checkout_placeholder_page(request):
         "dashboard_entry_url": f"{reverse('ft:home')}?pane=dashboard",
         "checkout_plan_slug": plan if plan in catalog else "pro",
         "checkout_plan": selected,
+        "checkout_plan_option": selected_option,
         "plans_next_url": next_path,
         "plans_current_plan": current_plan,
         "plans_billing_status": plan_state["billing_status"],
