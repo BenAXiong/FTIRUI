@@ -32,17 +32,17 @@ Use this as the execution tracker. Tick each item only when the code/config/docs
   - [x] Implement graceful fallback or temporary gating for unstable free-tier file features
   - [x] Verify dashboard/workspace behavior after restart/redeploy scenarios
 - [ ] 4. Add an alpha-specific deployment checklist and smoke pass
-  - Completed:
+  - Completed: `26/03/03 21:54`
   - Progress: `26/03/03 21:47`
   - [x] Write the deployment runbook
   - [x] Run manual smoke coverage on the deployed alpha
-  - [ ] Verify behavior after cold start
+  - [x] Verify behavior after cold start
   - [x] Verify behavior after redeploy
-- [ ] 5. Add free-tier operational guardrails
-  - Completed:
-  - [ ] Record Render Postgres expiry date
-  - [ ] Document expected free-tier cold starts and limits
-  - [ ] Add a simple rollback/recovery note
+- [x] 5. Add free-tier operational guardrails
+  - Completed: `26/03/03 21:54`
+  - [x] Record Render Postgres expiry date
+  - [x] Document expected free-tier cold starts and limits
+  - [x] Add a simple rollback/recovery note
 - [ ] 6. Keep PostHog and transactions as the next phase, not the alpha blocker
   - Completed:
   - [ ] Implement PostHog first pass

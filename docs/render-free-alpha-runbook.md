@@ -96,6 +96,23 @@ Cold start check:
 - Generated converted files are temporary and should be downloaded immediately.
 - The server `notes.md` endpoint should not be treated as durable user storage.
 - Cold starts are expected after idle periods on Render free.
+- Free web services spin down after `15 minutes` idle and take about `1 minute` to spin back up.
+- Free web services lose local filesystem changes on spin-down, restart, or redeploy.
+- Free web services share `750` free instance hours per workspace per calendar month.
+- Hobby includes `100 GB / month` outbound bandwidth and `500 / month` build pipeline minutes.
+
+## Free Postgres Guardrail
+
+Assumption:
+
+- the free Render Postgres database for this alpha was created on `March 3, 2026`
+
+Expected dates from that assumption:
+
+- expiry date: `April 2, 2026`
+- end of 14-day grace period: `April 16, 2026`
+
+If the database was actually created on a different date, shift both dates accordingly.
 
 ## Recovery Notes
 
@@ -112,3 +129,8 @@ If media-backed extras look broken after restart:
 - this is expected on the free-tier alpha
 - verify that canvas data still exists
 - continue unless core auth/dashboard/canvas persistence is broken
+
+## Sources
+
+- Render free docs: <https://render.com/docs/free>
+- Render pricing: <https://render.com/pricing>
