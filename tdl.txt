@@ -26,18 +26,18 @@ MVP Part 4/5 -- Workspace: HUD, Toolbars & tech features
             - [x] Adapt all cards positions
             - [x] Dim rest of interface
             - [x] Options to turn everything off till polished
-        - [-] Display non-paid quotas (dash or popup?)
-        - [ ] Design plans UI (draft)
-            - [ ] 
-            - [ ] 
+        - [x] Display non-paid quotas (dash or popup?)
 
-- [-] Phase 9 - Payment
+- [-] Phase 9 - Payment (draft)
+    - [x] Plans UI
+        - [x] Simplify and improve UI, l
+        - [x] Draft features and prices
     - [-] Research payment methods
     - [ ] Payment wiring (placeholder UI)
         - [ ] CTA - form - transaction - verif - destination
         - [ ] 
     - [ ] Payment UI
-        - [ ] (4.95/m in yearly, 7.95 otherwise)
+        - [ ] 
         - [ ] 
         
 - [ ] Phase 10 - Publish
@@ -76,6 +76,7 @@ Phase x – More features...
 - [ ] browser header: add style button for palette or templates, e.g. to change all canvas colors in one click
 - [ ] remove all modebar buttons..... to have more wysiwyg and switch to floating buttons?
         also instead of styyling chips?
+- [ ] stage feature to listen to files creation on user pc
 
 Phase x – Extra details
 - [ ] Workspace graph polish (popup width, replace on/off by toggles, remove titles when redundant).
@@ -96,6 +97,7 @@ Phase x – Extra details
 - [ ] (post-MVP?) figure out graph from SS behavior when multiple targets selected (flexible sequence)
 - [ ] (post-MVP?) ss templates: minimal, customs... for hidden rows, styles...?
 - [ ] (post-MVP?) add % system (add institution, ORCID, connections, etc)
+- [ ] (post-MVP!) SEO
 
 Phase x – (nondev)
 * TA and specific usage: for thosewho want lightning speed formatting and accurate no-code styling

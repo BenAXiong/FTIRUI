@@ -5,31 +5,43 @@
 {% block body_class %}bg-body app-frame app-plans-page{% endblock %}
 
 {% block page_body %}
-  <main class="plans-shell">
+  <main class="plans-shell tex2jax_ignore">
     <header class="plans-hero">
-      <div>
-        <p class="plans-kicker">Upgrade</p>
-        <h1 class="plans-title">Choose a plan that removes quota friction.</h1>
-        <p class="plans-subtitle">
-          These pages are temporary placeholders for the future billing flow. They are already wired so upgrade and quota paths can be tested safely.
-        </p>
-        <p class="plans-subtitle mb-0">
-          Test accounts can use addresses like <code>pro.alice@example.test</code> or <code>team.alice@example.test</code>. No inbox is required.
-        </p>
+      <div class="plans-hero-copy">
+        <h1 class="plans-title">Pricing</h1>
       </div>
       <div class="plans-hero-actions">
         <a class="btn btn-outline-secondary" href="{{ plans_next_url|default:'/' }}">Back</a>
       </div>
     </header>
 
+    <div class="plans-audience-toggle" role="tablist" aria-label="Audience">
+      <button type="button" class="plans-audience-toggle__option is-active" aria-selected="true">Individual</button>
+      <button type="button" class="plans-audience-toggle__option" aria-selected="false">Labs &amp; Institutes</button>
+    </div>
+
+    <div class="plans-hero-divider" aria-hidden="true"></div>
+
     <section class="plans-grid" aria-label="Available plans">
       {% for plan in plans %}
         <article class="plan-card{% if plan.is_featured %} is-featured{% endif %}{% if plan.is_current %} is-current{% endif %}">
-          <div class="plan-card__eyebrow">{{ plan.eyebrow }}</div>
-          <h2 class="plan-card__title">{{ plan.title }}</h2>
-          <p class="plan-card__subtitle">{{ plan.subtitle }}</p>
-          <div class="plan-card__price">{{ plan.price }}</div>
-          <p class="plan-card__description">{{ plan.description }}</p>
+          <div class="plan-card__summary">
+            <div class="plan-card__icon" aria-hidden="true">
+              {% if plan.slug == 'free' %}
+                <i class="bi bi-circle"></i>
+              {% elif plan.slug == 'pro' %}
+                <i class="bi bi-diagram-2"></i>
+              {% else %}
+                <i class="bi bi-diagram-3"></i>
+              {% endif %}
+            </div>
+            <h2 class="plan-card__title">{{ plan.title }}</h2>
+            {% if plan.subtitle %}
+              <p class="plan-card__subtitle">{{ plan.subtitle }}</p>
+            {% endif %}
+            <div class="plan-card__price">{{ plan.price }}</div>
+            <p class="plan-card__description">{{ plan.description }}</p>
+          </div>
 
           {% if plan.is_current %}
             <button type="button" class="btn btn-outline-light plan-card__cta" disabled>Current plan</button>
@@ -39,11 +51,28 @@
             </a>
           {% endif %}
 
+          <div class="plan-card__divider" aria-hidden="true"></div>
+          {% if plan.slug != 'free' %}
+            <p class="plan-card__feature-intro">
+              {% if plan.slug == 'pro' %}
+                Everything in Free, plus:
+              {% else %}
+                Everything in Pro, plus:
+              {% endif %}
+            </p>
+          {% endif %}
           <ul class="plan-card__features">
             {% for feature in plan.features %}
               <li>{{ feature }}</li>
             {% endfor %}
           </ul>
+          {% if plan.upcoming_features %}
+            <ul class="plan-card__features plan-card__features--upcoming" aria-label="Upcoming features">
+              {% for feature in plan.upcoming_features %}
+                <li>{{ feature }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
         </article>
       {% endfor %}
     </section>
