@@ -82,6 +82,25 @@ Recommended entitlement policy:
 
 That keeps the app policy aligned with Lemon Squeezy subscription semantics and dunning behavior.
 
+## Current Product Decisions
+
+These are the currently chosen billing/product defaults unless explicitly changed later:
+
+- paid plan lineup:
+  - `pro`
+  - optional `lifetime` only if it does not add unreasonable implementation complexity
+- billing cadences:
+  - `monthly`
+  - `yearly`
+- trial:
+  - `7 days`
+
+Practical interpretation for implementation:
+
+- build the first real billing path around `pro`
+- treat `lifetime` as a follow-on variant only if Lemon Squeezy product setup and entitlement handling stay simple
+- do not let `lifetime` delay the first subscription-based launch path
+
 ## User-Owned Setup
 
 These are the actions you must do yourself outside the codebase.
@@ -149,6 +168,20 @@ You need to do the live operator checks that code alone cannot prove:
 - verify recovery/dunning behavior you actually want
 - copy products to live when ready
 - switch Render from test credentials to live credentials
+
+## Practical Payout Note
+
+Practical recommendation for your current situation:
+
+- start with your existing TWD bank account
+- set Lemon Squeezy payouts to monthly if possible, or at least avoid overly frequent small payouts
+- only open a foreign-currency account if you confirm Lemon Squeezy can actually settle to your Taiwan bank in that foreign currency without forcing conversion to TWD first
+
+The one practical test that decides this:
+
+- in Lemon Squeezy payout settings, check whether you can choose payout currency = `USD` for bank transfer
+- confirm that Lemon Squeezy accepts your Taiwan bank details for `USD` settlement
+- if Lemon Squeezy forces payout in `TWD` or local-currency conversion first, a foreign-currency account will not help for this specific payout path
 
 ## Implementation Strategy In This Repo
 
