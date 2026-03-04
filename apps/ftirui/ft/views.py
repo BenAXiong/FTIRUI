@@ -3,10 +3,12 @@ from __future__ import annotations
 import base64
 import binascii
 import calendar
+import json
 import io
 import re
 import tempfile
 from functools import wraps
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import quote
@@ -27,7 +29,6 @@ from django.core.signing import BadSignature
 
 import pandas as pd 
 import numpy as np
-import json
 
 # Matplotlib headless backend
 import matplotlib
@@ -55,6 +56,15 @@ from .workspace_policy import (
     get_workspace_usage,
     identity_is_authenticated,
     is_guest_workspace_owner,
+)
+from .billing.lemonsqueezy import (
+    CheckoutRequest,
+    LemonSqueezyError,
+    billing_enabled as lemonsqueezy_enabled,
+    create_checkout as create_lemonsqueezy_checkout,
+    get_customer_portal_url,
+    sync_webhook_event,
+    verify_webhook_signature,
 )
 
 BASE_DIR = Path(__file__).resolve().parents[1]          # apps/ftirui
@@ -765,27 +775,29 @@ def checkout_placeholder_page(request):
 
     if request.method == "POST":
         if not auth_user:
-            activation_error = "Sign in before activating a test subscription."
-        elif request.POST.get("test_bypass") != "on":
-            activation_error = "Confirm the test-billing checkbox to activate the placeholder subscription."
-        elif request.POST.get("test_force_failure") == "on":
-            failed_url = (
-                f"{reverse('ft:checkout_failed')}"
-                f"?plan={quote(plan)}"
-                f"&cycle={quote(selected_option['slug'])}"
-                f"&next={quote(next_path, safe='/?=&')}"
-            )
-            return _finalize_workspace_response(request, HttpResponseRedirect(failed_url))
+            activation_error = "Sign in before starting checkout."
+        elif not lemonsqueezy_enabled():
+            activation_error = "Billing is not configured yet on this deployment."
+        elif request.POST.get("checkout_terms") != "on":
+            activation_error = "Agree to the renewal terms before continuing to checkout."
         else:
-            subscription = activate_test_subscription(auth_user, plan)
-            activation_success = f'{subscription.plan.capitalize()} test subscription activated.'
-            success_url = (
-                f"{reverse('ft:checkout_success')}"
-                f"?plan={subscription.plan}"
-                f"&billing=test-upgraded"
-                f"&next={quote(dashboard_target, safe='/?=&')}"
-            )
-            return _finalize_workspace_response(request, HttpResponseRedirect(success_url))
+            try:
+                checkout_url = create_lemonsqueezy_checkout(
+                    CheckoutRequest(
+                        user_id=str(auth_user.pk),
+                        email=(auth_user.email or "").strip(),
+                        name=(auth_user.get_full_name() or auth_user.username or "").strip(),
+                        plan=plan,
+                        interval=selected_option["slug"],
+                        source="plans_page",
+                    )
+                )
+            except LemonSqueezyError as exc:
+                activation_error = str(exc)
+            except Exception:
+                activation_error = "Could not create the hosted checkout right now. Please try again."
+            else:
+                return _finalize_workspace_response(request, HttpResponseRedirect(checkout_url))
 
     context = {
         "workspace_only": False,
@@ -870,6 +882,13 @@ def checkout_failed_page(request):
 @require_http_methods(["POST"])
 @login_required
 def downgrade_subscription(request):
+    subscription = WorkspaceSubscription.objects.filter(owner=request.user).first()
+    if lemonsqueezy_enabled() and subscription and subscription.billing_provider == "lemonsqueezy":
+        try:
+            return HttpResponseRedirect(get_customer_portal_url())
+        except LemonSqueezyError:
+            pass
+
     subscription, _ = WorkspaceSubscription.objects.get_or_create(owner=request.user)
     subscription.plan = WorkspaceSubscription.PLAN_FREE
     subscription.billing_status = WorkspaceSubscription.STATUS_INACTIVE
@@ -878,6 +897,32 @@ def downgrade_subscription(request):
     subscription.save(update_fields=["plan", "billing_status", "billing_provider", "activated_at", "updated_at"])
     next_path = request.POST.get("next") or reverse("ft:profile")
     return HttpResponseRedirect(next_path)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_billing_lemonsqueezy_webhook(request):
+    signature = request.headers.get("X-Signature", "")
+    if not verify_webhook_signature(request.body, signature):
+        return JsonResponse({"error": "Invalid webhook signature."}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (UnicodeDecodeError, JSONDecodeError):
+        return JsonResponse({"error": "Invalid webhook payload."}, status=400)
+
+    def owner_resolver(user_id):
+        return get_user_model().objects.filter(pk=user_id).first()
+
+    subscription = sync_webhook_event(payload, owner_resolver=owner_resolver)
+    event_name = ((payload.get("meta") or {}).get("event_name") or "").strip()
+    return JsonResponse(
+        {
+            "ok": True,
+            "event_name": event_name,
+            "subscription_synced": bool(subscription),
+        }
+    )
 
 @require_http_methods(["POST"])
 def preview(request):

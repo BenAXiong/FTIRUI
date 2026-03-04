@@ -49,4 +49,5 @@ urlpatterns += [
     path('api/dashboard/canvases/<uuid:canvas_id>/thumbnail/', views.api_dashboard_canvas_thumbnail, name='api_dashboard_canvas_thumbnail'),
     path('api/dashboard/canvases/<uuid:canvas_id>/versions/', views.api_dashboard_canvas_versions, name='api_dashboard_canvas_versions'),
     path('api/dashboard/canvases/<uuid:canvas_id>/versions/<uuid:version_id>/', views.api_dashboard_canvas_version_detail, name='api_dashboard_canvas_version_detail'),
+    path('api/billing/lemonsqueezy/webhook/', views.api_billing_lemonsqueezy_webhook, name='api_billing_lemonsqueezy_webhook'),
 ]

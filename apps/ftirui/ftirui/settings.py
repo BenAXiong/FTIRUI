@@ -57,6 +57,13 @@ def _env_list(key: str, default: list[str] | None = None) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _env_int(key: str, default: int | None = None) -> int | None:
+    raw = os.getenv(key)
+    if raw is None or not raw.strip():
+        return default
+    return int(raw)
+
+
 _local_hosts = ["127.0.0.1", "localhost"]
 ALLOWED_HOSTS = _env_list("ALLOWED_HOSTS", default=_local_hosts if DEBUG else [])
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
@@ -238,6 +245,17 @@ WORKSPACE_LEGACY_ENABLED = _env_flag("WORKSPACE_LEGACY_ENABLED", default=os.gete
 WORKSPACE_DEV_SHORTCUT_ENABLED = _env_flag("WORKSPACE_DEV_SHORTCUT_ENABLED", default=True)
 DASHBOARD_V2_ENABLED = _env_flag("DASHBOARD_V2_ENABLED", default=True)
 POSTHOG_ENABLED = _env_flag("POSTHOG_ENABLED", default=(not DEBUG and bool(POSTHOG_PUBLIC_KEY)))
+LEMONSQUEEZY_ENABLED = _env_flag("LEMONSQUEEZY_ENABLED", default=False)
+LEMONSQUEEZY_MODE = os.getenv("LEMONSQUEEZY_MODE", "test").strip().lower() or "test"
+LEMONSQUEEZY_API_BASE = os.getenv("LEMONSQUEEZY_API_BASE", "https://api.lemonsqueezy.com/v1").strip()
+LEMONSQUEEZY_API_KEY = os.getenv("LEMONSQUEEZY_API_KEY", "").strip()
+LEMONSQUEEZY_STORE_ID = _env_int("LEMONSQUEEZY_STORE_ID")
+LEMONSQUEEZY_STORE_DOMAIN = os.getenv("LEMONSQUEEZY_STORE_DOMAIN", "").strip()
+LEMONSQUEEZY_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "").strip()
+LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID = _env_int("LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID")
+LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID = _env_int("LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID")
+LEMONSQUEEZY_CHECKOUT_SUCCESS_URL = os.getenv("LEMONSQUEEZY_CHECKOUT_SUCCESS_URL", "").strip()
+LEMONSQUEEZY_CHECKOUT_CANCEL_URL = os.getenv("LEMONSQUEEZY_CHECKOUT_CANCEL_URL", "").strip()
 
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = os.getenv("LOGIN_REDIRECT_URL", "/")

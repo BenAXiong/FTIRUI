@@ -1,5 +1,8 @@
 import json
+import hashlib
+import hmac
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -474,24 +477,23 @@ class DashboardApiTests(TestCase):
         self.assertContains(checkout, "Review your Pro upgrade")
 
     def test_checkout_test_activation_sets_unlimited_plan(self):
-        response = self.client.post(
-            "/plans/checkout/?plan=pro&next=/",
-            data={"test_bypass": "on"},
-            follow=False,
-        )
+        with override_settings(
+            LEMONSQUEEZY_ENABLED=True,
+            LEMONSQUEEZY_STORE_ID=305843,
+            LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID=1364880,
+            LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID=1364816,
+        ):
+            with patch("ft.views.create_lemonsqueezy_checkout", return_value="https://checkout.test/abc123") as mocked_checkout:
+                response = self.client.post(
+                    "/plans/checkout/?plan=pro&next=/",
+                    data={"billing_cycle": "monthly", "checkout_terms": "on"},
+                    follow=False,
+                )
+
         self.assertEqual(response.status_code, 302)
-        self.assertIn("billing=test-upgraded", response["Location"])
-
-        subscription = WorkspaceSubscription.objects.get(owner=self.user)
-        self.assertEqual(subscription.plan, WorkspaceSubscription.PLAN_PRO)
-        self.assertEqual(subscription.billing_status, WorkspaceSubscription.STATUS_ACTIVE)
-
-        me = self.client.get("/api/me/")
-        self.assertEqual(me.status_code, 200)
-        payload = me.json()
-        self.assertEqual(payload["plan"], "pro")
-        self.assertEqual(payload["billing_status"], "active")
-        self.assertTrue(payload["is_unlimited"])
+        self.assertEqual(response["Location"], "https://checkout.test/abc123")
+        mocked_checkout.assert_called_once()
+        self.assertFalse(WorkspaceSubscription.objects.filter(owner=self.user).exists())
 
     def test_paid_plan_create_canvas_does_not_lock_oldest_canvas(self):
         WorkspaceSubscription.objects.create(
@@ -537,6 +539,24 @@ class DashboardApiTests(TestCase):
         self.assertEqual(payload["plan"], "free")
         self.assertEqual(payload["billing_status"], "inactive")
         self.assertFalse(payload["is_unlimited"])
+
+    @override_settings(
+        LEMONSQUEEZY_ENABLED=True,
+        LEMONSQUEEZY_STORE_DOMAIN="scix.lemonsqueezy.com",
+    )
+    def test_manage_billing_redirects_to_lemonsqueezy_portal_for_paid_provider(self):
+        WorkspaceSubscription.objects.create(
+            owner=self.user,
+            plan=WorkspaceSubscription.PLAN_PRO,
+            billing_status=WorkspaceSubscription.STATUS_ACTIVE,
+            billing_provider="lemonsqueezy",
+            provider_subscription_id="sub_123",
+        )
+
+        response = self.client.post("/plans/downgrade/", data={"next": "/profile/"}, follow=False)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "https://scix.lemonsqueezy.com/billing")
 
     def test_downgrade_locks_least_recently_updated_canvases(self):
         WorkspaceSubscription.objects.create(
@@ -785,3 +805,66 @@ class DashboardApiTests(TestCase):
         self.assertEqual(canvas_payload["id"], str(folder_canvas.id))
         self.assertEqual(canvas_payload["project_id"], str(folder_project.id))
         self.assertEqual(canvas_payload["title"], folder_canvas.title)
+
+    @override_settings(
+        LEMONSQUEEZY_WEBHOOK_SECRET="test-secret",
+        LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID=1364880,
+        LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID=1364816,
+    )
+    def test_lemonsqueezy_webhook_syncs_subscription_to_paid(self):
+        payload = {
+            "meta": {
+                "event_name": "subscription_created",
+                "custom_data": {
+                    "user_id": str(self.user.pk),
+                    "plan": "pro",
+                    "interval": "monthly",
+                    "source": "plans_page",
+                },
+            },
+            "data": {
+                "type": "subscriptions",
+                "id": "sub_test_123",
+                "attributes": {
+                    "status": "on_trial",
+                    "test_mode": True,
+                    "customer_id": 4321,
+                    "order_id": 5678,
+                    "product_id": 866507,
+                    "variant_id": 1364880,
+                    "renews_at": "2026-03-10T00:00:00Z",
+                    "ends_at": None,
+                    "cancelled_at": None,
+                },
+            },
+        }
+        body = json.dumps(payload).encode("utf-8")
+        signature = hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
+
+        response = self.client.post(
+            "/api/billing/lemonsqueezy/webhook/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_SIGNATURE=signature,
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        subscription = WorkspaceSubscription.objects.get(owner=self.user)
+        self.assertEqual(subscription.billing_provider, "lemonsqueezy")
+        self.assertEqual(subscription.provider_subscription_id, "sub_test_123")
+        self.assertEqual(subscription.provider_variant_id, "1364880")
+        self.assertEqual(subscription.plan, WorkspaceSubscription.PLAN_PRO)
+        self.assertEqual(subscription.billing_status, WorkspaceSubscription.STATUS_ACTIVE)
+        self.assertTrue(subscription.provider_test_mode)
+
+    @override_settings(LEMONSQUEEZY_WEBHOOK_SECRET="test-secret")
+    def test_lemonsqueezy_webhook_rejects_bad_signature(self):
+        payload = {"meta": {"event_name": "subscription_created"}, "data": {"type": "subscriptions", "id": "sub_bad", "attributes": {}}}
+        response = self.client.post(
+            "/api/billing/lemonsqueezy/webhook/",
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_SIGNATURE="bad-signature",
+        )
+
+        self.assertEqual(response.status_code, 403)

@@ -6,7 +6,7 @@
 
 {% block page_body %}
   <main class="plans-shell plans-shell--checkout tex2jax_ignore">
-    <section class="checkout-flow" aria-label="Placeholder checkout">
+    <section class="checkout-flow" aria-label="Hosted checkout">
       <header class="checkout-flow__header">
         <a class="checkout-flow__back" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}" aria-label="Back to plans">
           <i class="bi bi-arrow-left"></i>
@@ -71,7 +71,7 @@
 
         {% if checkout_requires_auth %}
           <p class="checkout-panel__copy">
-            Sign in first to activate the placeholder subscription and test paid-plan quotas on a real account.
+            Sign in first to continue to the hosted Lemon Squeezy checkout.
           </p>
           <div class="checkout-form__actions">
             <a class="btn btn-outline-light" href="{% url 'ft:plans' %}?next={{ plans_next_url|urlencode }}">Back to plans</a>
@@ -82,67 +82,12 @@
             {% csrf_token %}
             <input type="hidden" name="billing_cycle" value="{{ checkout_plan_option.slug }}">
 
-            <div class="checkout-form__field">
-              <label for="checkout_name">Full name</label>
-              <input id="checkout_name" name="checkout_name" type="text" class="form-control" placeholder="">
-            </div>
-
-            <div class="checkout-form__field">
-              <label for="checkout_region">Country or region</label>
-              <select id="checkout_region" name="checkout_region" class="form-control form-select">
-                <option value="Taiwan" selected>Taiwan</option>
-                <option value="United States">United States</option>
-                <option value="Japan">Japan</option>
-                <option value="Germany">Germany</option>
-              </select>
-            </div>
-
-            <div class="checkout-form__field">
-              <label for="checkout_postal_code">Postal code</label>
-              <input id="checkout_postal_code" name="checkout_postal_code" type="text" class="form-control" placeholder="">
-            </div>
-
-            <div class="checkout-method-toggle" aria-label="Payment type">
-              <button type="button" class="checkout-method-toggle__option is-active" aria-pressed="true">
-                <i class="bi bi-credit-card-2-front"></i>
-                <span>Card</span>
-              </button>
-            </div>
-
-            <div class="checkout-form__field">
-              <label for="checkout_email">Email</label>
-              <input id="checkout_email" name="checkout_email" type="email" class="form-control" placeholder="name@example.com">
-            </div>
-
-            <div class="checkout-form__field">
-              <label for="checkout_card">Card number</label>
-              <input id="checkout_card" name="checkout_card" type="text" class="form-control" placeholder="1234 1234 1234 1234">
-            </div>
-
-            <div class="checkout-form__row checkout-form__row--split">
-              <div class="checkout-form__field">
-                <label for="checkout_exp">Expiration date</label>
-                <input id="checkout_exp" name="checkout_exp" type="text" class="form-control" placeholder="MM / YY">
-              </div>
-              <div class="checkout-form__field">
-                <label for="checkout_cvc">Security code</label>
-                <input id="checkout_cvc" name="checkout_cvc" type="text" class="form-control" placeholder="CVC">
-              </div>
-            </div>
+            <p class="checkout-panel__copy">
+              Payment details, billing address, and tax handling are completed securely in Lemon Squeezy's hosted checkout.
+            </p>
 
             <label class="checkout-form__check">
-              <input type="checkbox" name="checkout_invoice_name">
-              <span>Use a different name on invoices</span>
-            </label>
-
-            <div class="checkout-form__field">
-              <label for="checkout_vat">Business tax ID (optional)</label>
-              <input id="checkout_vat" name="checkout_vat" type="text" class="form-control" placeholder="12345678">
-              <p class="checkout-form__hint">If you provide a tax ID, the full name above should be your business’s name.</p>
-            </div>
-
-            <label class="checkout-form__check">
-              <input type="checkbox" name="checkout_terms">
+              <input type="checkbox" name="checkout_terms" id="checkout-terms">
               <span>You agree that Scisci will charge your selected plan and automatically renew it until you cancel.</span>
             </label>
 
@@ -156,22 +101,10 @@
               {% if plans_current_plan == checkout_plan_slug and plans_billing_status == 'active' %}
                 Already active
               {% else %}
-                Subscribe
+                Continue to secure checkout
               {% endif %}
             </button>
-            <p class="checkout-form__submit-hint">Enable developer test activation below to submit this placeholder checkout.</p>
-
-            <details class="checkout-form__devtools">
-              <summary>Developer test activation</summary>
-              <label class="checkout-form__check checkout-form__check--dev">
-                <input type="checkbox" name="test_bypass" id="checkout-test-bypass">
-                <span>Activate {{ checkout_plan.title }} without real payment in this placeholder flow.</span>
-              </label>
-              <label class="checkout-form__check checkout-form__check--dev">
-                <input type="checkbox" name="test_force_failure" id="checkout-test-failure">
-                <span>Simulate payment failure and open the failed-payment placeholder.</span>
-              </label>
-            </details>
+            <p class="checkout-form__submit-hint">You will leave Scisci briefly to complete payment in Lemon Squeezy.</p>
           </form>
         {% endif %}
       </section>
@@ -180,14 +113,14 @@
   <script>
     (function () {
       const submitBtn = document.getElementById('checkout-submit-btn');
-      const bypassToggle = document.getElementById('checkout-test-bypass');
-      if (!submitBtn || !bypassToggle) return;
+      const termsToggle = document.getElementById('checkout-terms');
+      if (!submitBtn || !termsToggle) return;
       const submitLocked = submitBtn.dataset.submitLocked === 'true';
       const syncSubmitState = function () {
-        submitBtn.disabled = submitLocked || !bypassToggle.checked;
+        submitBtn.disabled = submitLocked || !termsToggle.checked;
       };
       syncSubmitState();
-      bypassToggle.addEventListener('change', syncSubmitState);
+      termsToggle.addEventListener('change', syncSubmitState);
     })();
   </script>
 {% endblock %}

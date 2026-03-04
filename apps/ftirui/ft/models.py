@@ -182,12 +182,25 @@ class WorkspaceSubscription(models.Model):
     plan = models.CharField(max_length=16, choices=PLAN_CHOICES, default=PLAN_FREE)
     billing_status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_INACTIVE)
     billing_provider = models.CharField(max_length=32, blank=True, default="")
+    provider_customer_id = models.CharField(max_length=64, blank=True, default="")
+    provider_subscription_id = models.CharField(max_length=64, blank=True, default="")
+    provider_order_id = models.CharField(max_length=64, blank=True, default="")
+    provider_product_id = models.CharField(max_length=64, blank=True, default="")
+    provider_variant_id = models.CharField(max_length=64, blank=True, default="")
+    provider_status = models.CharField(max_length=32, blank=True, default="")
+    provider_test_mode = models.BooleanField(default=False)
+    current_period_ends_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    last_event_name = models.CharField(max_length=64, blank=True, default="")
+    last_event_at = models.DateTimeField(null=True, blank=True)
     activated_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         indexes = [
             models.Index(fields=["plan", "billing_status"]),
+            models.Index(fields=["provider_subscription_id"]),
         ]
 
     def __str__(self):

@@ -101,6 +101,34 @@ Practical interpretation for implementation:
 - treat `lifetime` as a follow-on variant only if Lemon Squeezy product setup and entitlement handling stay simple
 - do not let `lifetime` delay the first subscription-based launch path
 
+## Current Test-Mode Setup Snapshot
+
+Current known Lemon Squeezy test-mode setup:
+
+- account/store:
+  - approved
+  - working in `test mode`
+- API key:
+  - created
+  - label: `SciC test`
+  - do not store the raw secret in repo docs
+- product:
+  - `SciX Pro`
+  - product id: `866507`
+- store id:
+  - store name/domain: `scix.lemonsqueezy.com`
+  - numeric store id: `305843`
+- variants:
+  - original default/monthly mapping remains ambiguous because `866507` matches the currently recorded product id
+  - test variant `SciX Pro - Monthly no trial` id: `1364850`
+  - test variant `SciX Pro - Monthly (free trial 7d)` id: `1364880`
+  - `Pro Yearly` id: `1364816`
+
+Operational rule:
+
+- keep secrets in Render/env storage or your password manager
+- only store non-sensitive ids and labels in repo docs
+
 ## User-Owned Setup
 
 These are the actions you must do yourself outside the codebase.
