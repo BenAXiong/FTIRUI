@@ -175,22 +175,24 @@ Result:
 
 No email verification is involved.
 
-## Temporary Billing Flow
+## Current Billing Flow
 
-Current billing flow is intentionally fake but persistent.
+Current billing behavior is now split:
+
+- primary path: Lemon Squeezy hosted checkout in `test mode`
+- fallback path: local placeholder downgrade/free-state mutation if billing is disabled or unavailable
 
 Pages:
 - `/plans/`
 - `/plans/checkout/`
+- `/plans/checkout/success/`
+- `/plans/checkout/failed/`
 
-Checkout region/address note:
-- the current checkout country/region field is still placeholder UX, not real billing-country logic
-- do not expand it into a full global country list until it also drives:
-  - address field variants
-  - postal code semantics
-  - tax/VAT wording
-  - final provider-side billing behavior
-- until then, keep the field visually simple and do not imply region-specific pricing or payment availability
+Current real test-mode path:
+
+- checkout `POST` creates a hosted Lemon Squeezy checkout
+- billing state is meant to be synchronized back into the app through the Lemon Squeezy webhook
+- success/failure pages are UX transitions, not the billing source of truth
 
 Model:
 - `WorkspaceSubscription`
@@ -208,12 +210,12 @@ Current billing status values:
 - `inactive`
 - `active`
 
-Activation path:
-- checkout `POST` activates a test subscription for the current authenticated user
+Current test-mode provider:
+- `lemonsqueezy`
 
 Downgrade path:
-- available in profile/settings flow
-- resets the account back to free
+- profile/settings currently routes paid Lemon Squeezy users toward billing management
+- local reset-to-free behavior still exists as fallback behavior when the provider flow is not active
 
 ## Quota Behavior
 

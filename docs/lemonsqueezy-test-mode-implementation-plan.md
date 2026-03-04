@@ -318,6 +318,48 @@ After code is deployed and env vars are set, run this manual test sequence:
 - simulate `subscription_expired`
 - confirm local app state changes match the policy
 
+### Latest Verification Snapshot
+
+Latest confirmed test-mode behavior:
+
+- hosted checkout opens successfully from the live SciX app
+- Lemon Squeezy orders are created successfully from SciX
+- monthly checkout with `7-day` trial completed successfully
+- cancellation path completed successfully in test mode
+- yearly checkout completed successfully in test mode
+- live app state was manually verified after checkout:
+  - `plan=pro`
+  - `billing_status=active`
+
+Remaining follow-up:
+
+- confirm webhook delivery history directly in Lemon Squeezy for the main subscription events
+- verify one end-to-end downgrade/expiry path against the final entitlement policy you want to keep
+- decide and document the final `Recovery & Dunning` policy in Lemon Squeezy:
+  - how long failed payments should retry
+  - whether dunning should auto-cancel
+  - what local entitlement state should remain during unpaid / past-due windows
+- confirm final product / variant pricing behavior in Lemon Squeezy:
+  - billing currency
+  - `7-day` trial behavior
+  - yearly discount behavior
+  - coupon behavior
+  - whether the `NT$` checkout / receipt display is the intended currency outcome
+
+## Beta Profile Requirement
+
+For beta, the user profile should explicitly show the subscription state to the user.
+
+Minimum profile states to expose:
+
+- normal active subscription status
+- cancelled subscription status
+
+Practical expectation:
+
+- a user with an active paid subscription should be able to see that they are paid
+- a user who has cancelled but still has access until period end should be able to see that clearly in profile instead of being shown only a generic paid/free badge
+
 ## Immediate Practical Recommendation
 
 For the first code pass, use:

@@ -18,6 +18,7 @@ For each item:
 
 - Reference strategy doc:
   - `docs/lemonsqueezy-billing-strategy.md`
+- [ ] For beta, show subscription state clearly in profile, including normal active status and cancelled-but-still-valid status.
 - [ ] Replace `/plans/` placeholder content with final plan copy, pricing, and entitlements.
 - [ ] Replace `/plans/checkout/` fake checkout flow with real billing provider integration.
 - [ ] Remove the `test_bypass` checkbox from checkout.

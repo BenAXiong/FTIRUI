@@ -18,7 +18,7 @@
       <div class="checkout-success__actions">
         <a class="btn btn-light" href="{{ checkout_success_next_url }}">Back to dashboard</a>
       </div>
-      <p class="checkout-success__hint">Redirecting in 2 seconds.</p>
+      <p class="checkout-success__hint">Redirecting in 10 seconds.</p>
     </section>
   </main>
   {{ checkout_success_next_url|json_script:"checkout-success-next-url" }}
@@ -26,6 +26,6 @@
     const checkoutSuccessNextUrl = JSON.parse(document.getElementById('checkout-success-next-url').textContent);
     window.setTimeout(function () {
       window.location.href = checkoutSuccessNextUrl;
-    }, 2000);
+    }, 10000);
   </script>
 {% endblock %}

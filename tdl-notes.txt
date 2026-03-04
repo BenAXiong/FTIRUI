@@ -99,6 +99,7 @@ Pro features
 - custom tags (based on existing)
 - pub/PR mode: specific QoL additions, eg auto placement and seq for Fig letters (a.) and styling
 - faving options: when options become plentiful and too hierarchical, enable pinning some to the top
+- (pro) automation/macro: custom buttons that chain commands dep on triggers
 
 Future explorations
 - [ ] Next tech = XRD & CV?
